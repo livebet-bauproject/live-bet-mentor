@@ -460,7 +460,7 @@ const SOFASCORE_HEADERS = {
 
 async function fetchSofaScoreLiveNode() {
     try {
-        const url = `https://www.sofascore.com/api/v1/sport/football/events/live?_=${Date.now()}`;
+        const url = `https://api.sofascore.com/api/v1/sport/football/events/live?_=${Date.now()}`;
         const response = await fetch(url, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(12000) });
         if (response.ok) {
             const data = await response.json();
@@ -483,8 +483,8 @@ async function fetchSofaScoreLiveNode() {
 async function fetchMatchStatsNode(eventId) {
     try {
         const [detailRes, statsRes] = await Promise.all([
-            fetch(`https://www.sofascore.com/api/v1/event/${eventId}`, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(10000) }).catch(() => null),
-            fetch(`https://www.sofascore.com/api/v1/event/${eventId}/statistics`, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(10000) }).catch(() => null)
+            fetch(`https://api.sofascore.com/api/v1/event/${eventId}`, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(10000) }).catch(() => null),
+            fetch(`https://api.sofascore.com/api/v1/event/${eventId}/statistics`, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(10000) }).catch(() => null)
         ]);
 
         if (detailRes && detailRes.ok) {

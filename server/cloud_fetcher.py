@@ -107,28 +107,29 @@ def update_central_odds(match_id, odds_data):
         logger.warning(f"[ODDS] Update failed for {match_id}: {e}")
 
 def fetch_live_events(session):
-    url = f"https://www.sofascore.com/api/v1/sport/football/events/live?_={int(time.time())}"
-    try:
-        resp = session.get(url, headers=HEADERS, timeout=12)
-        if resp.status_code == 200:
-            data = resp.json()
-            events = data.get('events', [])
-            atomic_write_json(DATA_FILE, data)
-            logger.info(f"Live events updated: {len(events)} matches found")
-            return events
-        else:
-            logger.warning(f"SofaScore live returned HTTP {resp.status_code}")
-            return None
-    except Exception as e:
-        logger.error(f"Live events fetch error: {e}")
-        return None
+    for domain in ["https://api.sofascore.com", "https://www.sofascore.com"]:
+        url = f"{domain}/api/v1/sport/football/events/live?_={int(time.time())}"
+        try:
+            resp = session.get(url, headers=HEADERS, timeout=12)
+            if resp.status_code == 200:
+                data = resp.json()
+                events = data.get('events', [])
+                atomic_write_json(DATA_FILE, data)
+                logger.info(f"Live events updated: {len(events)} matches found (via {domain})")
+                return events
+            else:
+                logger.warning(f"SofaScore live ({domain}) returned HTTP {resp.status_code}")
+        except Exception as e:
+            logger.error(f"Live events fetch error ({domain}): {e}")
+    return None
 
 def fetch_match_details_and_stats(session, match_id):
     detail_saved = False
     stats_saved = False
 
+    # 1. Detail
     try:
-        url = f"https://www.sofascore.com/api/v1/event/{match_id}?_={int(time.time())}"
+        url = f"https://api.sofascore.com/api/v1/event/{match_id}?_={int(time.time())}"
         resp = session.get(url, headers=HEADERS, timeout=8)
         if resp.status_code == 200:
             detail_data = resp.json()
@@ -140,8 +141,9 @@ def fetch_match_details_and_stats(session, match_id):
     except Exception as e:
         logger.debug(f"Detail fetch error for {match_id}: {e}")
 
+    # 2. Statistics
     try:
-        url = f"https://www.sofascore.com/api/v1/event/{match_id}/statistics?_={int(time.time())}"
+        url = f"https://api.sofascore.com/api/v1/event/{match_id}/statistics?_={int(time.time())}"
         resp = session.get(url, headers=HEADERS, timeout=8)
         if resp.status_code == 200:
             stats_data = resp.json()
@@ -153,8 +155,9 @@ def fetch_match_details_and_stats(session, match_id):
     except Exception as e:
         logger.debug(f"Stats fetch error for {match_id}: {e}")
 
+    # 3. Odds (best effort)
     try:
-        url = f"https://www.sofascore.com/api/v1/event/{match_id}/odds/1/3?_={int(time.time())}"
+        url = f"https://api.sofascore.com/api/v1/event/{match_id}/odds/1/3?_={int(time.time())}"
         resp = session.get(url, headers=HEADERS, timeout=6)
         if resp.status_code == 200:
             odds_data = resp.json()
