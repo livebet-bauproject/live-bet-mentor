@@ -447,8 +447,37 @@ const IS_CLOUD = !fs.existsSync(path.join(__dirname, '..', '.env')) || process.e
 
 function startScraper() {
     if (IS_CLOUD) {
-        console.log('[PROXY] Cloud environment detected. Using Node.js fetcher instead of Python scraper.');
-        nodeDataLoop();
+        console.log('[PROXY] Cloud environment detected. Starting lightweight Python cloud_fetcher (curl_cffi)...');
+        const pythonCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
+        const fetcherPath = path.join(__dirname, 'cloud_fetcher.py');
+
+        try {
+            scraperProcess = spawn(pythonCmd, [fetcherPath], {
+                stdio: 'inherit'
+            });
+
+            scraperProcess.on('error', (err) => {
+                console.error(`[PROXY] Cloud fetcher spawn error with "${pythonCmd}": ${err.message}. Trying "python"...`);
+                try {
+                    scraperProcess = spawn('python', [fetcherPath], { stdio: 'inherit' });
+                    scraperProcess.on('error', (e2) => {
+                        console.error('[PROXY] Cloud fetcher failed completely, falling back to Node fetcher:', e2.message);
+                        nodeDataLoop();
+                    });
+                } catch (fallbackErr) {
+                    nodeDataLoop();
+                }
+            });
+
+            scraperProcess.on('close', (code) => {
+                console.log(`[PROXY] Cloud fetcher exited with code ${code}. Restarting in 15s...`);
+                scraperProcess = null;
+                setTimeout(startScraper, 15000);
+            });
+        } catch (err) {
+            console.error('[PROXY] Failed to start cloud fetcher, falling back to Node fetcher:', err.message);
+            nodeDataLoop();
+        }
         return;
     }
     try {

@@ -2,8 +2,8 @@
   "dailyStats": {
     "won": 0,
     "lost": 0,
-    "pending": 24,
-    "total": 24,
+    "pending": 27,
+    "total": 27,
     "signals": [
       {
         "match": "Lille vs Troyes",
@@ -148,6 +148,24 @@
         "level": "SICAK",
         "time": "2026-09-13T15:09:00.430Z",
         "market": "Sıradaki Golü Eintracht Frankfurt Atar"
+      },
+      {
+        "match": "Eintracht Frankfurt vs TSG Hoffenheim",
+        "level": "SICAK",
+        "time": "2026-09-13T15:21:02.965Z",
+        "market": "Sıradaki Golü Eintracht Frankfurt Atar"
+      },
+      {
+        "match": "Levante UD vs FC Barcelona",
+        "level": "SICAK",
+        "time": "2026-09-13T15:39:31.792Z",
+        "market": "Sıradaki Golü FC Barcelona Atar"
+      },
+      {
+        "match": "Levante UD vs FC Barcelona",
+        "level": "ALEV",
+        "time": "2026-09-13T16:02:39.281Z",
+        "market": "Sıradaki Golü FC Barcelona Atar"
       }
     ]
   },

@@ -8,6 +8,9 @@ server/proxy.log
 server/*.log
 server/network_log.txt
 archive/
+__pycache__/
+*.pyc
+server/__pycache__/
 
 # JSON Data (exclude from git to keep repo clean)
 server/consensus_data.json
