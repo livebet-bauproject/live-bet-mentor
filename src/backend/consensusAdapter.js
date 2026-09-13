@@ -336,8 +336,16 @@ export const consensusAdapter = {
             });
         });
 
-        // Post-process for Divergence and Value
+        // Post-process for Divergence, Value, and Timing Status
         Object.values(matchMap).forEach(m => {
+            const timeStatus = this.getMatchTimeStatus(m.date, m.time);
+            m.status = timeStatus.status;
+            m.isFinished = timeStatus.isFinished;
+            m.isLive = timeStatus.isLive;
+            m.isUpcoming = timeStatus.isUpcoming;
+            m.kickoffTimestamp = timeStatus.kickoffTimestamp;
+            m.minutesUntilKickoff = timeStatus.minutesUntilKickoff;
+
             const uniquePreds = Object.keys(m.agreement).length;
             m.divergence = uniquePreds > 1 ? (uniquePreds / m.totalSources) * 100 : 0;
 
@@ -351,13 +359,158 @@ export const consensusAdapter = {
             }
         });
 
-        // Sort by agreement strength
+        // Filter out obsolete matches from previous months/years (dayDiff < 0 with diff > 1 day)
         return Object.values(matchMap)
-            .filter(m => m.totalSources >= 1)
+            .filter(m => {
+                if (m.totalSources < 1) return false;
+                // Exclude matches whose dates are completely expired past days
+                if (m.minutesUntilKickoff <= -2880) return false; // > 48h in past
+                return true;
+            })
             .sort((a, b) => {
+                // Non-finished matches always appear before finished matches
+                if (a.isFinished !== b.isFinished) {
+                    return a.isFinished ? 1 : -1;
+                }
                 const aMax = Math.max(...Object.values(a.agreement));
                 const bMax = Math.max(...Object.values(b.agreement));
                 return bMax - aMax;
             });
+    },
+
+    /**
+     * Determines match kickoff and lifecycle status based on date and time strings
+     */
+    getMatchTimeStatus(matchDate, matchTime) {
+        const now = new Date();
+        const currentDay = now.getDate();
+        const currentMonth = now.getMonth() + 1;
+        const currentYear = now.getFullYear();
+
+        let mDay = currentDay;
+        let mMonth = currentMonth;
+        let mYear = currentYear;
+
+        if (matchDate) {
+            const dotParts = matchDate.split('.');
+            const slashParts = matchDate.split('/');
+            const dashParts = matchDate.split('-');
+
+            if (dotParts.length >= 2) {
+                mDay = parseInt(dotParts[0], 10);
+                mMonth = parseInt(dotParts[1], 10);
+                if (dotParts.length >= 3) mYear = parseInt(dotParts[2], 10);
+            } else if (slashParts.length >= 2) {
+                mDay = parseInt(slashParts[0], 10);
+                mMonth = parseInt(slashParts[1], 10);
+                if (slashParts.length >= 3) mYear = parseInt(slashParts[2], 10);
+            } else if (dashParts.length === 3) {
+                mYear = parseInt(dashParts[0], 10);
+                mMonth = parseInt(dashParts[1], 10);
+                mDay = parseInt(dashParts[2], 10);
+            }
+        }
+
+        const matchDateObj = new Date(mYear, mMonth - 1, mDay);
+        const todayDateObj = new Date(currentYear, currentMonth - 1, currentDay);
+        const dayDiff = Math.round((matchDateObj - todayDateObj) / (1000 * 60 * 60 * 24));
+
+        // Past day (yesterday or older) -> Finished
+        if (dayDiff < 0) {
+            return {
+                status: 'FINISHED',
+                isFinished: true,
+                isLive: false,
+                isUpcoming: false,
+                kickoffTimestamp: matchDateObj.getTime(),
+                minutesUntilKickoff: dayDiff * 24 * 60
+            };
+        }
+
+        // Future day (tomorrow or later) -> Upcoming
+        if (dayDiff > 0) {
+            let matchHour = 15;
+            let matchMin = 0;
+            if (matchTime) {
+                let timeStr = matchTime.includes(' ') ? matchTime.split(' ').pop() : matchTime;
+                const [h, m] = timeStr.split(':');
+                if (!isNaN(parseInt(h, 10))) matchHour = parseInt(h, 10);
+                if (!isNaN(parseInt(m, 10))) matchMin = parseInt(m, 10);
+            }
+            const fullKickoff = new Date(mYear, mMonth - 1, mDay, matchHour, matchMin).getTime();
+            const minutesDiff = Math.round((fullKickoff - now.getTime()) / 60000);
+
+            return {
+                status: 'UPCOMING',
+                isFinished: false,
+                isLive: false,
+                isUpcoming: true,
+                kickoffTimestamp: fullKickoff,
+                minutesUntilKickoff: minutesDiff
+            };
+        }
+
+        // Match is TODAY
+        if (!matchTime) {
+            return {
+                status: 'UPCOMING',
+                isFinished: false,
+                isLive: false,
+                isUpcoming: true,
+                kickoffTimestamp: now.getTime() + (60 * 60 * 1000),
+                minutesUntilKickoff: 60
+            };
+        }
+
+        let timeStr = matchTime.includes(' ') ? matchTime.split(' ').pop() : matchTime;
+        const [hStr, minStr] = timeStr.split(':');
+        const matchHour = parseInt(hStr, 10);
+        const matchMin = parseInt(minStr, 10);
+
+        if (isNaN(matchHour) || isNaN(matchMin)) {
+            return {
+                status: 'UPCOMING',
+                isFinished: false,
+                isLive: false,
+                isUpcoming: true,
+                kickoffTimestamp: now.getTime() + (60 * 60 * 1000),
+                minutesUntilKickoff: 60
+            };
+        }
+
+        const kickoffMinutes = matchHour * 60 + matchMin;
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const diffMinutes = kickoffMinutes - nowMinutes;
+        const fullKickoff = new Date(currentYear, currentMonth - 1, currentDay, matchHour, matchMin).getTime();
+
+        // 115 minutes duration (90m + 15m HT + added stoppage time)
+        if (diffMinutes < -115) {
+            return {
+                status: 'FINISHED',
+                isFinished: true,
+                isLive: false,
+                isUpcoming: false,
+                kickoffTimestamp: fullKickoff,
+                minutesUntilKickoff: diffMinutes
+            };
+        } else if (diffMinutes <= 0 && diffMinutes >= -115) {
+            return {
+                status: 'LIVE',
+                isFinished: false,
+                isLive: true,
+                isUpcoming: false,
+                kickoffTimestamp: fullKickoff,
+                minutesUntilKickoff: diffMinutes
+            };
+        } else {
+            return {
+                status: 'UPCOMING',
+                isFinished: false,
+                isLive: false,
+                isUpcoming: true,
+                kickoffTimestamp: fullKickoff,
+                minutesUntilKickoff: diffMinutes
+            };
+        }
     }
 };

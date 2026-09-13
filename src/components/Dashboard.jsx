@@ -157,8 +157,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         search: '',
         valueOnly: false,
         hideDivergent: false,
-        todayOnly: true,
-        sortBy: 'CONSENSUS' // 'CONSENSUS' or 'TIME'
+        todayOnly: false, // Default false so upcoming matches tonight & tomorrow are displayed
+        hideFinished: true, // Auto-filter out completed/finished matches
+        sortBy: 'TIME' // Chronological: Live -> Nearest Upcoming -> Tomorrow
     });
     const [selectedMarket, setSelectedMarket] = useState('1X2');
     const [expandedLeagues, setExpandedLeagues] = useState({});
@@ -324,6 +325,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const filteredRadarMatches = React.useMemo(() => {
         if (view !== 'RADAR' || radarMatches.length === 0) return [];
         return radarMatches.filter(m => {
+            // 1. Remove Finished Matches if filter active
+            if (radarFilters.hideFinished && m.isFinished) {
+                return false;
+            }
+
+            // Cross-reference with live/recent SofaScore fixtures
+            if (radarFilters.hideFinished && matches && matches.length > 0) {
+                const sofaMatch = matches.find(fm => 
+                    consensusAdapter._isFuzzyMatch(m.home, m.away, fm.homeTeam, fm.awayTeam)
+                );
+                if (sofaMatch) {
+                    const desc = (sofaMatch.status?.description || sofaMatch.status || '').toLowerCase();
+                    const type = (sofaMatch.status?.type || '').toLowerCase();
+                    if (type === 'finished' || desc.includes('ended') || desc.includes('ft') || desc.includes('finished')) {
+                        return false;
+                    }
+                }
+            }
+
             const matchSourceIds = Object.keys(m.predictions);
             const activeMatchSources = matchSourceIds.filter(s => radarFilters.sources.includes(s));
 
@@ -362,10 +382,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             return true;
         }).sort((a, b) => {
+            // Finished matches always pushed to the very end if visible
+            if (a.isFinished !== b.isFinished) {
+                return a.isFinished ? 1 : -1;
+            }
+
+            // Upcoming (sıradaki) maçlar en önde listelenir
+            if (a.isUpcoming !== b.isUpcoming) {
+                return a.isUpcoming ? -1 : 1;
+            }
+
             if (radarFilters.sortBy === 'TIME') {
-                const timeA = a.time || '23:59';
-                const timeB = b.time || '23:59';
-                if (timeA !== timeB) return timeA.localeCompare(timeB);
+                const tsA = a.kickoffTimestamp || 9999999999999;
+                const tsB = b.kickoffTimestamp || 9999999999999;
+                if (tsA !== tsB) return tsA - tsB;
             }
 
             // Priority 1: Full Consensus (8/8)
@@ -382,7 +412,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             // Priority 3: Total Sources count
             return b.totalSources - a.totalSources;
         });
-    }, [radarMatches, radarFilters]);
+    }, [radarMatches, radarFilters, matches, userProfile]);
 
     const isAdmin = user?.email === 'karabulut.hamza@gmail.com';
 
@@ -1786,7 +1816,21 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1.2rem' }}>
+                            <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1.2rem', flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={() => setRadarFilters(prev => ({ ...prev, hideFinished: !prev.hideFinished }))}
+                                    style={{
+                                        background: radarFilters.hideFinished ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.03)',
+                                        color: radarFilters.hideFinished ? 'var(--success-color)' : 'rgba(255,255,255,0.3)',
+                                        border: `1px solid ${radarFilters.hideFinished ? 'var(--success-color)' : 'rgba(255,255,255,0.1)'}`,
+                                        borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer',
+                                        display: 'flex', alignItems: 'center', gap: '0.4rem'
+                                    }}
+                                    title="Biten maçları gizle / göster"
+                                >
+                                    <span>⚽</span>
+                                    <span>{radarFilters.hideFinished ? (lang === 'tr' ? 'Bitenler Gizli' : 'Finished Hidden') : (lang === 'tr' ? 'Bitenleri Göster' : 'Show Finished')}</span>
+                                </button>
                                 <button
                                     onClick={() => setRadarFilters(prev => ({ ...prev, sortBy: prev.sortBy === 'CONSENSUS' ? 'TIME' : 'CONSENSUS' }))}
                                     style={{
@@ -1797,7 +1841,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         display: 'flex', alignItems: 'center', gap: '0.5rem'
                                     }}
                                 >
-                                    {radarFilters.sortBy === 'TIME' ? t.sort_by_time : t.sort_by_fit}
+                                    {radarFilters.sortBy === 'TIME' ? (t.sort_by_time || '🕒 Saate Göre') : (t.sort_by_fit || '🎯 Uyuma Göre')}
                                 </button>
                                 <button
                                     onClick={() => setRadarFilters(prev => ({ ...prev, valueOnly: !prev.valueOnly }))}
@@ -1825,7 +1869,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         border: `1px solid ${radarFilters.todayOnly ? '#a78bfa66' : 'rgba(255,255,255,0.1)'}`,
                                         borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer'
                                     }}
-                                >📅 {radarFilters.todayOnly ? t.today : t.all_matches}</button>
+                                >📅 {radarFilters.todayOnly ? t.today : (lang === 'tr' ? 'Tüm Maçlar (Yarın Dahil)' : 'All (Inc. Tomorrow)')}</button>
                             </div>
 
                             <button
@@ -1842,7 +1886,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         search: '',
                                         valueOnly: false,
                                         hideDivergent: false,
-                                        todayOnly: true
+                                        todayOnly: false,
+                                        hideFinished: true,
+                                        sortBy: 'TIME'
                                     });
                                 }}
                                 style={{
@@ -1890,6 +1936,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 : (s.totalSources >= 6 ? '0 5px 20px rgba(0, 242, 254, 0.1)' : 'none'),
                                             background: 'rgba(15, 23, 42, 0.4)',
                                             cursor: s.forebetUrl ? 'pointer' : 'default',
+                                            opacity: s.isFinished ? 0.45 : 1,
+                                            filter: s.isFinished ? 'grayscale(60%)' : 'none'
                                         }}
                                         onMouseEnter={(e) => {
                                             if (s.forebetUrl) {
@@ -1924,9 +1972,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
                                         ) : null}
 
-                                        <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '0.5rem', zIndex: 10 }}>
+                                        <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', gap: '0.5rem', zIndex: 10, alignItems: 'center' }}>
                                             {s.isValue && (
                                                 <div title="High Edge Detection" style={{ background: 'var(--accent-color)', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>VALUE</div>
+                                            )}
+                                            {s.isLive && (
+                                                <div title="Canlı Oynanıyor" style={{ background: '#ef4444', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px', boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)' }}>🔴 CANLI</div>
+                                            )}
+                                            {s.isUpcoming && s.minutesUntilKickoff > 0 && s.minutesUntilKickoff <= 120 && (
+                                                <div title="Başlamak Üzere" style={{ background: '#f59e0b', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>⏳ {s.minutesUntilKickoff} DK</div>
+                                            )}
+                                            {s.isFinished && (
+                                                <div title="Maç Sona Erdi" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>🏁 BİTTİ</div>
                                             )}
                                             {s.divergence > CONFIG.MODULAR_SYSTEM.ADVANCED_ANALYSIS.DIVERGENCE_RADAR.THRESHOLD && (
                                                 <div title="Conflicting Source Predictions" style={{ background: 'var(--danger-color)', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>DİKKAT</div>
