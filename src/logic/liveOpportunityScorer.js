@@ -812,8 +812,9 @@ class LiveOpportunityScorer {
         if (score < 40) return null;
 
         const stats = match.stats || {};
+        const obs = match.observations || {};
         const minute = this._parseMinute(match.minute);
-        const pressure = stats.pressure || { home: 0, away: 0 };
+        const pressure = obs.pressure || match.pressure || stats.pressure || { home: 0, away: 0 };
         const xg = stats.xg || { home: 0, away: 0 };
         const curScore = match.score || { home: 0, away: 0 };
         const curTotalGoals = (curScore.home || 0) + (curScore.away || 0);
@@ -830,7 +831,7 @@ class LiveOpportunityScorer {
             return { marketKey: 'POST_GOAL_COOLDOWN', confidence: 60 };
         }
 
-        // 1. Multi-factor Dominance Analysis (xG, pressure, dangerous attacks, shots on goal, red cards)
+        // 1. Multi-factor Dominance Analysis (Possession, Shots, xG, Pressure, Attacks, Corners, Red Cards)
         const redCards = match.cards || match.stats?.cards || {};
         const homeReds = Number(redCards.home?.red ?? redCards.home ?? 0);
         const awayReds = Number(redCards.away?.red ?? redCards.away ?? 0);
@@ -839,25 +840,35 @@ class LiveOpportunityScorer {
         const daAway = Number(stats.dangerousAttacks?.away ?? 0);
         const sogHome = Number(stats.shotsOnGoal?.home ?? 0);
         const sogAway = Number(stats.shotsOnGoal?.away ?? 0);
+        const shotsHome = Number(stats.totalShots?.home ?? 0);
+        const shotsAway = Number(stats.totalShots?.away ?? 0);
+        const cornersHome = Number(stats.corners?.home ?? 0);
+        const cornersAway = Number(stats.corners?.away ?? 0);
+        const possHome = Number(stats.possession?.home ?? 50);
+        const possAway = Number(stats.possession?.away ?? 50);
         const xgHome = Number(xg.home ?? 0);
         const xgAway = Number(xg.away ?? 0);
         const pressHome = Number(pressure.home ?? 0);
         const pressAway = Number(pressure.away ?? 0);
 
-        // Calculate attack points combining all in-play metrics
-        const homeAttackPoints = (daHome + sogHome * 3) + (xgHome * 20) + (pressHome * 0.5) + (awayReds * 25);
-        const awayAttackPoints = (daAway + sogAway * 3) + (xgAway * 20) + (pressAway * 0.5) + (homeReds * 25);
+        // Balanced attack points combining all in-play pitch control metrics
+        const homeAttackPoints = (daHome * 0.8) + (sogHome * 3.5) + (shotsHome * 1.2) + (cornersHome * 2) + 
+                                 (xgHome * 10) + (pressHome * 0.6) + ((possHome - 50) * 1.5) + (awayReds * 25);
+        const awayAttackPoints = (daAway * 0.8) + (sogAway * 3.5) + (shotsAway * 1.2) + (cornersAway * 2) + 
+                                 (xgAway * 10) + (pressAway * 0.6) + ((possAway - 50) * 1.5) + (homeReds * 25);
 
-        // Clear dominance criteria:
-        const isHomeDominant = (homeAttackPoints > awayAttackPoints * 1.35 + 3) || 
-                               (xgHome > xgAway + 0.35 && xgHome >= 0.5) ||
-                               (pressHome > pressAway * 1.35 && pressHome >= 25) ||
-                               (awayReds > homeReds && homeAttackPoints >= awayAttackPoints);
+        // Sanity guard: A team in severe possession deficit (< 38%) or heavily outshot CANNOT be dominant!
+        const isHomeDominant = (possHome >= 38 && (shotsAway === 0 || shotsHome >= shotsAway * 0.65)) && (
+            (homeAttackPoints > awayAttackPoints * 1.30 + 10) || 
+            (pressHome > pressAway * 1.35 && pressHome >= 30) ||
+            (awayReds > homeReds && homeAttackPoints >= awayAttackPoints)
+        );
 
-        const isAwayDominant = (awayAttackPoints > homeAttackPoints * 1.35 + 3) || 
-                               (xgAway > xgHome + 0.35 && xgAway >= 0.5) ||
-                               (pressAway > pressHome * 1.35 && pressAway >= 25) ||
-                               (homeReds > awayReds && awayAttackPoints >= homeAttackPoints);
+        const isAwayDominant = (possAway >= 38 && (shotsHome === 0 || shotsAway >= shotsHome * 0.65)) && (
+            (awayAttackPoints > homeAttackPoints * 1.30 + 10) || 
+            (pressAway > pressHome * 1.35 && pressAway >= 30) ||
+            (homeReds > awayReds && awayAttackPoints >= homeAttackPoints)
+        );
 
         const curHome = Number(curScore.home ?? 0);
         const curAway = Number(curScore.away ?? 0);

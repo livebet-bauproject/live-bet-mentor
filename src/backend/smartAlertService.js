@@ -281,17 +281,22 @@ class SmartAlertService {
                 marketLabel = 'İlk Yarı 0.5 Üst';
                 confidence = 72;
             } else if (scoreHome === 0 || scoreAway === 0) {
+                const possHome = match.stats?.possession?.home ?? 50;
+                const possAway = match.stats?.possession?.away ?? 50;
+                const shotsHome = match.stats?.totalShots?.home ?? 0;
+                const shotsAway = match.stats?.totalShots?.away ?? 0;
+
                 // KG Var is ONLY allowed if at least one team has not yet scored!
-                if (xgHome >= 0.7 && xgAway >= 0.7) {
+                if (xgHome >= 0.7 && xgAway >= 0.7 && possHome >= 35 && possAway >= 35) {
                     marketKey = 'market_btts';
                     marketLabel = 'Karşılıklı Gol Var';
                     confidence = 74;
-                } else if (xgHome > xgAway + 0.3 || (match.observations?.pressure?.home || 0) > (match.observations?.pressure?.away || 0) + 15) {
+                } else if ((xgHome > xgAway + 0.3 || (match.observations?.pressure?.home || 0) > (match.observations?.pressure?.away || 0) + 15) && possHome >= 40 && (shotsAway === 0 || shotsHome >= shotsAway * 0.65)) {
                     team = match.homeTeam;
                     marketKey = 'market_next_goal_home';
                     marketLabel = `Sıradaki Gol (Ev)`;
                     confidence = 75;
-                } else if (xgAway > xgHome + 0.3 || (match.observations?.pressure?.away || 0) > (match.observations?.pressure?.home || 0) + 15) {
+                } else if ((xgAway > xgHome + 0.3 || (match.observations?.pressure?.away || 0) > (match.observations?.pressure?.home || 0) + 15) && possAway >= 40 && (shotsHome === 0 || shotsAway >= shotsHome * 0.65)) {
                     team = match.awayTeam;
                     marketKey = 'market_next_goal_away';
                     marketLabel = `Sıradaki Gol (Deplasman)`;
@@ -304,14 +309,19 @@ class SmartAlertService {
                     confidence = 70;
                 }
             } else {
+                const possHome = match.stats?.possession?.home ?? 50;
+                const possAway = match.stats?.possession?.away ?? 50;
+                const shotsHome = match.stats?.totalShots?.home ?? 0;
+                const shotsAway = match.stats?.totalShots?.away ?? 0;
+
                 // Both teams already scored (e.g. 1-1, 1-2, 2-1) -> KG Var is already settled!
                 // Offer dynamic Next Goal or dynamically higher Over line!
-                if (xgHome > xgAway + 0.4 || (match.observations?.pressure?.home || 0) > (match.observations?.pressure?.away || 0) + 20) {
+                if ((xgHome > xgAway + 0.3 || (match.observations?.pressure?.home || 0) > (match.observations?.pressure?.away || 0) + 15) && possHome >= 40 && (shotsAway === 0 || shotsHome >= shotsAway * 0.65)) {
                     team = match.homeTeam;
                     marketKey = 'market_next_goal_home';
                     marketLabel = `Sıradaki Gol (Ev)`;
                     confidence = 75;
-                } else if (xgAway > xgHome + 0.4 || (match.observations?.pressure?.away || 0) > (match.observations?.pressure?.home || 0) + 20) {
+                } else if ((xgAway > xgHome + 0.3 || (match.observations?.pressure?.away || 0) > (match.observations?.pressure?.home || 0) + 15) && possAway >= 40 && (shotsHome === 0 || shotsAway >= shotsHome * 0.65)) {
                     team = match.awayTeam;
                     marketKey = 'market_next_goal_away';
                     marketLabel = `Sıradaki Gol (Deplasman)`;

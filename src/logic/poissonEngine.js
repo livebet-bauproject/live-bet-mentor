@@ -79,6 +79,16 @@ export class PoissonEngine {
         homeLambda *= Math.max(0.2, homePressModifier);
         awayLambda *= Math.max(0.2, awayPressModifier);
 
+        // 3b. Possession Modulation
+        const possHome = Number(stats.possession?.home ?? obs.possession?.home ?? match.possession?.home ?? 50);
+        const possAway = Number(stats.possession?.away ?? obs.possession?.away ?? match.possession?.away ?? 50);
+        if (possHome > 0 && possAway > 0) {
+            const homePossMod = 1 + ((possHome - 50) / 100) * 0.7; // e.g. 77% poss -> 1.189x, 23% poss -> 0.811x
+            const awayPossMod = 1 + ((possAway - 50) / 100) * 0.7;
+            homeLambda *= Math.max(0.25, homePossMod);
+            awayLambda *= Math.max(0.25, awayPossMod);
+        }
+
         // 4. xG Rate Modulation (if xG available)
         const totalXgHome = parseFloat(xg.home) || 0;
         const totalXgAway = parseFloat(xg.away) || 0;
@@ -87,9 +97,9 @@ export class PoissonEngine {
             const homeXgRate = totalXgHome / minute; // xG per min
             const awayXgRate = totalXgAway / minute;
 
-            // Average team generates ~0.015 xG per min
-            if (homeXgRate > 0.02) homeLambda *= 1.20;
-            if (awayXgRate > 0.02) awayLambda *= 1.20;
+            // Average team generates ~0.015 xG per min. Guard: only boost if team has reasonable possession (>= 38%)
+            if (homeXgRate > 0.02 && possHome >= 38) homeLambda *= 1.20;
+            if (awayXgRate > 0.02 && possAway >= 38) awayLambda *= 1.20;
         }
 
         // 5. Late game desperation boost (75+ min if goal difference is <= 1)
@@ -194,6 +204,8 @@ export class PoissonEngine {
         const curAway = Number(curScore.away || 0);
         const curTotalGoals = curHome + curAway;
         const minute = parseInt(match.minute) || 0;
+        const stats = match.stats || {};
+        const obs = match.observations || {};
 
         const evCandidates = [];
 
@@ -216,21 +228,40 @@ export class PoissonEngine {
             }
         };
 
+        const shotsHome = Number(stats.totalShots?.home ?? stats.shots?.home ?? obs.shots?.home ?? 0);
+        const shotsAway = Number(stats.totalShots?.away ?? stats.shots?.away ?? obs.shots?.away ?? 0);
+        const possHome = Number(stats.possession?.home ?? obs.possession?.home ?? 50);
+        const possAway = Number(stats.possession?.away ?? obs.possession?.away ?? 50);
+
         // 1. Full-time Match Winner Odds (1X2) - evaluated strictly against TRUE match win probabilities!
         // (Never compare match odds against next goal probabilities!)
+        // Guard: Trailing underdogs with < 38% possession or heavy shot deficit cannot be recommended to win!
         if (odds.homeWin || odds.home) {
-            evaluateMarket('MATCH_HOME', 'Ev Sahibi Kazanır', probs.homeWin, odds.homeWin || odds.home);
+            const isHomeDominated = curHome < curAway && (possHome < 38 || (shotsAway > 0 && shotsHome < shotsAway * 0.6));
+            if (!isHomeDominated) {
+                evaluateMarket('MATCH_HOME', 'Ev Sahibi Kazanır', probs.homeWin, odds.homeWin || odds.home);
+            }
         }
         if (odds.awayWin || odds.away) {
-            evaluateMarket('MATCH_AWAY', 'Deplasman Kazanır', probs.awayWin, odds.awayWin || odds.away);
+            const isAwayDominated = curAway < curHome && (possAway < 38 || (shotsHome > 0 && shotsAway < shotsHome * 0.6));
+            if (!isAwayDominated) {
+                evaluateMarket('MATCH_AWAY', 'Deplasman Kazanır', probs.awayWin, odds.awayWin || odds.away);
+            }
         }
 
         // 2. Next Goal Specific Markets (ONLY if specific next goal odds are provided)
+        // Guard: Heavily dominated teams cannot be recommended for next goal
         if (odds.nextGoalHome) {
-            evaluateMarket('NEXT_GOAL_HOME', 'Sıradaki Gol Ev', probs.nextGoalHome, odds.nextGoalHome);
+            const isHomeDominated = possHome < 38 || (shotsAway > 0 && shotsHome < shotsAway * 0.65);
+            if (!isHomeDominated) {
+                evaluateMarket('NEXT_GOAL_HOME', 'Sıradaki Gol Ev', probs.nextGoalHome, odds.nextGoalHome);
+            }
         }
         if (odds.nextGoalAway) {
-            evaluateMarket('NEXT_GOAL_AWAY', 'Sıradaki Gol Dep', probs.nextGoalAway, odds.nextGoalAway);
+            const isAwayDominated = possAway < 38 || (shotsHome > 0 && shotsAway < shotsHome * 0.65);
+            if (!isAwayDominated) {
+                evaluateMarket('NEXT_GOAL_AWAY', 'Sıradaki Gol Dep', probs.nextGoalAway, odds.nextGoalAway);
+            }
         }
 
         // 3. Over / Under Lines - ONLY evaluate if not already settled!

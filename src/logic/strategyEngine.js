@@ -174,7 +174,7 @@ export const strategyEngine = {
 
     /**
      * 🎯 STAT DOMİNASYONU
-     * Şut ve xG verilerindeki büyük uyumsuzluk.
+     * Şut, korner, topla oynama ve xG verilerindeki belirgin üstünlük.
      */
     checkStatDominance(match) {
         const stats = match.stats || {};
@@ -182,9 +182,22 @@ export const strategyEngine = {
         const sogAway = stats.shotsOnGoal?.away || 0;
         const xgHome = stats.xg?.home || 0;
         const xgAway = stats.xg?.away || 0;
+        const possHome = stats.possession?.home || 50;
+        const possAway = stats.possession?.away || 50;
+        const shotsHome = stats.totalShots?.home || 0;
+        const shotsAway = stats.totalShots?.away || 0;
+        const cornersHome = stats.corners?.home || 0;
+        const cornersAway = stats.corners?.away || 0;
 
-        if (Math.abs(sogHome - sogAway) >= 4 || Math.abs(xgHome - xgAway) >= 1.0) {
-            const isHome = sogHome > sogAway || (sogHome === sogAway && xgHome > xgAway);
+        // Composite stat points: SOG * 3 + Shots * 1 + Corners * 1.5 + xG * 10 + (Poss - 50) * 0.8
+        const homePoints = (sogHome * 3) + shotsHome + (cornersHome * 1.5) + (xgHome * 10) + ((possHome - 50) * 0.8);
+        const awayPoints = (sogAway * 3) + shotsAway + (cornersAway * 1.5) + (xgAway * 10) + ((possAway - 50) * 0.8);
+
+        // A team CANNOT be statistically dominant if in severe possession deficit (< 38%) or heavily outshot!
+        const isHome = (homePoints > awayPoints * 1.35 + 15) && possHome >= 38 && (shotsHome >= shotsAway * 0.7);
+        const isAway = (awayPoints > homePoints * 1.35 + 15) && possAway >= 38 && (shotsAway >= shotsHome * 0.7);
+
+        if (isHome || isAway) {
             const team = isHome ? (match.homeTeam || 'Ev Sahibi') : (match.awayTeam || 'Deplasman');
             return {
                 active: true,

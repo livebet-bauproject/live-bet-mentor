@@ -377,9 +377,11 @@ export const sofaScoreAdapter = {
                             normalizedStats.bigChances.away = parseVal(awayVal);
                         }
 
-                        if (name.includes('expected goals') || name === 'xg' || name === 'beklenen gol') {
+                        if ((name === 'expected goals' || name === 'xg' || name === 'beklenen gol') && !name.includes('target')) {
                             normalizedStats.xg.home = parseVal(homeVal);
                             normalizedStats.xg.away = parseVal(awayVal);
+                        } else if (name.includes('expected goals on target') || name === 'xgot') {
+                            normalizedStats.xgot = { home: parseVal(homeVal), away: parseVal(awayVal) };
                         }
 
                         if (name === 'corner kicks' || name === 'corners' || name === 'köşe vuruşu') {
