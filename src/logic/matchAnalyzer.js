@@ -4,107 +4,74 @@ import { leagueProfileModule } from './leagueProfileModule';
 import { bayesianModel } from './bayesianModel';
 import { pressureIndex } from './pressureIndex';
 import { velocityModule } from './velocityModule';
+import { strategyEngine } from './strategyEngine';
 
 /**
- * MATCH ANALYZER (EXPERT UPGRADE)
- * Focus: High-velocity momentum and pressure detection.
- * 
- * SSS Açıklaması: Bu motor, maçın sadece o anki skoruna değil, son 10 dakikadaki 
- * "enerji değişimine" bakar. Vitesi yükselten (Velocity) ve rakibi bunaltan (Pressure) 
- * takımları yakalayarak risk-kazanç oranını optimize eder.
+ * MATCH ANALYZER (STRATEGY ENGINE UPGRADE)
+ * Focus: Modular signal generation based on specific market criteria.
  */
-export const analyzeMatch = (fixture, odds, consensusReport) => {
+export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies = {}) => {
     const { stats, minute, score, history } = fixture;
 
-    // Expert Metrics Calculation (Always needed for UI/Logic regardless of odds)
-    const pressure = pressureIndex.calculate(stats);
+    // 1. Expert Metrics Calculation (v2.0 - Normalized)
+    const pressure = pressureIndex.calculate(stats, minute, score, fixture.cards);
     const velocity = velocityModule.calculate(history || []);
-
+    const xgAnalysis = xGModule.calculate(fixture);
+    const leagueProfile = leagueProfileModule.getProfile(fixture.league || fixture.leagueName);
 
     const observations = {
-        xg: xGModule.calculate(fixture),
-        leagueProfile: leagueProfileModule.getProfile(fixture.leagueName),
+        xg: xgAnalysis,
+        leagueProfile,
         pressure,
         velocity,
         bayesian: null,
-        reverseSignal: false // Default
+        reverseSignal: false
     };
 
-    // A. Odds Check (Only for verdict calculation)
-    if (!odds || Object.keys(odds).length === 0) {
-        const tier = leagueProfileModule.getTier(fixture.leagueName);
-        if (tier !== 3) {
-            return {
-                verdict: 'PASS',
-                reason: 'Eksik Oran Verisi (Odds Required)',
-                observations
-            };
-        }
-    }
+    // 2. Probability & EV Estimation (Core Logic)
+    let pSituation = (pressure.total / 100) * 0.4;
+    const xgRate = xgAnalysis?.rate?.perMinute || 0;
+    pSituation += Math.min(0.3, xgRate * 10);
+    pSituation *= (velocity.score || 1.0);
+    pSituation = Math.min(0.95, Math.max(0.05, pSituation));
 
-    // Reverse Signal Implementation (Pre-match Consensus vs Live Reality)
-    let reverseSignal = false;
-    if (CONFIG.MODULAR_SYSTEM.ADVANCED_ANALYSIS.REVERSE_SIGNAL.ENABLED && consensusReport && consensusReport.agreement) {
-        const topPred = Object.entries(consensusReport.agreement).sort((a, b) => b[1] - a[1])[0]?.[0];
-        const dqs = fixture.dqs || 0;
-
-        // If consensus was Home (1) but live pressure is Away (2) + high DQS
-        if (topPred === '1' && pressure.dominantTeam === 'AWAY' && dqs >= CONFIG.MODULAR_SYSTEM.ADVANCED_ANALYSIS.REVERSE_SIGNAL.DQS_THRESHOLD) {
-            reverseSignal = true;
-        }
-        // If consensus was Away (2) but live pressure is Home (1) + high DQS
-        else if (topPred === '2' && pressure.dominantTeam === 'HOME' && dqs >= CONFIG.MODULAR_SYSTEM.ADVANCED_ANALYSIS.REVERSE_SIGNAL.DQS_THRESHOLD) {
-            reverseSignal = true;
-        }
-    }
-
-    // 2. Advanced EdgeScore Calculation
-    // Base EdgeScore = (Pressure Total / 50) + Velocity Bonus
-    // Max Pressure(100) / 50 = 2.0 Edge.
-    const baseMomentum = (pressure.total / 50);
-    const edgeScore = baseMomentum * (velocity.score || 1.0);
-
-    // Update observations with refined data
-    observations.reverseSignal = reverseSignal;
-    observations.bayesian = bayesianModel.refine(0.5, {
-        edgeScore,
+    const bayesianResult = bayesianModel.refine(pSituation, {
         dqs: fixture.dqs || 0,
-        xgRatio: (observations.xg.home + 0.1) / (observations.xg.away + 0.1)
+        xgRatio: (xgAnalysis.home + 0.1) / (xgAnalysis.away + 0.1)
     });
+    observations.bayesian = bayesianResult;
+    const finalP = bayesianResult?.posterior || pSituation;
 
-    // 3. Counter-Argument Engine (Discipline Guard)
-    const counterArgs = [];
-    if (minute > 85) counterArgs.push('SSS: Maçın çok sonuna gelindi, varyans riskli.');
-    if (score.home + score.away > 4) counterArgs.push('SSS: Maçta gol doyumuna ulaşıldı.');
-    if (velocity.trend === 'COOLING') counterArgs.push('SSS: Oyun soğuyor, tempo düştü.');
-
-    // 4. Final Verdict Logic
-    if (counterArgs.length >= CONFIG.DECISION.MAX_COUNTER_ARGUMENTS) {
-        return {
-            verdict: 'PASS',
-            reason: 'Disiplin Filtresi: Risk/Ödül Oranı Düşük',
-            edgeScore,
-            counterArgs,
-            observations
-        };
+    let maxEV = -1;
+    if (odds && (odds.home || odds.away)) {
+        const evHome = (finalP * (parseFloat(odds.home) || 0)) - 1;
+        const evAway = (finalP * (parseFloat(odds.away) || 0)) - 1;
+        maxEV = Math.max(evHome, evAway);
     }
 
-    if (edgeScore > CONFIG.DECISION.EDGE_SCORE_THRESHOLD) {
-        return {
-            verdict: 'BET',
-            reason: velocity.trend === 'HOT' ? 'DİKKAT: Vites yükseldi, gol yakın!' : 'Momentum Onaylandı',
-            edgeScore,
-            counterArgs: counterArgs.length > 0 ? counterArgs : ['SSS: Veriler temiz, analiz protokolü tamamlandı.'],
-            recommendedStake: 0,
-            observations
-        };
+    // 3. RUN MODULAR STRATEGY ENGINE
+    // We pass the enriched fixture (with observations) to the strategy engine
+    const enrichedFixture = { ...fixture, observations, history };
+    const activeStrategies = strategyEngine.runAll(enrichedFixture, enabledStrategies);
+
+    // 4. Final Verdict Logic (Strategy-Driven)
+    let verdict = 'PASS';
+    let reason = 'Strateji Bekleniyor';
+    
+    if (activeStrategies.length > 0) {
+        verdict = 'BET';
+        // Primary strategy for the main label
+        reason = activeStrategies[0].label + (activeStrategies.length > 1 ? ` (+${activeStrategies.length - 1})` : '');
+    } else {
+        reason = 'Kriterlere Uygun Strateji Bulunamadı';
     }
 
     return {
-        verdict: 'PASS',
-        reason: 'İvme Yetersiz: Bekleme Modu',
-        edgeScore,
-        counterArgs,
+        verdict,
+        reason,
+        activeStrategies,
+        maxEV,
+        pSituation: finalP,
         observations
     };
 };

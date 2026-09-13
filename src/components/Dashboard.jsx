@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CONFIG } from '../config';
 import { dataWorker } from '../backend/dataWorker';
 import { bankrollManager } from '../logic/bankrollManager';
+import { autoSettlementEngine } from '../logic/autoSettlementEngine';
 import { FAQ } from './FAQ';
 import { StakingCalculator } from './StakingCalculator';
 import { translations } from '../locales/translations';
@@ -42,11 +43,49 @@ const RADAR_BASE_URLS = {
     superbet: 'https://superbetpredictions.com'
 };
 
+export const renderMatchMinute = (minute, t, withLabel = false) => {
+    if (minute === undefined || minute === null || minute === '') return "0'";
+    const minStr = minute.toString().trim();
+    if (minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half')) {
+        return t?.halftime_short || 'İY';
+    }
+    if (minStr === 'MS' || minStr.includes('FT') || minStr.toLowerCase().includes('ended')) {
+        return t?.fulltime_short || 'MS';
+    }
+    if (minStr.includes('Pen')) return 'Pen.';
+    if (minStr.includes('Ert')) return 'Ert.';
+
+    // If already has 2.Y or 2H formatting
+    if (minStr.includes('2.Y') || minStr.includes('2H')) return minStr;
+
+    // Stoppage / extra time e.g. 90+, 45+, 90+3'
+    if (minStr.includes('+')) {
+        if (minStr.endsWith('+')) return minStr;
+        return minStr.includes("'") ? minStr : `${minStr}'`;
+    }
+
+    const num = parseInt(minStr);
+    if (!isNaN(num) && num > 45 && num <= 105) {
+        const halfMin = num - 45;
+        const halfLabel = t?.second_half_short || '2.Y';
+        if (withLabel) {
+            return `${halfLabel} ${halfMin}. ${t?.minute_label || 'DK'} (${num}')`;
+        }
+        return `${halfLabel} ${halfMin}' (${num}')`;
+    }
+
+    if (withLabel) {
+        return `${minStr.replace("'", "")}. ${t?.minute_label || 'DK'}`;
+    }
+    return minStr.includes("'") ? minStr : `${minStr}'`;
+};
+
 export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings = {} }) => {
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
     const [bankState, setBankState] = useState(bankrollManager.getState());
     const [lastFetchSeconds, setLastFetchSeconds] = useState(0);
+    const [healthStats, setHealthStats] = useState(dataWorker.healthStats);
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [decisionMode, setDecisionMode] = useState(dataWorker.decisionMode);
     const [showFAQ, setShowFAQ] = useState(false);
@@ -58,30 +97,47 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         tier1: [...CONFIG.MODULAR_SYSTEM.LEAGUE_TIERS.TIER_1],
         tier2: [...CONFIG.MODULAR_SYSTEM.LEAGUE_TIERS.TIER_2]
     });
-    const [advancedSettings, setAdvancedSettings] = useState({
-        ...CONFIG.MODULAR_SYSTEM.OPTIONAL_MODULES
+    const [advancedSettings, setAdvancedSettings] = useState(() => {
+        try {
+            const saved = localStorage.getItem('lbm_advanced_settings');
+            if (saved && saved !== 'undefined' && saved !== 'null') {
+                const parsed = JSON.parse(saved);
+                if (parsed && typeof parsed === 'object') {
+                    Object.assign(CONFIG.MODULAR_SYSTEM.OPTIONAL_MODULES, parsed);
+                    return parsed;
+                }
+            }
+        } catch (e) {
+            console.error('Error parsing advanced settings:', e);
+        }
+        return { ...CONFIG.MODULAR_SYSTEM.OPTIONAL_MODULES };
     });
     const [view, setView] = useState('DASHBOARD'); // 'DASHBOARD', 'ADMIN', 'RADAR'
     const [consensusData, setConsensusData] = useState({});
 
     useEffect(() => {
-        if (user && userProfile) {
-            aiAnalystService.setUserContext(user.id, userProfile.plan || 'trial');
-            smartAlertService.setUserContext(user.id, userProfile.plan || 'trial');
+        if (user) {
+            const plan = userProfile?.plan || 'premium';
+            aiAnalystService.setUserContext(user.id, plan);
+            smartAlertService.setUserContext(user.id, plan);
             predictionTracker.init(user.id).then(() => {
                 setTrackingStats(predictionTracker.getStats());
             });
 
             // Fetch pending membership request
             const fetchPendingRequest = async () => {
-                const { data, error } = await supabase
-                    .from('membership_requests')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .eq('status', 'pending')
-                    .maybeSingle();
+                try {
+                    const { data } = await supabase
+                        .from('membership_requests')
+                        .select('*')
+                        .eq('user_id', user.id)
+                        .eq('status', 'pending')
+                        .maybeSingle();
 
-                if (data) setPendingRequest(data);
+                    if (data) setPendingRequest(data);
+                } catch (e) {
+                    // Ignore if Supabase offline
+                }
             };
             fetchPendingRequest();
         }
@@ -122,11 +178,27 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     // Alert & Tracking System State
     const [activeAlerts, setActiveAlerts] = useState([]);
     const [showAlertPopup, setShowAlertPopup] = useState(null);
+    const [alertNotifyMode, setAlertNotifyMode] = useState(() => {
+        try {
+            return localStorage.getItem('alert_notify_mode') || 'TOAST'; // 'TOAST', 'SILENT', 'OFF'
+        } catch (e) {
+            return 'TOAST';
+        }
+    });
+    const alertNotifyModeRef = useRef(alertNotifyMode);
+    useEffect(() => {
+        alertNotifyModeRef.current = alertNotifyMode;
+    }, [alertNotifyMode]);
+    const [toastProgress, setToastProgress] = useState(100);
+    const [isToastPaused, setIsToastPaused] = useState(false);
     const [trackingStats, setTrackingStats] = useState(predictionTracker.getStats());
     const [showTrackingPanel, setShowTrackingPanel] = useState(false);
+    const [trackingActiveTab, setTrackingActiveTab] = useState('ALERTS'); // 'ALERTS' or 'BETS'
+    const [alertHistoryList, setAlertHistoryList] = useState(() => smartAlertService.getHistory(50));
     const [showStakingCalc, setShowStakingCalc] = useState(false);
     const [liveOpportunitiesLimit, setLiveOpportunitiesLimit] = useState(5);
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
+    const [momentumWindow, setMomentumWindow] = useState(10);
 
     const getRemainingDays = (endDate) => {
         if (!endDate) return 0;
@@ -135,6 +207,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
         return diff > 0 ? diff : 0;
     };
+
+    // Auto-dismiss floating toast after 10 seconds (with pause on hover)
+    useEffect(() => {
+        if (!showAlertPopup || alertNotifyMode !== 'TOAST') return;
+
+        setToastProgress(100);
+        const timer = setInterval(() => {
+            setIsToastPaused(paused => {
+                if (!paused) {
+                    setToastProgress(prev => {
+                        if (prev <= 1) {
+                            clearInterval(timer);
+                            setShowAlertPopup(null);
+                            return 0;
+                        }
+                        return prev - 1; // 100 steps * 100ms = 10 seconds
+                    });
+                }
+                return paused;
+            });
+        }, 100);
+
+        return () => clearInterval(timer);
+    }, [showAlertPopup, alertNotifyMode]);
 
     const requestUpgrade = async (requestedPlan) => {
         if (!user || requestLoading) return;
@@ -172,11 +268,61 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
     };
 
+    const handleSendToTelegram = async (e, match, opp) => {
+        if (e) e.stopPropagation();
+        
+        const proxyBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001'
+            : '';
+
+        try {
+            const res = await fetch(`${proxyBase}/api/telegram/send-signal`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    matchId: match.id,
+                    homeTeam: match.homeTeam,
+                    awayTeam: match.awayTeam,
+                    minute: match.minute,
+                    score: (match.score && typeof match.score === 'object') ? `${match.score.home ?? 0}-${match.score.away ?? 0}` : (match.score || '0-0'),
+                    level: opp.heatLevel || 'SICAK',
+                    recommendation: opp.suggestedMarket || { 
+                        marketKey: 'market_expected_goal', 
+                        confidence: opp.score,
+                        team: opp.dominatingTeam === 'home' ? match.homeTeam : opp.dominatingTeam === 'away' ? match.awayTeam : null
+                    },
+                    dqs: opp.score,
+                    conditions: {
+                        highPressure: opp.heatLevel === 'ALEV' || opp.heatLevel === 'ALPHA',
+                        xgAdvantage: (match.stats?.xg?.home || 0) > (match.stats?.xg?.away || 0) + 0.5 || (match.stats?.xg?.away || 0) > (match.stats?.xg?.home || 0) + 0.5,
+                        qualityData: opp.score > 70
+                    }
+                })
+            });
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (data.sent) {
+                    alert(lang === 'tr' ? '🚀 Sinyal VIP grubuna gönderildi!' : '🚀 Signal sent to VIP group!');
+                } else {
+                    alert(lang === 'tr' ? `⚠️ Gönderilmedi: ${data.reason || 'Kriter dışı'}` : `⚠️ Not sent: ${data.reason || 'Excluded'}`);
+                }
+            } else {
+                alert(lang === 'tr' ? '❌ Backend hatası.' : '❌ Backend error.');
+            }
+        } catch (err) {
+            console.error('Telegram error:', err);
+            alert(lang === 'tr' ? '❌ Bağlantı hatası.' : '❌ Connection error.');
+        }
+    };
+
     const radarMatches = React.useMemo(() => {
+        if (view !== 'RADAR') return [];
         return consensusAdapter.getAllConsensusSummary(consensusData, selectedMarket);
-    }, [consensusData, selectedMarket]);
+    }, [view, consensusData, selectedMarket]);
 
     const filteredRadarMatches = React.useMemo(() => {
+        if (view !== 'RADAR' || radarMatches.length === 0) return [];
         return radarMatches.filter(m => {
             const matchSourceIds = Object.keys(m.predictions);
             const activeMatchSources = matchSourceIds.filter(s => radarFilters.sources.includes(s));
@@ -466,11 +612,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
     }, [selectedMatch]);
 
-    // Live Odds Fetching for Opportunity Scoring
+    // Live Odds Fetching for Opportunity Scoring (Local Proxy first, then Firebase)
     useEffect(() => {
         const fetchLiveOdds = async () => {
             try {
-                // Fetch from Firebase
+                // 1. Try local proxy first
+                const proxyBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+                try {
+                    const res = await fetch(`${proxyBase}/api/odds/live`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
+                            setLiveOdds(data);
+                            liveOpportunityScorer.setLiveOdds(data);
+                            return;
+                        }
+                    }
+                } catch (pe) { /* fallback to firebase */ }
+
+                // 2. Fallback to Firebase
                 const snapshot = await get(ref(database, 'live_odds'));
                 if (snapshot.exists()) {
                     const data = snapshot.val();
@@ -479,7 +639,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     liveOpportunityScorer.setLiveOdds(data);
                 }
             } catch (e) {
-                console.log('[ODDS] Firebase odds fetch failed:', e.message);
+                console.log('[ODDS] Odds fetch failed:', e.message);
             }
         };
 
@@ -490,17 +650,45 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
     useEffect(() => {
         dataWorker.start();
-        const interval = setInterval(() => {
-            // ALWAYS sync consensus data regardless of live matches
-            const freshConsensus = { ...dataWorker.consensusData };
-            console.log('[DASHBOARD] Syncing Consensus Data:', Object.entries(freshConsensus).map(([k, v]) => `${k}:${v?.length}`).join(', '));
-            setConsensusData(freshConsensus);
+
+        let lastConsensusRef = null;
+        let lastFixturesUpdate = 0;
+
+        const syncUI = () => {
+            // 1. Second counter (lightweight)
+            if (dataWorker.healthStats.lastFetch) {
+                setLastFetchSeconds(Math.floor((Date.now() - dataWorker.healthStats.lastFetch) / 1000));
+            }
+
+            // 2. Only update consensus data when reference actually changes (every ~2 mins)
+            if (dataWorker.consensusData && dataWorker.consensusData !== lastConsensusRef) {
+                lastConsensusRef = dataWorker.consensusData;
+                setConsensusData(dataWorker.consensusData);
+            }
+
+            // 3. Only recalculate fixtures and signals when a new poll completed
+            if (dataWorker.lastUpdated && dataWorker.lastUpdated === lastFixturesUpdate) {
+                return;
+            }
+            if (!dataWorker.lastUpdated && (!dataWorker.fixtures || dataWorker.fixtures.length === 0)) {
+                return;
+            }
+            lastFixturesUpdate = dataWorker.lastUpdated;
+
+            setHealthStats({ ...dataWorker.healthStats });
 
             const currentFixtures = dataWorker.fixtures;
-            if (currentFixtures.length === 0) {
-                setMatches([]);
-                setSignals({});
+            if (!currentFixtures || currentFixtures.length === 0) {
+                setMatches(prev => prev.length === 0 ? prev : []);
+                setSignals(prev => Object.keys(prev).length === 0 ? prev : {});
                 return;
+            }
+
+            // AUTO-SETTLEMENT ENGINE (v4.0): Settle any concluded matches automatically
+            try {
+                autoSettlementEngine.settleOpenBets(currentFixtures);
+            } catch (e) {
+                console.warn('[Dashboard] Error in autoSettlementEngine:', e);
             }
 
             setMatches([...currentFixtures]);
@@ -523,20 +711,32 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             // Check for smart alerts with enriched data
             const newAlerts = smartAlertService.checkMatches(enrichedFixtures, updatedSignals);
+            smartAlertService.autoResolveAlerts(enrichedFixtures);
             if (newAlerts.length > 0) {
                 setActiveAlerts([...smartAlertService.getActiveAlerts()]);
-                setShowAlertPopup(newAlerts[0]);
+                setAlertHistoryList(smartAlertService.getHistory(50));
+                // Only show popup/toast if notify mode is TOAST (respects SILENT and OFF)
+                if (alertNotifyModeRef.current === 'TOAST') {
+                    setShowAlertPopup(newAlerts[0]);
+                    setToastProgress(100);
+                }
                 setTrackingStats(predictionTracker.getStats());
             }
+        };
 
-            if (dataWorker.healthStats.lastFetch) {
-                setLastFetchSeconds(Math.floor((Date.now() - dataWorker.healthStats.lastFetch) / 1000));
-            }
-        }, CONFIG.DATA.POLLING_INTERVAL_MS);
+        // Run immediately on mount!
+        syncUI();
+
+        // Responsive sync interval (2000ms)
+        const interval = setInterval(syncUI, 2000);
+
+        // Direct subscription to dataWorker for instant UI updates!
+        const unsubscribeWorker = dataWorker.subscribe(syncUI);
 
         // Subscribe to alerts
         const unsubscribe = smartAlertService.subscribe((alert) => {
             setActiveAlerts([...smartAlertService.getActiveAlerts()]);
+            setAlertHistoryList(smartAlertService.getHistory(50));
         });
 
         // Auto-check for result processing (Every 60s)
@@ -550,15 +750,27 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             clearInterval(interval);
             clearInterval(resultCheckInterval);
             unsubscribe();
+            unsubscribeWorker();
             dataWorker.stop();
         };
     }, []);
 
     const getEnforcedMatches = () => {
-        if (userProfile?.plan === 'trial') {
+        const isLocalDev = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1' ||
+                           window.location.hostname.startsWith('192.168.') ||
+                           window.location.hostname.startsWith('10.') ||
+                           window.location.hostname.startsWith('172.');
+        const effectivePlan = (isAdmin || isLocalDev) ? 'premium' : (userProfile?.plan || 'trial');
+
+        if (effectivePlan === 'trial') {
+            // PROD Trial: Only Tier 1
             return matches.filter(m => m.tier === 1);
+        } else if (effectivePlan === 'pro') {
+            // PROD Pro: Tier 1 & 2
+            return matches.filter(m => m.tier === 1 || m.tier === 2);
         }
-        return matches;
+        return matches; // Premium or Admin/LocalDev
     };
 
     const enforcedMatches = getEnforcedMatches();
@@ -869,6 +1081,146 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         );
     };
 
+    // Portfolio Rendering Logic
+    const RenderPortfolio = () => {
+        const state = bankrollManager.getState();
+        const ledger = state.ledger || [];
+        const initialBalance = state.initial_balance || 1000;
+        const currentBalance = state.balance || 1000;
+        const totalProfit = currentBalance - initialBalance;
+        const roi = (totalProfit / initialBalance) * 100;
+
+        const wins = ledger.filter(l => l.status === 'WIN').length;
+        const losses = ledger.filter(l => l.status === 'LOSS').length;
+        const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
+
+        // Custom SVG Chart Data
+        const settlementPoints = ledger.filter(l => l.type === 'SETTLEMENT' || l.type === 'INIT').map(l => l.balance_after || l.amount);
+        const points = settlementPoints.length > 0 ? settlementPoints : [initialBalance];
+        const max = Math.max(...points, initialBalance * 1.05);
+        const min = Math.min(...points, initialBalance * 0.95);
+        const range = max - min || 1;
+        
+        const svgPoints = points.map((p, i) => {
+            const x = points.length > 1 ? (i / (points.length - 1)) * 100 : 50;
+            const y = 100 - ((p - min) / range) * 100;
+            return `${x},${y}`;
+        }).join(' ');
+
+        return (
+            <div className="portfolio-view" style={{ animation: 'fadeIn 0.5s ease', paddingBottom: '5rem' }}>
+                <div className="section-header" style={{ marginBottom: '2.5rem' }}>
+                    <h2 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px' }}>📈 {t.portfolio_title}</h2>
+                    <p style={{ opacity: 0.5, fontSize: '0.9rem', fontWeight: 600 }}>{t.subtitle} — v2.0 Algorithm Tracking</p>
+                </div>
+
+                <div className="portfolio-grid">
+                    <div className="portfolio-card glass-panel">
+                        <span className="label">{t.total_profit}</span>
+                        <div className="value" style={{ color: totalProfit >= 0 ? 'var(--success-color)' : 'var(--danger-color)' }}>
+                            {totalProfit >= 0 ? '+' : ''}{totalProfit.toFixed(2)} ₺
+                        </div>
+                        <div className="trend" style={{ color: totalProfit >= 0 ? 'var(--success-color)' : 'var(--danger-color)' }}>
+                            {totalProfit >= 0 ? '↑' : '↓'} {roi.toFixed(1)}% ROI
+                        </div>
+                    </div>
+                    <div className="portfolio-card glass-panel">
+                        <span className="label">{t.win_rate}</span>
+                        <div className="value" style={{ color: 'var(--accent-color)' }}>
+                            %{winRate.toFixed(1)}
+                        </div>
+                        <div className="trend" style={{ opacity: 0.6 }}>
+                            {wins}W - {losses}L
+                        </div>
+                    </div>
+                    <div className="portfolio-card glass-panel">
+                        <span className="label">{t.current_balance}</span>
+                        <div className="value">{currentBalance.toFixed(2)} ₺</div>
+                        <div className="trend" style={{ opacity: 0.6 }}>{t.starting_balance}: {initialBalance}₺</div>
+                    </div>
+                    <div className="portfolio-card glass-panel">
+                        <span className="label">{t.active_exposure}</span>
+                        <div className="value" style={{ color: 'var(--warning-color)' }}>
+                            {ledger.filter(l => l.status === 'OPEN').reduce((acc, curr) => acc + curr.stake, 0).toFixed(2)} ₺
+                        </div>
+                        <div className="trend" style={{ opacity: 0.6 }}>{ledger.filter(l => l.status === 'OPEN').length} {t.open_short}</div>
+                    </div>
+                </div>
+
+                <div className="chart-panel glass-panel">
+                    <h3>📊 {t.growth_chart}</h3>
+                    <div className="svg-chart-container">
+                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                            <defs>
+                                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.4" />
+                                    <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
+                                </linearGradient>
+                            </defs>
+                            {points.length > 1 && (
+                                <>
+                                    <path
+                                        d={`M 0,100 L ${svgPoints} L 100,100 Z`}
+                                        fill="url(#chartGradient)"
+                                    />
+                                    <polyline
+                                        fill="none"
+                                        stroke="var(--accent-color)"
+                                        strokeWidth="0.5"
+                                        points={svgPoints}
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                    />
+                                </>
+                            )}
+                            {points.map((p, i) => {
+                                const x = points.length > 1 ? (i / (points.length - 1)) * 100 : 50;
+                                const y = 100 - ((p - min) / range) * 100;
+                                return (
+                                    <circle key={i} cx={x} cy={y} r="0.8" fill="var(--accent-color)" />
+                                );
+                            })}
+                        </svg>
+                    </div>
+                </div>
+
+                <div className="portfolio-list-panel glass-panel" style={{ padding: '0' }}>
+                    <div className="portfolio-row" style={{ borderBottom: '1px solid var(--glass-border)', opacity: 0.5, fontSize: '0.7rem', fontWeight: 800 }}>
+                        <span>{t.match_score}</span>
+                        <span>{t.recom_stake_short}</span>
+                        <span>{t.status}</span>
+                        <span>SONUÇ</span>
+                        <span>TARİH</span>
+                    </div>
+                    {ledger.slice().reverse().filter(l => l.type === 'SETTLEMENT' || l.status === 'OPEN' || l.type === 'INIT').slice(0, 15).map((l, i) => (
+                        <div key={i} className="portfolio-row" style={{ borderBottom: i < 14 ? '1px solid var(--glass-border)' : 'none' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{l.match || 'System Entry'}</span>
+                                <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>{l.reason || 'Account Setup'}</span>
+                            </div>
+                            <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{l.stake || 0} ₺</span>
+                            <span>
+                                <span className={`status-pill ${l.status === 'WIN' ? 'ok' : l.status === 'LOSS' ? 'fail' : ''}`} style={{ 
+                                    background: l.status === 'OPEN' ? 'rgba(56, 189, 248, 0.1)' : '', 
+                                    color: l.status === 'OPEN' ? 'var(--accent-color)' : '', 
+                                    border: l.status === 'OPEN' ? '1px solid var(--accent-color)' : '' 
+                                }}>
+                                    {l.status || 'INFO'}
+                                </span>
+                            </span>
+                            <span style={{ color: (l.profit || 0) >= 0 ? 'var(--success-color)' : 'var(--danger-color)', fontWeight: 800 }}>
+                                {l.profit ? (l.profit >= 0 ? '+' : '') + l.profit.toFixed(2) + ' ₺' : '-'}
+                            </span>
+                            <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
+                                {new Date(l.timestamp).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="dashboard-container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
 
@@ -910,6 +1262,77 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.4rem 0.8rem', borderRadius: '20px', border: '1px solid rgba(56, 189, 248, 0.2)', color: 'var(--accent-color)', fontWeight: 600 }}>
                             {t.limit}: {bankState.daily_bet_count}/{CONFIG.BANKROLL.HIERARCHY.THRESHOLDS.DAILY_BET_LIMIT}
                         </div>
+                        <button
+                            onClick={() => {
+                                const nextMode = alertNotifyMode === 'TOAST' ? 'SILENT' : alertNotifyMode === 'SILENT' ? 'OFF' : 'TOAST';
+                                setAlertNotifyMode(nextMode);
+                                try { localStorage.setItem('alert_notify_mode', nextMode); } catch (e) {}
+                            }}
+                            style={{
+                                background: alertNotifyMode === 'TOAST' ? 'rgba(16, 185, 129, 0.15)' :
+                                            alertNotifyMode === 'SILENT' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                color: alertNotifyMode === 'TOAST' ? '#10b981' :
+                                       alertNotifyMode === 'SILENT' ? '#fbbf24' : '#ef4444',
+                                border: `1px solid ${alertNotifyMode === 'TOAST' ? 'rgba(16, 185, 129, 0.3)' :
+                                                     alertNotifyMode === 'SILENT' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '20px',
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                transition: 'all 0.2s'
+                            }}
+                            title={
+                                alertNotifyMode === 'TOAST' ? 'Sıcak Fırsat Bildirimi: Açık (Sağ Alt Toast). Değiştirmek için tıkla.' :
+                                alertNotifyMode === 'SILENT' ? 'Sıcak Fırsat Bildirimi: Sessiz (Yalnızca Listeye Ekler). Değiştirmek için tıkla.' :
+                                'Sıcak Fırsat Bildirimi: Kapalı. Değiştirmek için tıkla.'
+                            }
+                        >
+                            <span>{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
+                            <span>{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim: Açık' : 'Alerts: On') : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Bildirim: Sessiz' : 'Alerts: Silent') : (lang === 'tr' ? 'Bildirim: Kapalı' : 'Alerts: Off')}</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                smartAlertService.autoResolveAlerts(matches);
+                                setAlertHistoryList(smartAlertService.getHistory(50));
+                                setTrackingStats(predictionTracker.getStats());
+                                setTrackingActiveTab('ALERTS');
+                                setShowTrackingPanel(true);
+                            }}
+                            style={{
+                                background: 'rgba(56, 189, 248, 0.15)',
+                                color: '#38bdf8',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '20px',
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.45rem',
+                                transition: 'all 0.2s'
+                            }}
+                            title="Gelen tüm bildirim sinyallerini ve tahmin geçmişini gör"
+                        >
+                            <span>📊</span>
+                            <span>{lang === 'tr' ? 'Sinyal Geçmişi & Karne' : 'Signal History & Bets'}</span>
+                            {alertHistoryList.length > 0 && (
+                                <span style={{
+                                    background: '#38bdf8',
+                                    color: '#0f172a',
+                                    borderRadius: '10px',
+                                    padding: '0.1rem 0.45rem',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 900
+                                }}>
+                                    {alertHistoryList.length}
+                                </span>
+                            )}
+                        </button>
                         <button onClick={() => { setFaqMode('live'); setShowFAQ(true); }} className="faq-btn" style={{ width: '1.8rem', height: '1.8rem', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.7rem' }}>?</button>
                     </div>
                 </div>
@@ -991,25 +1414,66 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         >🎯 RADAR</button>
                     </div>
 
-                    {/* Admin-only toggle */}
-                    {isAdmin && (
-                        <div className="admin-toggle-wrapper" style={{ display: 'flex', gap: '0.3rem', background: 'rgba(251, 191, 36, 0.1)', padding: '0.2rem', borderRadius: '10px', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
+                    <div className="nav-tabs" style={{ display: 'flex', gap: '0.4rem', background: 'rgba(15, 23, 42, 0.8)', padding: '0.3rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                        <button
+                            onClick={() => setView('DASHBOARD')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                background: view === 'DASHBOARD' ? 'var(--accent-color)' : 'transparent',
+                                color: view === 'DASHBOARD' ? '#000' : 'var(--text-secondary)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                transition: 'all 0.2s'
+                            }}
+                        >🏠 CANLI</button>
+                        <button
+                            onClick={() => setView('RADAR')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                background: view === 'RADAR' ? 'var(--accent-color)' : 'transparent',
+                                color: view === 'RADAR' ? '#000' : 'var(--text-secondary)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                transition: 'all 0.2s'
+                            }}
+                        >🎯 RADAR</button>
+                        <button
+                            onClick={() => setView('PORTFOLIO')}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                fontSize: '0.7rem',
+                                cursor: 'pointer',
+                                background: view === 'PORTFOLIO' ? 'var(--success-color)' : 'transparent',
+                                color: view === 'PORTFOLIO' ? '#000' : 'var(--text-secondary)',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 800,
+                                transition: 'all 0.2s'
+                            }}
+                        >📈 PORFÖY</button>
+                        {(isAdmin || userProfile?.plan === 'admin') && (
                             <button
                                 onClick={() => setView('ADMIN')}
                                 style={{
-                                    padding: '0.4rem 0.8rem',
-                                    fontSize: '0.65rem',
+                                    padding: '0.5rem 1rem',
+                                    fontSize: '0.7rem',
                                     cursor: 'pointer',
                                     background: view === 'ADMIN' ? 'var(--warning-color)' : 'transparent',
                                     color: view === 'ADMIN' ? '#000' : 'var(--text-secondary)',
                                     border: 'none',
-                                    borderRadius: '7px',
+                                    borderRadius: '8px',
                                     fontWeight: 800,
                                     transition: 'all 0.2s'
                                 }}
                             >🛡️ ADMIN</button>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div className="lang-toggle" style={{ display: 'flex', gap: '0.3rem', background: 'rgba(15, 23, 42, 0.8)', padding: '0.2rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
                         {['tr', 'en'].map(l => (
@@ -1113,7 +1577,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
             )}
 
-            {view === 'ADMIN' ? (
+            {view === 'PORTFOLIO' ? (
+                <RenderPortfolio />
+            ) : view === 'ADMIN' ? (
                 <AdminPanel lang={lang} />
             ) : view === 'RADAR' ? (
                 <div className="radar-view" style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -1752,18 +2218,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 </div>
                                 <div className="metric">
                                     <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.5, letterSpacing: '1px' }}>{t.live_matches}</div>
-                                    <div style={{ fontWeight: 800, fontSize: '1.1rem', marginTop: '0.3rem' }}>{dataWorker.healthStats.totalDiscovered}</div>
+                                    <div style={{ fontWeight: 800, fontSize: '1.1rem', marginTop: '0.3rem' }}>{healthStats.totalDiscovered || matches.length}</div>
                                 </div>
                                 <div className="metric">
                                     <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.5, letterSpacing: '1px' }}>{t.dqs_filter}</div>
                                     <div style={{ fontWeight: 800, fontSize: '1.1rem', marginTop: '0.3rem' }}>
-                                        <span style={{ color: 'var(--success-color)' }}>{dataWorker.healthStats.dqsAbove}</span> <span style={{ opacity: 0.3 }}>/</span> <span style={{ opacity: 0.5 }}>{dataWorker.healthStats.dqsBelow}</span>
+                                        <span style={{ color: 'var(--success-color)' }}>{healthStats.dqsAbove}</span> <span style={{ opacity: 0.3 }}>/</span> <span style={{ opacity: 0.5 }}>{healthStats.dqsBelow}</span>
                                     </div>
                                 </div>
                                 <div className="metric">
                                     <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.5, letterSpacing: '1px' }}>{t.security_nobet}</div>
-                                    <div style={{ fontWeight: 800, fontSize: '1.1rem', marginTop: '0.3rem', color: dataWorker.healthStats.noBetCount > 0 ? 'var(--warning-color)' : 'inherit' }}>
-                                        {dataWorker.healthStats.noBetCount} <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{t.triggered}</span>
+                                    <div style={{ fontWeight: 800, fontSize: '1.1rem', marginTop: '0.3rem', color: healthStats.noBetCount > 0 ? 'var(--warning-color)' : 'inherit' }}>
+                                        {healthStats.noBetCount} <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{t.triggered}</span>
                                     </div>
                                 </div>
                             </div>
@@ -1814,7 +2280,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     {/* Live Opportunities Panel */}
                     {(() => {
-                        const allOpportunities = liveOpportunityScorer.getOpportunities(enforcedMatches, signals);
+                        const allOpportunities = liveOpportunityScorer.getOpportunities(enforcedMatches, signals, momentumWindow);
 
                         // Apply limit to TOTAL opportunities first
                         const limitedOpportunities = liveOpportunitiesLimit === 'ALL'
@@ -1878,9 +2344,36 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 }}>
                                                     #{idx + 1}
                                                 </div>
-                                                <span style={{ fontSize: isCompact ? '1rem' : '1.2rem' }}>{heatStyle.icon}</span>
-                                                <span style={{ fontWeight: 800, fontSize: isCompact ? '0.85rem' : '1rem', color: isCompact ? '#e2e8f0' : heatStyle.text }}>
-                                                    {match.homeTeam} vs {match.awayTeam}
+                                                {(match.league || match.leagueName) && (
+                                                    <span style={{
+                                                        fontSize: '0.6rem',
+                                                        padding: '1px 6px',
+                                                        borderRadius: '4px',
+                                                        background: 'rgba(255, 255, 255, 0.08)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.14)',
+                                                        color: '#cbd5e1',
+                                                        fontWeight: 700,
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.5px',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {match.league || match.leagueName}
+                                                    </span>
+                                                )}
+                                                <span style={{ fontWeight: 800, fontSize: isCompact ? '0.85rem' : '1rem', color: isCompact ? '#e2e8f0' : heatStyle.text, display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                                    <span>{match.homeTeam}</span>
+                                                    {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
+                                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900, lineHeight: '1.2', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}>
+                                                            🟥 {(match.cards?.home?.red || match.stats?.cards?.home?.red)}
+                                                        </span>
+                                                    )}
+                                                    <span style={{ opacity: 0.35, margin: '0 3px' }}>vs</span>
+                                                    <span>{match.awayTeam}</span>
+                                                    {((match.cards?.away?.red || 0) > 0 || (match.stats?.cards?.away?.red || 0) > 0) && (
+                                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900, lineHeight: '1.2', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}>
+                                                            🟥 {(match.cards?.away?.red || match.stats?.cards?.away?.red)}
+                                                        </span>
+                                                    )}
                                                 </span>
                                                 {opp.valueDetected && (
                                                     <span style={{
@@ -1892,18 +2385,69 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         color: '#000'
                                                     }}>💰 VALUE</span>
                                                 )}
+                                                {opp.smartMoney?.active && (
+                                                    <span style={{
+                                                        background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
+                                                        padding: '0.1rem 0.4rem',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.5rem',
+                                                        fontWeight: 900,
+                                                        color: '#fff',
+                                                        marginLeft: '4px'
+                                                    }}>📉 SMART MONEY (-%{opp.smartMoney.dropPct.toFixed(0)})</span>
+                                                )}
+                                                {opp.isTrap && (
+                                                    <span style={{
+                                                        background: 'rgba(239, 68, 68, 0.2)',
+                                                        border: '1px solid #ef4444',
+                                                        padding: '0.1rem 0.4rem',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.5rem',
+                                                        fontWeight: 900,
+                                                        color: '#ef4444',
+                                                        marginLeft: '4px'
+                                                    }}>⚠️ TUZAK ORAN</span>
+                                                )}
+                                                {opp.hasValueEV && opp.bestEV && (
+                                                    <span style={{
+                                                        background: 'linear-gradient(135deg, #a855f7, #6366f1)',
+                                                        padding: '0.1rem 0.4rem',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.5rem',
+                                                        fontWeight: 900,
+                                                        color: '#fff',
+                                                        marginLeft: '4px',
+                                                        boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)'
+                                                    }}>💎 +EV %{opp.bestEV.ev} ({opp.bestEV.label})</span>
+                                                )}
+                                                {opp.hasLatencyEdge && opp.latencyEdge && (
+                                                    <span style={{
+                                                        background: 'linear-gradient(135deg, #eab308, #f97316)',
+                                                        padding: '0.1rem 0.4rem',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.5rem',
+                                                        fontWeight: 900,
+                                                        color: '#000',
+                                                        marginLeft: '4px',
+                                                        boxShadow: '0 0 10px rgba(234, 179, 8, 0.6)'
+                                                    }}>⚡ GECİKME (+%{opp.latencyEdge.discrepancyPct})</span>
+                                                )}
                                             </div>
 
                                             {!isCompact && (
                                                 <>
-                                                    <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                                                        {match.minute}' • <span style={{ fontWeight: 800, color: 'var(--accent-color)' }}>{match.score?.home ?? 0} - {match.score?.away ?? 0}</span>
+                                                    <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                        <span>{renderMatchMinute(match.minute, t, false)} • <span style={{ fontWeight: 800, color: 'var(--accent-color)' }}>{match.score?.home ?? 0} - {match.score?.away ?? 0}</span></span>
                                                         {match.stats?.xg && (
-                                                            <span style={{ marginLeft: '0.6rem', color: '#fbbf24' }}>
-                                                                xG: {(match.stats.xg.home || 0).toFixed(1)}-{(match.stats.xg.away || 0).toFixed(1)}
+                                                            <span style={{ color: '#fbbf24', fontSize: '0.7rem' }}>
+                                                                xG: {(Number(match.stats?.xg?.home) || 0).toFixed(1)}-{(Number(match.stats?.xg?.away) || 0).toFixed(1)}
                                                             </span>
                                                         )}
-                                                        {opp.trend === 'UP' && <span style={{ marginLeft: '0.4rem', color: '#10b981', fontWeight: 800 }}>↗️</span>}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
+                                                            {opp.trend === 'UP' ? <span style={{ color: '#10b981' }}>⬆️</span> : opp.trend === 'DOWN' ? <span style={{ color: '#ef4444' }}>⬇️</span> : <span style={{ opacity: 0.5 }}>➡️</span>}
+                                                            <span style={{ fontSize: '0.6rem', fontWeight: 800 }}>%{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta}</span>
+                                                        </div>
+                                                        <span style={{ fontSize: '0.6rem', opacity: 0.4 }}>({momentumWindow}dk)</span>
                                                     </div>
 
                                                     <div style={{
@@ -1938,15 +2482,76 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         </div>
                                                     </div>
 
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        {opp.oddsInfo && (
-                                                            <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#10b981', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
-                                                                ORANLAR: {opp.oddsInfo.home} | {opp.oddsInfo.draw} | {opp.oddsInfo.away}
-                                                            </div>
-                                                        )}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                                        {(() => {
+                                                            const odds = (match.matchedOdds && match.matchedOdds.home) ? match.matchedOdds : opp.oddsInfo;
+                                                            if (!odds) return null;
+                                                            return (
+                                                                <div style={{
+                                                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                                                    background: 'rgba(16, 185, 129, 0.08)',
+                                                                    border: '1px solid rgba(16, 185, 129, 0.2)',
+                                                                    padding: '0.3rem 0.6rem',
+                                                                    borderRadius: '8px'
+                                                                }}>
+                                                                    <span style={{ fontSize: '0.55rem', opacity: 0.6, fontWeight: 600 }}>1X2</span>
+                                                                    <span style={{
+                                                                        fontSize: '0.7rem', fontWeight: 900,
+                                                                        color: '#10b981',
+                                                                        background: 'rgba(16, 185, 129, 0.15)',
+                                                                        padding: '0.1rem 0.4rem',
+                                                                        borderRadius: '4px',
+                                                                        minWidth: '32px',
+                                                                        textAlign: 'center'
+                                                                    }}>{odds.home}</span>
+                                                                    <span style={{
+                                                                        fontSize: '0.7rem', fontWeight: 900,
+                                                                        color: '#94a3b8',
+                                                                        background: 'rgba(148, 163, 184, 0.1)',
+                                                                        padding: '0.1rem 0.4rem',
+                                                                        borderRadius: '4px',
+                                                                        minWidth: '32px',
+                                                                        textAlign: 'center'
+                                                                    }}>{odds.draw || '-'}</span>
+                                                                    <span style={{
+                                                                        fontSize: '0.7rem', fontWeight: 900,
+                                                                        color: '#ef4444',
+                                                                        background: 'rgba(239, 68, 68, 0.1)',
+                                                                        padding: '0.1rem 0.4rem',
+                                                                        borderRadius: '4px',
+                                                                        minWidth: '32px',
+                                                                        textAlign: 'center'
+                                                                    }}>{odds.away}</span>
+                                                                </div>
+                                                            );
+                                                        })()}
                                                         {opp.suggestedMarket?.marketKey && (
-                                                            <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--accent-color)' }}>
-                                                                💡 {t[opp.suggestedMarket.marketKey] || opp.suggestedMarket.marketKey}
+                                                            <div style={{ 
+                                                                marginTop: '0.4rem',
+                                                                padding: '0.5rem 0.8rem',
+                                                                background: 'rgba(251, 191, 36, 0.1)',
+                                                                border: '1px solid rgba(251, 191, 36, 0.2)',
+                                                                borderRadius: '8px',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.6rem'
+                                                            }}>
+                                                                <span style={{ fontSize: '0.75rem' }}>💡</span>
+                                                                <div>
+                                                                    <div style={{ fontSize: '0.55rem', opacity: 0.6, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                                                        {lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION'}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.8rem', fontWeight: 900, color: '#fbbf24' }}>
+                                                                        {(t[opp.suggestedMarket.marketKey] || opp.suggestedMarket.label || opp.suggestedMarket.marketKey)
+                                                                            .replace('{team}', opp.suggestedMarket.team || '')
+                                                                            .replace('{goals}', opp.suggestedMarket.target || `${((match.score?.home ?? 0) + (match.score?.away ?? 0)) + 0.5}`)}
+                                                                        {opp.suggestedMarket.confidence && (
+                                                                            <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', opacity: 0.7 }}>
+                                                                                %{opp.suggestedMarket.confidence}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1955,7 +2560,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                             {isCompact && (
                                                 <div style={{ fontSize: '0.65rem', opacity: 0.5, marginTop: '0.2rem' }}>
-                                                    {match.minute}' • {match.score?.home ?? 0} - {match.score?.away ?? 0} • Veri Bekleniyor...
+                                                    {renderMatchMinute(match.minute, t, false)} • {match.score?.home ?? 0} - {match.score?.away ?? 0} • Veri Bekleniyor...
                                                 </div>
                                             )}
                                         </div>
@@ -1964,6 +2569,32 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 {opp.score}
                                             </div>
                                             {!isCompact && <div style={{ fontSize: '0.6rem', opacity: 0.5 }}>{opp.heatLevel}</div>}
+                                            
+                                            {/* Manual Telegram Button */}
+                                            <button 
+                                                onClick={(e) => handleSendToTelegram(e, match, opp)}
+                                                style={{
+                                                    marginTop: '0.8rem',
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    borderRadius: '50%',
+                                                    background: '#24A1DE', // Telegram Blue
+                                                    border: 'none',
+                                                    color: '#fff',
+                                                    fontSize: '1rem',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    boxShadow: '0 2px 8px rgba(36, 161, 222, 0.4)',
+                                                    transition: 'transform 0.2s'
+                                                }}
+                                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
+                                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                                title="VIP Gruba Gönder"
+                                            >
+                                                ✈️
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -1993,6 +2624,35 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             }}>
                                                 🔥 {lang === 'tr' ? 'CANLI FIRSATLAR' : 'LIVE OPPORTUNITIES'}
                                             </h3>
+                                            
+                                            {/* Momentum Window Selector */}
+                                            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                {[5, 10, 20].map(m => (
+                                                    <button
+                                                        key={m}
+                                                        onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
+                                                        style={{
+                                                            background: momentumWindow === m ? 'rgba(251, 191, 36, 0.2)' : 'transparent',
+                                                            color: momentumWindow === m ? '#fbbf24' : 'rgba(255,255,255,0.4)',
+                                                            border: 'none',
+                                                            padding: '0.4rem 0.8rem',
+                                                            borderRadius: '8px',
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 900,
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s',
+                                                            display: 'flex',
+                                                            flexDirection: 'column',
+                                                            alignItems: 'center',
+                                                            minWidth: '50px'
+                                                        }}
+                                                    >
+                                                        {m}D
+                                                        <span style={{ fontSize: '0.5rem', opacity: momentumWindow === m ? 0.7 : 0.3 }}>{lang === 'tr' ? 'İVME' : 'TREND'}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+
                                             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                                                 {[5, 10, 'ALL'].map(limit => (
                                                     <button
@@ -2143,8 +2803,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         }}>
                             {eligibleMatches.filter(filterByTier).map(match => {
                                 const signal = signals[match.id];
-                                if (!signal) return null;
                                 const isVip = match.tier === 1;
+                                const isSignalReady = !!signal;
                                 return (
                                     <div key={match.id} className={`match-card glass-panel ${isVip ? 'vip-glow' : ''}`} style={{
                                         padding: '2rem',
@@ -2157,19 +2817,47 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         {isVip && (
                                             <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--success-color)', color: '#000', padding: '0.2rem 1rem', fontSize: '0.6rem', fontWeight: 900, borderBottomLeftRadius: '10px', letterSpacing: '1px', zIndex: 10 }}>VIP</div>
                                         )}
-                                        {signal.observations?.reverseSignal && (
+                                        {isSignalReady && signal.observations?.reverseSignal && (
                                             <div style={{ position: 'absolute', top: isVip ? '25px' : 0, right: 0, background: 'var(--danger-color)', color: '#fff', padding: '0.2rem 1rem', fontSize: '0.6rem', fontWeight: 900, borderBottomLeftRadius: '10px', letterSpacing: '1px', animation: 'pulse 2s infinite', zIndex: 10 }}>REVERSE SIGNAL</div>
                                         )}
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
                                             <div>
-                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{match.homeTeam} <span style={{ opacity: 0.3 }}>vs</span> {match.awayTeam}</h3>
+                                                {(match.league || match.leagueName) && (
+                                                    <div style={{
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: 800,
+                                                        color: '#94a3b8',
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.5px',
+                                                        marginBottom: '4px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}>
+                                                        <span>🏆</span>
+                                                        <span>{match.league || match.leagueName}</span>
+                                                    </div>
+                                                )}
+                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>
+                                                    {match.homeTeam}
+                                                    {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
+                                                        <span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', verticalAlign: 'middle', fontWeight: 900 }}>
+                                                            🟥 {(match.cards?.home?.red || match.stats?.cards?.home?.red)}
+                                                        </span>
+                                                    )}
+                                                    <span style={{ opacity: 0.3, margin: '0 6px' }}>vs</span>
+                                                    {match.awayTeam}
+                                                    {((match.cards?.away?.red || 0) > 0 || (match.stats?.cards?.away?.red || 0) > 0) && (
+                                                        <span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', verticalAlign: 'middle', fontWeight: 900 }}>
+                                                            🟥 {(match.cards?.away?.red || match.stats?.cards?.away?.red)}
+                                                        </span>
+                                                    )}
+                                                </h3>
                                                 <div className="match-meta" style={{ marginTop: '0.5rem' }}>
                                                     <span style={{ fontSize: '0.9rem', color: 'var(--accent-color)', fontWeight: 800 }}>
-                                                        {match.minute?.includes('HT') || match.minute?.includes('Halftime') ? t.halftime_short :
-                                                            (match.minute?.includes('half') || match.minute?.includes('Half')) ? match.minute :
-                                                                (match.minute ? (match.minute.toString().replace("'", "") + '. ' + t.minute_label) : ("0'"))}
+                                                        {renderMatchMinute(match.minute, t, true)}
                                                         <span style={{ opacity: 0.5, margin: '0 0.5rem' }}>|</span>
-                                                        {match.score.home} - {match.score.away}
+                                                        {(match.score && typeof match.score === 'object') ? `${match.score.home ?? 0} - ${match.score.away ?? 0}` : (match.score || '0 - 0')}
                                                     </span>
                                                 </div>
                                             </div>
@@ -2190,11 +2878,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     {match.stats?.dangerousAttacks?.home || 0} - {match.stats?.dangerousAttacks?.away || 0}
                                                 </div>
                                             </div>
-                                            {match.stats?.xg && (match.stats.xg.home > 0 || match.stats.xg.away > 0) && (
+                                            {match.stats?.xg && (Number(match.stats.xg.home) > 0 || Number(match.stats.xg.away) > 0) && (
                                                 <div style={{ textAlign: 'center', gridColumn: 'span 2', marginTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.6rem' }}>
                                                     <div style={{ fontSize: '0.6rem', opacity: 0.4, textTransform: 'uppercase', marginBottom: '0.2rem' }}>xG (Expected Goals)</div>
                                                     <div style={{ fontWeight: 800, color: 'var(--warning-color)', fontSize: '0.9rem' }}>
-                                                        {match.stats.xg.home.toFixed(2)} - {match.stats.xg.away.toFixed(2)}
+                                                        {(Number(match.stats.xg.home) || 0).toFixed(2)} - {(Number(match.stats.xg.away) || 0).toFixed(2)}
                                                     </div>
                                                 </div>
                                             )}
@@ -2205,17 +2893,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <div style={{
                                                 padding: '0.5rem 1.2rem',
                                                 borderRadius: '8px',
-                                                background: signal.verdict === 'BET' ? 'var(--success-color)' : 'rgba(255,255,255,0.05)',
-                                                color: signal.verdict === 'BET' ? '#000' : 'var(--text-secondary)',
+                                                background: (isSignalReady && signal.verdict === 'BET') ? 'var(--success-color)' : 'rgba(255,255,255,0.05)',
+                                                color: (isSignalReady && signal.verdict === 'BET') ? '#000' : 'var(--text-secondary)',
                                                 fontWeight: 800,
                                                 fontSize: '0.8rem',
                                                 letterSpacing: '1px'
                                             }}>
-                                                {signal.verdict === 'BET' ? t.verdict_bet : t.verdict_pass}
+                                                {!isSignalReady ? 'ANALİZ...' : (signal.verdict === 'BET' ? t.verdict_bet : t.verdict_pass)}
                                             </div>
                                         </div>
 
-                                        {signal.verdict === 'BET' && (
+                                        {isSignalReady && signal.verdict === 'BET' && (
                                             <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                                 <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
                                                     <span style={{ fontSize: '0.65rem', opacity: 0.5, display: 'block' }}>{t.recom_stake_short}</span>
@@ -2257,7 +2945,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
                                         )}
 
-                                        {signal.verdict === 'PASS' && (
+                                        {isSignalReady && signal.verdict === 'PASS' && (
                                             <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: signal.reasonKey === 'bankroll_stop' ? 'var(--danger-color)' : 'var(--warning-color)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
                                                 <span style={{ opacity: 0.6 }}>{signal.reasonKey === 'bankroll_stop' ? '🛑' : '⚠️'}</span> {t[signal.reasonKey] || signal.mainReason}
                                             </div>
@@ -2281,13 +2969,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <div>
                                             <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{match.homeTeam} vs {match.awayTeam}</h4>
                                             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-                                                {match.minute?.includes('HT') || match.minute?.includes('Halftime') ? t.halftime_short :
-                                                    (match.minute?.includes('half') || match.minute?.includes('Half')) ? match.minute :
-                                                        (match.minute ? (match.minute.toString().replace("'", "") + '. ' + t.minute_label) : "0'")}
-                                                {match.score.home} - {match.score.away}
-                                                {match.stats?.xg && (match.stats.xg.home > 0 || match.stats.xg.away > 0) && (
+                                                {renderMatchMinute(match.minute, t, true)}
+                                                <span style={{ opacity: 0.5, margin: '0 0.5rem' }}>|</span>
+                                                {(match.score && typeof match.score === 'object') ? `${match.score.home ?? 0} - ${match.score.away ?? 0}` : (match.score || '0 - 0')}
+                                                {match.stats?.xg && (Number(match.stats.xg.home) > 0 || Number(match.stats.xg.away) > 0) && (
                                                     <span style={{ fontSize: '0.7rem', color: 'var(--warning-color)', marginLeft: '0.5rem', fontWeight: 800 }}>
-                                                        (xG {match.stats.xg.home.toFixed(2)} - {match.stats.xg.away.toFixed(2)})
+                                                        (xG {(Number(match.stats.xg.home) || 0).toFixed(2)} - {(Number(match.stats.xg.away) || 0).toFixed(2)})
                                                     </span>
                                                 )}
                                                 {match.isPartial && (
@@ -2450,9 +3137,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                                                 <td style={{ padding: '1.5rem 2rem' }}>
                                                     <div style={{ fontWeight: 800 }}>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{m.score.home} : {m.score.away}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{(m.score && typeof m.score === 'object') ? `${m.score.home ?? 0} : ${m.score.away ?? 0}` : (m.score || '0 : 0')}</div>
                                                 </td>
-                                                <td style={{ padding: '1.5rem 1rem', fontWeight: 800 }}>{m.minute?.includes('half') || m.minute?.includes('Half') || m.minute?.includes('HT') ? m.minute : (m.minute ? m.minute + "'" : "0'")}</td>
+                                                <td style={{ padding: '1.5rem 1rem', fontWeight: 800 }}>{renderMatchMinute(m.minute, t, false)}</td>
                                                 <td style={{ padding: '1rem', fontWeight: 800, color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)' }}>
                                                     {m.dqs ? m.dqs.toFixed(2) : '0.00'}
                                                 </td>
@@ -2612,7 +3299,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                                                             {Object.entries(currentMatch.consensusReport?.agreement || {}).map(([pred, count]) => {
-                                                                const sources = currentMatch.consensusReport.signals
+                                                                const sources = (currentMatch.consensusReport?.signals || [])
                                                                     .filter(s => s.prediction === pred)
                                                                     .map(s => RADAR_SOURCES.find(rs => rs.id === s.site)?.label || s.site);
 
@@ -2645,12 +3332,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                             <div className="modal-header">
                                                 <div className="header-top">
-                                                    <span className="label-text">MAÇ İSTİHBARAT RAPORU</span>
-                                                    <h2>{currentMatch.homeTeam} vs {currentMatch.awayTeam}</h2>
+                                                    <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                                                        <span>{currentMatch.homeTeam}</span>
+                                                        {((currentMatch.cards?.home?.red || 0) > 0 || (currentMatch.stats?.cards?.home?.red || 0) > 0) && (
+                                                            <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
+                                                                🟥 {(currentMatch.cards?.home?.red || currentMatch.stats?.cards?.home?.red)}
+                                                            </span>
+                                                        )}
+                                                        <span style={{ opacity: 0.35, margin: '0 4px' }}>vs</span>
+                                                        <span>{currentMatch.awayTeam}</span>
+                                                        {((currentMatch.cards?.away?.red || 0) > 0 || (currentMatch.stats?.cards?.away?.red || 0) > 0) && (
+                                                            <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
+                                                                🟥 {(currentMatch.cards?.away?.red || currentMatch.stats?.cards?.away?.red)}
+                                                            </span>
+                                                        )}
+                                                    </h2>
                                                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
                                                         <span className="tier-badge">TIER {currentMatch.tier}</span>
-                                                        <span className="minute-badge">{currentMatch.minute}'</span>
-                                                        <span className="score-badge">{currentMatch.score.home} - {currentMatch.score.away}</span>
+                                                        <span className="minute-badge">{renderMatchMinute(currentMatch.minute, t, false)}</span>
+                                                        <span className="score-badge">{(currentMatch.score && typeof currentMatch.score === 'object') ? `${currentMatch.score.home ?? 0} - ${currentMatch.score.away ?? 0}` : (currentMatch.score || '0 - 0')}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -2663,10 +3363,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         <div className="dqs-display">
                                                             <div className="dqs-label">
                                                                 <span>DQS Skoru:</span>
-                                                                <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{currentMatch.dqs.toFixed(4)}</span>
+                                                                <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{(currentMatch.dqs || 0).toFixed(4)}</span>
                                                             </div>
                                                             <div className="dqs-bar-bg">
-                                                                <div className="dqs-bar-fill" style={{ width: `${currentMatch.dqs * 100}%` }}></div>
+                                                                <div className="dqs-bar-fill" style={{ width: `${(currentMatch.dqs || 0) * 100}%` }}></div>
                                                             </div>
                                                         </div>
 
@@ -2878,12 +3578,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     { id: 'BAYESIAN_PRICING', label: t.toggle_bayesian, premium: true },
                                     { id: 'LEAGUE_PROFILES', label: t.toggle_league_profiles, premium: false }
                                 ].map(setting => {
-                                    const isLocked = setting.premium && userProfile?.plan !== 'premium';
+                                    const isLocked = false; // Bypassed for local Admin access
                                     return (
                                         <div key={setting.id} className={`setting-item ${isLocked ? 'locked' : ''}`}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                 <span>{setting.label}</span>
-                                                {isLocked && <span style={{ background: 'var(--accent-color)', color: '#000', fontSize: '0.5rem', padding: '2px 4px', borderRadius: '4px', fontWeight: 900 }}>PREMIUM</span>}
+                                                {setting.premium && <span style={{ background: 'var(--accent-color)', color: '#000', fontSize: '0.5rem', padding: '2px 4px', borderRadius: '4px', fontWeight: 900 }}>PREMIUM</span>}
                                             </div>
                                             <div
                                                 className={`toggle ${advancedSettings[setting.id] ? 'on' : ''} ${isLocked ? 'disabled' : ''}`}
@@ -2893,7 +3593,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         return;
                                                     }
                                                     const newVal = !advancedSettings[setting.id];
-                                                    setAdvancedSettings(prev => ({ ...prev, [setting.id]: newVal }));
+                                                    const newSettings = { ...advancedSettings, [setting.id]: newVal };
+                                                    setAdvancedSettings(newSettings);
+                                                    localStorage.setItem('lbm_advanced_settings', JSON.stringify(newSettings));
                                                     CONFIG.MODULAR_SYSTEM.OPTIONAL_MODULES[setting.id] = newVal;
                                                 }}
                                             ><div className="knob"></div></div>
@@ -2928,240 +3630,681 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 )
             }
 
-            {/* SMART ALERT POPUP */}
+            {/* SMART ALERT FLOATING TOAST (Non-intrusive, bottom-right, auto-dismiss) */}
             {
-                showAlertPopup && (
-                    <div className="modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowAlertPopup(null)}>
-                        <div className="glass-panel" onClick={e => e.stopPropagation()} style={{
-                            maxWidth: '500px',
-                            padding: '2rem',
-                            background: showAlertPopup.level === 'ALEV'
-                                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)'
-                                : 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(15, 23, 42, 0.95) 100%)',
-                            border: `2px solid ${showAlertPopup.level === 'ALEV' ? 'rgba(239, 68, 68, 0.5)' : 'rgba(251, 191, 36, 0.5)'}`,
-                            animation: 'pulse 2s infinite'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                                    <span style={{ fontSize: '2rem' }}>{showAlertPopup.level === 'ALEV' ? '🔥' : '⚡'}</span>
-                                    <div>
-                                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24' }}>
-                                            {showAlertPopup.level} FIRSAT!
-                                        </h3>
-                                        <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{showAlertPopup.conditionsMet}/5 koşul sağlandı</span>
-                                    </div>
-                                </div>
-                                <button onClick={() => setShowAlertPopup(null)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                showAlertPopup && alertNotifyMode !== 'OFF' && (
+                    <div 
+                        className="alert-toast-container" 
+                        onMouseEnter={() => setIsToastPaused(true)}
+                        onMouseLeave={() => setIsToastPaused(false)}
+                        style={{
+                            position: 'fixed',
+                            bottom: '24px',
+                            right: '24px',
+                            zIndex: 9999,
+                            width: '420px',
+                            maxWidth: 'calc(100vw - 32px)',
+                            background: 'rgba(15, 23, 42, 0.95)',
+                            backdropFilter: 'blur(16px)',
+                            WebkitBackdropFilter: 'blur(16px)',
+                            borderRadius: '16px',
+                            border: `1.5px solid ${
+                                showAlertPopup.level === 'ALEV' || showAlertPopup.recommendation?.edgeType === 'LATENCY' 
+                                    ? 'rgba(239, 68, 68, 0.7)' 
+                                    : showAlertPopup.recommendation?.edgeType === 'PLUS_EV'
+                                        ? 'rgba(168, 85, 247, 0.7)'
+                                        : 'rgba(251, 191, 36, 0.6)'
+                            }`,
+                            boxShadow: `0 20px 40px -10px rgba(0,0,0,0.8), 0 0 25px ${
+                                showAlertPopup.level === 'ALEV' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(251, 191, 36, 0.2)'
+                            }`,
+                            padding: '1.2rem',
+                            animation: 'slideInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.8rem',
+                            overflow: 'hidden'
+                        }}
+                    >
+                        {/* Header bar: Badge + Title + Close button */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '1.3rem' }}>
+                                    {showAlertPopup.recommendation?.edgeType === 'LATENCY' ? '⚡' : 
+                                     showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? '💎' : 
+                                     showAlertPopup.level === 'ALEV' ? '🔥' : '🎯'}
+                                </span>
+                                <span style={{
+                                    fontWeight: 900,
+                                    fontSize: '0.8rem',
+                                    letterSpacing: '0.5px',
+                                    textTransform: 'uppercase',
+                                    color: showAlertPopup.recommendation?.edgeType === 'LATENCY' ? '#f97316' :
+                                           showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? '#c084fc' :
+                                           showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24'
+                                }}>
+                                    {showAlertPopup.recommendation?.edgeType === 'LATENCY' ? 'GECİKME ARBİTRAJI' :
+                                     showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? 'KURUMSAL +EV DEĞER' :
+                                     `${showAlertPopup.level || 'SICAK'} FIRSAT`}
+                                </span>
+                                <span style={{
+                                    fontSize: '0.65rem',
+                                    background: 'rgba(255,255,255,0.08)',
+                                    padding: '2px 7px',
+                                    borderRadius: '10px',
+                                    color: '#94a3b8',
+                                    fontWeight: 700
+                                }}>
+                                    {showAlertPopup.conditionsMet || 4}/5 Koşul
+                                </span>
                             </div>
+                            <button 
+                                onClick={() => setShowAlertPopup(null)} 
+                                style={{ 
+                                    background: 'rgba(255,255,255,0.06)', 
+                                    border: 'none', 
+                                    color: '#94a3b8', 
+                                    width: '24px', 
+                                    height: '24px', 
+                                    borderRadius: '50%', 
+                                    cursor: 'pointer', 
+                                    fontSize: '0.85rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(239,68,68,0.3)'; }}
+                                onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+                                title="Kapat"
+                            >
+                                ✕
+                            </button>
+                        </div>
 
-                            <div style={{ marginBottom: '1.5rem' }}>
-                                <h4 style={{ margin: '0 0 0.3rem 0', fontSize: '1.2rem', fontWeight: 800 }}>{showAlertPopup.match}</h4>
-                                <div style={{ fontSize: '0.85rem', opacity: 0.7 }}>{showAlertPopup.minute}' • Skor: {showAlertPopup.score}</div>
-                            </div>
-
+                        {/* Match info: Teams + Minute + Score */}
+                        {(showAlertPopup.league || showAlertPopup.leagueName) && (
                             <div style={{
-                                background: 'rgba(56, 189, 248, 0.1)',
-                                padding: '1.2rem',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                marginBottom: '1.5rem'
+                                fontSize: '0.65rem',
+                                fontWeight: 800,
+                                color: '#94a3b8',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                                marginBottom: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
                             }}>
-                                <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase', marginBottom: '0.5rem' }}>ÖNERİ</div>
-                                <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--accent-color)', marginBottom: '0.5rem' }}>
-                                    {showAlertPopup.recommendation?.marketKey ?
-                                        (t[showAlertPopup.recommendation.marketKey] ?
-                                            (showAlertPopup.recommendation.marketParams ?
-                                                Object.entries(showAlertPopup.recommendation.marketParams).reduce((acc, [k, v]) => acc.replace(`{${k}}`, v), t[showAlertPopup.recommendation.marketKey])
-                                                : t[showAlertPopup.recommendation.marketKey])
-                                            : showAlertPopup.recommendation.marketKey)
-                                        : showAlertPopup.recommendation?.market}
-                                </div>
-                                <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.8rem' }}>
-                                    <span style={{ background: 'rgba(16, 185, 129, 0.2)', padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 700, color: '#10b981' }}>
-                                        %{showAlertPopup.recommendation?.confidence} {t.confidence_score}
-                                    </span>
-                                </div>
-                                <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>
-                                    {Array.isArray(showAlertPopup.recommendation?.reasoning) ?
-                                        showAlertPopup.recommendation.reasoning.map(r => {
-                                            if (typeof r === 'string') return r;
-                                            let txt = t[r.key] || r.key;
-                                            if (r.params) Object.entries(r.params).forEach(([k, v]) => txt = txt.replace(`{${k}}`, v));
-                                            return txt;
-                                        }).join(' • ')
-                                        : showAlertPopup.recommendation?.reasoning}
-                                </div>
+                                <span>🏆</span>
+                                <span>{showAlertPopup.league || showAlertPopup.leagueName}</span>
                             </div>
-
-                            <div style={{ display: 'flex', gap: '1rem' }}>
-                                <button
-                                    onClick={() => {
-                                        // Record prediction when user accepts
-                                        const match = matches.find(m => m.id === showAlertPopup.matchId);
-                                        // Parse score string to object
-                                        let scoreObj = { home: 0, away: 0 };
-                                        if (typeof showAlertPopup.score === 'string' && showAlertPopup.score.includes('-')) {
-                                            const parts = showAlertPopup.score.split('-');
-                                            scoreObj = { home: parseInt(parts[0]) || 0, away: parseInt(parts[1]) || 0 };
-                                        } else if (typeof showAlertPopup.score === 'object') {
-                                            scoreObj = showAlertPopup.score;
-                                        }
-                                        predictionTracker.recordPrediction({
-                                            matchId: showAlertPopup.matchId,
-                                            match: showAlertPopup.match,
-                                            homeTeam: showAlertPopup.homeTeam,
-                                            awayTeam: showAlertPopup.awayTeam,
-                                            minute: showAlertPopup.minute,
-                                            score: scoreObj,
-                                            market: showAlertPopup.recommendation?.marketKey || showAlertPopup.recommendation?.market,
-                                            prediction: showAlertPopup.recommendation?.marketKey || showAlertPopup.recommendation?.market,
-                                            confidence: showAlertPopup.recommendation?.confidence,
-                                            source: 'ALERT',
-                                            dqs: match?.dqs,
-                                            xgHome: match?.stats?.xg?.home,
-                                            xgAway: match?.stats?.xg?.away,
-                                            consensusCount: match?.consensusReport?.totalSources
-                                        });
-                                        setTrackingStats(predictionTracker.getStats());
-                                        setShowAlertPopup(null);
-                                        alert('✅ Tahmin kaydedildi! Maç bitince sonucu güncelleyebilirsin.');
-                                    }}
-                                    style={{
-                                        flex: 1,
-                                        background: 'var(--success-color)',
-                                        color: '#000',
-                                        border: 'none',
-                                        padding: '0.8rem',
-                                        borderRadius: '10px',
-                                        fontWeight: 900,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    ✓ OYNA & KAYDET
-                                </button>
-                                <button
-                                    onClick={() => setShowAlertPopup(null)}
-                                    style={{
-                                        flex: 1,
-                                        background: 'rgba(255,255,255,0.1)',
-                                        color: '#fff',
-                                        border: '1px solid rgba(255,255,255,0.2)',
-                                        padding: '0.8rem',
-                                        borderRadius: '10px',
-                                        fontWeight: 700,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    KAPAT
-                                </button>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                <span>{showAlertPopup.homeTeam || showAlertPopup.match?.split(' vs ')?.[0]}</span>
+                                {((showAlertPopup.cards?.home?.red || 0) > 0 || (showAlertPopup.redCards?.home || 0) > 0) && (
+                                    <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>
+                                        🟥 {showAlertPopup.cards?.home?.red || showAlertPopup.redCards?.home}
+                                    </span>
+                                )}
+                                <span style={{ opacity: 0.35, margin: '0 2px' }}>vs</span>
+                                <span>{showAlertPopup.awayTeam || showAlertPopup.match?.split(' vs ')?.[1]}</span>
+                                {((showAlertPopup.cards?.away?.red || 0) > 0 || (showAlertPopup.redCards?.away || 0) > 0) && (
+                                    <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>
+                                        🟥 {showAlertPopup.cards?.away?.red || showAlertPopup.redCards?.away}
+                                    </span>
+                                )}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-color)' }}>
+                                {renderMatchMinute(showAlertPopup.minute, t, false)} • Skor: {showAlertPopup.score}
                             </div>
                         </div>
+
+                        {/* Recommendation Box */}
+                        <div style={{
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '10px',
+                            padding: '0.75rem 0.9rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div>
+                                <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ÖNERİLEN PAZAR</div>
+                                <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#38bdf8' }}>
+                                    {showAlertPopup.recommendation?.predictionText ||
+                                     showAlertPopup.recommendation?.marketLabel || 
+                                     (t[showAlertPopup.recommendation?.marketKey] || showAlertPopup.recommendation?.marketKey || showAlertPopup.recommendation?.market)}
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ 
+                                    background: 'rgba(16, 185, 129, 0.2)', 
+                                    color: '#34d399', 
+                                    padding: '3px 8px', 
+                                    borderRadius: '6px', 
+                                    fontSize: '0.75rem', 
+                                    fontWeight: 900 
+                                }}>
+                                    %{showAlertPopup.recommendation?.confidence || 75} Güven
+                                </div>
+                                {showAlertPopup.recommendation?.odds && Number(showAlertPopup.recommendation.odds) > 1.05 && (
+                                    <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '2px', fontWeight: 800, color: '#fbbf24' }}>
+                                        @{Number(showAlertPopup.recommendation.odds).toFixed(2)}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Reasoning snippet */}
+                        <div style={{ fontSize: '0.7rem', opacity: 0.75, lineHeight: 1.4 }}>
+                            {Array.isArray(showAlertPopup.recommendation?.reasoning) ?
+                                showAlertPopup.recommendation.reasoning.slice(0, 3).map(r => {
+                                    if (typeof r === 'string') return r;
+                                    let txt = t[r.key] || r.key;
+                                    if (r.params) Object.entries(r.params).forEach(([k, v]) => txt = txt.replace(`{${k}}`, v));
+                                    return txt;
+                                }).join(' • ')
+                                : (showAlertPopup.recommendation?.reasoning || '')}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.2rem' }}>
+                            <button
+                                onClick={() => {
+                                    const match = matches.find(m => String(m.id) === String(showAlertPopup.matchId));
+                                    let scoreObj = { home: 0, away: 0 };
+                                    if (typeof showAlertPopup.score === 'string' && showAlertPopup.score.includes('-')) {
+                                        const parts = showAlertPopup.score.split('-');
+                                        scoreObj = { home: parseInt(parts[0]) || 0, away: parseInt(parts[1]) || 0 };
+                                    } else if (typeof showAlertPopup.score === 'object') {
+                                        scoreObj = showAlertPopup.score;
+                                    }
+                                    const marketTitle = showAlertPopup.recommendation?.predictionText || showAlertPopup.recommendation?.marketLabel || showAlertPopup.recommendation?.marketKey || showAlertPopup.recommendation?.market;
+                                    predictionTracker.recordPrediction({
+                                        matchId: showAlertPopup.matchId,
+                                        match: showAlertPopup.match,
+                                        homeTeam: showAlertPopup.homeTeam,
+                                        awayTeam: showAlertPopup.awayTeam,
+                                        minute: showAlertPopup.minute,
+                                        score: scoreObj,
+                                        market: marketTitle,
+                                        prediction: marketTitle,
+                                        confidence: showAlertPopup.recommendation?.confidence,
+                                        source: 'ALERT',
+                                        dqs: match?.dqs,
+                                        xgHome: match?.stats?.xg?.home,
+                                        xgAway: match?.stats?.xg?.away,
+                                        consensusCount: match?.consensusReport?.totalSources
+                                    });
+                                    setTrackingStats(predictionTracker.getStats());
+                                    setShowAlertPopup(null);
+                                }}
+                                style={{
+                                    flex: 1,
+                                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                                    color: '#000',
+                                    border: 'none',
+                                    padding: '0.6rem',
+                                    borderRadius: '8px',
+                                    fontWeight: 900,
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 10px rgba(16,185,129,0.3)',
+                                    transition: 'transform 0.15s'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                                ✓ Oyna & Kaydet
+                            </button>
+                            <button
+                                onClick={() => setShowAlertPopup(null)}
+                                style={{
+                                    background: 'rgba(255,255,255,0.06)',
+                                    color: '#cbd5e1',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    padding: '0.6rem 1rem',
+                                    borderRadius: '8px',
+                                    fontWeight: 700,
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Kapat
+                            </button>
+                        </div>
+
+                        {/* 10-second countdown bar */}
+                        <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            height: '3px',
+                            background: showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24',
+                            width: `${toastProgress}%`,
+                            transition: 'width 0.1s linear'
+                        }} />
                     </div>
                 )
             }
 
-            {/* TRACKING PANEL */}
+            {/* TRACKING & SIGNAL HISTORY PANEL */}
             {
                 showTrackingPanel && (
                     <div className="modal-overlay" onClick={() => setShowTrackingPanel(false)}>
-                        <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '80vh', overflow: 'auto' }}>
+                        <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: '750px', maxHeight: '85vh', overflow: 'auto' }}>
                             <button className="close-btn" onClick={() => setShowTrackingPanel(false)}>×</button>
 
-                            <h2 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                                <span>📊</span> {t.tracking_title}
-                            </h2>
-
-                            {/* Summary Stats */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-                                <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>TOPLAM</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-color)' }}>{trackingStats.total}</div>
-                                </div>
-                                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>KAZANAN</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981' }}>{trackingStats.won}</div>
-                                </div>
-                                <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>KAYBEDEN</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#ef4444' }}>{trackingStats.lost}</div>
-                                </div>
-                                <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>İSABET</div>
-                                    <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fbbf24' }}>%{trackingStats.accuracy}</div>
-                                </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem' }}>
+                                <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', margin: 0, fontSize: '1.25rem' }}>
+                                    <span>📊</span> {lang === 'tr' ? 'Sinyal Geçmişi & Tahmin Karnesi' : 'Signal History & Prediction Tracker'}
+                                </h2>
                             </div>
 
-                            {/* By Confidence */}
-                            <div style={{ marginBottom: '2rem' }}>
-                                <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>Güven Seviyesine Göre</h4>
-                                <div style={{ display: 'flex', gap: '1rem' }}>
-                                    {Object.entries(trackingStats.byConfidence || {}).map(([level, stats]) => (
-                                        <div key={level} style={{ flex: 1, background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>
-                                                {level === 'high' ? 'Yüksek (75+)' : level === 'medium' ? 'Orta (60-74)' : 'Düşük (<60)'}
-                                            </div>
-                                            <div style={{ fontWeight: 800, marginTop: '0.3rem' }}>
-                                                {stats.total > 0 ? `${((stats.won / stats.total) * 100).toFixed(0)}%` : '-'}
-                                                <span style={{ fontSize: '0.7rem', opacity: 0.5, marginLeft: '0.3rem' }}>({stats.won}/{stats.total})</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* Recent Predictions */}
-                            <div>
-                                <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>Son Tahminler</h4>
-                                <div style={{ maxHeight: '300px', overflow: 'auto' }}>
-                                    {predictionTracker.getRecent(20).map((pred, idx) => (
-                                        <div key={pred.id} style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            padding: '0.8rem',
-                                            background: idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
-                                            borderRadius: '8px',
-                                            marginBottom: '0.3rem'
+                            {/* Tab Switcher */}
+                            <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.8rem' }}>
+                                <button
+                                    onClick={() => setTrackingActiveTab('ALERTS')}
+                                    style={{
+                                        background: trackingActiveTab === 'ALERTS' ? 'linear-gradient(135deg, #38bdf8, #2563eb)' : 'rgba(255,255,255,0.05)',
+                                        color: trackingActiveTab === 'ALERTS' ? '#fff' : 'var(--text-secondary)',
+                                        border: 'none',
+                                        padding: '0.55rem 1.2rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <span>🔔</span>
+                                    <span>{lang === 'tr' ? 'Gelen Sinyal Geçmişi' : 'Smart Alerts History'}</span>
+                                    {alertHistoryList.length > 0 && (
+                                        <span style={{
+                                            background: trackingActiveTab === 'ALERTS' ? 'rgba(0,0,0,0.3)' : '#38bdf8',
+                                            color: '#fff',
+                                            borderRadius: '10px',
+                                            padding: '0.1rem 0.45rem',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 900
                                         }}>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{pred.match}</div>
-                                                <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>
-                                                    {t[pred.market] || pred.market} • %{pred.confidence} {t.confidence_score}
-                                                    {pred.minute && <span style={{ marginLeft: '0.5rem', color: 'var(--text-primary)', opacity: 0.8 }}>@{pred.minute}' ({typeof pred.scoreAtPrediction === 'object' ? `${pred.scoreAtPrediction.home}-${pred.scoreAtPrediction.away}` : pred.scoreAtPrediction})</span>}
-                                                </div>
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                                                {pred.status === 'PENDING' ? (
-                                                    <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                                        <button onClick={() => {
-                                                            predictionTracker.updateResult(pred.id, 'WON', {});
-                                                            setTrackingStats(predictionTracker.getStats());
-                                                        }} style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }}>✓</button>
-                                                        <button onClick={() => {
-                                                            predictionTracker.updateResult(pred.id, 'LOST', {});
-                                                            setTrackingStats(predictionTracker.getStats());
-                                                        }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }}>✗</button>
-                                                    </div>
-                                                ) : (
-                                                    <span style={{
-                                                        padding: '0.3rem 0.6rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.7rem',
-                                                        fontWeight: 800,
-                                                        background: pred.status === 'WON' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                        color: pred.status === 'WON' ? '#10b981' : '#ef4444'
-                                                    }}>{pred.status === 'WON' ? 'KAZANDI' : 'KAYBETTİ'}</span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {predictionTracker.getRecent(20).length === 0 && (
-                                        <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
-                                            Henüz kayıtlı tahmin yok
-                                        </div>
+                                            {alertHistoryList.length}
+                                        </span>
                                     )}
-                                </div>
+                                </button>
+                                <button
+                                    onClick={() => setTrackingActiveTab('BETS')}
+                                    style={{
+                                        background: trackingActiveTab === 'BETS' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.05)',
+                                        color: trackingActiveTab === 'BETS' ? '#000' : 'var(--text-secondary)',
+                                        border: 'none',
+                                        padding: '0.55rem 1.2rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <span>📈</span>
+                                    <span>{lang === 'tr' ? 'Tahmin & Kasa Karnesi' : 'Prediction & Bankroll Tracker'}</span>
+                                    {trackingStats.total > 0 && (
+                                        <span style={{
+                                            background: trackingActiveTab === 'BETS' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)',
+                                            color: trackingActiveTab === 'BETS' ? '#000' : '#fff',
+                                            borderRadius: '10px',
+                                            padding: '0.1rem 0.45rem',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 900
+                                        }}>
+                                            {trackingStats.total}
+                                        </span>
+                                    )}
+                                </button>
                             </div>
+
+                            {/* TAB 1: SMART ALERTS HISTORY */}
+                            {trackingActiveTab === 'ALERTS' && (
+                                <div>
+                                    {/* Alert Stats Summary */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                                        <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>TOPLAM SİNYAL</div>
+                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--accent-color)' }}>{alertHistoryList.length}</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>KAZANAN</div>
+                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#10b981' }}>
+                                                {alertHistoryList.filter(a => a.status === 'WON').length}
+                                            </div>
+                                        </div>
+                                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>KAYBEDEN</div>
+                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ef4444' }}>
+                                                {alertHistoryList.filter(a => a.status === 'LOST').length}
+                                            </div>
+                                        </div>
+                                        <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>DEVAM EDEN</div>
+                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fbbf24' }}>
+                                                {alertHistoryList.filter(a => a.status === 'PENDING').length}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.8 }}>Gelen Popup & Bildirim Sinyalleri</div>
+                                        {alertHistoryList.length > 0 && (
+                                            <button
+                                                onClick={() => {
+                                                    if (window.confirm('Tüm sinyal geçmişini temizlemek istediğinize emin misiniz?')) {
+                                                        smartAlertService.clearHistory();
+                                                        setAlertHistoryList([]);
+                                                    }
+                                                }}
+                                                style={{
+                                                    background: 'rgba(239, 68, 68, 0.1)',
+                                                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                                                    color: '#ef4444',
+                                                    padding: '0.3rem 0.7rem',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                🗑️ Geçmişi Temizle
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Alert Cards */}
+                                    <div style={{ maxHeight: '420px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.7rem', paddingRight: '0.3rem' }}>
+                                        {alertHistoryList.map(alert => {
+                                            const rec = alert.recommendation || {};
+                                            const betTitle = rec.predictionText || rec.marketLabel || rec.marketKey || 'Tahmin';
+                                            const timeStr = alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                                            return (
+                                                <div
+                                                    key={alert.id}
+                                                    style={{
+                                                        background: alert.level === 'ALEV' ? 'rgba(239, 68, 68, 0.06)' : 'rgba(255, 255, 255, 0.03)',
+                                                        border: `1px solid ${alert.status === 'WON' ? 'rgba(16, 185, 129, 0.4)' : alert.status === 'LOST' ? 'rgba(239, 68, 68, 0.3)' : alert.level === 'ALEV' ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.1)'}`,
+                                                        borderRadius: '10px',
+                                                        padding: '0.9rem',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '0.5rem'
+                                                    }}
+                                                >
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                            <span style={{
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 900,
+                                                                padding: '0.2rem 0.5rem',
+                                                                borderRadius: '6px',
+                                                                background: alert.level === 'ALEV' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                                                color: '#fff'
+                                                            }}>
+                                                                {alert.level === 'ALEV' ? '🔥 ALEV' : '⚡ SICAK'}
+                                                            </span>
+                                                            {(alert.league || alert.leagueName) && (
+                                                                <span style={{
+                                                                    fontSize: '0.6rem',
+                                                                    padding: '1px 5px',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(255, 255, 255, 0.08)',
+                                                                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                                                                    color: '#cbd5e1',
+                                                                    fontWeight: 700,
+                                                                    textTransform: 'uppercase',
+                                                                    letterSpacing: '0.5px'
+                                                                }}>
+                                                                    {alert.league || alert.leagueName}
+                                                                </span>
+                                                            )}
+                                                            <span style={{ fontWeight: 800, fontSize: '0.9rem', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                                                                <span>{alert.homeTeam || alert.match?.split(' vs ')?.[0]}</span>
+                                                                {((alert.cards?.home?.red || 0) > 0 || (alert.redCards?.home || 0) > 0) && (
+                                                                    <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>
+                                                                        🟥 {alert.cards?.home?.red || alert.redCards?.home}
+                                                                    </span>
+                                                                )}
+                                                                <span style={{ opacity: 0.35, margin: '0 2px' }}>vs</span>
+                                                                <span>{alert.awayTeam || alert.match?.split(' vs ')?.[1]}</span>
+                                                                {((alert.cards?.away?.red || 0) > 0 || (alert.redCards?.away || 0) > 0) && (
+                                                                    <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>
+                                                                        🟥 {alert.cards?.away?.red || alert.redCards?.away}
+                                                                    </span>
+                                                                )}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{timeStr}</div>
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.5rem 0.8rem', borderRadius: '8px' }}>
+                                                        <div>
+                                                            <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.1rem' }}>
+                                                                ⏱️ {alert.minute}' • Skor: {typeof alert.score === 'object' ? `${alert.score?.home ?? 0}-${alert.score?.away ?? 0}` : (alert.score || '0-0')} anında
+                                                            </div>
+                                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-color)' }}>
+                                                                🎯 {betTitle}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
+                                                                {rec.odds ? `Oran: ${Number(rec.odds).toFixed(2)}` : ''}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
+                                                                %{rec.confidence || 75} Güven
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Status & Actions */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
+                                                        <div>
+                                                            {alert.status === 'WON' ? (
+                                                                <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>
+                                                                    ✓ KAZANDI
+                                                                </span>
+                                                            ) : alert.status === 'LOST' ? (
+                                                                <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>
+                                                                    ✗ KAYBETTİ
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>
+                                                                    ⏳ DEVAM EDİYOR
+                                                                </span>
+                                                            )}
+                                                        </div>
+
+                                                        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                                            {alert.status === 'PENDING' && (
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            smartAlertService.updateAlertResult(alert.id, 'WON');
+                                                                            setAlertHistoryList(smartAlertService.getHistory(50));
+                                                                        }}
+                                                                        style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
+                                                                        title="Kazandı olarak işaretle"
+                                                                    >
+                                                                        ✓ Kazandı
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            smartAlertService.updateAlertResult(alert.id, 'LOST');
+                                                                            setAlertHistoryList(smartAlertService.getHistory(50));
+                                                                        }}
+                                                                        style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
+                                                                        title="Kaybetti olarak işaretle"
+                                                                    >
+                                                                        ✗ Kaybetti
+                                                                    </button>
+                                                                </>
+                                                            )}
+                                                            <button
+                                                                onClick={() => {
+                                                                    const match = matches.find(m => String(m.id) === String(alert.matchId));
+                                                                    let scoreObj = { home: 0, away: 0 };
+                                                                    if (typeof alert.score === 'string' && alert.score.includes('-')) {
+                                                                        const parts = alert.score.split('-');
+                                                                        scoreObj = { home: parseInt(parts[0]) || 0, away: parseInt(parts[1]) || 0 };
+                                                                    } else if (typeof alert.score === 'object') {
+                                                                        scoreObj = alert.score;
+                                                                    }
+                                                                    predictionTracker.recordPrediction({
+                                                                        matchId: alert.matchId,
+                                                                        match: alert.match,
+                                                                        homeTeam: alert.homeTeam,
+                                                                        awayTeam: alert.awayTeam,
+                                                                        minute: alert.minute,
+                                                                        score: scoreObj,
+                                                                        market: betTitle,
+                                                                        prediction: betTitle,
+                                                                        confidence: rec.confidence,
+                                                                        source: 'ALERT'
+                                                                    });
+                                                                    setTrackingStats(predictionTracker.getStats());
+                                                                    alert('Tahmin başarıyla karnenize kaydedildi!');
+                                                                }}
+                                                                style={{
+                                                                    background: 'rgba(56, 189, 248, 0.1)',
+                                                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                                                    color: '#38bdf8',
+                                                                    padding: '0.3rem 0.6rem',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.65rem',
+                                                                    fontWeight: 700,
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                                title="Bu tahmini kişisel kasa karnene ekle"
+                                                            >
+                                                                + Portföye Ekle
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {alertHistoryList.length === 0 && (
+                                            <div style={{ textAlign: 'center', padding: '3rem 1rem', opacity: 0.5 }}>
+                                                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔔</div>
+                                                <div>Henüz tetiklenen sinyal bulunmuyor.</div>
+                                                <div style={{ fontSize: '0.75rem', marginTop: '0.4rem' }}>Canlı maçlarda yüksek baskı veya xG dominasyonu tespit edildiğinde sinyaller burada listelenecektir.</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB 2: REGISTERED BETS & BANKROLL TRACKER */}
+                            {trackingActiveTab === 'BETS' && (
+                                <div>
+                                    {/* Summary Stats */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+                                        <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>TOPLAM</div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-color)' }}>{trackingStats.total}</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>KAZANAN</div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981' }}>{trackingStats.won}</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>KAYBEDEN</div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#ef4444' }}>{trackingStats.lost}</div>
+                                        </div>
+                                        <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>İSABET</div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fbbf24' }}>%{trackingStats.accuracy}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* By Confidence */}
+                                    <div style={{ marginBottom: '2rem' }}>
+                                        <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>Güven Seviyesine Göre</h4>
+                                        <div style={{ display: 'flex', gap: '1rem' }}>
+                                            {Object.entries(trackingStats.byConfidence || {}).map(([level, stats]) => (
+                                                <div key={level} style={{ flex: 1, background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
+                                                    <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>
+                                                        {level === 'high' ? 'Yüksek (75+)' : level === 'medium' ? 'Orta (60-74)' : 'Düşük (<60)'}
+                                                    </div>
+                                                    <div style={{ fontWeight: 800, marginTop: '0.3rem' }}>
+                                                        {stats.total > 0 ? `${((stats.won / stats.total) * 100).toFixed(0)}%` : '-'}
+                                                        <span style={{ fontSize: '0.7rem', opacity: 0.5, marginLeft: '0.3rem' }}>({stats.won}/{stats.total})</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Recent Predictions */}
+                                    <div>
+                                        <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>Son Tahminler</h4>
+                                        <div style={{ maxHeight: '300px', overflow: 'auto' }}>
+                                            {predictionTracker.getRecent(20).map((pred, idx) => (
+                                                <div key={pred.id} style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    padding: '0.8rem',
+                                                    background: idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
+                                                    borderRadius: '8px',
+                                                    marginBottom: '0.3rem'
+                                                }}>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{pred.match}</div>
+                                                        <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>
+                                                            {t[pred.market] || pred.market} • %{pred.confidence} {t.confidence_score}
+                                                            {pred.minute && <span style={{ marginLeft: '0.5rem', color: 'var(--text-primary)', opacity: 0.8 }}>@{renderMatchMinute(pred.minute, t, false)} ({(pred.scoreAtPrediction && typeof pred.scoreAtPrediction === 'object') ? `${pred.scoreAtPrediction.home ?? 0}-${pred.scoreAtPrediction.away ?? 0}` : (pred.scoreAtPrediction || '0-0')})</span>}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                                        {pred.status === 'PENDING' ? (
+                                                            <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                                                <button onClick={() => {
+                                                                    predictionTracker.updateResult(pred.id, 'WON', {});
+                                                                    setTrackingStats(predictionTracker.getStats());
+                                                                }} style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }}>✓</button>
+                                                                <button onClick={() => {
+                                                                    predictionTracker.updateResult(pred.id, 'LOST', {});
+                                                                    setTrackingStats(predictionTracker.getStats());
+                                                                }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }}>✗</button>
+                                                            </div>
+                                                        ) : (
+                                                            <span style={{
+                                                                padding: '0.3rem 0.6rem',
+                                                                borderRadius: '4px',
+                                                                fontSize: '0.7rem',
+                                                                fontWeight: 800,
+                                                                background: pred.status === 'WON' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                                                color: pred.status === 'WON' ? '#10b981' : '#ef4444'
+                                                            }}>{pred.status === 'WON' ? 'KAZANDI' : 'KAYBETTİ'}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {predictionTracker.getRecent(20).length === 0 && (
+                                                <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
+                                                    Henüz kayıtlı tahmin yok
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )
@@ -3172,7 +4315,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             {showFAQ && <FAQ onClose={() => setShowFAQ(false)} lang={lang} mode={faqMode} />}
             <button
                 onClick={() => {
+                    smartAlertService.autoResolveAlerts(matches);
+                    setAlertHistoryList(smartAlertService.getHistory(50));
                     setTrackingStats(predictionTracker.getStats());
+                    setTrackingActiveTab('ALERTS');
                     setShowTrackingPanel(true);
                 }}
                 style={{

@@ -1,6 +1,12 @@
 import time
 import json
 import os
+import sys
+
+SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
+if SERVER_DIR not in sys.path:
+    sys.path.insert(0, SERVER_DIR)
+
 import sqlite3
 import re
 from urllib.parse import unquote
@@ -22,7 +28,8 @@ SITES = {
     "statarea": "https://www.statarea.com/predictions"
 }
 
-OUTPUT_FILE = "server/consensus_data.json"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_FILE = os.path.join(BASE_DIR, "consensus_data.json")
 
 class ConsensusScraper:
     def __init__(self):
@@ -57,26 +64,45 @@ class ConsensusScraper:
             except Exception as e:
                 print(f"[CONSENSUS] Could not load/migrate existing data: {e}")
 
-    def get_driver(self, use_mobile=False, headless=True):
+    def get_driver(self, use_mobile=False, headless=False):
+        from driver_helper import get_chromedriver_path
+        driver_path = get_chromedriver_path()
+
+        # Priority 1: Direct Selenium with patched ChromeDriver 152
+        try:
+            from selenium import webdriver
+            from selenium.webdriver.chrome.service import Service
+            from selenium.webdriver.chrome.options import Options
+
+            options = Options()
+            options.add_argument('--headless=new')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-gpu')
+            if use_mobile:
+                options.add_argument('--window-size=375,812')
+            else:
+                options.add_argument('--window-size=1920,1080')
+            options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36')
+
+            service = Service(executable_path=driver_path)
+            driver = webdriver.Chrome(service=service, options=options)
+            return driver
+        except Exception as e:
+            print(f"[CONSENSUS] Direct Selenium launch failed: {e}, falling back to uc...")
+
+        # Priority 2: uc fallback
         options = uc.ChromeOptions()
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
-        options.add_argument('--window-position=-2000,0') # Open off-screen
-        
+        options.add_argument('--headless=new')
         if use_mobile:
             options.add_argument('--window-size=375,812')
         else:
             options.add_argument('--window-size=1920,1080')
-        
-        try:
-            driver = uc.Chrome(options=options, headless=headless)
-            if not headless:
-                driver.minimize_window()
-            return driver
-        except Exception as e:
-            print(f"[CONSENSUS] Driver failed: {e}")
-            return uc.Chrome(headless=True)
+
+        return uc.Chrome(options=options, driver_executable_path=driver_path, use_subprocess=True)
 
     def save_results(self):
         # Save to local JSON file

@@ -3,8 +3,8 @@
  * Focus: XHR/JSON extraction and normalization.
  */
 
-import { CONFIG } from '../config';
-import { database, ref, get } from '../firebase/config';
+import { CONFIG } from '../config.js';
+import { database, ref, get } from '../firebase/config.js';
 
 export const sofaScoreAdapter = {
     /**
@@ -12,27 +12,40 @@ export const sofaScoreAdapter = {
      */
     async fetchScheduledEvents() {
         try {
-            // Detect environment: localhost = use proxy, production = use Firebase
-            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            // Detect environment: Use local proxy for anything that isn't the production Firebase domain
+            const isProduction = window.location.hostname === 'vipbetpicks77.web.app' || window.location.hostname.includes('firebaseapp.com');
+            const isLocalDev = !isProduction;
 
             if (isLocalDev) {
                 // LOCAL DEVELOPMENT: Use local proxy (faster, no Firebase quota)
-                const proxyUrl = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001') + '/api/sofascore/live';
+                const proxyUrl = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001') + '/api/sofascore/live';
                 const response = await fetch(proxyUrl);
 
                 if (!response.ok) {
-                    console.warn('[SOFASCORE_ADAPTER] Proxy returned:', response.status);
+                    console.warn('[SOFASCORE_ADAPTER] Proxy offline or error:', response.status);
                     return [];
                 }
 
                 const data = await response.json();
 
                 if (data && data.events) {
-                    const normalized = data.events
-                        .map(event => this.normalizeEvent(event))
-                        .filter(event => event !== null);
+                    const normalized = [];
+                    for (const event of data.events) {
+                        try {
+                            const n = this.normalizeEvent(event);
+                            if (n) normalized.push(n);
+                        } catch (err) {
+                            console.error('[SOFASCORE_ADAPTER] Normalization failed for event:', event.id, err.message);
+                        }
+                    }
 
-                    console.log(`[SOFASCORE_ADAPTER] LOCAL: Found ${data.events.length} total, ${normalized.length} active football matches`);
+                    const totalMatches = data.events.length;
+                    console.log(`[SOFASCORE_ADAPTER] LOCAL: Discovered ${totalMatches} total. After normalization: ${normalized.length} active football matches.`);
+                    
+                    if (normalized.length === 0 && totalMatches > 0) {
+                        console.warn('[SOFASCORE_ADAPTER] All matches were filtered out. Check normalizeEvent() logic.');
+                    }
+                    
                     return normalized;
                 }
                 return [];
@@ -66,16 +79,22 @@ export const sofaScoreAdapter = {
         if (!event) return null;
 
         // CRITICAL: Strict filtering to match SofaScore "Live" (Football) count
-        // 1. Must be Football (ID 1)
+        // 1. Sport ID check (ID 1 is Football)
         const sportId = event.tournament?.category?.sport?.id;
-        if (sportId !== 1) return null;
+        // RELAXED: If sportId is missing, assume it's football because the endpoint is sport/football
+        if (sportId && sportId !== 1) return null; 
 
-        // 2. Must be In Progress (not just 'live' but actually playing)
-        const statusType = event.status?.type;
+        // 2. Must be Active (Include anything that isn't finished/canceled)
+        const statusType = event.status?.type; // inprogress, finished, notstarted
         const statusDesc = (event.status?.description || '').toLowerCase();
 
-        if (statusType !== 'inprogress') return null;
-        if (statusDesc.includes('ended') || statusDesc.includes('finished') || statusDesc.includes('canceled') || statusDesc.includes('bitti')) return null;
+        // RELAXED: Accept any 'inprogress' OR anything with a score that isn't 'finished'
+        const isLiveInProgress = statusType === 'inprogress';
+        const isActuallyFinished = statusType === 'finished' || statusDesc.includes('ended') || statusDesc.includes('finished') || statusDesc.includes('canceled') || statusDesc.includes('bitti') || statusDesc.includes('ertele');
+        const hasScore = event.homeScore?.current !== undefined || event.awayScore?.current !== undefined;
+
+        if (!isLiveInProgress && isActuallyFinished) return null;
+        if (statusType === 'notstarted' && !statusDesc.includes('live')) return null;
 
         return {
             id: event.id,
@@ -87,12 +106,20 @@ export const sofaScoreAdapter = {
                 away: event.awayScore?.current ?? 0
             },
             minute: this.calculateMinute(event),
+            cards: {
+                home: { yellow: 0, red: event.homeRedCards || 0 },
+                away: { yellow: 0, red: event.awayRedCards || 0 }
+            },
             stats: {
                 possession: { home: 0, away: 0 },
                 shotsOnGoal: { home: 0, away: 0 },
                 dangerousAttacks: { home: 0, away: 0 },
                 corners: { home: 0, away: 0 },
-                xg: { home: 0, away: 0 }
+                xg: { home: 0, away: 0 },
+                cards: {
+                    home: { yellow: 0, red: event.homeRedCards || 0 },
+                    away: { yellow: 0, red: event.awayRedCards || 0 }
+                }
             },
             isPartial: true,
             latency: 0,
@@ -105,31 +132,129 @@ export const sofaScoreAdapter = {
      * Fetches full details for a specific event.
      */
     fetchEventDetails: async (eventId) => {
-        const startTime = Date.now(); // Start timing
+        const startTime = Date.now();
 
         try {
-            const [detailSnap, statsSnap] = await Promise.all([
-                get(ref(database, `stats/${eventId}/detail`)),
-                get(ref(database, `stats/${eventId}/stats`))
-            ]);
+            const isProduction = window.location.hostname === 'vipbetpicks77.web.app' || window.location.hostname.includes('firebaseapp.com');
+            const isLocalDev = !isProduction;
 
-            const latency = Date.now() - startTime; // Calculate latency
+            if (isLocalDev) {
+                // LOCAL DEVELOPMENT: Use local proxy for stats
+                const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
+                const [detailRes, statsRes] = await Promise.all([
+                    fetch(`${proxyBase}/api/sofascore/event/${eventId}`),
+                    fetch(`${proxyBase}/api/sofascore/event/${eventId}/statistics`)
+                ]);
 
-            if (!detailSnap.exists() || !statsSnap.exists()) {
-                // console.warn('[SOFASCORE ADAPTER] Detail/Stats not found in Firebase');
-                return null;
+                const latency = Date.now() - startTime;
+
+                // Detail must be successful (200) - 202 means "queued, not ready yet"
+                if (!detailRes.ok && detailRes.status !== 202) {
+                    console.warn(`[SOFASCORE_ADAPTER] LOCAL detail fetch failed: ${detailRes.status}`);
+                    return null;
+                }
+
+                const detail = await detailRes.json();
+                let stats = null;
+
+                if (statsRes.ok) {
+                    stats = await statsRes.json();
+                } else if (statsRes.status === 404) {
+                    // Match has no in-depth stats on SofaScore (normal for minor/youth leagues)
+                    stats = { statistics: [] };
+                } else if (statsRes.status === 202) {
+                    stats = { status: 'queued' };
+                }
+
+                // If detail is queued (not ready), return null
+                if (detail.status === 'queued') {
+                    return null;
+                }
+
+                if (detail?.error) return null;
+
+                const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
+                normalized.latency = latency;
+                return normalized;
+            } else {
+                // PRODUCTION: Use Firebase
+                const [detailSnap, statsSnap] = await Promise.all([
+                    get(ref(database, `stats/${eventId}/detail`)),
+                    get(ref(database, `stats/${eventId}/stats`))
+                ]);
+
+                const latency = Date.now() - startTime;
+
+                if (!detailSnap.exists()) return null;
+
+                const detail = detailSnap.val();
+                const stats = statsSnap.exists() ? statsSnap.val() : { statistics: [] };
+
+                if (detail?.error) return null;
+
+                const normalized = sofaScoreAdapter.normalize(detail, stats);
+                normalized.latency = latency;
+                return normalized;
             }
-
-            const detail = detailSnap.val();
-            const stats = statsSnap.val();
-
-            if (detail?.error || stats?.error) return null;
-
-            const normalized = sofaScoreAdapter.normalize(detail, stats);
-            normalized.latency = latency; // Attach actual latency
-            return normalized;
         } catch (error) {
             console.error(`SofaScore fetchEventDetails Error for ${eventId}:`, error);
+            return null;
+        }
+    },
+
+    /**
+     * Fetches live odds (1-X-2) for a specific event directly from SofaScore or Proxy.
+     */
+    async fetchEventOdds(eventId) {
+        try {
+            const isProduction = window.location.hostname === 'vipbetpicks77.web.app' || window.location.hostname.includes('firebaseapp.com');
+            const isLocalDev = !isProduction;
+            let data = null;
+
+            if (isLocalDev) {
+                // LOCAL: Use proxy for odds (much faster)
+                const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
+                const res = await fetch(`${proxyBase}/api/sofascore/event/${eventId}/odds/1/all`);
+                if (res.ok) data = await res.json();
+            } else {
+                // PRODUCTION: Firebase fallback or direct hit (depending on proxy availability)
+                const snapshot = await get(ref(database, `odds/${eventId}`));
+                if (snapshot.exists()) data = snapshot.val();
+            }
+
+            if (!data) return null;
+
+            // Direct 1-X-2 format (from proxy or live_odds.json)
+            if (data.home !== undefined && data.away !== undefined) {
+                return {
+                    home: parseFloat(data.home) || 0,
+                    draw: parseFloat(data.draw) || 0,
+                    away: parseFloat(data.away) || 0,
+                    source: data.source || 'LOCAL_PROXY'
+                };
+            }
+
+            // SofaScore market structure (Full Time 1X2 market)
+            if (data.markets) {
+                const ftMarket = data.markets.find(m => m.id === 1 || m.marketName?.toLowerCase() === 'full time');
+                if (ftMarket && ftMarket.choices) {
+                    const homeChoice = ftMarket.choices.find(c => c.name === '1' || c.idx === 1);
+                    const drawChoice = ftMarket.choices.find(c => c.name === 'X' || c.idx === 2);
+                    const awayChoice = ftMarket.choices.find(c => c.name === '2' || c.idx === 3);
+
+                    if (homeChoice && awayChoice) {
+                        return {
+                            home: parseFloat(homeChoice.value) || 0,
+                            draw: parseFloat(drawChoice?.value) || 0,
+                            away: parseFloat(awayChoice.value) || 0,
+                            source: 'SOFASCORE_DIRECT'
+                        };
+                    }
+                }
+            }
+            return null;
+        } catch (error) {
+            console.warn(`[SOFASCORE_ADAPTER] Odds fetch failed for ${eventId}:`, error.message);
             return null;
         }
     },
@@ -190,7 +315,12 @@ export const sofaScoreAdapter = {
                         if (name === 'dangerous attacks' || name === 'dangerous attack' || name === 'tehlikeli atak') {
                             normalizedStats.dangerousAttacks.home = parseVal(homeVal);
                             normalizedStats.dangerousAttacks.away = parseVal(awayVal);
-                        } else if ((name === 'final third entries' || name === 'big chances' || name === 'büyük şans') && normalizedStats.dangerousAttacks.home === 0) {
+                        } else if (name === 'final third entries' || name === 'final third phase') {
+                            if (normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
+                                normalizedStats.dangerousAttacks.home = parseVal(homeVal);
+                                normalizedStats.dangerousAttacks.away = parseVal(awayVal);
+                            }
+                        } else if (name === 'touches in penalty area' && normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
                             normalizedStats.dangerousAttacks.home = parseVal(homeVal);
                             normalizedStats.dangerousAttacks.away = parseVal(awayVal);
                         }
@@ -223,6 +353,20 @@ export const sofaScoreAdapter = {
                     });
                 });
                 normalizedStats.groups = allStats.groups;
+                if (event) {
+                    normalizedStats.cards.home.red = Math.max(normalizedStats.cards.home.red || 0, event.homeRedCards || 0);
+                    normalizedStats.cards.away.red = Math.max(normalizedStats.cards.away.red || 0, event.awayRedCards || 0);
+                }
+
+                // Fallback: If dangerous attacks not explicitly tracked by league, estimate from pressure metrics
+                if (normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
+                    const homePoss = normalizedStats.possession.home || 50;
+                    const awayPoss = normalizedStats.possession.away || 50;
+                    if (normalizedStats.totalShots.home > 0 || normalizedStats.totalShots.away > 0 || normalizedStats.corners.home > 0 || normalizedStats.corners.away > 0) {
+                        normalizedStats.dangerousAttacks.home = Math.round((normalizedStats.totalShots.home * 3) + (normalizedStats.corners.home * 4) + (homePoss * 0.3));
+                        normalizedStats.dangerousAttacks.away = Math.round((normalizedStats.totalShots.away * 3) + (normalizedStats.corners.away * 4) + (awayPoss * 0.3));
+                    }
+                }
 
                 // Determine quality based on major stats
                 const hasMajorStats = normalizedStats.shotsOnGoal.home > 0 || normalizedStats.shotsOnGoal.away > 0 ||
@@ -242,28 +386,36 @@ export const sofaScoreAdapter = {
                     dataQuality = 'OK';
                 }
             } else {
+                // No 'ALL' period stats found - but we might have other periods?
+                // For now, treat as partial but KEEP the metadata from detail
                 isPartial = true;
-                dataQuality = 'PARTIAL'; // No 'ALL' period stats found
+                dataQuality = 'PARTIAL';
             }
         } else {
+            // No stats object at all - check if we have basic info in detail
             isPartial = true;
-            dataQuality = 'PARTIAL'; // No stats object at all
+            dataQuality = 'EMPTY';
         }
 
         return {
             id: event.id,
             homeTeam: event.homeTeam?.name || 'Home',
             awayTeam: event.awayTeam?.name || 'Away',
-            leagueName: event.tournament?.name || 'Unknown League',
+            league: event.tournament?.name || 'Unknown',
+            leagueName: event.tournament?.name || 'Unknown',
+            leagueId: event.tournament?.id,
+            category: event.tournament?.category?.name,
+            status: event.status?.description,
+            minute: this.calculateMinute ? this.calculateMinute(event) : (event.status?.description || '0\''),
             score: {
-                home: event.homeScore?.current ?? 0,
-                away: event.awayScore?.current ?? 0
+                home: event.homeScore?.current || 0,
+                away: event.awayScore?.current || 0
             },
-            minute: sofaScoreAdapter.calculateMinute(event),
             stats: normalizedStats,
-            isPartial: isPartial,
-            latency: 0,
-            dataQuality: dataQuality,
+            cards: normalizedStats.cards,
+            isPartial,
+            dataQuality,
+            timestamp: Date.now(),
             source: 'SOFASCORE'
         };
     },
@@ -272,32 +424,88 @@ export const sofaScoreAdapter = {
      * Calculates the current live minute from SofaScore statusTime.
      */
     calculateMinute(event) {
-        if (!event || !event.status) return '0\'';
+        if (!event || !event.status) return "0'";
 
-        const statusType = event.status.type;
-        const description = event.status.description || 'Live';
+        const status = event.status || {};
+        const code = status.code;
+        const statusType = (status.type || '').toLowerCase();
+        const desc = (status.description || '').trim();
+        const descLower = desc.toLowerCase();
 
-        if (statusType !== 'inprogress') return description;
-
-        // If it's halftime, return the description
-        if (description.toLowerCase().includes('half') && description.toLowerCase().includes('time')) {
-            return description;
+        // 1. Canceled / Postponed / Suspended / Interrupted / Abandoned
+        if (code === 91 || code === 92 || code === 93 || code === 94 || code === 95 ||
+            descLower.includes('postponed') || descLower.includes('canceled') || 
+            descLower.includes('interrupted') || descLower.includes('suspended') || 
+            descLower.includes('abandoned') || descLower.includes('ertele') || descLower.includes('iptal')) {
+            return desc || 'Ert.';
         }
 
-        const statusTime = event.statusTime || event.time;
-        if (statusTime && statusTime.timestamp) {
-            const now = Math.floor(Date.now() / 1000);
-            const start = statusTime.timestamp;
-            const initial = statusTime.initial || 0;
-            const elapsed = Math.floor((now - start) / 60);
-            const calcMinute = Math.floor(initial / 60) + elapsed;
+        // 2. Not started
+        if (statusType === 'notstarted' || code === 0) {
+            return desc || "0'";
+        }
 
-            // Limit to reasonable values (e.g. max 90 + injury)
-            if (elapsed >= 0 && elapsed < 60) {
-                return calcMinute.toString();
+        // 3. Halftime / Devre Arası (CRITICAL: Must check BEFORE finished because 'halftime' contains 'ft')
+        if (code === 31 || descLower === 'halftime' || descLower === 'ht' || 
+            descLower.includes('halftime') || descLower.includes('half-time') || 
+            (descLower.includes('half') && descLower.includes('time')) || descLower.includes('devre')) {
+            return 'İY';
+        }
+
+        // 4. Finished / Maç Sonu
+        if (statusType === 'finished' || code === 100 || 
+            descLower === 'ft' || descLower === 'ended' || descLower === 'finished' || 
+            descLower.includes('bitti') || descLower.includes('sona') ||
+            /\b(ft|finished|ended|full time|full-time)\b/i.test(desc)) {
+            return 'MS';
+        }
+
+        // 5. Live in progress: Use SofaScore's own clock formula
+        // SofaScore calculates: displaySec = min(initial + elapsedFromPeriodStart, max)
+        const timeObj = event.time || {};
+        const statusTime = event.statusTime || {};
+        const now = Math.floor(Date.now() / 1000);
+
+        // Overtime / Extra time
+        if (descLower.includes('extra') || code === 14 || code === 15 || code === 16) {
+            const periodStart = statusTime.timestamp || timeObj.currentPeriodStartTimestamp;
+            const periodElapsedMin = periodStart ? Math.floor(Math.max(0, now - periodStart) / 60) : 0;
+            return `${90 + periodElapsedMin}'`;
+        }
+
+        // Penaltılar
+        if (descLower.includes('penalties') || code === 120) {
+            return 'Pen.';
+        }
+
+        // Use SofaScore's clock fields: initial, max, extra, timestamp
+        const initialSec = statusTime.initial ?? timeObj.initial ?? (code === 7 ? 2700 : 0);
+        const maxSec = statusTime.max ?? timeObj.max ?? (code === 7 ? 5400 : 2700);
+        const extraSec = statusTime.extra ?? timeObj.extra ?? 540; // 9 min default
+        const periodTimestamp = statusTime.timestamp || timeObj.currentPeriodStartTimestamp || event.startTimestamp;
+
+        const elapsedSec = periodTimestamp ? Math.max(0, now - periodTimestamp) : 0;
+
+        // SofaScore formula: clamp to max
+        const rawSec = initialSec + elapsedSec;
+        const maxMinute = Math.floor(maxSec / 60); // 45 for 1st half, 90 for 2nd half
+
+        // Check if we're in stoppage/injury time (past 45' in 1st half, or past 90' in 2nd half)
+        if (rawSec > maxSec) {
+            // Extreme safety guard: if a match has been running for > 80 mins in a single period
+            // and the feed died, force end it
+            if (elapsedSec > 80 * 60) {
+                if (code === 6 || descLower.includes('1st')) {
+                    return 'İY';
+                }
+                return 'MS';
             }
+            // During live in-progress stoppage time, SofaScore displays "90+" or "45+"
+            return `${maxMinute}+`;
         }
 
-        return description;
+        // Normal time within period
+        const displayMin = Math.floor(rawSec / 60);
+        return `${Math.max(1, displayMin)}'`;
     }
 };

@@ -1,38 +1,59 @@
 /**
- * PRESSURE INDEX MODULE
+ * PRESSURE INDEX MODULE v2.0
  * Calculates a 0-100 intensity score based on offensive stats.
  * 
- * SSS Açıklaması: Baskı Endeksi, sadece golü değil, golün "ayak seslerini" ölçer. 
- * Bir takımın rakip kaleyi ne kadar bunalttığını; şut, korner ve tehlikeli atakların 
- * birleşimiyle hesaplar. 70 ve üzeri puan "yoğun baskı" anlamına gelir.
+ * UPGRADE: Per-minute normalization + score-state awareness
+ * - Stats are divided by minutes played to get RATES
+ * - Early game inflated scores are eliminated
+ * - Score differential affects interpretation
  */
 export const pressureIndex = {
-    calculate(stats) {
+    calculate(stats, minute, score, cards) {
         // Fallback for missing/null stats
         const s = stats || {
             shotsOnGoal: { home: 0, away: 0 },
             dangerousAttacks: { home: 0, away: 0 },
             corners: { home: 0, away: 0 },
-            totalShots: { home: 0, away: 0 }
+            totalShots: { home: 0, away: 0 },
+            possession: { home: 0, away: 0 }
         };
 
-        const W_SOG = 15;
-        const W_ATTACKS = 1.5;
-        const W_CORNERS = 5;
-        const W_TOTAL_SHOTS = 3; // Fallback factor if SOG is missing
+        // Red cards extraction (supports both direct cards object and stats.cards)
+        const homeRed = Number(cards?.home?.red ?? s.cards?.home?.red ?? 0);
+        const awayRed = Number(cards?.away?.red ?? s.cards?.away?.red ?? 0);
+
+        // Parse minute safely (minimum 5 to avoid division spikes in early game)
+        const min = Math.max(5, parseInt(minute) || 15);
+
+        // Weights for raw stats (these multiply the per-minute RATE)
+        const W_SOG = 200;       // Shots on goal per minute rate × this
+        const W_ATTACKS = 20;    // Dangerous attacks per minute rate × this
+        const W_CORNERS = 80;    // Corners per minute rate × this
+        const W_TOTAL_SHOTS = 40; // Fallback if SOG is missing
+        const W_POSSESSION = 0.3; // Possession bonus (if available)
 
         const getScore = (side) => {
             let score = 0;
 
-            // Primary metrics
-            score += (s.shotsOnGoal?.[side] || 0) * W_SOG;
-            score += (s.dangerousAttacks?.[side] || 0) * W_ATTACKS;
-            score += (s.corners?.[side] || 0) * W_CORNERS;
+            // Per-minute rates (normalized by time elapsed)
+            const sogRate = (s.shotsOnGoal?.[side] || 0) / min;
+            const daRate = (s.dangerousAttacks?.[side] || 0) / min;
+            const cornerRate = (s.corners?.[side] || 0) / min;
 
-            // Secondary fallback (Total shots)
+            // Primary metrics (rate-based)
+            score += sogRate * W_SOG;
+            score += daRate * W_ATTACKS;
+            score += cornerRate * W_CORNERS;
+
+            // Secondary fallback (Total shots rate)
             if ((s.shotsOnGoal?.[side] || 0) === 0) {
-                score += (s.totalShots?.[side] || 0) * W_TOTAL_SHOTS;
+                const tsRate = (s.totalShots?.[side] || 0) / min;
+                score += tsRate * W_TOTAL_SHOTS;
             }
+
+            // Possession bonus (flat, not rate-based)
+            const poss = s.possession?.[side] || 0;
+            if (poss > 55) score += (poss - 50) * W_POSSESSION;
 
             return score;
         };
@@ -40,17 +61,70 @@ export const pressureIndex = {
         const homeScore = getScore('home');
         const awayScore = getScore('away');
 
-        const dominantTeam = homeScore > awayScore ? 'HOME' : (awayScore > homeScore ? 'AWAY' : 'NONE');
+        // Score-state modifier: A team that's trailing pushes harder
+        let homeModifier = 1.0;
+        let awayModifier = 1.0;
+        
+        if (score) {
+            const scoreDiff = (score.home || 0) - (score.away || 0);
+            // Trailing team gets slight pressure boost (desperation factor)
+            if (scoreDiff < 0) homeModifier = 1.15;  // Home is behind
+            if (scoreDiff > 0) awayModifier = 1.15;   // Away is behind
+            // Leading by 3+ → pressure stats are misleading (garbage time)
+            if (Math.abs(scoreDiff) >= 3) {
+                homeModifier *= 0.7;
+                awayModifier *= 0.7;
+            }
+        }
+
+        // RED CARD TACTICAL MODIFIER: Numerical advantage engine
+        let redCardAdvantage = 'NONE';
+        let homeRedModifier = 1.0;
+        let awayRedModifier = 1.0;
+
+        if (awayRed > homeRed) {
+            const diff = awayRed - homeRed;
+            homeRedModifier = diff === 1 ? 1.35 : 1.65;
+            awayRedModifier = diff === 1 ? 0.75 : 0.55;
+            redCardAdvantage = 'HOME';
+        } else if (homeRed > awayRed) {
+            const diff = homeRed - awayRed;
+            awayRedModifier = diff === 1 ? 1.35 : 1.65;
+            homeRedModifier = diff === 1 ? 0.75 : 0.55;
+            redCardAdvantage = 'AWAY';
+        } else if (homeRed > 0 && homeRed === awayRed) {
+            homeRedModifier = 1.08;
+            awayRedModifier = 1.08;
+            redCardAdvantage = 'BALANCED_REDS';
+        }
+
+        const adjustedHome = homeScore * homeModifier * homeRedModifier;
+        const adjustedAway = awayScore * awayModifier * awayRedModifier;
+
+        const dominantTeam = adjustedHome > adjustedAway ? 'HOME' : 
+                            (adjustedAway > adjustedHome ? 'AWAY' : 'NONE');
 
         const normalize = (val) => Math.min(100, Math.round(val));
 
-        const result = {
-            home: normalize(homeScore),
-            away: normalize(awayScore),
-            total: normalize(homeScore + awayScore),
-            dominantTeam
+        return {
+            home: normalize(adjustedHome),
+            away: normalize(adjustedAway),
+            total: normalize(adjustedHome + adjustedAway),
+            dominantTeam,
+            redCards: {
+                home: homeRed,
+                away: awayRed,
+                advantage: redCardAdvantage,
+                homeMultiplier: homeRedModifier,
+                awayMultiplier: awayRedModifier
+            },
+            // Expose rates for downstream modules
+            rates: {
+                homeSogRate: ((s.shotsOnGoal?.home || 0) / min).toFixed(3),
+                awaySogRate: ((s.shotsOnGoal?.away || 0) / min).toFixed(3),
+                homeDaRate: ((s.dangerousAttacks?.home || 0) / min).toFixed(3),
+                awayDaRate: ((s.dangerousAttacks?.away || 0) / min).toFixed(3)
+            }
         };
-
-        return result;
     }
 };

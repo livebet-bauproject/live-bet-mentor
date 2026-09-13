@@ -15,9 +15,12 @@
  * - Enhanced market suggestions with odds context
  */
 
-import { CONFIG } from '../config';
-import { pressureIndex } from './pressureIndex';
-import { velocityModule } from './velocityModule';
+import { CONFIG } from '../config.js';
+import { pressureIndex } from './pressureIndex.js';
+import { velocityModule } from './velocityModule.js';
+import { xGModule } from './xGModule.js';
+import { poissonEngine } from './poissonEngine.js';
+import { latencyArbitrageRadar } from './latencyArbitrageRadar.js';
 
 // Dynamic weights based on match minute
 const getWeightsForMinute = (minute) => {
@@ -38,10 +41,12 @@ const getWeightsForMinute = (minute) => {
 };
 
 // Default thresholds
+// Default thresholds
 const DEFAULT_THRESHOLDS = {
-    ALEV_THRESHOLD: 80,
-    SICAK_THRESHOLD: 55,
-    MAX_MINUTE: 85,
+    ALEV_THRESHOLD: 75,
+    SICAK_THRESHOLD: 50,
+    MIN_MINUTE: 15, // Golden in-play window starts at 15'
+    MAX_MINUTE: 80, // Matches at 80+ are in closing/dead zone
     MIN_DQS: 0.35,
     VALUE_THRESHOLD: 0.15, // Required edge for Value
     ALPHA_THRESHOLD: 0.25, // Required edge for Alpha (Extreme Value)
@@ -84,6 +89,7 @@ class LiveOpportunityScorer {
             thresholds: {
                 ALEV_THRESHOLD: liveOppsConfig.ALEV_THRESHOLD || DEFAULT_THRESHOLDS.ALEV_THRESHOLD,
                 SICAK_THRESHOLD: liveOppsConfig.SICAK_THRESHOLD || DEFAULT_THRESHOLDS.SICAK_THRESHOLD,
+                MIN_MINUTE: liveOppsConfig.MIN_MINUTE || DEFAULT_THRESHOLDS.MIN_MINUTE,
                 MAX_MINUTE: liveOppsConfig.MAX_MINUTE || DEFAULT_THRESHOLDS.MAX_MINUTE,
                 MIN_DQS: liveOppsConfig.MIN_DQS || DEFAULT_THRESHOLDS.MIN_DQS,
                 VALUE_THRESHOLD: liveOppsConfig.VALUE_THRESHOLD || DEFAULT_THRESHOLDS.VALUE_THRESHOLD
@@ -94,48 +100,70 @@ class LiveOpportunityScorer {
     /**
      * Calculate opportunity score for a single match
      */
-    calculateOpportunityScore(match, signal) {
+    calculateOpportunityScore(match, signal, windowMinutes = 10) {
         const { thresholds } = this.getConfig();
 
         if (!match || !signal) {
             return this._createEmptyResult();
         }
 
+        // Strict Exclusion 1: Finished, Halftime, Cancelled matches
+        const statusType = (match.status?.type || '').toLowerCase();
+        const statusCode = match.status?.code;
+        const minStr = (match.minute || '').toString().trim();
+        
+        if (statusType === 'finished' || statusCode === 100 || minStr === 'MS' || minStr.includes('FT') || minStr.toLowerCase().includes('ended')) {
+            return this._createEmptyResult('EXCLUDED_FINISHED');
+        }
+
+        if (statusCode === 31 || minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half')) {
+            return this._createEmptyResult('EXCLUDED_HALFTIME');
+        }
+
         const matchId = match.id;
         const minute = this._parseMinute(match.minute);
 
-        // Filter: Only matches within action window
-        if (minute >= thresholds.MAX_MINUTE || minute <= 0) {
+        // Strict Exclusion 2: Outside active in-play window (e.g. 15' to 80') or stoppage time
+        const minMin = thresholds.MIN_MINUTE || 15;
+        const maxMin = thresholds.MAX_MINUTE || 80;
+        if (minute >= maxMin || minute < minMin || minStr.includes('90+')) {
             return this._createEmptyResult('EXCLUDED_MINUTE');
         }
 
-        // Filter: Minimum DQS requirement (lowered for more opportunities)
+        // Filter: Minimum DQS requirement (lowered for more opportunities, especially Tier 1)
         const dqs = match.dqs || 0;
-        if (dqs < thresholds.MIN_DQS) {
+        const effectiveMinDqs = match.tier === 1 ? (thresholds.MIN_DQS * 0.75) : thresholds.MIN_DQS; 
+        
+        if (dqs < effectiveMinDqs) {
             return this._createEmptyResult('LOW_DQS');
         }
 
         // Get dynamic weights based on minute
         const weights = getWeightsForMinute(minute);
 
-        // Calculate component scores (0-100 scale each)
+        // 1. Calculate Component Scores (0-100 scale each)
         const dqsScore = this._calculateDQSScore(dqs);
-        const momentumScore = this._calculateMomentumScore(match, minute);
-        const pressureScore = this._calculatePressureScore(match);
-        const xgScore = this._calculateXGScore(match);
+        
+        // 2. Use the Signal's Observation Data
+        const obs = signal?.observations || {};
+        const pressureData = obs.pressure || pressureIndex.calculate(match.stats, minute, match.score);
+        const xgData = obs.xg || xGModule.calculate(match);
+        
+        // 3. Dynamic Momentum (Window-based)
+        const momentumScore = this._calculateMomentumScore(match, windowMinutes);
+        const pressureScore = pressureData.total || 0;
+        const xgScore = xgData.surplus?.total > 0.5 ? 95 : (xgData.rate?.perMinute > 0.02 ? 75 : 45);
+        
         const riskScore = this._calculateRiskScore(signal);
         const oddsScore = this._calculateOddsScore(match, signal);
 
-        // Determine stats readiness
-        const stats = match.stats || {};
-        const daTotal = (stats.dangerousAttacks?.home || 0) + (stats.dangerousAttacks?.away || 0);
-        const sogTotal = (stats.shotsOnGoal?.home || 0) + (stats.shotsOnGoal?.away || 0);
-        const xgTotal = (stats.xg?.home || 0) + (stats.xg?.away || 0);
+        // 4. Synergy Bonus (xG + Pressure Alignment)
+        let synergyBonus = 0;
+        if (xgData.surplus?.total > 0.3 && pressureScore > 65) {
+            synergyBonus = 15; // Stats backed by xG quality
+        }
 
-        // Match is ready if it has any meaningful live stat (DA > 10 OR SOG > 2 OR xG > 0)
-        const isStatsReady = daTotal > 10 || sogTotal > 2 || xgTotal > 0;
-
-        // Weighted total
+        // 5. Weighted Total
         let totalScore = Math.round(
             dqsScore * weights.DQS +
             momentumScore * weights.MOMENTUM +
@@ -143,15 +171,104 @@ class LiveOpportunityScorer {
             xgScore * weights.XG +
             riskScore * weights.RISK +
             oddsScore * weights.ODDS
-        );
+        ) + synergyBonus;
+
+        // Determine if enough stats are available for a high-quality score
+        const isStatsReady = dqs >= 0.6 || (match.stats?.shotsOnGoal?.home > 0 || match.stats?.shotsOnGoal?.away > 0);
 
         // CRITICAL: Cap score if stats are not ready (Maximum 50 - SOGUK)
         if (!isStatsReady) {
             totalScore = Math.min(50, totalScore);
         }
 
-        // Calculate trend
-        const trend = this._calculateTrend(matchId, totalScore);
+        // RED CARD PENALTY Implementation (using accurate cards mapping)
+        const redCards = match.cards || match.stats?.cards || { home: { red: 0 }, away: { red: 0 } };
+        const homeReds = Number(redCards.home?.red ?? redCards.home ?? 0);
+        const awayReds = Number(redCards.away?.red ?? redCards.away ?? 0);
+        const homePress = pressureData?.home || match.stats?.pressure?.home || 0;
+        const awayPress = pressureData?.away || match.stats?.pressure?.away || 0;
+        
+        // If the dominant team has a red card, apply penalty to total score
+        if (homePress > awayPress && homeReds > 0) {
+            totalScore -= (20 * homeReds);
+        } else if (awayPress > homePress && awayReds > 0) {
+            totalScore -= (20 * awayReds);
+        }
+
+        // SMART MONEY & ODDS MOVEMENT BONUS / PENALTY
+        const oddsMovement = this._detectOddsMovement(match);
+        if (oddsMovement.smartMoney?.active) {
+            totalScore += 12; // Smart Money Confirmation Bonus!
+        } else if (oddsMovement.isTrap) {
+            totalScore -= 15; // Trap penalty
+        }
+
+        // MATHEMATICAL +EV & POISSON SIMULATION (v4.0)
+        let evAnalysis = null;
+        try {
+            evAnalysis = poissonEngine.analyzeMatch(match);
+            if (evAnalysis?.hasValue && evAnalysis?.bestEV) {
+                totalScore += 10; // Institutional +EV confirmation bonus!
+            }
+        } catch (e) {
+            console.warn('[OpportunityScorer] Error in poissonEngine:', e.message);
+        }
+
+        // LATENCY ARBITRAGE RADAR (v4.0)
+        let latencyEdge = null;
+        try {
+            latencyEdge = latencyArbitrageRadar.detectLatencyEdge(match);
+            if (latencyEdge) {
+                totalScore += 15; // Critical edge: Slow bookmaker has not adjusted!
+            }
+        } catch (e) {
+            console.warn('[OpportunityScorer] Error in latencyArbitrageRadar:', e.message);
+        }
+        
+        totalScore = Math.max(0, Math.min(100, totalScore));
+
+        // Calculate baseline score if available for window-based trend
+        const baseline = (typeof dataWorker !== 'undefined' && dataWorker?.getStatsAtWindow) 
+            ? dataWorker.getStatsAtWindow(matchId, windowMinutes) 
+            : null;
+        let baselineScore = totalScore;
+        if (baseline) {
+            // Re-calculate what the score WAS at the baseline snapshot
+            // This is better than storing the score because logic/weights might have changed
+            const baselineMinute = this._parseMinute(baseline.minute);
+            const baselineWeights = getWeightsForMinute(baselineMinute);
+            const baselineDqsScore = this._calculateDQSScore(baseline.dqs || 0);
+            
+            // Baseline stats
+            const bStats = baseline.stats || {};
+            const bPressure = pressureIndex.calculate(bStats, baselineMinute, baseline.score)?.total || 0;
+            const bXgData = xGModule.calculate({ stats: bStats, score: baseline.score });
+            const bXgScore = bXgData.surplus?.total > 0.5 ? 95 : (bXgData.rate?.perMinute > 0.02 ? 75 : 45);
+            
+            // Baseline momentum is always 50 (neutral point of origin)
+            const bMomentum = 50; 
+            
+            // Baseline risk/odds are harder to retroactively calculate perfectly, 
+            // so we use a safe mid-point or the current ones if we assume they stayed similar
+            const bRisk = 70; // Standard OK risk
+            const bOdds = 50; // Neutral odds
+            
+            baselineScore = Math.round(
+                baselineDqsScore * baselineWeights.DQS +
+                bMomentum * baselineWeights.MOMENTUM +
+                bPressure * baselineWeights.PRESSURE +
+                bXgScore * baselineWeights.XG +
+                bRisk * baselineWeights.RISK +
+                bOdds * baselineWeights.ODDS
+            );
+
+            // Apply same capping logic to baseline for fair comparison
+            const bIsReady = (baseline.dqs || 0) >= 0.6 || (bStats.shotsOnGoal?.home > 0 || bStats.shotsOnGoal?.away > 0);
+            if (!bIsReady) baselineScore = Math.min(50, baselineScore);
+        }
+
+        // Calculate trend (current vs baseline)
+        const trend = this._calculateTrend(matchId, totalScore, baselineScore);
 
         // Track xG velocity
         this._updateXGHistory(matchId, match.stats?.xg);
@@ -181,6 +298,14 @@ class LiveOpportunityScorer {
             reason,
             oddsInfo,
             valueDetected: oddsScore >= 70,
+            smartMoney: oddsMovement?.smartMoney || null,
+            oddsMovement: oddsMovement || null,
+            isTrap: oddsMovement?.isTrap || false,
+            evAnalysis: evAnalysis || null,
+            hasValueEV: evAnalysis?.hasValue || false,
+            bestEV: evAnalysis?.bestEV || null,
+            latencyEdge: latencyEdge || null,
+            hasLatencyEdge: latencyEdge !== null,
             isStatsReady,      // NEW: Flag for UI
             components: {
                 dqs: dqsScore,
@@ -198,13 +323,13 @@ class LiveOpportunityScorer {
     /**
      * Get all live opportunities sorted by score
      */
-    getOpportunities(matches, signalsMap) {
+    getOpportunities(matches, signalsMap, windowMinutes = 10) {
         if (!matches || !Array.isArray(matches)) return [];
 
         const opportunities = matches
             .map(match => {
                 const signal = signalsMap[match.id];
-                return this.calculateOpportunityScore(match, signal);
+                return this.calculateOpportunityScore(match, signal, windowMinutes);
             })
             .filter(opp => !opp.excluded)
             .sort((a, b) => {
@@ -225,9 +350,31 @@ class LiveOpportunityScorer {
     // ========== ENHANCED PRIVATE METHODS ==========
 
     _parseMinute(minute) {
-        if (!minute) return 0;
+        if (minute === undefined || minute === null || minute === '') return -1;
         if (typeof minute === 'number') return minute;
-        const str = minute.toString().replace(/[^0-9]/g, '');
+        const minStr = minute.toString().trim();
+        
+        // Match Finished / Sona Erdi -> 999
+        if (minStr === 'MS' || minStr.includes('FT') || minStr.toLowerCase().includes('ended') || minStr.toLowerCase().includes('finish')) {
+            return 999;
+        }
+        
+        // Halftime / Devre Arası -> -2
+        if (minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half')) {
+            return -2;
+        }
+
+        // Stoppage time 90+ -> 95
+        if (minStr.includes('90+') || minStr === '90+') {
+            return 95;
+        }
+
+        // Stoppage time 45+ -> 46
+        if (minStr.includes('45+') || minStr === '45+') {
+            return 46;
+        }
+
+        const str = minStr.replace(/[^0-9]/g, '');
         return parseInt(str) || 0;
     }
 
@@ -242,44 +389,56 @@ class LiveOpportunityScorer {
     }
 
     /**
-     * ENHANCED: Momentum with side-specific bias
+     * Dynamic Momentum Tracking: Compares current stats vs windowMinutes ago.
      */
-    _calculateMomentumScore(match, minute, side = 'total') {
-        let baseScore = 40;
+    _calculateMomentumScore(match, windowMinutes = 10) {
+        // Fetch baseline from N minutes ago
+        const baseline = (typeof dataWorker !== 'undefined' && dataWorker?.getStatsAtWindow) 
+            ? dataWorker.getStatsAtWindow(match.id, windowMinutes) 
+            : null;
+        
+        let stats = match.stats || {};
+        let sogNow = (stats.shotsOnGoal?.home || 0) + (stats.shotsOnGoal?.away || 0);
+        let daNow = (stats.dangerousAttacks?.home || 0) + (stats.dangerousAttacks?.away || 0);
 
-        // Try velocity module
-        try {
-            const velocity = velocityModule.calculate(match);
-            if (velocity) {
-                const gearMap = { 5: 100, 4: 80, 3: 60, 2: 40, 1: 20 };
-                baseScore = gearMap[velocity.gear] || 50;
-
-                // If specific side, adjust based on dominance
-                if (side !== 'total' && velocity.dominantSide) {
-                    if (velocity.dominantSide !== side) baseScore *= 0.6;
-                }
-            }
-        } catch (e) { }
-
-        // Based on stats
-        const stats = match.stats || {};
-        const homeSog = stats.shotsOnGoal?.home || 0;
-        const awaySog = stats.shotsOnGoal?.away || 0;
-        const homeDa = stats.dangerousAttacks?.home || 0;
-        const awayDa = stats.dangerousAttacks?.away || 0;
-
-        if (side === 'home') {
-            const sogScore = Math.min(100, (homeSog / Math.max(1, minute)) * 200);
-            const daScore = Math.min(100, (homeDa / Math.max(1, minute)) * 5);
-            baseScore = (sogScore * 0.7 + daScore * 0.3);
-        } else if (side === 'away') {
-            const sogScore = Math.min(100, (awaySog / Math.max(1, minute)) * 200);
-            const daScore = Math.min(100, (awayDa / Math.max(1, minute)) * 5);
-            baseScore = (sogScore * 0.7 + daScore * 0.3);
+        if (!baseline) {
+            // Fallback: Use per-minute averages if no history
+            const minute = Math.max(1, this._parseMinute(match.minute));
+            const sogRate = sogNow / minute * 10; // SOG per 10 mins
+            return Math.min(100, Math.round(40 + (sogRate * 10)));
         }
 
-        const recentBoost = this._getRecentActivityBoost(match.id, stats);
-        return Math.min(100, Math.round(baseScore + recentBoost));
+        const oldStats = baseline.stats || {};
+        const oldTotalGoals = (baseline.score?.home || 0) + (baseline.score?.away || 0);
+        const curTotalGoals = (match.score?.home || 0) + (match.score?.away || 0);
+        const goalJustScored = curTotalGoals > oldTotalGoals;
+
+        const sogOld = (oldStats.shotsOnGoal?.home || 0) + (oldStats.shotsOnGoal?.away || 0);
+        const daOld = (oldStats.dangerousAttacks?.home || 0) + (oldStats.dangerousAttacks?.away || 0);
+
+        let sogDelta = Math.max(0, sogNow - sogOld);
+        let daDelta = Math.max(0, daNow - daOld);
+
+        // If a goal just occurred, subtract the goal attempt from delta
+        // so the momentum reflects ongoing sustained play, NOT the past goal event
+        if (goalJustScored && sogDelta > 0) {
+            sogDelta = Math.max(0, sogDelta - (curTotalGoals - oldTotalGoals));
+        }
+
+        // Expectation: 1.5 DA per minute is high momentum
+        const expectedDA = windowMinutes * 1.5;
+        const momentumRatio = daDelta / Math.max(1, expectedDA);
+        
+        // Base score 50 (neutral) + weighted deltas
+        let score = 50 + (momentumRatio * 35) + (sogDelta * 6);
+
+        // If a goal just occurred, apply a post-goal cooling factor (-15 points)
+        // because the game is temporarily paused and teams consolidate
+        if (goalJustScored) {
+            score = Math.max(30, score - 15);
+        }
+        
+        return Math.min(100, Math.round(score));
     }
 
     /**
@@ -460,60 +619,164 @@ class LiveOpportunityScorer {
     }
 
     /**
-     * NEW: Get odds for a specific match
+     * ENHANCED: Get odds for a specific match using robust fuzzy matching.
+     * Handles different naming conventions between OddsPortal and SofaScore.
      */
     _getMatchOdds(match) {
+        // 1. Direct event odds from SofaScore (100% exact match, highest accuracy)
+        if (match.matchedOdds && match.matchedOdds.home) {
+            return match.matchedOdds;
+        }
+        if (match.odds && match.odds.home) {
+            return match.odds;
+        }
+
         if (!this.liveOdds?.matches) return null;
 
-        const homeClean = (match.homeTeam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const awayClean = (match.awayTeam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const normalize = (name) => (name || '')
+            .toLowerCase()
+            .replace(/\s*(fc|sc|sk|fk|cf|ac|as|us|cd|ad|if|bk|1\.|sv|ts|afc|women|w\.f\.c\.|wfc|ladies|u20|u21|u23|u19|reserves)\s*/gi, ' ')
+            .replace(/[^a-z0-9\s]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
 
-        const found = this.liveOdds.matches.find(o => {
-            const oHomeClean = (o.homeTeam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const oAwayClean = (o.awayTeam || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const getWords = (name) => normalize(name).split(' ').filter(w => w.length >= 2);
 
-            return (oHomeClean.includes(homeClean) || homeClean.includes(oHomeClean)) &&
-                (oAwayClean.includes(awayClean) || awayClean.includes(oAwayClean));
-        });
+        const similarity = (a, b) => {
+            const na = normalize(a);
+            const nb = normalize(b);
+            if (!na || !nb) return 0;
+            if (na === nb) return 1.0;
 
-        return found?.odds || null;
+            const wordsA = getWords(a);
+            const wordsB = getWords(b);
+            if (wordsA.length === 0 || wordsB.length === 0) return 0;
+
+            if (wordsA.length === wordsB.length && wordsA.every(w => wordsB.includes(w))) return 1.0;
+
+            const overlap = wordsA.filter(w => wordsB.some(wb => wb === w || (wb.length >= 4 && w.length >= 4 && (wb.includes(w) || w.includes(wb))))).length;
+            return overlap / Math.max(wordsA.length, wordsB.length);
+        };
+
+        let bestMatch = null;
+        let bestScore = 0;
+
+        for (const o of this.liveOdds.matches) {
+            if (!o.odds || !o.homeTeam || !o.awayTeam) continue;
+            const homeSim = similarity(match.homeTeam, o.homeTeam);
+            const awaySim = similarity(match.awayTeam, o.awayTeam);
+
+            // STRICT: BOTH home and away must independently match!
+            // If one team has low similarity (< 0.65), it is NOT the same match!
+            if (homeSim < 0.65 || awaySim < 0.65) continue;
+
+            const combined = (homeSim + awaySim) / 2;
+            if (combined > bestScore && combined >= 0.70) {
+                bestScore = combined;
+                bestMatch = o;
+            }
+        }
+
+        return bestMatch?.odds || null;
     }
 
     /**
      * NEW: Detect if odds are shortening (sharp) or drifting (trap)
      */
     _detectOddsMovement(match) {
-        const currentOdds = this._getMatchOdds(match);
-        if (!currentOdds) return { shortening: false, homeWeight: 0, awayWeight: 0 };
+        const currentOdds = this._getMatchOdds(match) || match.odds;
+        if (!currentOdds) return { shortening: false, homeWeight: 0, awayWeight: 0, smartMoney: null, isTrap: false };
 
         const key = `${(match.homeTeam || '').toLowerCase()}_${(match.awayTeam || '').toLowerCase()}`;
         const prevOdds = this.previousOdds[key];
 
-        if (!prevOdds) return { shortening: false, homeWeight: 0, awayWeight: 0 };
+        if (!prevOdds && currentOdds.home && currentOdds.away) {
+            this.previousOdds[key] = { ...currentOdds };
+            return { shortening: false, homeWeight: 0, awayWeight: 0, smartMoney: null, isTrap: false };
+        }
 
-        const homeWeight = parseFloat(currentOdds.home) - parseFloat(prevOdds.home);
-        const awayWeight = parseFloat(currentOdds.away) - parseFloat(prevOdds.away);
+        if (!prevOdds) return { shortening: false, homeWeight: 0, awayWeight: 0, smartMoney: null, isTrap: false };
+
+        const curH = parseFloat(currentOdds.home) || 0;
+        const curA = parseFloat(currentOdds.away) || 0;
+        const prevH = parseFloat(prevOdds.home) || 0;
+        const prevA = parseFloat(prevOdds.away) || 0;
+
+        const homeWeight = curH - prevH;
+        const awayWeight = curA - prevA;
+
+        const homeDropPct = prevH > 0 && curH > 0 ? ((prevH - curH) / prevH) * 100 : 0;
+        const awayDropPct = prevA > 0 && curA > 0 ? ((prevA - curA) / prevA) * 100 : 0;
+
+        // Check Smart Money vs Trap against on-pitch pressure
+        const obs = match.observations || {};
+        const pressure = obs.pressure || {};
+        const homePressure = pressure.home || 0;
+        const awayPressure = pressure.away || 0;
+
+        let smartMoney = null;
+        let isTrap = false;
+        let isDropping = false;
+        let dropPct = 0;
+        let initialOdds = 0;
+        let currentOddsVal = 0;
+
+        if (homeDropPct >= 8) {
+            isDropping = true;
+            dropPct = homeDropPct;
+            initialOdds = prevH;
+            currentOddsVal = curH;
+            if (homePressure >= 55) {
+                smartMoney = { active: true, team: match.homeTeam, side: 'HOME', dropPct: homeDropPct, initialOdds: prevH, currentOdds: curH };
+            } else if (homePressure < 40) {
+                isTrap = true;
+            }
+        } else if (awayDropPct >= 8) {
+            isDropping = true;
+            dropPct = awayDropPct;
+            initialOdds = prevA;
+            currentOddsVal = curA;
+            if (awayPressure >= 55) {
+                smartMoney = { active: true, team: match.awayTeam, side: 'AWAY', dropPct: awayDropPct, initialOdds: prevA, currentOdds: curA };
+            } else if (awayPressure < 40) {
+                isTrap = true;
+            }
+        }
 
         return {
             shortening: homeWeight < 0 || awayWeight < 0,
             drifting: homeWeight > 0.05 || awayWeight > 0.05,
             homeWeight,
-            awayWeight
+            awayWeight,
+            homeDropPct,
+            awayDropPct,
+            isDropping,
+            dropPct,
+            initialOdds,
+            currentOdds: currentOddsVal,
+            smartMoney,
+            isTrap
         };
     }
 
-    _calculateTrend(matchId, currentScore) {
-        const prevScore = this.previousScores[matchId];
+    _calculateTrend(matchId, currentScore, baselineScore) {
+        // If baselineScore is provided (window-based), use it. 
+        // Otherwise, fallback to previous cycle score for direction only.
+        const prevCycleScore = this.previousScores[matchId];
+        const referenceScore = baselineScore !== undefined ? baselineScore : prevCycleScore;
 
-        if (prevScore === undefined) {
+        if (referenceScore === undefined) {
             return { direction: 'STABLE', delta: 0 };
         }
 
-        const delta = currentScore - prevScore;
+        const delta = currentScore - referenceScore;
+        
+        // Direction is still based on pure movement, but delta is now window-accurate
+        let direction = 'STABLE';
+        if (currentScore > (prevCycleScore || currentScore)) direction = 'UP';
+        if (currentScore < (prevCycleScore || currentScore)) direction = 'DOWN';
 
-        if (delta >= 5) return { direction: 'UP', delta };
-        if (delta <= -5) return { direction: 'DOWN', delta };
-        return { direction: 'STABLE', delta };
+        return { direction, delta };
     }
 
     /**
@@ -543,41 +806,158 @@ class LiveOpportunityScorer {
     }
 
     /**
-     * ENHANCED: Market suggestion with odds consideration
+     * PREDICTION ENGINE v3.0: Suggests targets based on composite synergy.
      */
     _suggestMarket(match, signal, score, oddsInfo) {
-        if (score < 50) return null;
+        if (score < 40) return null;
 
         const stats = match.stats || {};
         const minute = this._parseMinute(match.minute);
-        const totalGoals = (match.score?.home || 0) + (match.score?.away || 0);
-        const xgTotal = (stats.xg?.home || 0) + (stats.xg?.away || 0);
+        const pressure = stats.pressure || { home: 0, away: 0 };
+        const xg = stats.xg || { home: 0, away: 0 };
+        const curScore = match.score || { home: 0, away: 0 };
+        const curTotalGoals = (curScore.home || 0) + (curScore.away || 0);
 
-        // Over 2.5 suggestion
-        if (minute < 65 && xgTotal > 1.2 && totalGoals < 2) {
-            return { marketKey: 'market_over_25', confidence: xgTotal > 1.8 ? 'HIGH' : 'MEDIUM' };
+        // Check if a goal was scored recently (last 8 minutes)
+        const baseline = (typeof dataWorker !== 'undefined' && dataWorker?.getStatsAtWindow) 
+            ? dataWorker.getStatsAtWindow(match.id, 8) 
+            : null;
+        const oldTotalGoals = baseline?.score ? ((baseline.score.home || 0) + (baseline.score.away || 0)) : curTotalGoals;
+        const goalJustScored = curTotalGoals > oldTotalGoals;
+
+        // If a goal was JUST scored: game is in cooldown/reset mode
+        if (goalJustScored) {
+            return { marketKey: 'POST_GOAL_COOLDOWN', confidence: 60 };
         }
 
-        // Goal next suggestion
-        if (minute >= 50 && minute < 85) {
-            const sog = (stats.shotsOnGoal?.home || 0) + (stats.shotsOnGoal?.away || 0);
-            if (sog >= 6 && totalGoals < 4) {
-                return { marketKey: 'market_goal_next', confidence: sog >= 10 ? 'HIGH' : 'MEDIUM' };
+        // 1. Multi-factor Dominance Analysis (xG, pressure, dangerous attacks, shots on goal, red cards)
+        const redCards = match.cards || match.stats?.cards || {};
+        const homeReds = Number(redCards.home?.red ?? redCards.home ?? 0);
+        const awayReds = Number(redCards.away?.red ?? redCards.away ?? 0);
+
+        const daHome = Number(stats.dangerousAttacks?.home ?? 0);
+        const daAway = Number(stats.dangerousAttacks?.away ?? 0);
+        const sogHome = Number(stats.shotsOnGoal?.home ?? 0);
+        const sogAway = Number(stats.shotsOnGoal?.away ?? 0);
+        const xgHome = Number(xg.home ?? 0);
+        const xgAway = Number(xg.away ?? 0);
+        const pressHome = Number(pressure.home ?? 0);
+        const pressAway = Number(pressure.away ?? 0);
+
+        // Calculate attack points combining all in-play metrics
+        const homeAttackPoints = (daHome + sogHome * 3) + (xgHome * 20) + (pressHome * 0.5) + (awayReds * 25);
+        const awayAttackPoints = (daAway + sogAway * 3) + (xgAway * 20) + (pressAway * 0.5) + (homeReds * 25);
+
+        // Clear dominance criteria:
+        const isHomeDominant = (homeAttackPoints > awayAttackPoints * 1.35 + 3) || 
+                               (xgHome > xgAway + 0.35 && xgHome >= 0.5) ||
+                               (pressHome > pressAway * 1.35 && pressHome >= 25) ||
+                               (awayReds > homeReds && homeAttackPoints >= awayAttackPoints);
+
+        const isAwayDominant = (awayAttackPoints > homeAttackPoints * 1.35 + 3) || 
+                               (xgAway > xgHome + 0.35 && xgAway >= 0.5) ||
+                               (pressAway > pressHome * 1.35 && pressAway >= 25) ||
+                               (homeReds > awayReds && awayAttackPoints >= homeAttackPoints);
+
+        const curHome = Number(curScore.home ?? 0);
+        const curAway = Number(curScore.away ?? 0);
+        const goalDiff = curHome - curAway; // > 0: Home leading, < 0: Away leading, 0: Draw
+        const targetLine = (curTotalGoals + 0.5).toFixed(1);
+
+        // =========================================================================
+        // STRICT FOOTBALL BETTING LOGIC:
+        // A trailing team (e.g. Monza losing 1-3) CAN NEVER be "Kazanmaya Yakın"!
+        // If a trailing team is dominant, they are fighting for the NEXT GOAL!
+        // "Kazanmaya Yakın" is ONLY valid when the team is ALREADY leading,
+        // OR in late game (minute >= 75) when the match is tied.
+        // =========================================================================
+
+        const liveHomeOdds = (oddsInfo?.nextGoalHome || (goalDiff >= 1 ? oddsInfo?.home : oddsInfo?.home)) ? parseFloat(oddsInfo.nextGoalHome || oddsInfo.home) : null;
+        const liveAwayOdds = (oddsInfo?.nextGoalAway || (goalDiff <= -1 ? oddsInfo?.away : oddsInfo?.away)) ? parseFloat(oddsInfo.nextGoalAway || oddsInfo.away) : null;
+        const liveOverOdds = (oddsInfo?.over25 || oddsInfo?.over) ? parseFloat(oddsInfo.over25 || oddsInfo.over) : null;
+
+        // SCENARIO 1: LATE GAME (minute >= 75)
+        if (minute >= 75) {
+            if (isHomeDominant) {
+                // Home can ONLY be "Kazanmaya Yakın" if they are leading or drawing!
+                if (goalDiff >= 0) {
+                    return { marketKey: 'HOME_WIN_NEXT', confidence: 70, team: match.homeTeam, odds: liveHomeOdds };
+                } else {
+                    // Home is trailing: they are pushing for NEXT GOAL!
+                    return { marketKey: 'HOME_NEXT_GOAL', confidence: 65, team: match.homeTeam, odds: liveHomeOdds };
+                }
             }
+            if (isAwayDominant) {
+                // Away can ONLY be "Kazanmaya Yakın" if they are leading or drawing!
+                if (goalDiff <= 0) {
+                    return { marketKey: 'AWAY_WIN_NEXT', confidence: 70, team: match.awayTeam, odds: liveAwayOdds };
+                } else {
+                    // Away is trailing: they are pushing for NEXT GOAL!
+                    return { marketKey: 'AWAY_NEXT_GOAL', confidence: 65, team: match.awayTeam, odds: liveAwayOdds };
+                }
+            }
+            return { marketKey: 'STABLE_GAME', confidence: 60 };
         }
 
-        // Home/Away win with odds-based value
-        const daHome = stats.dangerousAttacks?.home || 0;
-        const daAway = stats.dangerousAttacks?.away || 0;
+        // SCENARIO 2: ACTIVE MATCH (< 75') WITH OPPORTUNITY SCORE (score >= 50)
+        if (score >= 50) {
+            // SUB-CASE A: Home is Dominant
+            if (isHomeDominant) {
+                // If Home is already leading by 1 or more goals:
+                if (goalDiff >= 1) {
+                    // Late in the match (>= 65'), Home likely to protect/close out win:
+                    if (minute >= 65) {
+                        return { marketKey: 'HOME_WIN_NEXT', confidence: Math.min(90, Math.max(70, Math.round(score * 0.92))), team: match.homeTeam, odds: liveHomeOdds };
+                    }
+                    // Earlier, Next Goal is the sharper in-play prediction:
+                    return { marketKey: 'HOME_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.homeTeam, odds: liveHomeOdds };
+                }
+                // Home is DRAWING (0) or TRAILING (<0):
+                // Trailing team is pushing for NEXT GOAL! (Never "Kazanmaya Yakın" when trailing!)
+                return { marketKey: 'HOME_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.homeTeam, odds: liveHomeOdds };
+            }
 
-        if (daHome > daAway * 1.5 && signal?.verdict === 'BET') {
-            return { marketKey: 'market_home_win', confidence: 'VALUE' };
-        }
-        if (daAway > daHome * 1.5 && signal?.verdict === 'BET') {
-            return { marketKey: 'market_away_win', confidence: 'VALUE' };
+            // SUB-CASE B: Away is Dominant
+            if (isAwayDominant) {
+                // If Away is already leading by 1 or more goals:
+                if (goalDiff <= -1) {
+                    if (minute >= 65) {
+                        return { marketKey: 'AWAY_WIN_NEXT', confidence: Math.min(90, Math.max(70, Math.round(score * 0.92))), team: match.awayTeam, odds: liveAwayOdds };
+                    }
+                    return { marketKey: 'AWAY_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.awayTeam, odds: liveAwayOdds };
+                }
+                // Away is DRAWING (0) or TRAILING (>0, like Monza 1 - 3 Lecce):
+                // Trailing team is pushing for NEXT GOAL! (Never "Monza Kazanmaya Yakın" when trailing 1-3!)
+                return { marketKey: 'AWAY_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.awayTeam, odds: liveAwayOdds };
+            }
+
+            // SUB-CASE C: Neither team dominates, but match has high pace/pressure:
+            const totalPressure = pressHome + pressAway;
+            if (totalPressure > 90 || (daHome + daAway) > 22) {
+                if (curTotalGoals === 0 && minute < 40) {
+                    return { marketKey: 'market_fh_over05', confidence: 75, label: 'İlk Yarı 0.5 Üst', odds: liveOverOdds };
+                }
+                return { 
+                    marketKey: 'OVER_NEXT_DYNAMIC', 
+                    confidence: 75, 
+                    target: targetLine,
+                    label: `${targetLine} Üst Bekleniyor`,
+                    odds: liveOverOdds
+                };
+            }
+
+            // Standard fallback when score >= 50
+            return { 
+                marketKey: 'OVER_NEXT_DYNAMIC', 
+                confidence: 65, 
+                target: targetLine,
+                label: `${targetLine} Üst Bekleniyor`,
+                odds: liveOverOdds
+            };
         }
 
-        return null;
+        // SCENARIO 3: Low Opportunity Score (< 50)
+        return { marketKey: 'STABLE_GAME', confidence: 50 };
     }
 
     /**

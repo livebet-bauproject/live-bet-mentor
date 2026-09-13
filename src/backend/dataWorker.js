@@ -14,6 +14,7 @@ import { leagueProfileModule } from '../logic/leagueProfileModule';
 import { bankrollManager } from '../logic/bankrollManager';
 import { consensusAdapter } from './consensusAdapter';
 import { aiAnalystService } from './aiAnalystService';
+import { database, ref, get } from '../firebase/config';
 
 class DataWorker {
     constructor() {
@@ -36,11 +37,35 @@ class DataWorker {
         this.decisionLogs = [];
         this.healthMonitor = new HealthMonitor(); // Phase 11 Scenario 3
         this.lastFetchDuration = 0;
-        this.tier3Performance = JSON.parse(localStorage.getItem('tier3_performance') || '{}');
+        try {
+            const raw = localStorage.getItem('tier3_performance');
+            this.tier3Performance = (raw && raw !== 'undefined' && raw !== 'null') ? JSON.parse(raw) : {};
+        } catch {
+            this.tier3Performance = {};
+        }
         this.selectedMatchId = null;
         this.dataSource = CONFIG.DATA.DATA_SOURCE;
         this.consensusData = {};
         this.consensusTimer = 0;
+        this.listeners = new Set();
+    }
+
+    subscribe(cb) {
+        if (typeof cb === 'function') {
+            this.listeners.add(cb);
+            return () => this.listeners.delete(cb);
+        }
+        return () => {};
+    }
+
+    notify() {
+        this.listeners.forEach(cb => {
+            try {
+                cb();
+            } catch (e) {
+                console.error('[DATA_WORKER] Listener error:', e);
+            }
+        });
     }
 
     async setSelectedMatch(matchId) {
@@ -117,6 +142,7 @@ class DataWorker {
         this.startHealthMonitoring(); // Phase 11 Scenario 3
     }
 
+
     async pollConsensus() {
         while (this.isRunning) {
             console.log('[DATA_WORKER] Fetching global consensus data...');
@@ -142,14 +168,55 @@ class DataWorker {
                 }
 
                 if (rawMatches && Array.isArray(rawMatches)) {
-                    // Fetch full details for ALL discovered matches to ensure stats availability
+                    // SELECTION PRIORITY & LOAD BALANCING (v2.3)
+                    // We only fetch full details for matches that are:
+                    // 1. High priority (DQS > threshold or Tier 1/2)
+                    // 2. Currently selected in the UI
+                    // 3. Staggered updates for others (limit 10 per cycle)
+                    
+                    const priorityIds = new Set();
+                    const candidates = this.fixtures.filter(f => f.dqs >= CONFIG.DECISION.DQS_THRESHOLD || f.tier <= 2 || f.id.toString() === this.selectedMatchId);
+                    candidates.forEach(c => priorityIds.add(c.id));
+
+                    // Sort others by DQS to get the best of the rest
+                    const others = rawMatches
+                        .filter(m => !priorityIds.has(m.id))
+                        .sort((a, b) => {
+                            const dqsA = this.fixtures.find(f => f.id === a.id)?.dqs || 0;
+                            const dqsB = this.fixtures.find(f => f.id === b.id)?.dqs || 0;
+                            return dqsB - dqsA;
+                        });
+                    
+                    // Add a staggered slice of 'others' (e.g. 5 matches)
+                    const staggeredUpdateSize = 5;
+                    const staggeredOthers = others.slice(0, staggeredUpdateSize);
+                    staggeredOthers.forEach(o => priorityIds.add(o.id));
+
+                    console.log(`[DATA_WORKER] Priority Polling: ${candidates.length} candidates, ${staggeredUpdateSize} staggered. Total priority: ${priorityIds.size}/${rawMatches.length}`);
+
                     const detailedMatches = await Promise.all(
                         rawMatches.map(async (match) => {
                             const eventId = match.id;
                             if (!eventId) return match;
 
-                            // Fetch full details to get stats, xG, etc.
-                            const fullDetail = await sofaScoreAdapter.fetchEventDetails(eventId);
+                            // Skip details for low-priority matches to save bandwidth/proxy load
+                            if (!priorityIds.has(eventId)) {
+                                const existing = this.fixtures.find(f => f.id === eventId);
+                                if (existing) return { ...match, stats: existing.stats, isPartial: true };
+                                return match;
+                            }
+
+                            // Parallel fetch for stats and odds (Speed!)
+                            const [fullDetail, liveOdds] = await Promise.all([
+                                sofaScoreAdapter.fetchEventDetails(eventId),
+                                sofaScoreAdapter.fetchEventOdds(eventId)
+                            ]);
+
+                            // Update global odds cache with fresh data
+                            if (liveOdds) {
+                                this.odds[eventId] = liveOdds;
+                            }
+
                             if (fullDetail) return fullDetail;
 
                             // FALLBACK: If detail fetch returns null (queued), 
@@ -179,6 +246,7 @@ class DataWorker {
                 this.lastFetchDuration = Date.now() - startTime;
                 this.healthStats.lastFetch = Date.now();
                 this.lastUpdated = Date.now();
+                this.notify();
             } catch (error) {
                 console.error('DataWorker Poll Error:', error);
                 this.healthStats.errorCount++;
@@ -204,9 +272,10 @@ class DataWorker {
         let dqsBelow = 0;
 
         const normalized = rawFixtures.map(f => {
-            // Manage History Buffer (Last 10 snapshots)
+            // Manage High-Res History Buffer (Last 60 snapshots ~8 minutes)
             const existing = this.fixtures.find(old => old.id === f.id);
             const history = existing ? [...(existing.history || [])] : [];
+            const minuteHistory = existing ? [...(existing.minuteHistory || [])] : [];
 
             const dqs = this.calculateDQS(f);
             if (dqs >= CONFIG.DECISION.DQS_THRESHOLD) dqsAbove++;
@@ -216,8 +285,9 @@ class DataWorker {
             const consensusReport = consensusAdapter.getConsensusSummary(this.consensusData, f);
 
             // Create Snapshot
+            const now = Date.now();
             const snapshot = {
-                timestamp: Date.now(),
+                timestamp: now,
                 dqs,
                 minute: f.minute,
                 score: f.score,
@@ -225,23 +295,47 @@ class DataWorker {
                 consensusReport,
                 latency: f.latency
             };
+            
+            // 1. High-Res Buffer (Last 120 snapshots ~16 minutes)
             history.unshift(snapshot);
-            if (history.length > 10) history.pop();
+            if (history.length > 120) history.pop();
+
+            // 2. Minute-Sampled History (Last 45 minutes)
+            const lastMinuteSnapshot = minuteHistory[0];
+            // NEW: Initialize immediately if empty, then sample every 60s
+            if (!lastMinuteSnapshot || (now - lastMinuteSnapshot.timestamp) >= 60000) {
+                minuteHistory.unshift(snapshot);
+                if (minuteHistory.length > 45) minuteHistory.pop();
+            }
 
             const leagueProfile = leagueProfileModule.getProfile(f.league || f.leagueName);
-            const analysis = analyzeMatch(f, this.odds[f.id] || {}, consensusReport);
+            const matchedOdds = this.odds[f.id] || null;
+            let strategySettings = {};
+            try {
+                const raw = localStorage.getItem('lbm_strategy_settings');
+                if (raw && raw !== 'undefined' && raw !== 'null') strategySettings = JSON.parse(raw);
+            } catch {
+                strategySettings = {};
+            }
+            const analysis = analyzeMatch(f, matchedOdds || {}, consensusReport, strategySettings);
 
+            // NEW: Multi-Layered Signal Generation (Unified Engine)
+            const finalSignal = this.calculateFinalSignal(f, analysis, dqs);
 
             return {
                 ...f,
                 dqs,
                 tier: leagueProfile.tier,
                 history,
+                minuteHistory,
                 dataQuality: dqs >= 0.8 ? 'TAM' : dqs >= 0.5 ? 'KISITLI' : 'BEKLENİYOR',
                 observations: analysis.observations,
-                signal: analysis,
+                signal: finalSignal, // Uses the unified engine result
+                expertAnalysis: analysis, // Keep raw expert analysis for reference
+                activeStrategies: analysis.activeStrategies || [],
                 consensusReport,
-                aiSummary: existing?.aiSummary || f.aiSummary // Preserve AI analysis during refresh
+                matchedOdds, 
+                aiSummary: existing?.aiSummary || f.aiSummary 
             };
         });
 
@@ -293,7 +387,18 @@ class DataWorker {
             lateGame: { status: 'OK', reason: '', reasonKey: '' }
         };
 
-        const goalDiff = Math.abs(fixture.score.home - fixture.score.away);
+        let homeScore = 0;
+        let awayScore = 0;
+        if (fixture.score && typeof fixture.score === 'object') {
+            homeScore = Number(fixture.score.home) || 0;
+            awayScore = Number(fixture.score.away) || 0;
+        } else if (typeof fixture.score === 'string' && fixture.score.includes('-')) {
+            const parts = fixture.score.split('-');
+            homeScore = parseInt(parts[0]) || 0;
+            awayScore = parseInt(parts[1]) || 0;
+        }
+
+        const goalDiff = Math.abs(homeScore - awayScore);
         const minStr = typeof fixture.minute === 'string' ? fixture.minute.replace("'", "") : fixture.minute;
         const minute = parseInt(minStr) || 0;
 
@@ -301,7 +406,7 @@ class DataWorker {
         if (minute >= risk.DEAD_MATCH_MIN && goalDiff >= risk.DEAD_MATCH_DIFF) {
             filters.deadMatch = {
                 status: 'FAIL',
-                reason: `Dk:${minute} Skor:${fixture.score.home}-${fixture.score.away} (Ölü Maç)`,
+                reason: `Dk:${minute} Skor:${homeScore}-${awayScore} (Ölü Maç)`,
                 reasonKey: 'dead_match_reason'
             };
         }
@@ -352,12 +457,50 @@ class DataWorker {
 
     getSignalForMatch(matchId) {
         const fixture = this.fixtures.find(f => f.id === matchId);
-        if (!fixture) return null;
+        return fixture?.signal || null;
+    }
 
-        const dqs = fixture.dqs;
+    /**
+     * Get statistics from exactly N minutes ago (or closest available point)
+     */
+    getStatsAtWindow(matchId, windowMinutes) {
+        const fixture = this.fixtures.find(f => f.id === matchId);
+        if (!fixture || !fixture.minuteHistory || fixture.minuteHistory.length === 0) return null;
+
+        const targetMs = Date.now() - (windowMinutes * 60 * 1000);
+        
+        // Find the snapshot closest to the target time
+        let closest = fixture.minuteHistory[0];
+        let minDiff = Math.abs(closest.timestamp - targetMs);
+
+        for (const snap of fixture.minuteHistory) {
+            const diff = Math.abs(snap.timestamp - targetMs);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = snap;
+            }
+        }
+
+        // Fallback: If target window specifically isn't found, 
+        // try to return the oldest available point (minimum 1 minute old)
+        // to provide at least some trend data during startup.
+        if (minDiff > 3 * 60 * 1000) {
+            const oldest = fixture.minuteHistory[fixture.minuteHistory.length - 1];
+            const ageMs = Date.now() - oldest.timestamp;
+            if (ageMs >= 60000) return oldest;
+            return null;
+        }
+
+        return closest;
+    }
+
+    /**
+     * UNIFIED DECISION ENGINE (v2.2)
+     * Combines Quality, Risk, and Expert Analysis based on Decision Mode.
+     */
+    calculateFinalSignal(fixture, matchAnalysis, dqs) {
         const riskFilters = this.checkRiskFilters(fixture);
         const hasRiskFail = Object.values(riskFilters).some(f => f.status === 'FAIL');
-        const matchAnalysis = fixture.signal; // Already calculated in normalizeFixtures
 
         let verdict = 'PASS';
         let mainReason = '';
@@ -376,7 +519,6 @@ class DataWorker {
             verdict = 'PASS';
             mainReason = 'Tier 3: Discovery Only (No Bets)';
             reasonKey = 'tier_3_desc';
-            this.trackTier3Performance(fixture);
         } else {
             // VIP Fast-Track Logic: If Tier 1 and high momentum, lower DQS threshold slightly
             const isVipFastTrack = fixture.tier === 1 && dqs >= 0.65 && !hasRiskFail;
@@ -395,7 +537,7 @@ class DataWorker {
                 } else if (matchAnalysis.verdict === 'PASS') {
                     verdict = 'PASS';
                     mainReason = matchAnalysis.reason;
-                    reasonKey = 'analysis_rejected'; // For translations or fallback
+                    reasonKey = 'analysis_rejected';
                 } else {
                     verdict = 'BET';
                     mainReason = matchAnalysis.reason;
@@ -416,22 +558,18 @@ class DataWorker {
             }
         }
 
-        const signal = {
+        return {
             verdict,
-            mainReason,
+            reason: mainReason,
             reasonKey,
             dqs,
             riskFilters,
             observations: matchAnalysis.observations || {},
             edgeScore: matchAnalysis.edgeScore,
             counterArgs: matchAnalysis.counterArgs,
+            activeStrategies: matchAnalysis.activeStrategies || [],
             timestamp: Date.now()
         };
-
-        this.decisionLogs.push({ matchId, ...signal });
-        if (this.decisionLogs.length > 100) this.decisionLogs.shift();
-
-        return signal;
     }
 
     trackTier3Performance(fixture) {

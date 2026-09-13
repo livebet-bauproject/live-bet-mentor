@@ -37,13 +37,13 @@ export const CONFIG = {
     LATENCY_THRESHOLD_MS: 30000, // 30 seconds
     POLLING_INTERVAL_MS: 8000, // 8 seconds for faster updates
     RELIABILITY_SCORE_MIN: 0.8, // Minimum reliability score to avoid NO-BET
-    USE_MOCK_DATA: import.meta.env.VITE_USE_MOCK_DATA === 'true',
-    DATA_SOURCE: import.meta.env.VITE_DATA_SOURCE || 'SOFASCORE',
+    USE_MOCK_DATA: import.meta?.env?.VITE_USE_MOCK_DATA === 'true',
+    DATA_SOURCE: import.meta?.env?.VITE_DATA_SOURCE || 'SOFASCORE',
     DATA_SOURCE_OPTIONS: {
       SOFASCORE: 'SOFASCORE',
       REDSCORES: 'REDSCORES'
     },
-    SOFASCORE_LOCAL_PROXY_URL: (import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001') + '/api/sofascore/live'
+    SOFASCORE_LOCAL_PROXY_URL: (import.meta?.env?.VITE_API_BASE_URL || 'http://localhost:3001') + '/api/sofascore/live'
   },
 
   // Bankroll Management
@@ -92,8 +92,8 @@ export const CONFIG = {
     },
     // Phase 12: Tiered League System
     LEAGUE_TIERS: {
-      TIER_1: ['Süper Lig', 'Premier League', 'Bundesliga', 'LaLiga', 'Serie A', 'Ligue 1', 'Champions League', 'Europa League'],
-      TIER_2: ['Eredivisie', 'Primeira Liga', 'Pro League', 'Austrian Bundesliga', 'Super League', 'Superliga', 'Scottish Premiership', 'MLS'],
+      TIER_1: ['Süper Lig', 'Trendyol Süper Lig', 'Premier League', 'Bundesliga', 'LaLiga', 'Serie A', 'Ligue 1', 'Champions League', 'Europa League'],
+      TIER_2: ['Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Pro League', 'Austrian Bundesliga', 'Super League', 'Superliga', 'Scottish Premiership', 'MLS'],
       // Everything else is TIER_3 (Discovery) by default
       SETTINGS: {
         TIER_2_MOMENTUM_WINDOW: 15, // More aggressive (15m instead of 10m)

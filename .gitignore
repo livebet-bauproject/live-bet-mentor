@@ -6,6 +6,8 @@ yarn-debug.log*
 yarn-error.log*
 server/proxy.log
 server/*.log
+server/network_log.txt
+archive/
 
 # JSON Data (exclude from git to keep repo clean)
 server/consensus_data.json

@@ -13,6 +13,29 @@ class PredictionTracker {
         this.userId = null;
     }
 
+    saveToLocalStorage() {
+        try {
+            const key = `lbm_predictions_${this.userId || 'guest'}`;
+            localStorage.setItem(key, JSON.stringify(this.predictions));
+        } catch (e) { }
+    }
+
+    loadFromLocalStorage() {
+        try {
+            const key = `lbm_predictions_${this.userId || 'guest'}`;
+            const saved = localStorage.getItem(key);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    this.predictions = parsed;
+                    console.log('[TRACKER] Loaded', parsed.length, 'predictions from localStorage');
+                    return true;
+                }
+            }
+        } catch (e) { }
+        return false;
+    }
+
     /**
      * Initialize tracker for specific user
      */
@@ -24,7 +47,10 @@ class PredictionTracker {
         this.predictions = [];
         this.pendingStatusUpdates = {}; // Track updates for temp IDs
 
-        if (!userId) return;
+        if (!userId) {
+            this.loadFromLocalStorage();
+            return;
+        }
 
         try {
             const { data, error } = await supabase
@@ -35,16 +61,22 @@ class PredictionTracker {
                 .limit(200);
 
             if (error) {
-                console.error('[TRACKER] Fetch error:', error);
+                console.warn('[TRACKER] Supabase fetch error, using localStorage fallback');
+                this.loadFromLocalStorage();
                 return;
             }
 
-            if (data) {
+            if (data && data.length > 0) {
                 this.predictions = data.map(item => this.mapDbToModel(item));
+                this.saveToLocalStorage();
                 console.log('[TRACKER] Loaded', this.predictions.length, 'predictions from DB');
+            } else {
+                // If DB is empty, check if we have local predictions to preserve
+                this.loadFromLocalStorage();
             }
         } catch (e) {
-            console.error('[TRACKER] Init error:', e);
+            console.warn('[TRACKER] Remote init error, using localStorage fallback:', e.message);
+            this.loadFromLocalStorage();
         }
     }
 
@@ -101,7 +133,12 @@ class PredictionTracker {
             return null;
         }
 
-        const scoreStr = data.score ? `${data.score.home}-${data.score.away}` : '0-0';
+        let scoreStr = '0-0';
+        if (data.score && typeof data.score === 'object') {
+            scoreStr = `${data.score.home ?? 0}-${data.score.away ?? 0}`;
+        } else if (typeof data.score === 'string') {
+            scoreStr = data.score;
+        }
 
         const dbItem = {
             user_id: this.userId,
@@ -135,6 +172,7 @@ class PredictionTracker {
         if (this.predictions.length > 200) {
             this.predictions = this.predictions.slice(0, 200);
         }
+        this.saveToLocalStorage();
 
         // Check if there's a pending status update from UI (user clicked win/loss immediately)
         const pendingUpdate = this.pendingStatusUpdates[tempModel.id];
@@ -149,6 +187,7 @@ class PredictionTracker {
             tempModel.resolvedAt = Date.now();
 
             delete this.pendingStatusUpdates[tempModel.id];
+            this.saveToLocalStorage();
         }
 
         try {
@@ -167,12 +206,13 @@ class PredictionTracker {
                 if (index !== -1) {
                     this.predictions[index] = realModel;
                 }
+                this.saveToLocalStorage();
                 console.log('[TRACKER] Saved prediction:', inserted.id);
                 return realModel;
             }
         } catch (e) {
-            console.error('[TRACKER] Save error:', e);
-            // Optionally remove temp item or mark as error
+            console.warn('[TRACKER] Remote save error, stored locally:', e.message);
+            this.saveToLocalStorage();
         }
 
         return tempModel;
@@ -191,6 +231,7 @@ class PredictionTracker {
         pred.status = result;
         pred.finalScore = finalScore;
         pred.resolvedAt = Date.now();
+        this.saveToLocalStorage();
 
         // If it's a temp ID, store it to be picked up when DB record is created
         if (typeof predictionId === 'string' && predictionId.startsWith('temp_')) {
@@ -264,6 +305,7 @@ class PredictionTracker {
             }
         }
 
+        this.saveToLocalStorage();
         console.log('[TRACKER] Auto-updated', pending.length, 'predictions for match', matchId);
     }
 

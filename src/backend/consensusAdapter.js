@@ -2,16 +2,33 @@
  * CONSENSUS ADAPTER
  * Normalizes external predictions and applies fuzzy logic for team matching.
  */
-import { CONFIG } from '../config';
-import { database, ref, get } from '../firebase/config';
+import { CONFIG } from '../config.js';
+import { database, ref, get } from '../firebase/config.js';
+
+const cleanCache = new Map();
 
 export const consensusAdapter = {
     async fetchConsensus() {
         try {
-            // Fetch from Firebase
-            const snapshot = await get(ref(database, 'consensus'));
-            if (!snapshot.exists()) return null;
-            return snapshot.val();
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+            if (isLocalDev) {
+                // LOCAL: Read from proxy which serves consensus_data.json
+                const proxyBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+                const response = await fetch(`${proxyBase}/api/consensus`);
+                if (!response.ok) {
+                    console.warn('[CONSENSUS_ADAPTER] Proxy returned:', response.status);
+                    return null;
+                }
+                const data = await response.json();
+                console.log(`[CONSENSUS_ADAPTER] LOCAL: Loaded consensus with ${Object.keys(data).length} sources`);
+                return data;
+            } else {
+                // PRODUCTION: Use Firebase
+                const snapshot = await get(ref(database, 'consensus'));
+                if (!snapshot.exists()) return null;
+                return snapshot.val();
+            }
         } catch (error) {
             console.error('[CONSENSUS_ADAPTER] Error:', error);
             return null;
@@ -19,8 +36,11 @@ export const consensusAdapter = {
     },
 
     _clean(name) {
-        if (!name) return "";
-        return name.toLowerCase()
+        if (!name || typeof name !== 'string') return "";
+        const cached = cleanCache.get(name);
+        if (cached !== undefined) return cached;
+
+        let cleaned = name.toLowerCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
             .replace(/\bmilano\b/g, 'milan')
             .replace(/\blisboa\b/g, 'lisbon')
@@ -32,40 +52,82 @@ export const consensusAdapter = {
             .replace(/\s+vs\s+/g, ' ')
             .replace(/\s+v\s+/g, ' ')
             .replace(/\s+-\s+/g, ' ')
-            // Detailed Noise words & Common suffixes
-            .replace(/\b(ac|fc|sc|cf|cd|ud|sd|rc|cp|fk|as|ssc|lfc|afc|rsc|youth|u20|u19|u23|b|reserve|reserves|lisbon|lisboa|madrid|london|praha|prague|calcio|vitoria|funchal|de|of|city|united|utd|st|saint|real|athletic|sporting|club|deportivo)\b/g, '')
             .replace(/\b(manchester)\b/g, 'man')
+            // Noise abbreviations only
+            .replace(/\b(ac|fc|sc|cf|cd|ud|sd|rc|cp|fk|as|ssc|lfc|afc|rsc|youth|u20|u19|u23|reserve|reserves|calcio|club|deportivo)\b/g, '')
             .replace(/[^a-z0-9]/g, '');
+
+        // If cleaning stripped too much (e.g. "FC" or "Real" or "Sporting"), fallback to basic alphanumeric
+        if (cleaned.length < 2) {
+            cleaned = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+        }
+
+        cleanCache.set(name, cleaned);
+        if (cleanCache.size > 10000) cleanCache.clear();
+        return cleaned;
+    },
+
+    _isFuzzyMatchClean(h1, a1, h2, a2) {
+        if (!h1 || !a1 || !h2 || !a2) return false;
+        if (h1.length < 2 || a1.length < 2 || h2.length < 2 || a2.length < 2) return false;
+
+        const homeMatch = h1 === h2 || 
+            (h1.length >= 4 && h2.length >= 4 && (h1.includes(h2) || h2.includes(h1)));
+        const awayMatch = a1 === a2 || 
+            (a1.length >= 4 && a2.length >= 4 && (a1.includes(a2) || a2.includes(a1)));
+
+        return homeMatch && awayMatch;
     },
 
     _isFuzzyMatch(home1, away1, home2, away2) {
-        if (!home1 || !away1 || !home2 || !away2) return false;
-
-        const h1 = this._clean(home1);
-        const a1 = this._clean(away1);
-        const h2 = this._clean(home2);
-        const a2 = this._clean(away2);
-
-        const homeMatch = h1 === h2 || h1.includes(h2) || h2.includes(h1);
-        const awayMatch = a1 === a2 || a1.includes(a2) || a2.includes(a1);
-
-        return homeMatch && awayMatch;
+        return this._isFuzzyMatchClean(
+            this._clean(home1),
+            this._clean(away1),
+            this._clean(home2),
+            this._clean(away2)
+        );
     },
 
     /**
      * Fuzzy match helper to link external names to our local fixtures
      * Ex: "Man City" matches "Manchester City"
      */
-    findMatchInConsensus(siteData, fixtureName) {
-        if (!siteData) return null;
+    findMatchInConsensus(siteData, fixtureHome, fixtureAway) {
+        if (!siteData || !Array.isArray(siteData)) return null;
 
-        const target = this._clean(fixtureName);
+        // If only 1 argument passed as string (e.g. "TeamA TeamB")
+        let home = fixtureHome;
+        let away = fixtureAway;
+        if (!away && typeof home === 'string') {
+            const parts = home.split(/\s+(?:vs|v|-)\s+/i);
+            if (parts.length >= 2) {
+                home = parts[0];
+                away = parts[1];
+            }
+        }
 
-        // Simple fuzzy search
+        if (home && away) {
+            const hClean = this._clean(home);
+            const aClean = this._clean(away);
+
+            // Fast path 1: direct exact clean match
+            const exact = siteData.find(p => this._clean(p.home) === hClean && this._clean(p.away) === aClean);
+            if (exact) return exact;
+
+            // Fast path 2: fuzzy match with cached cleaned strings
+            const fuzzy = siteData.find(p => this._isFuzzyMatchClean(hClean, aClean, this._clean(p.home), this._clean(p.away)));
+            if (fuzzy) return fuzzy;
+        }
+
+        // Fallback for combined string matching (strictly requiring BOTH teams)
+        const targetClean = this._clean(typeof home === 'string' && typeof away === 'string' ? `${home} ${away}` : home);
+        if (!targetClean || targetClean.length < 5) return null;
+
         return siteData.find(p => {
             const homeClean = this._clean(p.home);
             const awayClean = this._clean(p.away);
-            return target.includes(homeClean) || target.includes(awayClean);
+            if (!homeClean || !awayClean || homeClean.length < 3 || awayClean.length < 3) return false;
+            return targetClean.includes(homeClean) && targetClean.includes(awayClean);
         });
     },
 
@@ -105,7 +167,7 @@ export const consensusAdapter = {
 
         Object.entries(globalData).forEach(([site, matches]) => {
             if (!Array.isArray(matches)) return;
-            const match = this.findMatchInConsensus(matches, `${fixture.homeTeam} ${fixture.awayTeam}`);
+            const match = this.findMatchInConsensus(matches, fixture.homeTeam, fixture.awayTeam);
             if (match && match.markets && match.markets[market]) {
                 const mData = match.markets[market];
                 report.totalSources++;
@@ -149,15 +211,25 @@ export const consensusAdapter = {
                 const homeClean = this._clean(home);
                 const awayClean = this._clean(away);
 
-                // Find existing match by fuzzy matching
-                let key = Object.keys(matchMap).find(k => {
-                    const [exHome, exAway] = k.split('_S_'); // Using a unique separator
-                    return (homeClean === exHome || homeClean.includes(exHome) || exHome.includes(homeClean)) &&
-                        (awayClean === exAway || awayClean.includes(exAway) || exAway.includes(awayClean));
-                });
+                // Find existing match: Check direct key first (O(1) fast path)
+                const directKey = `${homeClean}_S_${awayClean}`;
+                let key = matchMap[directKey] ? directKey : null;
+
+                // Fallback to fuzzy scanning only if direct key not found
+                if (!key) {
+                    key = Object.keys(matchMap).find(k => {
+                        const [exHome, exAway] = k.split('_S_');
+                        if (!exHome || !exAway || !homeClean || !awayClean) return false;
+                        const homeMatch = homeClean === exHome || 
+                            (homeClean.length >= 4 && exHome.length >= 4 && (homeClean.includes(exHome) || exHome.includes(homeClean)));
+                        const awayMatch = awayClean === exAway || 
+                            (awayClean.length >= 4 && exAway.length >= 4 && (awayClean.includes(exAway) || exAway.includes(awayClean)));
+                        return homeMatch && awayMatch;
+                    });
+                }
 
                 if (!key) {
-                    key = `${homeClean}_S_${awayClean}`;
+                    key = directKey;
                     let cleanLeague = m.league || 'Others';
                     if (cleanLeague.includes('adsbygoogle') || cleanLeague.includes('<script')) cleanLeague = 'Others';
 

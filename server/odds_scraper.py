@@ -21,7 +21,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Constants
-DATA_FILE = 'server/live_odds.json'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, 'live_odds.json')
 ODDS_FETCH_INTERVAL = 30  # Fetch odds every 30 seconds
 
 # Configure performance logging
@@ -29,19 +30,64 @@ caps = DesiredCapabilities.CHROME
 caps['goog:loggingPrefs'] = {'performance': 'ALL'}
 
 
+def clean_chromedriver_cache():
+    """Clean undetected_chromedriver cache to fix FileExistsError lock issues."""
+    import shutil
+    try:
+        cache_dir = os.path.join(os.environ.get('APPDATA', ''), 'undetected_chromedriver')
+        undetected_dir = os.path.join(cache_dir, 'undetected')
+        if os.path.exists(undetected_dir):
+            shutil.rmtree(undetected_dir, ignore_errors=True)
+            logger.info("Cleaned chromedriver cache directory")
+    except Exception as e:
+        logger.warning(f"Failed to clean cache: {e}")
+
 def get_scraper():
-    """Initialize undetected Chrome driver with stealth settings."""
-    options = uc.ChromeOptions()
-    options.add_argument('--headless=new')  # Tarayıcı arka planda çalışır
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--window-size=1920,1080')
-    options.add_argument('--disable-blink-features=AutomationControlled')
+    """Initialize Chrome driver using patched ChromeDriver 152 with fallback."""
+    from driver_helper import get_chromedriver_path
+    driver_path = get_chromedriver_path()
     
-    logger.info("Launching undetected-chromedriver for OddsPortal...")
-    driver = uc.Chrome(options=options, desired_capabilities=caps)
-    return driver
+    # Priority 1: Direct Selenium with patched ChromeDriver 152
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.chrome.options import Options
+        
+        options = Options()
+        options.add_argument('--headless=new')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--window-size=1920,1080')
+        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36')
+        options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
+        
+        service = Service(executable_path=driver_path)
+        logger.info("Launching OddsPortal Browser via Patched ChromeDriver 152...")
+        driver = webdriver.Chrome(service=service, options=options)
+        return driver
+    except Exception as e:
+        logger.warning(f"Standard Selenium launch failed: {e}, trying uc fallback...")
+
+    # Priority 2: undetected_chromedriver fallback
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            options = uc.ChromeOptions()
+            options.add_argument('--headless=new')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-gpu')
+            
+            logger.info(f"Launching OddsPortal Browser (uc fallback attempt {attempt + 1})...")
+            driver = uc.Chrome(options=options, driver_executable_path=driver_path, use_subprocess=True)
+            return driver
+        except Exception as e:
+            logger.warning(f"OddsPortal Driver Error (attempt {attempt + 1}): {e}")
+            clean_chromedriver_cache()
+            time.sleep(5)
+            if attempt == max_retries - 1:
+                raise
 
 
 def parse_odds_from_page(driver):

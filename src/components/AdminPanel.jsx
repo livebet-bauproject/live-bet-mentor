@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../backend/supabaseClient';
+import { bankrollManager } from '../logic/bankrollManager';
 
 export const AdminPanel = ({ lang = 'tr' }) => {
     const [profiles, setProfiles] = useState([]);
@@ -14,6 +15,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [editingUser, setEditingUser] = useState(null);
     const [systemSettings, setSystemSettings] = useState({});
     const [settingsLoading, setSettingsLoading] = useState(false);
+    const [supabaseOffline, setSupabaseOffline] = useState(false);
 
     const PLANS = {
         trial: { label: 'Trial', color: '#10b981' },
@@ -73,7 +75,48 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         premiumPrice: 'Premium Plan Fiyatı',
         currency: 'Para Birimi',
         supportEmail: 'Destek E-postası',
-        settingsUpdated: 'Sistem ayarları güncellendi!'
+        settingsUpdated: 'Sistem ayarları güncellendi!',
+        tabTelegram: 'TELEGRAM BOT',
+        botStatus: 'BOT DURUMU',
+        botActive: 'AKTİF',
+        botInactive: 'DEVRE DIŞI',
+        botError: 'HATA',
+        sendTestReport: 'GÜNLÜK RAPOR GÖNDER',
+        signalsToday: 'Bugünkü Sinyal Sayısı',
+        vipGroupId: 'VIP Grup ID',
+        publicChannel: 'Halka Açık Kanal',
+        minLevel: 'Min. Sinyal Seviyesi',
+        refreshStatus: 'DURUMU GÜNCELLE',
+        strategyTitle: '📊 BAHİS STRATEJİLERİ',
+        strategyDesc: 'Hangi algoritmaların sinyal üreteceğini seçin.',
+        onlyXG: 'Sadece xG Verisi Olanlar',
+        stratPress: 'Baskı Dominasyonu',
+        stratMomentum: 'Son 15dk İvmesi',
+        stratFHG: 'İY 0.5 Üst',
+        stratComeback: 'Geri Dönüş',
+        stratStats: 'Stat Dominasyonu',
+        stratCorners: 'Korner Baskısı',
+        stratBTTS: 'KG Var',
+        stratRedCard: 'Sayısal Üstünlük (Kırmızı Kart)',
+        tabAnalytics: 'STRATEJİ KARNESİ (ROI)',
+        strategyScorecardTitle: '🎯 STRATEJİ BAŞARI & ROI KARNESİ',
+        strategyScorecardDesc: 'Sistemin kullandığı algoritmaların canlı bahis performansı, kazanma oranları ve getiri (ROI) karnesi.',
+        stratCol: 'STRATEJİ',
+        betsCol: 'TOPLAM BAHİS',
+        winLossCol: 'K / K',
+        stakedCol: 'YATIRILAN',
+        profitCol: 'NET KÂR/ZARAR',
+        winRateCol: 'BAŞARI ORANI',
+        roiCol: 'ROI (%)',
+        badgeCol: 'DERECELENDİRME',
+        totalStaked: 'Toplam Yatırılan',
+        totalProfit: 'Kümülatif Net Kâr',
+        avgRoi: 'Ortalama ROI',
+        topStrategy: 'En Başarılı Algoritma',
+        clvTitle: 'Kapanış Oranı (CLV)',
+        clvBeat: 'Piyasayı Yenme Gücü',
+        resetStats: 'İSTATİSTİKLERİ SIFIRLA',
+        resetConfirm: 'Tüm strateji performans verilerini sıfırlamak istediğinize emin misiniz?'
     } : {
         title: '🛡️ ADMIN CONTROL CENTER',
         addMember: 'ADD NEW MEMBER',
@@ -126,38 +169,175 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         premiumPrice: 'Premium Plan Price',
         currency: 'Currency Symbol',
         supportEmail: 'Support Email',
-        settingsUpdated: 'System settings updated!'
+        settingsUpdated: 'System settings updated!',
+        tabTelegram: 'TELEGRAM BOT',
+        botStatus: 'BOT STATUS',
+        botActive: 'ACTIVE',
+        botInactive: 'INACTIVE',
+        botError: 'ERROR',
+        sendTestReport: 'SEND DAILY REPORT',
+        signalsToday: 'Signals Today',
+        vipGroupId: 'VIP Group ID',
+        publicChannel: 'Public Channel',
+        minLevel: 'Min. Signal Level',
+        refreshStatus: 'REFRESH STATUS',
+        strategyTitle: '📊 BAHİS STRATEJİLERİ',
+        strategyDesc: 'Hangi algoritmaların sinyal üreteceğini seçin.',
+        onlyXG: 'Sadece xG Verisi Olanlar',
+        stratPress: 'Baskı Dominasyonu',
+        stratMomentum: 'Son 15dk İvmesi',
+        stratFHG: 'İY 0.5 Üst',
+        stratComeback: 'Geri Dönüş',
+        stratStats: 'Stat Dominasyonu',
+        stratCorners: 'Corner Pressure',
+        stratBTTS: 'BTTS Dynamic',
+        stratRedCard: 'Numerical Advantage (Red Card)',
+        tabAnalytics: 'STRATEGY SCORECARD (ROI)',
+        strategyScorecardTitle: '🎯 STRATEGY PERFORMANCE & ROI SCORECARD',
+        strategyScorecardDesc: 'Live betting algorithm performance, win rates, and return on investment (ROI) breakdown.',
+        stratCol: 'STRATEGY',
+        betsCol: 'TOTAL BETS',
+        winLossCol: 'W / L',
+        stakedCol: 'STAKED',
+        profitCol: 'NET P/L',
+        winRateCol: 'WIN RATE',
+        roiCol: 'ROI (%)',
+        badgeCol: 'TIER GRADE',
+        totalStaked: 'Total Staked',
+        totalProfit: 'Cumulative Net P/L',
+        avgRoi: 'Average ROI',
+        topStrategy: 'Top Algorithm',
+        clvTitle: 'Closing Line Value (CLV)',
+        clvBeat: 'Beating The Market',
+        resetStats: 'RESET STATS',
+        resetConfirm: 'Are you sure you want to reset all strategy performance analytics?'
+    };
+
+    const [strategySettings, setStrategySettings] = useState({});
+    const [strategyAnalytics, setStrategyAnalytics] = useState([]);
+
+    const loadStrategyAnalytics = () => {
+        try {
+            setStrategyAnalytics(bankrollManager.getStrategyAnalytics());
+        } catch (e) {
+            console.error('Error loading strategy analytics:', e);
+        }
+    };
+
+    const handleResetStrategyStats = () => {
+        if (window.confirm(t.resetConfirm)) {
+            if (bankrollManager.state) {
+                bankrollManager.state.strategyStats = {};
+                bankrollManager.saveState();
+            }
+            loadStrategyAnalytics();
+            setStatus({ type: 'success', message: 'Strateji istatistikleri sıfırlandı.' });
+        }
     };
 
     useEffect(() => {
         fetchProfiles();
         fetchUpgradeRequests();
         fetchSystemSettings();
+        fetchTelegramStatus();
+        loadStrategyAnalytics();
+        
+        // Load strategy settings from localStorage
+        let savedStrats = {};
+        try {
+            const raw = localStorage.getItem('lbm_strategy_settings');
+            if (raw && raw !== 'undefined' && raw !== 'null') savedStrats = JSON.parse(raw);
+        } catch {
+            savedStrats = {};
+        }
+        setStrategySettings({
+            ONLY_XG: true,
+            PRESS: true,
+            MOMENTUM: true,
+            FHG: true,
+            COMEBACK: true,
+            STATS: true,
+            CORNERS: true,
+            BTTS: true,
+            RED_CARD_ADV: true,
+            ...savedStrats
+        });
     }, []);
+
+    const handleToggleStrategy = (key) => {
+        const newSettings = { ...strategySettings, [key]: !strategySettings[key] };
+        setStrategySettings(newSettings);
+        localStorage.setItem('lbm_strategy_settings', JSON.stringify(newSettings));
+    };
+
+    const [telegramStatus, setTelegramStatus] = useState(null);
+    const [telegramLoading, setTelegramLoading] = useState(false);
+
+    const fetchTelegramStatus = async () => {
+        try {
+            const proxyBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:3001'
+                : '';
+            const res = await fetch(`${proxyBase}/api/telegram/status`);
+            const data = await res.json();
+            setTelegramStatus(data);
+        } catch (e) {
+            console.error('Error fetching telegram status:', e);
+        }
+    };
+
+    const handleSendTelegramReport = async () => {
+        setTelegramLoading(true);
+        try {
+            const proxyBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+                ? 'http://localhost:3001'
+                : '';
+            const res = await fetch(`${proxyBase}/api/telegram/send-report`, { method: 'POST' });
+            if (res.ok) {
+                setStatus({ type: 'success', message: 'Rapor başarıyla gönderildi!' });
+                fetchTelegramStatus();
+            }
+        } catch (e) {
+            setStatus({ type: 'error', message: 'Rapor gönderilirken hata oluştu.' });
+        }
+        setTelegramLoading(false);
+    };
 
     const fetchProfiles = async () => {
         setLoading(true);
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .order('created_at', { ascending: false });
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-        if (error) {
-            console.error('Error fetching profiles:', error);
-        } else {
-            setProfiles(data || []);
+            if (error) {
+                console.warn('Error fetching profiles:', error.message || error);
+                setSupabaseOffline(true);
+            } else {
+                setProfiles(data || []);
+                setSupabaseOffline(false);
+            }
+        } catch (e) {
+            console.warn('Supabase connection error:', e);
+            setSupabaseOffline(true);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const fetchUpgradeRequests = async () => {
-        const { data, error } = await supabase
-            .from('membership_requests')
-            .select('*')
-            .eq('status', 'pending')
-            .order('created_at', { ascending: false });
+        try {
+            const { data, error } = await supabase
+                .from('membership_requests')
+                .select('*')
+                .eq('status', 'pending')
+                .order('created_at', { ascending: false });
 
-        if (!error) setUpgradeRequests(data || []);
+            if (!error) setUpgradeRequests(data || []);
+        } catch (e) {
+            console.warn('Error fetching upgrade requests:', e);
+        }
     };
 
     const approveUpgrade = async (request) => {
@@ -220,15 +400,20 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
     const fetchSystemSettings = async () => {
         setSettingsLoading(true);
-        const { data, error } = await supabase.from('system_settings').select('*');
-        if (!error && data) {
-            const settingsObj = {};
-            data.forEach(item => {
-                settingsObj[item.key] = item.value;
-            });
-            setSystemSettings(settingsObj);
+        try {
+            const { data, error } = await supabase.from('system_settings').select('*');
+            if (!error && data) {
+                const settingsObj = {};
+                data.forEach(item => {
+                    settingsObj[item.key] = item.value;
+                });
+                setSystemSettings(settingsObj);
+            }
+        } catch (e) {
+            console.warn('Error fetching system settings:', e);
+        } finally {
+            setSettingsLoading(false);
         }
-        setSettingsLoading(false);
     };
 
     const handleUpdateSettings = async (e) => {
@@ -606,12 +791,69 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                 >
                     ⚙️ {t.tabSettings}
                 </button>
+                <button
+                    onClick={() => setActiveTab('telegram')}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'telegram' ? 'rgba(37, 211, 102, 0.2)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'telegram' ? '#25D366' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'telegram' ? '#25D366' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    📱 {t.tabTelegram}
+                </button>
+                <button
+                    onClick={() => { setActiveTab('analytics'); loadStrategyAnalytics(); }}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'analytics' ? 'rgba(234, 179, 8, 0.2)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'analytics' ? '#eab308' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'analytics' ? '#eab308' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    🎯 {t.tabAnalytics}
+                </button>
             </div>
 
             {/* Content Section */}
             <div className="glass-panel" style={{ padding: '2rem' }}>
+                {supabaseOffline && (
+                    <div style={{
+                        padding: '0.8rem 1.2rem',
+                        borderRadius: '8px',
+                        marginBottom: '1.5rem',
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#f87171',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem'
+                    }}>
+                        <span>⚠️</span>
+                        <span>
+                            {lang === 'tr'
+                                ? 'Supabase veritabanına bağlanılamadı (.env ayarlarını kontrol edin). Sistem yerel depolama (localStorage) modunda çalışmaktadır.'
+                                : 'Unable to connect to Supabase database (check .env settings). Running in local storage fallback mode.'}
+                        </span>
+                    </div>
+                )}
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', fontWeight: 800 }}>
-                    {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : t.memberList}
+                    {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : activeTab === 'analytics' ? t.strategyScorecardTitle : t.memberList}
                 </h3>
 
                 {loading ? (
@@ -669,7 +911,27 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                         </div>
                     )
                 ) : activeTab === 'settings' ? (
-                    <div style={{ maxWidth: '600px' }}>
+                    <div style={{ maxWidth: '800px' }}>
+                        {/* MODULAR STRATEGY GRID (v2.1) */}
+                        <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                            <h3 style={{ fontSize: '1rem', fontWeight: 900, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {t.strategyTitle}
+                            </h3>
+                            <p style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '1.5rem' }}>{t.strategyDesc}</p>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                                <StrategyToggle label={t.onlyXG} active={strategySettings.ONLY_XG} onToggle={() => handleToggleStrategy('ONLY_XG')} highlight />
+                                <StrategyToggle label={t.stratPress} active={strategySettings.PRESS} onToggle={() => handleToggleStrategy('PRESS')} />
+                                <StrategyToggle label={t.stratMomentum} active={strategySettings.MOMENTUM} onToggle={() => handleToggleStrategy('MOMENTUM')} />
+                                <StrategyToggle label={t.stratFHG} active={strategySettings.FHG} onToggle={() => handleToggleStrategy('FHG')} />
+                                <StrategyToggle label={t.stratComeback} active={strategySettings.COMEBACK} onToggle={() => handleToggleStrategy('COMEBACK')} />
+                                <StrategyToggle label={t.stratStats} active={strategySettings.STATS} onToggle={() => handleToggleStrategy('STATS')} />
+                                <StrategyToggle label={t.stratCorners} active={strategySettings.CORNERS} onToggle={() => handleToggleStrategy('CORNERS')} />
+                                <StrategyToggle label={t.stratBTTS} active={strategySettings.BTTS} onToggle={() => handleToggleStrategy('BTTS')} />
+                                <StrategyToggle label={t.stratRedCard} active={strategySettings.RED_CARD_ADV !== false} onToggle={() => handleToggleStrategy('RED_CARD_ADV')} />
+                            </div>
+                        </div>
+
                         <form onSubmit={handleUpdateSettings} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                                 <div>
@@ -740,6 +1002,280 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                 {settingsLoading ? t.loading : t.saveSettings}
                             </button>
                         </form>
+                    </div>
+                ) : activeTab === 'telegram' ? (
+                    <div style={{ maxWidth: '800px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                            <div className="stats-card" style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px' }}>
+                                <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.5rem', textTransform: 'uppercase' }}>{t.botStatus}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: telegramStatus?.enabled ? '#10b981' : '#ef4444', boxShadow: telegramStatus?.enabled ? '0 0 10px #10b981' : 'none' }}></div>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 900, color: telegramStatus?.enabled ? '#10b981' : '#ef4444' }}>
+                                        {telegramStatus?.enabled ? t.botActive : t.botInactive}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="stats-card" style={{ padding: '1.5rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px' }}>
+                                <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.5rem', textTransform: 'uppercase' }}>{t.signalsToday}</div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--accent-color)' }}>{telegramStatus?.todaySignals || 0}</div>
+                            </div>
+                        </div>
+
+                        <div className="glass-panel" style={{ padding: '1.5rem', border: '1px solid rgba(255,255,255,0.05)', marginBottom: '2rem' }}>
+                            <h4 style={{ fontSize: '0.9rem', marginBottom: '1.2rem', opacity: 0.8 }}>Bot Konfigürasyonu</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                <div>
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{t.vipGroupId}</div>
+                                        <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{telegramStatus?.vipGroup || '-'}</div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{t.publicChannel}</div>
+                                        <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{telegramStatus?.publicChannel || 'Ayarlanmadı'}</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style={{ marginBottom: '1rem' }}>
+                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{t.minLevel}</div>
+                                        <div style={{ display: 'inline-block', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 900 }}>
+                                            {telegramStatus?.minLevel || 'SICAK'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={handleSendTelegramReport}
+                                disabled={telegramLoading || !telegramStatus?.enabled}
+                                style={{
+                                    flex: 1,
+                                    padding: '1rem',
+                                    background: '#25D366',
+                                    color: '#000',
+                                    border: 'none',
+                                    borderRadius: '12px',
+                                    fontWeight: 900,
+                                    fontSize: '0.85rem',
+                                    cursor: (telegramLoading || !telegramStatus?.enabled) ? 'not-allowed' : 'pointer',
+                                    opacity: (telegramLoading || !telegramStatus?.enabled) ? 0.6 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '0.6rem'
+                                }}
+                            >
+                                📊 {telegramLoading ? t.loading : t.sendTestReport}
+                            </button>
+                            <button
+                                onClick={fetchTelegramStatus}
+                                style={{
+                                    padding: '1rem',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    color: '#fff',
+                                    border: '1px solid var(--glass-border)',
+                                    borderRadius: '12px',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🔄 {t.refreshStatus}
+                            </button>
+                        </div>
+                    </div>
+                ) : activeTab === 'analytics' ? (
+                    <div>
+                        {(() => {
+                            const totalBets = strategyAnalytics.reduce((acc, s) => acc + (s.totalBets || 0), 0);
+                            const totalStaked = strategyAnalytics.reduce((acc, s) => acc + (s.staked || 0), 0);
+                            const totalProfit = strategyAnalytics.reduce((acc, s) => acc + (s.profit || 0), 0);
+                            const avgRoi = totalStaked > 0 ? ((totalProfit / totalStaked) * 100).toFixed(1) : '0.0';
+                            const topStrat = strategyAnalytics.filter(s => s.totalBets > 0).sort((a, b) => b.roi - a.roi)[0];
+                            const clv = bankrollManager.getCLVAnalytics();
+
+                            return (
+                                <>
+                                    {/* KPI Summary Row */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.2rem', marginBottom: '2rem' }}>
+                                        <div className="stats-card" style={{ padding: '1.2rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>{t.totalStaked}</div>
+                                            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#fff' }}>₺{totalStaked.toLocaleString('tr-TR')}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>{totalBets} {t.betsCol.toLowerCase()}</div>
+                                        </div>
+
+                                        <div className="stats-card" style={{ padding: '1.2rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>{t.totalProfit}</div>
+                                            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: totalProfit >= 0 ? '#10b981' : '#ef4444' }}>
+                                                {totalProfit >= 0 ? `+₺${totalProfit.toLocaleString('tr-TR')}` : `-₺${Math.abs(totalProfit).toLocaleString('tr-TR')}`}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: totalProfit >= 0 ? '#10b981' : '#ef4444', marginTop: '0.2rem' }}>
+                                                {totalProfit >= 0 ? '▲ Kârda' : '▼ Zararda'}
+                                            </div>
+                                        </div>
+
+                                        <div className="stats-card" style={{ padding: '1.2rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>{t.avgRoi}</div>
+                                            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: parseFloat(avgRoi) >= 0 ? '#38bdf8' : '#ef4444' }}>
+                                                %{avgRoi}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>Kümülatif Getiri</div>
+                                        </div>
+
+                                        <div className="stats-card" style={{ padding: '1.2rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>{t.clvTitle}</div>
+                                            <div style={{ fontSize: '1.6rem', fontWeight: 900, color: clv.avgCLV >= 0 ? '#10b981' : '#ef4444' }}>
+                                                {clv.avgCLV >= 0 ? `+${clv.avgCLV}%` : `${clv.avgCLV}%`}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                                                %{clv.beatMarketPct} {t.clvBeat}
+                                            </div>
+                                        </div>
+
+                                        <div className="stats-card" style={{ padding: '1.2rem', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px' }}>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.4rem', textTransform: 'uppercase' }}>{t.topStrategy}</div>
+                                            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <span>{topStrat ? topStrat.icon : '🎯'}</span>
+                                                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{topStrat ? topStrat.label : 'Veri Bekleniyor'}</span>
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                                                {topStrat ? `%${topStrat.roi} ROI (${topStrat.totalBets} bahis)` : 'Sinyal bekleniyor'}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Bar */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.8rem' }}>
+                                        <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>
+                                            {t.strategyScorecardDesc}
+                                        </p>
+                                        <div style={{ display: 'flex', gap: '0.6rem' }}>
+                                            <button
+                                                onClick={loadStrategyAnalytics}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: 'rgba(56, 189, 248, 0.1)',
+                                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                                    borderRadius: '8px',
+                                                    color: '#38bdf8',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                🔄 Yenile
+                                            </button>
+                                            <button
+                                                onClick={handleResetStrategyStats}
+                                                style={{
+                                                    padding: '0.5rem 1rem',
+                                                    background: 'rgba(239, 68, 68, 0.1)',
+                                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                    borderRadius: '8px',
+                                                    color: '#ef4444',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                🗑️ {t.resetStats}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Scorecard Table */}
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
+                                            <thead>
+                                                <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)', fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase' }}>
+                                                    <th style={{ padding: '0.9rem' }}>{t.stratCol}</th>
+                                                    <th style={{ padding: '0.9rem', textAlign: 'center' }}>{t.betsCol}</th>
+                                                    <th style={{ padding: '0.9rem', textAlign: 'center' }}>{t.winLossCol}</th>
+                                                    <th style={{ padding: '0.9rem', textAlign: 'right' }}>{t.stakedCol}</th>
+                                                    <th style={{ padding: '0.9rem', textAlign: 'right' }}>{t.profitCol}</th>
+                                                    <th style={{ padding: '0.9rem', textAlign: 'center' }}>{t.winRateCol}</th>
+                                                    <th style={{ padding: '0.9rem', textAlign: 'right' }}>{t.roiCol}</th>
+                                                    <th style={{ padding: '0.9rem', textAlign: 'center' }}>{t.badgeCol}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {strategyAnalytics.map(strat => {
+                                                    const badgeBg = strat.badge === 'A+' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 179, 8, 0.15))'
+                                                        : strat.badge === 'A' ? 'rgba(16, 185, 129, 0.2)'
+                                                        : strat.badge === 'B' ? 'rgba(56, 189, 248, 0.15)'
+                                                        : 'rgba(255, 255, 255, 0.05)';
+                                                    const badgeColor = strat.badge === 'A+' ? '#fbbf24'
+                                                        : strat.badge === 'A' ? '#10b981'
+                                                        : strat.badge === 'B' ? '#38bdf8'
+                                                        : '#64748b';
+                                                    const badgeBorder = strat.badge === 'A+' ? '1px solid rgba(251, 191, 36, 0.4)'
+                                                        : strat.badge === 'A' ? '1px solid rgba(16, 185, 129, 0.3)'
+                                                        : strat.badge === 'B' ? '1px solid rgba(56, 189, 248, 0.2)'
+                                                        : '1px solid rgba(255, 255, 255, 0.1)';
+
+                                                    return (
+                                                        <tr key={strat.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', transition: 'background 0.2s' }}>
+                                                            <td style={{ padding: '1rem' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                                    <span style={{ fontSize: '1.2rem' }}>{strat.icon}</span>
+                                                                    <div>
+                                                                        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff' }}>{strat.label}</div>
+                                                                        <div style={{ fontSize: '0.65rem', color: '#64748b', fontFamily: 'monospace' }}>ID: {strat.id}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'center', fontWeight: 800, color: strat.totalBets > 0 ? '#fff' : '#64748b' }}>
+                                                                {strat.totalBets}
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem' }}>
+                                                                <span style={{ color: '#10b981', fontWeight: 700 }}>{strat.wins || 0}W</span>
+                                                                <span style={{ color: '#64748b', margin: '0 4px' }}>/</span>
+                                                                <span style={{ color: '#ef4444', fontWeight: 700 }}>{strat.losses || 0}L</span>
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'right', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                                                                ₺{(strat.staked || 0).toLocaleString('tr-TR')}
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'right', fontSize: '0.85rem', fontWeight: 800, color: (strat.profit || 0) > 0 ? '#10b981' : (strat.profit || 0) < 0 ? '#ef4444' : '#94a3b8' }}>
+                                                                {(strat.profit || 0) > 0 ? `+₺${strat.profit.toLocaleString('tr-TR')}` : (strat.profit || 0) < 0 ? `-₺${Math.abs(strat.profit).toLocaleString('tr-TR')}` : '₺0'}
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', minWidth: '70px' }}>
+                                                                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: strat.winRate >= 60 ? '#10b981' : strat.winRate >= 40 ? '#38bdf8' : strat.totalBets === 0 ? '#64748b' : '#ef4444' }}>
+                                                                        %{strat.winRate}
+                                                                    </span>
+                                                                    <div style={{ width: '50px', height: '4px', background: 'rgba(255,255,255,0.08)', borderRadius: '2px', overflow: 'hidden' }}>
+                                                                        <div style={{ width: `${strat.winRate}%`, height: '100%', background: strat.winRate >= 60 ? '#10b981' : '#38bdf8' }}></div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'right', fontWeight: 900, fontSize: '0.85rem', color: strat.roi > 0 ? '#10b981' : strat.roi < 0 ? '#ef4444' : '#64748b' }}>
+                                                                {strat.roi > 0 ? `+${strat.roi}%` : `${strat.roi}%`}
+                                                            </td>
+                                                            <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                                                <span style={{
+                                                                    padding: '0.25rem 0.65rem',
+                                                                    borderRadius: '8px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 900,
+                                                                    background: badgeBg,
+                                                                    color: badgeColor,
+                                                                    border: badgeBorder,
+                                                                    display: 'inline-block',
+                                                                    minWidth: '38px'
+                                                                }}>
+                                                                    {strat.badge}
+                                                                </span>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            );
+                        })()}
                     </div>
                 ) : filteredProfiles.length === 0 ? (
                     <p style={{ color: '#64748b' }}>{t.noUsers}</p>
@@ -894,3 +1430,44 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         </div >
     );
 };
+
+const StrategyToggle = ({ label, active, onToggle, highlight = false }) => (
+    <div 
+        onClick={onToggle}
+        style={{ 
+            padding: '1rem', 
+            background: active ? (highlight ? 'rgba(167, 139, 250, 0.15)' : 'rgba(56, 189, 248, 0.1)') : 'rgba(0,0,0,0.2)',
+            border: `1px solid ${active ? (highlight ? '#a78bfa' : '#38bdf8') : 'rgba(255,255,255,0.05)'}`,
+            borderRadius: '12px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            transition: 'all 0.2s ease',
+            boxShadow: active ? `0 4px 15px ${highlight ? 'rgba(167, 139, 250, 0.1)' : 'rgba(56, 189, 248, 0.1)'}` : 'none'
+        }}
+    >
+        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: active ? '#fff' : '#64748b' }}>{label}</span>
+        <div style={{ 
+            width: '36px', 
+            height: '20px', 
+            background: active ? (highlight ? '#a78bfa' : '#38bdf8') : '#334155',
+            borderRadius: '10px',
+            position: 'relative',
+            transition: 'background 0.2s'
+        }}>
+            <div style={{ 
+                width: '14px', 
+                height: '14px', 
+                background: '#fff', 
+                borderRadius: '50%',
+                position: 'absolute',
+                top: '3px',
+                left: active ? '19px' : '3px',
+                transition: 'left 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}></div>
+        </div>
+    </div>
+);
+
+export default AdminPanel;

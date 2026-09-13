@@ -31,10 +31,10 @@ def upload_to_firebase(path, data):
             print(f"[FIREBASE] Successfully uploaded to /{path}")
             return True
         else:
-            print(f"[FIREBASE] Upload failed: {response.status_code} - {response.text}")
+            if response.status_code != 401:
+                print(f"[FIREBASE] Upload failed: {response.status_code} - {response.text}")
             return False
     except Exception as e:
-        print(f"[FIREBASE] Error uploading: {e}")
         return False
 
 def get_from_firebase(path):

@@ -1,0 +1,155 @@
+{
+  "dailyStats": {
+    "won": 0,
+    "lost": 0,
+    "pending": 24,
+    "total": 24,
+    "signals": [
+      {
+        "match": "Lille vs Troyes",
+        "level": "SICAK",
+        "time": "2026-09-13T13:03:14.088Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Club Brugge KV vs Royal Antwerp FC",
+        "level": "SICAK",
+        "time": "2026-09-13T13:05:15.250Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Lecce vs Monza",
+        "level": "SICAK",
+        "time": "2026-09-13T13:08:00.163Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Celta Vigo vs Málaga CF",
+        "level": "SICAK",
+        "time": "2026-09-13T13:16:54.360Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Celta Vigo vs Málaga CF",
+        "level": "SICAK",
+        "time": "2026-09-13T13:27:04.246Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Celta Vigo vs Málaga CF",
+        "level": "SICAK",
+        "time": "2026-09-13T13:32:06.972Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Birmingham City W.F.C. vs Brighton",
+        "level": "SICAK",
+        "time": "2026-09-13T13:39:34.225Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Coventry City vs Brighton & Hove Albion",
+        "level": "SICAK",
+        "time": "2026-09-13T13:42:01.144Z",
+        "market": "market_next_goal_home"
+      },
+      {
+        "match": "Nottingham Forest vs Watford FC Women",
+        "level": "SICAK",
+        "time": "2026-09-13T13:44:08.801Z",
+        "market": "market_next_goal_away"
+      },
+      {
+        "match": "Birmingham City W.F.C. vs Brighton",
+        "level": "SICAK",
+        "time": "2026-09-13T13:55:31.514Z",
+        "market": "COMEBACK"
+      },
+      {
+        "match": "Nottingham Forest vs Watford FC Women",
+        "level": "SICAK",
+        "time": "2026-09-13T13:56:09.168Z",
+        "market": "PRESS"
+      },
+      {
+        "match": "Coventry City vs Brighton & Hove Albion",
+        "level": "SICAK",
+        "time": "2026-09-13T14:05:57.216Z",
+        "market": "Geri Dönüş: Sıradaki Golü Coventry City Atar (Oran: 1.8)"
+      },
+      {
+        "match": "Southampton FC Women vs Ipswich Town Women",
+        "level": "SICAK",
+        "time": "2026-09-13T14:06:47.650Z",
+        "market": "STAT DOMİNASYONU (Oran: 1.8)"
+      },
+      {
+        "match": "FC Zlín vs FC Hradec Králové",
+        "level": "SICAK",
+        "time": "2026-09-13T14:07:25.231Z",
+        "market": "Karşılıklı Gol Var (KG Var) (Oran: 1.8)"
+      },
+      {
+        "match": "Milford FC vs Richards Bay FC",
+        "level": "SICAK",
+        "time": "2026-09-13T14:11:35.719Z",
+        "market": "STAT DOMİNASYONU (Oran: 1.8)"
+      },
+      {
+        "match": "Birmingham City W.F.C. vs Brighton",
+        "level": "ALEV",
+        "time": "2026-09-13T14:11:35.736Z",
+        "market": "Geri Dönüş: Sıradaki Golü Brighton Atar (Oran: 1.8)"
+      },
+      {
+        "match": "FC Viktoria Plzeň vs SK Sigma Olomouc",
+        "level": "SICAK",
+        "time": "2026-09-13T14:13:16.214Z",
+        "market": "STAT DOMİNASYONU (Oran: 1.8)"
+      },
+      {
+        "match": "Nottingham Forest vs Watford FC Women",
+        "level": "SICAK",
+        "time": "2026-09-13T14:22:48.015Z",
+        "market": "Sıradaki Golü Nottingham Forest Atar (Oran: 1.8)"
+      },
+      {
+        "match": "Lecce vs Monza",
+        "level": "SICAK",
+        "time": "2026-09-13T14:25:33.368Z",
+        "market": "Sıradaki Golü Monza Atar (Oran: 1.8)"
+      },
+      {
+        "match": "Levante UD vs FC Barcelona",
+        "level": "SICAK",
+        "time": "2026-09-13T14:35:25.154Z",
+        "market": "Sıradaki Golü Levante UD Atar (Oran: 1.8)"
+      },
+      {
+        "match": "Arsenal vs Crystal Palace",
+        "level": "SICAK",
+        "time": "2026-09-13T14:51:41.947Z",
+        "market": "Sıradaki Golü Arsenal Atar"
+      },
+      {
+        "match": "FC Lausanne-Sport vs Servette FC",
+        "level": "SICAK",
+        "time": "2026-09-13T14:52:10.524Z",
+        "market": "Sıradaki Golü FC Lausanne-Sport Atar"
+      },
+      {
+        "match": "RB Leipzig vs Hamburger SV",
+        "level": "SICAK",
+        "time": "2026-09-13T15:03:03.599Z",
+        "market": "RB Leipzig Kazanmaya Yakın"
+      },
+      {
+        "match": "Eintracht Frankfurt vs TSG Hoffenheim",
+        "level": "SICAK",
+        "time": "2026-09-13T15:09:00.430Z",
+        "market": "Sıradaki Golü Eintracht Frankfurt Atar"
+      }
+    ]
+  },
+  "lastDate": "2026-09-13"
+}
