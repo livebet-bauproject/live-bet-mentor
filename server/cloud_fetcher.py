@@ -50,9 +50,44 @@ HEADERS = {
     "Origin": "https://www.sofascore.com"
 }
 
-def create_session():
+proxy_pool = []
+current_proxy_idx = 0
+
+def refresh_proxies():
+    global proxy_pool, current_proxy_idx
+    try:
+        import urllib.request
+        url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=4000&country=all&ssl=all&anonymity=all"
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            content = resp.read().decode('utf-8', errors='ignore').strip().split('\r\n')
+            valid = [p.strip() for p in content if ':' in p and len(p.strip()) > 6]
+            if valid:
+                proxy_pool = valid
+                current_proxy_idx = 0
+                logger.info(f"Loaded {len(proxy_pool)} fallback proxies.")
+    except Exception as e:
+        logger.debug(f"Proxy refresh notice: {e}")
+
+def get_next_proxy():
+    global current_proxy_idx
+    if not proxy_pool:
+        refresh_proxies()
+    if proxy_pool:
+        proxy = proxy_pool[current_proxy_idx % len(proxy_pool)]
+        current_proxy_idx += 1
+        return f"http://{proxy}"
+    return None
+
+def create_session(proxy=None):
     if HAS_CURL_CFFI:
+        if proxy:
+            return cffi_requests.Session(impersonate="chrome120", proxies={"http": proxy, "https": proxy})
         return cffi_requests.Session(impersonate="chrome120")
+    if proxy:
+        s = cffi_requests.Session()
+        s.proxies = {"http": proxy, "https": proxy}
+        return s
     return cffi_requests.Session()
 
 def atomic_write_json(filepath, data):
@@ -211,11 +246,11 @@ def run_loop():
             events = fetch_live_events(session)
             if events is None:
                 consecutive_errors += 1
-                if consecutive_errors >= 3:
-                    logger.warning("3 consecutive fetch errors. Refreshing session...")
-                    session = create_session()
-                    consecutive_errors = 0
-                time.sleep(10)
+                if consecutive_errors >= 2:
+                    p = get_next_proxy()
+                    logger.warning(f"Consecutive errors ({consecutive_errors}). Switching session to proxy: {p}")
+                    session = create_session(proxy=p)
+                time.sleep(8)
                 continue
             
             consecutive_errors = 0

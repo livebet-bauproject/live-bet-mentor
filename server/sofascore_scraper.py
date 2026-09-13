@@ -523,23 +523,28 @@ def capture_sofascore():
             request_queue = 'server/stats_request.json'
             if os.path.exists(request_queue):
                 try:
-                    with open(request_queue, 'r') as rq:
-                        req_data = json.load(rq)
-                    os.remove(request_queue)
-                    
-                    ids = req_data.get('ids', [])
-                    if ids:
-                        # Limit targeted fetch to avoid rate limiting
-                        max_targeted = 10
-                        ids_to_fetch = ids[-max_targeted:] # Process the most recent requests
-                        logger.info(f"Processing queue: {len(ids)} total, fetching {len(ids_to_fetch)} most recent")
+                    with open(request_queue, 'r', encoding='utf-8') as rq:
+                        raw_content = rq.read().strip()
+                    if raw_content:
+                        req_data = json.loads(raw_content)
+                        try:
+                            os.remove(request_queue)
+                        except:
+                            pass
                         
-                        for match_id in ids_to_fetch:
-                            logger.info(f"Targeted fetch for Match ID: {match_id}")
-                            fetch_stats_via_js(driver, match_id)
-                            time.sleep(0.5)
+                        ids = req_data.get('ids', [])
+                        if ids:
+                            # Limit targeted fetch to avoid rate limiting
+                            max_targeted = 10
+                            ids_to_fetch = ids[-max_targeted:] # Process the most recent requests
+                            logger.info(f"Processing queue: {len(ids)} total, fetching {len(ids_to_fetch)} most recent")
+                            
+                            for match_id in ids_to_fetch:
+                                logger.info(f"Targeted fetch for Match ID: {match_id}")
+                                fetch_stats_via_js(driver, match_id)
+                                time.sleep(0.5)
                 except Exception as e:
-                    logger.error(f"Queue processing error: {e}")
+                    logger.debug(f"Queue processing info: {e}")
 
             time.sleep(2)
             

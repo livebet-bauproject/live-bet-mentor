@@ -104,6 +104,7 @@ app.get('/', (req, res) => {
 app.get('/api/debug', async (req, res) => {
     let pythonVersion = 'none';
     let curlCffiStatus = 'unknown';
+    let sofascoreDirectTest = 'not run';
     try {
         const { execSync } = await import('child_process');
         const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
@@ -117,7 +118,26 @@ app.get('/api/debug', async (req, res) => {
         } catch (e) {
             curlCffiStatus = `Error: ${e.message}`;
         }
+        try {
+            sofascoreDirectTest = execSync(`${pyCmd} -c "import site, sys; sys.path.insert(0, site.getusersitepackages()); from curl_cffi import requests; s=requests.Session(impersonate='chrome120'); r=s.get('https://api.sofascore.com/api/v1/sport/football/events/live', headers={'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36','Accept':'application/json'}, timeout=8); print(f'HTTP {r.status_code} ({len(r.text)} bytes)')"`, { timeout: 10000 }).toString().trim();
+        } catch (e) {
+            sofascoreDirectTest = `Error: ${e.message}`;
+        }
     } catch (e) {}
+
+    let statsFilesCount = 0;
+    if (fs.existsSync(STATS_DIR)) {
+        try { statsFilesCount = fs.readdirSync(STATS_DIR).length; } catch(e) {}
+    }
+
+    let scraperLogTail = [];
+    const logPath = path.join(__dirname, 'scraper.log');
+    if (fs.existsSync(logPath)) {
+        try {
+            const logs = fs.readFileSync(logPath, 'utf8').trim().split('\n');
+            scraperLogTail = logs.slice(-10);
+        } catch(e) {}
+    }
 
     let liveFileExists = fs.existsSync(SOFASCORE_FILE);
     let liveFileCount = 0;
@@ -137,12 +157,16 @@ app.get('/api/debug', async (req, res) => {
         nodeVersion: process.version,
         pythonVersion,
         curlCffiStatus,
+        sofascoreDirectTest,
+        statsFilesCount,
+        scraperLogTail,
         sofascoreLive: {
             fileExists: liveFileExists,
             eventsCount: liveFileCount,
             ageSeconds: liveFileAge
         },
         memoryLiveDataEvents: memoryLiveData?.events?.length || 0,
+        memoryStatsCount: Object.keys(memoryStatsCache || {}).length,
         uptimeSeconds: Math.floor(process.uptime())
     });
 });
@@ -206,10 +230,71 @@ app.post('/api/sync/stats/:id', express.json({ limit: '5mb' }), (req, res) => {
     res.json({ ok: true });
 });
 
+// Unified Bundle Sync Endpoint (Syncs live list, consensus and active matches stats in 1 fast call)
+app.post('/api/sync/bundle', express.json({ limit: '50mb' }), (req, res) => {
+    if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { live, consensus, stats } = req.body || {};
+    let statsSaved = 0;
+
+    if (live) {
+        memoryLiveData = live;
+        lastUploadTime = Date.now();
+        try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(live), 'utf8'); } catch(e) {}
+    }
+
+    if (consensus) {
+        memoryConsensusData = consensus;
+        try { fs.writeFileSync(CONSENSUS_FILE, JSON.stringify(consensus), 'utf8'); } catch(e) {}
+    }
+
+    if (stats && typeof stats === 'object') {
+        if (!fs.existsSync(STATS_DIR)) {
+            try { fs.mkdirSync(STATS_DIR, { recursive: true }); } catch(e) {}
+        }
+        for (const [id, item] of Object.entries(stats)) {
+            try {
+                if (item.detail) {
+                    fs.writeFileSync(path.join(STATS_DIR, `${id}_detail.json`), JSON.stringify(item.detail), 'utf8');
+                }
+                if (item.stats) {
+                    fs.writeFileSync(path.join(STATS_DIR, `${id}_stats.json`), JSON.stringify(item.stats), 'utf8');
+                }
+                if (item.odds) {
+                    fs.writeFileSync(path.join(STATS_DIR, `${id}_odds.json`), JSON.stringify(item.odds), 'utf8');
+                }
+                memoryStatsCache[id] = { data: item, time: Date.now() };
+                statsSaved++;
+            } catch (err) {}
+        }
+    }
+
+    console.log(`[SYNC_BUNDLE] Synced: live=${live?.events?.length || 0} events, statsSaved=${statsSaved} matches`);
+    res.json({ ok: true, liveEvents: live?.events?.length || 0, statsSaved });
+});
+
+// Queue endpoint for local scraper to fetch user-demanded match IDs
+app.get('/api/sync/queue', (req, res) => {
+    if (fs.existsSync(REQUEST_QUEUE)) {
+        try {
+            const data = JSON.parse(fs.readFileSync(REQUEST_QUEUE, 'utf8'));
+            return res.json(data);
+        } catch(e) {}
+    }
+    res.json({ ids: [] });
+});
+
 app.get('/api/sync/status', (req, res) => {
+    let statsCount = 0;
+    if (fs.existsSync(STATS_DIR)) {
+        try { statsCount = fs.readdirSync(STATS_DIR).length; } catch(e) {}
+    }
     res.json({
         hasLiveData: !!memoryLiveData,
         eventsCount: memoryLiveData?.events?.length || 0,
+        statsFilesCount: statsCount,
+        memoryStatsCount: Object.keys(memoryStatsCache || {}).length,
         lastUpload: lastUploadTime ? new Date(lastUploadTime).toISOString() : null,
         ageSec: lastUploadTime ? Math.floor((Date.now() - lastUploadTime) / 1000) : -1
     });
@@ -254,6 +339,9 @@ app.get('/api/consensus', (req, res) => {
 // 3. Match Details (with freshness check)
 app.get('/api/sofascore/event/:id', (req, res) => {
     const id = req.params.id;
+    if (memoryStatsCache[id]?.data?.detail) {
+        return res.json(memoryStatsCache[id].data.detail);
+    }
     const filePath = path.join(STATS_DIR, `${id}_detail.json`);
 
     if (fs.existsSync(filePath)) {
@@ -289,6 +377,9 @@ app.get('/api/sofascore/event/:id', (req, res) => {
 // 4. Match Statistics (with freshness check)
 app.get('/api/sofascore/event/:id/statistics', (req, res) => {
     const id = req.params.id;
+    if (memoryStatsCache[id]?.data?.stats) {
+        return res.json(memoryStatsCache[id].data.stats);
+    }
     const filePath = path.join(STATS_DIR, `${id}_stats.json`);
 
     if (fs.existsSync(filePath)) {
@@ -319,6 +410,9 @@ app.get('/api/sofascore/event/:id/statistics', (req, res) => {
 // 5. Match Odds API (Supports both SofaScore market structure and direct 1X2 odds)
 app.get(['/api/sofascore/event/:id/odds/1/all', '/api/sofascore/event/:id/odds/:marketId?/:sub?'], (req, res) => {
     const id = req.params.id;
+    if (memoryStatsCache[id]?.data?.odds) {
+        return res.json(memoryStatsCache[id].data.odds);
+    }
     const oddsFilePath = path.join(STATS_DIR, `${id}_odds.json`);
 
     // 1. Check if dedicated match odds file exists
@@ -661,39 +755,107 @@ app.listen(PORT, '0.0.0.0', async () => {
         const SYNC_SECRET = process.env.UPLOAD_SECRET || 'lbm-sync-2026';
 
         async function syncToCloud() {
-            // Sync live events
-            if (fs.existsSync(SOFASCORE_FILE)) {
-                try {
-                    const data = fs.readFileSync(SOFASCORE_FILE, 'utf8');
-                    const res = await fetch(`${RENDER_URL}/api/sync/live`, {
+            try {
+                let liveData = null;
+                let consensusData = null;
+                const statsBundle = {};
+
+                // 1. Read live events
+                if (fs.existsSync(SOFASCORE_FILE)) {
+                    try {
+                        const raw = fs.readFileSync(SOFASCORE_FILE, 'utf8');
+                        liveData = JSON.parse(raw);
+                    } catch (e) {
+                        console.warn('[CLOUD_SYNC] Error reading sofascore_live.json:', e.message);
+                    }
+                }
+
+                // 2. Read consensus data if present
+                if (fs.existsSync(CONSENSUS_FILE)) {
+                    try {
+                        const raw = fs.readFileSync(CONSENSUS_FILE, 'utf8');
+                        consensusData = JSON.parse(raw);
+                    } catch (e) {}
+                }
+
+                // 3. Gather stats for active in-progress football matches
+                if (liveData && Array.isArray(liveData.events)) {
+                    const activeEvents = liveData.events.filter(e => 
+                        e.status?.type === 'inprogress' &&
+                        (e.tournament?.category?.sport?.id === 1 || !e.tournament?.category?.sport?.id)
+                    );
+
+                    for (const ev of activeEvents) {
+                        const id = ev.id;
+                        const detailFile = path.join(STATS_DIR, `${id}_detail.json`);
+                        const statsFile = path.join(STATS_DIR, `${id}_stats.json`);
+                        const oddsFile = path.join(STATS_DIR, `${id}_odds.json`);
+
+                        const hasDetail = fs.existsSync(detailFile);
+                        const hasStats = fs.existsSync(statsFile);
+                        const hasOdds = fs.existsSync(oddsFile);
+
+                        if (hasDetail || hasStats || hasOdds) {
+                            statsBundle[id] = {};
+                            try { if (hasDetail) statsBundle[id].detail = JSON.parse(fs.readFileSync(detailFile, 'utf8')); } catch(e) {}
+                            try { if (hasStats) statsBundle[id].stats = JSON.parse(fs.readFileSync(statsFile, 'utf8')); } catch(e) {}
+                            try { if (hasOdds) statsBundle[id].odds = JSON.parse(fs.readFileSync(oddsFile, 'utf8')); } catch(e) {}
+                        }
+                    }
+                }
+
+                // 4. Send Bundle to Render
+                if (liveData || Object.keys(statsBundle).length > 0) {
+                    const payload = {
+                        live: liveData,
+                        consensus: consensusData,
+                        stats: statsBundle
+                    };
+
+                    const res = await fetch(`${RENDER_URL}/api/sync/bundle`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-sync-secret': SYNC_SECRET },
-                        body: data,
-                        signal: AbortSignal.timeout(10000)
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-sync-secret': SYNC_SECRET
+                        },
+                        body: JSON.stringify(payload),
+                        signal: AbortSignal.timeout(25000)
                     });
+
                     if (res.ok) {
                         const result = await res.json();
-                        console.log(`[CLOUD_SYNC] Live data pushed: ${result.events} events`);
+                        console.log(`[CLOUD_SYNC] 🚀 Bundle pushed: ${result.liveEvents} events, ${result.statsSaved} stats saved on Render`);
+                    } else if (res.status === 404) {
+                        // Older Render version fallback: send live separately
+                        console.warn('[CLOUD_SYNC] /api/sync/bundle returned 404. Falling back to /api/sync/live...');
+                        if (liveData) {
+                            await fetch(`${RENDER_URL}/api/sync/live`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json', 'x-sync-secret': SYNC_SECRET },
+                                body: JSON.stringify(liveData),
+                                signal: AbortSignal.timeout(10000)
+                            });
+                        }
+                    } else {
+                        console.warn(`[CLOUD_SYNC] Bundle sync returned HTTP ${res.status}`);
                     }
-                } catch (e) {
-                    console.warn(`[CLOUD_SYNC] Live sync failed: ${e.message}`);
                 }
-            }
 
-            // Sync consensus data (less frequently - every 5 min)
-            if (fs.existsSync(CONSENSUS_FILE)) {
+                // 5. Fetch queued match requests from Render so local scraper prioritizes them
                 try {
-                    const data = fs.readFileSync(CONSENSUS_FILE, 'utf8');
-                    const res = await fetch(`${RENDER_URL}/api/sync/consensus`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'x-sync-secret': SYNC_SECRET },
-                        body: data,
-                        signal: AbortSignal.timeout(10000)
-                    });
-                    if (res.ok) console.log('[CLOUD_SYNC] Consensus data pushed');
-                } catch (e) {
-                    // Silently ignore
-                }
+                    const qRes = await fetch(`${RENDER_URL}/api/sync/queue`, { signal: AbortSignal.timeout(5000) });
+                    if (qRes.ok) {
+                        const qData = await qRes.json();
+                        if (qData.ids && qData.ids.length > 0) {
+                            for (const qid of qData.ids) {
+                                queueRequest(qid);
+                            }
+                        }
+                    }
+                } catch(e) {}
+
+            } catch (e) {
+                console.warn(`[CLOUD_SYNC] Sync failed: ${e.message}`);
             }
         }
 
