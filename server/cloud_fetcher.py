@@ -1,8 +1,17 @@
 import os
 import sys
+import site
 import time
 import json
 import logging
+
+# Ensure user site-packages are accessible
+try:
+    user_site = site.getusersitepackages()
+    if user_site and user_site not in sys.path:
+        sys.path.insert(0, user_site)
+except Exception:
+    pass
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, 'sofascore_live.json')
@@ -30,9 +39,8 @@ try:
     HAS_CURL_CFFI = True
     logger.info("curl_cffi is available. Using Chrome 120 TLS impersonation.")
 except ImportError:
-    import requests as cffi_requests
-    HAS_CURL_CFFI = False
-    logger.warning("curl_cffi NOT found. Falling back to standard requests (may trigger 403 on cloud IPs).")
+    logger.error("curl_cffi NOT found! Cannot bypass SofaScore Cloudflare without curl_cffi. Exiting...")
+    sys.exit(1)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",

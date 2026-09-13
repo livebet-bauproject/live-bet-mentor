@@ -1,4 +1,4 @@
-﻿import { execSync } from 'child_process';
+import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -27,7 +27,7 @@ if (!pyVer) {
 console.log(`[DEPS] Python detected: ${pyVer}`);
 
 // 2. Check if curl_cffi is already installed
-const checkCurl = run(`${pyCmd} -c "import curl_cffi; print(curl_cffi.__version__)"`);
+const checkCurl = run(`${pyCmd} -c "import site, sys; sys.path.insert(0, site.getusersitepackages()); import curl_cffi; print(curl_cffi.__version__)"`);
 if (checkCurl) {
     console.log(`[DEPS] ✅ curl_cffi is already installed (version: ${checkCurl})`);
     process.exit(0);
@@ -78,7 +78,7 @@ if (!pipInstalled) {
 }
 
 // 5. Final Verification
-const verify = run(`${pyCmd} -c "import curl_cffi; print(curl_cffi.__version__)"`);
+const verify = run(`${pyCmd} -c "import site, sys; sys.path.insert(0, site.getusersitepackages()); import curl_cffi; print(curl_cffi.__version__)"`);
 if (verify) {
     console.log(`[DEPS] 🎉 SUCCESS! curl_cffi is now installed (version: ${verify})`);
 } else {

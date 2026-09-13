@@ -4,7 +4,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -112,7 +112,7 @@ app.get('/api/debug', async (req, res) => {
             pythonVersion = `Error: ${e.message}`;
         }
         try {
-            curlCffiStatus = execSync(`${pyCmd} -c "import curl_cffi; print('OK v' + curl_cffi.__version__)"`, { timeout: 3000 }).toString().trim();
+            curlCffiStatus = execSync(`${pyCmd} -c "import site, sys; sys.path.insert(0, site.getusersitepackages()); import curl_cffi; print('OK v' + curl_cffi.__version__)"`, { timeout: 3000 }).toString().trim();
         } catch (e) {
             curlCffiStatus = `Error: ${e.message}`;
         }
@@ -144,6 +144,20 @@ app.get('/api/debug', async (req, res) => {
         memoryLiveDataEvents: memoryLiveData?.events?.length || 0,
         uptimeSeconds: Math.floor(process.uptime())
     });
+});
+
+// Setup trigger endpoint
+app.get('/api/setup', (req, res) => {
+    try {
+        const result = spawnSync('node', [path.join(__dirname, 'ensure_python_deps.js')], { encoding: 'utf8', timeout: 90000 });
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(`<pre style="background:#0f172a; color:#38bdf8; padding:24px; font-family:monospace; line-height:1.5;">=== PYTHON DEPENDENCY SETUP ===\n\nSTDOUT:\n${result.stdout || '(none)'}\n\nSTDERR:\n${result.stderr || '(none)'}\n\nExit Code: ${result.status}\n\n<a href="/api/debug" style="color:#facc15;">Teşhis Ekranına Dön</a> | <a href="/api/sofascore/live" style="color:#4ade80;">Canlı Veriyi Kontrol Et</a></pre>`);
+        if (result.status === 0) {
+            setTimeout(startScraper, 1000);
+        }
+    } catch (e) {
+        res.status(500).send(`<pre>Hata: ${e.message}</pre>`);
+    }
 });
 
 // --- IN-MEMORY DATA STORE (for cloud mode) ---
@@ -535,7 +549,14 @@ const IS_CLOUD = !fs.existsSync(path.join(__dirname, '..', '.env')) || process.e
 
 function startScraper() {
     if (IS_CLOUD) {
-        console.log('[PROXY] Cloud environment detected. Starting lightweight Python cloud_fetcher (curl_cffi)...');
+        console.log('[PROXY] Cloud environment detected. Checking Python dependencies...');
+        try {
+            spawnSync('node', [path.join(__dirname, 'ensure_python_deps.js')], { stdio: 'inherit', timeout: 90000 });
+        } catch (e) {
+            console.warn('[PROXY] Warning during ensure_python_deps:', e.message);
+        }
+
+        console.log('[PROXY] Starting lightweight Python cloud_fetcher (curl_cffi)...');
         const pythonCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
         const fetcherPath = path.join(__dirname, 'cloud_fetcher.py');
 

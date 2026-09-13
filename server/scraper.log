@@ -57858,3 +57858,403 @@ Stacktrace:
 2026-09-13 20:00:27,054 [INFO] Captured DETAIL for 16416347 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16416347_detail.json
 2026-09-13 20:00:27,055 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322427)
 2026-09-13 20:00:33,197 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:00:37,431 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:00:37,447 [INFO] [AUTO-STATS] Processing batch 3/25 (10 matches)
+2026-09-13 20:00:37,448 [INFO] [AUTO-STATS] Fetching stats for 15260902
+2026-09-13 20:00:38,483 [INFO] [JS-FETCH] Captured data for 15260902 (Stats: True)
+2026-09-13 20:00:39,485 [INFO] [AUTO-STATS] Fetching stats for 16963494
+2026-09-13 20:00:40,457 [INFO] [JS-FETCH] Captured data for 16963494 (Stats: True)
+2026-09-13 20:00:41,458 [INFO] [AUTO-STATS] Fetching stats for 16963493
+2026-09-13 20:00:42,541 [INFO] [JS-FETCH] Captured data for 16963493 (Stats: False)
+2026-09-13 20:00:43,542 [INFO] [AUTO-STATS] Fetching stats for 16963495
+2026-09-13 20:00:44,377 [INFO] [JS-FETCH] Captured data for 16963495 (Stats: True)
+2026-09-13 20:00:45,378 [INFO] [AUTO-STATS] Fetching stats for 16403878
+2026-09-13 20:00:47,344 [INFO] [JS-FETCH] Captured data for 16403878 (Stats: True)
+2026-09-13 20:00:48,346 [INFO] [AUTO-STATS] Fetching stats for 16390302
+2026-09-13 20:00:50,516 [INFO] [JS-FETCH] Captured data for 16390302 (Stats: True)
+2026-09-13 20:00:51,517 [INFO] [AUTO-STATS] Fetching stats for 15385466
+2026-09-13 20:00:52,742 [INFO] [JS-FETCH] Captured data for 15385466 (Stats: True)
+2026-09-13 20:00:53,744 [INFO] [AUTO-STATS] Fetching stats for 16384070
+2026-09-13 20:00:54,608 [INFO] [JS-FETCH] Captured data for 16384070 (Stats: True)
+2026-09-13 20:00:55,609 [INFO] [AUTO-STATS] Fetching stats for 16567690
+2026-09-13 20:00:56,915 [INFO] [JS-FETCH] Captured data for 16567690 (Stats: True)
+2026-09-13 20:00:57,918 [INFO] Processing queue: 33 total, fetching 10 most recent
+2026-09-13 20:00:57,918 [INFO] Targeted fetch for Match ID: 16963495
+2026-09-13 20:00:59,266 [INFO] [JS-FETCH] Captured data for 16963495 (Stats: True)
+2026-09-13 20:00:59,766 [INFO] Targeted fetch for Match ID: 16692874
+2026-09-13 20:01:00,666 [INFO] [JS-FETCH] Captured data for 16692874 (Stats: True)
+2026-09-13 20:01:01,167 [INFO] Targeted fetch for Match ID: 16490460
+2026-09-13 20:01:02,545 [INFO] [JS-FETCH] Captured data for 16490460 (Stats: True)
+2026-09-13 20:01:03,046 [INFO] Targeted fetch for Match ID: 16490461
+2026-09-13 20:01:06,771 [INFO] [JS-FETCH] Captured data for 16490461 (Stats: True)
+2026-09-13 20:01:07,272 [INFO] Targeted fetch for Match ID: 16803726
+2026-09-13 20:01:07,920 [INFO] [JS-FETCH] Captured data for 16803726 (Stats: False)
+2026-09-13 20:01:08,421 [INFO] Targeted fetch for Match ID: 16803802
+2026-09-13 20:01:09,421 [INFO] [JS-FETCH] Captured data for 16803802 (Stats: False)
+2026-09-13 20:01:09,922 [INFO] Targeted fetch for Match ID: 17010692
+2026-09-13 20:01:10,967 [INFO] [JS-FETCH] Captured data for 17010692 (Stats: False)
+2026-09-13 20:01:11,468 [INFO] Targeted fetch for Match ID: 16803742
+2026-09-13 20:01:13,113 [INFO] [JS-FETCH] Captured data for 16803742 (Stats: False)
+2026-09-13 20:01:13,614 [INFO] Targeted fetch for Match ID: 16453832
+2026-09-13 20:01:14,622 [INFO] [JS-FETCH] Captured data for 16453832 (Stats: True)
+2026-09-13 20:01:15,123 [INFO] Targeted fetch for Match ID: 17065122
+2026-09-13 20:01:16,199 [INFO] [JS-FETCH] Captured data for 17065122 (Stats: False)
+2026-09-13 20:01:18,927 [INFO] Captured DETAIL for 15260902 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15260902_detail.json
+2026-09-13 20:01:19,126 [INFO] Captured STATS for 15260902 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15260902_stats.json
+2026-09-13 20:01:19,280 [INFO] Captured DETAIL for 16963494 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963494_detail.json
+2026-09-13 20:01:19,471 [INFO] Captured STATS for 16963494 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963494_stats.json
+2026-09-13 20:01:20,027 [INFO] [JS-FETCH] Captured data for 16963493 (Stats: True)
+2026-09-13 20:01:20,027 [INFO] Fallback SUCCESS for 16963493 (STATS)
+2026-09-13 20:01:20,273 [INFO] Captured DETAIL for 16963493 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963493_detail.json
+2026-09-13 20:01:20,444 [INFO] Captured STATS for 16963495 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963495_stats.json
+2026-09-13 20:01:20,590 [INFO] Captured DETAIL for 16963495 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963495_detail.json
+2026-09-13 20:01:20,783 [INFO] Captured STATS for 16403878 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16403878_stats.json
+2026-09-13 20:01:20,927 [INFO] Captured DETAIL for 16403878 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16403878_detail.json
+2026-09-13 20:01:21,099 [INFO] Captured STATS for 16390302 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16390302_stats.json
+2026-09-13 20:01:21,283 [INFO] Captured DETAIL for 16390302 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16390302_detail.json
+2026-09-13 20:01:21,485 [INFO] Captured STATS for 15385466 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15385466_stats.json
+2026-09-13 20:01:21,679 [INFO] Captured DETAIL for 15385466 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15385466_detail.json
+2026-09-13 20:01:21,836 [INFO] Captured STATS for 16384070 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16384070_stats.json
+2026-09-13 20:01:21,976 [INFO] Captured DETAIL for 16384070 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16384070_detail.json
+2026-09-13 20:01:22,156 [INFO] Captured STATS for 16567690 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16567690_stats.json
+2026-09-13 20:01:22,298 [INFO] Captured DETAIL for 16567690 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16567690_detail.json
+2026-09-13 20:01:22,459 [INFO] Captured STATS for 16963495 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963495_stats.json
+2026-09-13 20:01:22,647 [INFO] Captured DETAIL for 16963495 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963495_detail.json
+2026-09-13 20:01:22,773 [INFO] Captured DETAIL for 16692874 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16692874_detail.json
+2026-09-13 20:01:22,952 [INFO] Captured STATS for 16692874 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16692874_stats.json
+2026-09-13 20:01:23,182 [INFO] Captured STATS for 16490460 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16490460_stats.json
+2026-09-13 20:01:23,333 [INFO] Captured DETAIL for 16490460 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16490460_detail.json
+2026-09-13 20:01:23,554 [INFO] Captured DETAIL for 16490461 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16490461_detail.json
+2026-09-13 20:01:23,802 [INFO] Captured STATS for 16490461 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16490461_stats.json
+2026-09-13 20:01:24,111 [INFO] Captured DETAIL for 16803726 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803726_detail.json
+2026-09-13 20:01:25,231 [INFO] [JS-FETCH] Captured data for 16803726 (Stats: False)
+2026-09-13 20:01:25,231 [INFO] Fallback SUCCESS for 16803726 (STATS)
+2026-09-13 20:01:25,799 [INFO] [JS-FETCH] Captured data for 16803802 (Stats: False)
+2026-09-13 20:01:25,799 [INFO] Fallback SUCCESS for 16803802 (STATS)
+2026-09-13 20:01:26,047 [INFO] Captured DETAIL for 16803802 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803802_detail.json
+2026-09-13 20:01:26,269 [INFO] Captured DETAIL for 17010692 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\17010692_detail.json
+2026-09-13 20:01:26,732 [INFO] [JS-FETCH] Captured data for 17010692 (Stats: False)
+2026-09-13 20:01:26,732 [INFO] Fallback SUCCESS for 17010692 (STATS)
+2026-09-13 20:01:26,883 [INFO] Captured DETAIL for 16803742 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803742_detail.json
+2026-09-13 20:01:27,471 [INFO] [JS-FETCH] Captured data for 16803742 (Stats: False)
+2026-09-13 20:01:27,471 [INFO] Fallback SUCCESS for 16803742 (STATS)
+2026-09-13 20:01:28,048 [INFO] Captured DETAIL for 16453832 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16453832_detail.json
+2026-09-13 20:01:29,015 [INFO] Captured STATS for 16453832 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16453832_stats.json
+2026-09-13 20:01:29,689 [INFO] [JS-FETCH] Captured data for 17065122 (Stats: False)
+2026-09-13 20:01:29,689 [INFO] Fallback SUCCESS for 17065122 (STATS)
+2026-09-13 20:01:30,002 [INFO] Captured DETAIL for 17065122 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\17065122_detail.json
+2026-09-13 20:01:30,002 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322490)
+2026-09-13 20:01:37,968 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:01:39,759 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:01:39,776 [INFO] [AUTO-STATS] Processing batch 4/25 (10 matches)
+2026-09-13 20:01:39,778 [INFO] [AUTO-STATS] Fetching stats for 16425697
+2026-09-13 20:01:40,202 [INFO] [JS-FETCH] Captured data for 16425697 (Stats: True)
+2026-09-13 20:01:41,206 [INFO] [AUTO-STATS] Fetching stats for 16427542
+2026-09-13 20:01:41,674 [INFO] [JS-FETCH] Captured data for 16427542 (Stats: True)
+2026-09-13 20:01:42,676 [INFO] Processing queue: 22 total, fetching 10 most recent
+2026-09-13 20:01:42,676 [INFO] Targeted fetch for Match ID: 16803735
+2026-09-13 20:01:43,068 [INFO] [JS-FETCH] Captured data for 16803735 (Stats: False)
+2026-09-13 20:01:43,569 [INFO] Targeted fetch for Match ID: 16326456
+2026-09-13 20:01:44,005 [INFO] [JS-FETCH] Captured data for 16326456 (Stats: True)
+2026-09-13 20:01:44,506 [INFO] Targeted fetch for Match ID: 16803801
+2026-09-13 20:01:44,844 [INFO] [JS-FETCH] Captured data for 16803801 (Stats: False)
+2026-09-13 20:01:45,346 [INFO] Targeted fetch for Match ID: 15384441
+2026-09-13 20:01:45,760 [INFO] [JS-FETCH] Captured data for 15384441 (Stats: False)
+2026-09-13 20:01:46,261 [INFO] Targeted fetch for Match ID: 15384442
+2026-09-13 20:01:46,810 [INFO] [JS-FETCH] Captured data for 15384442 (Stats: False)
+2026-09-13 20:01:47,312 [INFO] Targeted fetch for Match ID: 15384443
+2026-09-13 20:01:47,729 [INFO] [JS-FETCH] Captured data for 15384443 (Stats: False)
+2026-09-13 20:01:48,230 [INFO] Targeted fetch for Match ID: 16364239
+2026-09-13 20:01:49,248 [INFO] [JS-FETCH] Captured data for 16364239 (Stats: True)
+2026-09-13 20:01:49,749 [INFO] Targeted fetch for Match ID: 16692880
+2026-09-13 20:01:50,863 [INFO] [JS-FETCH] Captured data for 16692880 (Stats: True)
+2026-09-13 20:01:51,365 [INFO] Targeted fetch for Match ID: 16316934
+2026-09-13 20:01:52,699 [INFO] [JS-FETCH] Captured data for 16316934 (Stats: True)
+2026-09-13 20:01:53,200 [INFO] Targeted fetch for Match ID: 16426940
+2026-09-13 20:01:54,241 [INFO] [JS-FETCH] Captured data for 16426940 (Stats: True)
+2026-09-13 20:01:57,042 [INFO] Captured DETAIL for 16425697 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16425697_detail.json
+2026-09-13 20:01:57,350 [INFO] Captured STATS for 16425697 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16425697_stats.json
+2026-09-13 20:01:57,520 [INFO] Captured STATS for 16427542 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16427542_stats.json
+2026-09-13 20:01:57,716 [INFO] Captured DETAIL for 16427542 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16427542_detail.json
+2026-09-13 20:01:58,070 [INFO] [JS-FETCH] Captured data for 16803735 (Stats: False)
+2026-09-13 20:01:58,071 [INFO] Fallback SUCCESS for 16803735 (STATS)
+2026-09-13 20:01:58,228 [INFO] Captured DETAIL for 16803735 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803735_detail.json
+2026-09-13 20:01:58,416 [INFO] Captured STATS for 16326456 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16326456_stats.json
+2026-09-13 20:01:58,577 [INFO] Captured DETAIL for 16326456 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16326456_detail.json
+2026-09-13 20:01:58,931 [INFO] [JS-FETCH] Captured data for 16803801 (Stats: False)
+2026-09-13 20:01:58,932 [INFO] Fallback SUCCESS for 16803801 (STATS)
+2026-09-13 20:01:59,083 [INFO] Captured DETAIL for 16803801 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803801_detail.json
+2026-09-13 20:01:59,224 [INFO] Captured DETAIL for 15384441 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15384441_detail.json
+2026-09-13 20:01:59,564 [INFO] [JS-FETCH] Captured data for 15384441 (Stats: False)
+2026-09-13 20:01:59,565 [INFO] Fallback SUCCESS for 15384441 (STATS)
+2026-09-13 20:01:59,747 [INFO] Captured DETAIL for 15384442 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15384442_detail.json
+2026-09-13 20:02:00,165 [INFO] [JS-FETCH] Captured data for 15384442 (Stats: False)
+2026-09-13 20:02:00,165 [INFO] Fallback SUCCESS for 15384442 (STATS)
+2026-09-13 20:02:00,494 [INFO] [JS-FETCH] Captured data for 15384443 (Stats: False)
+2026-09-13 20:02:00,495 [INFO] Fallback SUCCESS for 15384443 (STATS)
+2026-09-13 20:02:00,655 [INFO] Captured DETAIL for 15384443 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15384443_detail.json
+2026-09-13 20:02:00,819 [INFO] Captured STATS for 16364239 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16364239_stats.json
+2026-09-13 20:02:00,959 [INFO] Captured DETAIL for 16364239 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16364239_detail.json
+2026-09-13 20:02:01,126 [INFO] Captured DETAIL for 16692880 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16692880_detail.json
+2026-09-13 20:02:01,376 [INFO] Captured STATS for 16692880 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16692880_stats.json
+2026-09-13 20:02:01,589 [INFO] Captured DETAIL for 16316934 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16316934_detail.json
+2026-09-13 20:02:01,871 [INFO] Captured STATS for 16316934 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16316934_stats.json
+2026-09-13 20:02:02,014 [INFO] Captured DETAIL for 16426940 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16426940_detail.json
+2026-09-13 20:02:03,182 [INFO] Captured STATS for 16426940 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16426940_stats.json
+2026-09-13 20:02:03,182 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322523)
+2026-09-13 20:02:05,956 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:02:07,829 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:02:07,831 [INFO] Processing queue: 7 total, fetching 7 most recent
+2026-09-13 20:02:07,831 [INFO] Targeted fetch for Match ID: 16803729
+2026-09-13 20:02:08,214 [INFO] [JS-FETCH] Captured data for 16803729 (Stats: False)
+2026-09-13 20:02:08,714 [INFO] Targeted fetch for Match ID: 16803734
+2026-09-13 20:02:09,051 [INFO] [JS-FETCH] Captured data for 16803734 (Stats: False)
+2026-09-13 20:02:09,552 [INFO] Targeted fetch for Match ID: 15502688
+2026-09-13 20:02:09,990 [INFO] [JS-FETCH] Captured data for 15502688 (Stats: False)
+2026-09-13 20:02:10,491 [INFO] Targeted fetch for Match ID: 16416347
+2026-09-13 20:02:11,147 [INFO] [JS-FETCH] Captured data for 16416347 (Stats: True)
+2026-09-13 20:02:11,647 [INFO] Targeted fetch for Match ID: 16316814
+2026-09-13 20:02:12,654 [INFO] [JS-FETCH] Captured data for 16316814 (Stats: True)
+2026-09-13 20:02:13,155 [INFO] Targeted fetch for Match ID: 16559923
+2026-09-13 20:02:13,639 [INFO] [JS-FETCH] Captured data for 16559923 (Stats: True)
+2026-09-13 20:02:14,141 [INFO] Targeted fetch for Match ID: 16275206
+2026-09-13 20:02:15,046 [INFO] [JS-FETCH] Captured data for 16275206 (Stats: True)
+2026-09-13 20:02:17,884 [INFO] [JS-FETCH] Captured data for 16803729 (Stats: False)
+2026-09-13 20:02:17,885 [INFO] Fallback SUCCESS for 16803729 (STATS)
+2026-09-13 20:02:18,047 [INFO] Captured DETAIL for 16803729 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803729_detail.json
+2026-09-13 20:02:18,220 [INFO] Captured DETAIL for 16803734 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803734_detail.json
+2026-09-13 20:02:18,529 [INFO] [JS-FETCH] Captured data for 16803734 (Stats: False)
+2026-09-13 20:02:18,530 [INFO] Fallback SUCCESS for 16803734 (STATS)
+2026-09-13 20:02:19,967 [INFO] [JS-FETCH] Captured data for 15502688 (Stats: False)
+2026-09-13 20:02:19,967 [INFO] Fallback SUCCESS for 15502688 (STATS)
+2026-09-13 20:02:20,457 [INFO] Captured DETAIL for 15502688 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15502688_detail.json
+2026-09-13 20:02:20,679 [INFO] Captured DETAIL for 16416347 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16416347_detail.json
+2026-09-13 20:02:21,301 [INFO] Captured STATS for 16416347 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16416347_stats.json
+2026-09-13 20:02:21,530 [INFO] Captured STATS for 16316814 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16316814_stats.json
+2026-09-13 20:02:21,674 [INFO] Captured DETAIL for 16316814 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16316814_detail.json
+2026-09-13 20:02:21,863 [INFO] Captured DETAIL for 16559923 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16559923_detail.json
+2026-09-13 20:02:22,018 [INFO] Captured STATS for 16559923 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16559923_stats.json
+2026-09-13 20:02:22,185 [INFO] Captured DETAIL for 16275206 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16275206_detail.json
+2026-09-13 20:02:22,320 [INFO] Captured STATS for 16275206 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16275206_stats.json
+2026-09-13 20:02:22,338 [INFO] [AUTO-STATS] Processing batch 5/25 (10 matches)
+2026-09-13 20:02:22,339 [INFO] [AUTO-STATS] Fetching stats for 16741946
+2026-09-13 20:02:22,852 [INFO] [JS-FETCH] Captured data for 16741946 (Stats: True)
+2026-09-13 20:02:23,853 [INFO] [AUTO-STATS] Fetching stats for 16741952
+2026-09-13 20:02:24,420 [INFO] [JS-FETCH] Captured data for 16741952 (Stats: True)
+2026-09-13 20:02:25,422 [INFO] [AUTO-STATS] Fetching stats for 16741980
+2026-09-13 20:02:26,035 [INFO] [JS-FETCH] Captured data for 16741980 (Stats: True)
+2026-09-13 20:02:27,037 [INFO] [AUTO-STATS] Fetching stats for 16741997
+2026-09-13 20:02:27,673 [INFO] [JS-FETCH] Captured data for 16741997 (Stats: True)
+2026-09-13 20:02:28,675 [INFO] [AUTO-STATS] Fetching stats for 16742042
+2026-09-13 20:02:29,882 [INFO] [JS-FETCH] Captured data for 16742042 (Stats: True)
+2026-09-13 20:02:30,883 [INFO] [AUTO-STATS] Fetching stats for 16742071
+2026-09-13 20:02:31,611 [INFO] [JS-FETCH] Captured data for 16742071 (Stats: True)
+2026-09-13 20:02:32,613 [INFO] [AUTO-STATS] Fetching stats for 16742116
+2026-09-13 20:02:33,182 [INFO] [JS-FETCH] Captured data for 16742116 (Stats: True)
+2026-09-13 20:02:34,183 [INFO] [AUTO-STATS] Fetching stats for 16680784
+2026-09-13 20:02:34,590 [INFO] [JS-FETCH] Captured data for 16680784 (Stats: True)
+2026-09-13 20:02:35,591 [INFO] [AUTO-STATS] Fetching stats for 16539725
+2026-09-13 20:02:36,011 [INFO] [JS-FETCH] Captured data for 16539725 (Stats: False)
+2026-09-13 20:02:37,014 [INFO] Processing queue: 17 total, fetching 10 most recent
+2026-09-13 20:02:37,014 [INFO] Targeted fetch for Match ID: 16418291
+2026-09-13 20:02:37,572 [INFO] [JS-FETCH] Captured data for 16418291 (Stats: True)
+2026-09-13 20:02:38,073 [INFO] Targeted fetch for Match ID: 15260902
+2026-09-13 20:02:38,570 [INFO] [JS-FETCH] Captured data for 15260902 (Stats: True)
+2026-09-13 20:02:39,071 [INFO] Targeted fetch for Match ID: 16963493
+2026-09-13 20:02:39,452 [INFO] [JS-FETCH] Captured data for 16963493 (Stats: True)
+2026-09-13 20:02:39,953 [INFO] Targeted fetch for Match ID: 16963494
+2026-09-13 20:02:40,859 [INFO] [JS-FETCH] Captured data for 16963494 (Stats: True)
+2026-09-13 20:02:41,360 [INFO] Targeted fetch for Match ID: 16403878
+2026-09-13 20:02:41,787 [INFO] [JS-FETCH] Captured data for 16403878 (Stats: True)
+2026-09-13 20:02:42,288 [INFO] Targeted fetch for Match ID: 16390302
+2026-09-13 20:02:42,741 [INFO] [JS-FETCH] Captured data for 16390302 (Stats: True)
+2026-09-13 20:02:43,242 [INFO] Targeted fetch for Match ID: 15385466
+2026-09-13 20:02:43,647 [INFO] [JS-FETCH] Captured data for 15385466 (Stats: True)
+2026-09-13 20:02:44,148 [INFO] Targeted fetch for Match ID: 16384070
+2026-09-13 20:02:44,548 [INFO] [JS-FETCH] Captured data for 16384070 (Stats: True)
+2026-09-13 20:02:45,049 [INFO] Targeted fetch for Match ID: 16803805
+2026-09-13 20:02:45,484 [INFO] [JS-FETCH] Captured data for 16803805 (Stats: False)
+2026-09-13 20:02:45,984 [INFO] Targeted fetch for Match ID: 17065058
+2026-09-13 20:02:47,357 [INFO] [JS-FETCH] Captured data for 17065058 (Stats: False)
+2026-09-13 20:02:50,375 [INFO] [JS-FETCH] Captured data for 16803729 (Stats: False)
+2026-09-13 20:02:50,375 [INFO] Fallback SUCCESS for 16803729 (STATS)
+2026-09-13 20:02:50,509 [INFO] Captured DETAIL for 16803729 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803729_detail.json
+2026-09-13 20:02:50,793 [INFO] [JS-FETCH] Captured data for 16803734 (Stats: False)
+2026-09-13 20:02:50,793 [INFO] Fallback SUCCESS for 16803734 (STATS)
+2026-09-13 20:02:50,951 [INFO] Captured DETAIL for 16803734 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803734_detail.json
+2026-09-13 20:02:51,532 [INFO] [JS-FETCH] Captured data for 15502688 (Stats: False)
+2026-09-13 20:02:51,532 [INFO] Fallback SUCCESS for 15502688 (STATS)
+2026-09-13 20:02:51,742 [INFO] Captured DETAIL for 15502688 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15502688_detail.json
+2026-09-13 20:02:51,893 [INFO] Captured DETAIL for 16741946 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741946_detail.json
+2026-09-13 20:02:52,057 [INFO] Captured STATS for 16741946 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741946_stats.json
+2026-09-13 20:02:52,208 [INFO] Captured DETAIL for 16741952 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741952_detail.json
+2026-09-13 20:02:52,345 [INFO] Captured STATS for 16741952 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741952_stats.json
+2026-09-13 20:02:52,572 [INFO] Captured STATS for 16741980 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741980_stats.json
+2026-09-13 20:02:52,776 [INFO] Captured DETAIL for 16741980 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741980_detail.json
+2026-09-13 20:02:52,918 [INFO] Captured STATS for 16741997 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741997_stats.json
+2026-09-13 20:02:53,174 [INFO] Captured DETAIL for 16741997 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16741997_detail.json
+2026-09-13 20:02:53,626 [INFO] Captured STATS for 16742042 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16742042_stats.json
+2026-09-13 20:02:53,787 [INFO] Captured DETAIL for 16742042 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16742042_detail.json
+2026-09-13 20:02:53,987 [INFO] Captured STATS for 16742071 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16742071_stats.json
+2026-09-13 20:02:54,222 [INFO] Captured DETAIL for 16742071 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16742071_detail.json
+2026-09-13 20:02:54,547 [INFO] Captured STATS for 16742116 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16742116_stats.json
+2026-09-13 20:02:54,786 [INFO] Captured DETAIL for 16742116 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16742116_detail.json
+2026-09-13 20:02:55,098 [INFO] Captured STATS for 16680784 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16680784_stats.json
+2026-09-13 20:02:55,376 [INFO] Captured DETAIL for 16680784 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16680784_detail.json
+2026-09-13 20:02:55,751 [INFO] [JS-FETCH] Captured data for 16539725 (Stats: False)
+2026-09-13 20:02:55,752 [INFO] Fallback SUCCESS for 16539725 (STATS)
+2026-09-13 20:02:55,921 [INFO] Captured DETAIL for 16539725 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16539725_detail.json
+2026-09-13 20:02:56,579 [INFO] Captured STATS for 16418291 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16418291_stats.json
+2026-09-13 20:02:56,797 [INFO] Captured DETAIL for 16418291 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16418291_detail.json
+2026-09-13 20:02:57,199 [INFO] Captured STATS for 15260902 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15260902_stats.json
+2026-09-13 20:02:57,372 [INFO] Captured DETAIL for 15260902 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15260902_detail.json
+2026-09-13 20:02:57,513 [INFO] Captured DETAIL for 16963493 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963493_detail.json
+2026-09-13 20:02:57,832 [INFO] Captured STATS for 16963493 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963493_stats.json
+2026-09-13 20:02:58,051 [INFO] Captured STATS for 16963494 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963494_stats.json
+2026-09-13 20:02:58,194 [INFO] Captured DETAIL for 16963494 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16963494_detail.json
+2026-09-13 20:02:58,362 [INFO] Captured DETAIL for 16403878 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16403878_detail.json
+2026-09-13 20:02:58,564 [INFO] Captured STATS for 16403878 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16403878_stats.json
+2026-09-13 20:02:58,748 [INFO] Captured STATS for 16390302 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16390302_stats.json
+2026-09-13 20:02:58,919 [INFO] Captured DETAIL for 16390302 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16390302_detail.json
+2026-09-13 20:02:59,595 [INFO] Captured STATS for 15385466 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15385466_stats.json
+2026-09-13 20:02:59,915 [INFO] Captured DETAIL for 15385466 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15385466_detail.json
+2026-09-13 20:03:00,368 [INFO] Captured DETAIL for 16384070 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16384070_detail.json
+2026-09-13 20:03:00,612 [INFO] Captured STATS for 16384070 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16384070_stats.json
+2026-09-13 20:03:00,975 [INFO] [JS-FETCH] Captured data for 16803805 (Stats: False)
+2026-09-13 20:03:00,975 [INFO] Fallback SUCCESS for 16803805 (STATS)
+2026-09-13 20:03:01,618 [INFO] Captured DETAIL for 16803805 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16803805_detail.json
+2026-09-13 20:03:02,591 [INFO] [JS-FETCH] Captured data for 17065058 (Stats: False)
+2026-09-13 20:03:02,592 [INFO] Fallback SUCCESS for 17065058 (STATS)
+2026-09-13 20:03:02,728 [INFO] Captured DETAIL for 17065058 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\17065058_detail.json
+2026-09-13 20:03:02,728 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322582)
+2026-09-13 20:03:05,009 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:03:06,945 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:03:08,966 [INFO] [AUTO-STATS] Processing batch 6/26 (10 matches)
+2026-09-13 20:03:08,968 [INFO] [AUTO-STATS] Fetching stats for 16539747
+2026-09-13 20:03:09,574 [INFO] [JS-FETCH] Captured data for 16539747 (Stats: False)
+2026-09-13 20:03:10,576 [INFO] [AUTO-STATS] Fetching stats for 16539765
+2026-09-13 20:03:10,932 [INFO] [JS-FETCH] Captured data for 16539765 (Stats: True)
+2026-09-13 20:03:11,933 [INFO] [AUTO-STATS] Fetching stats for 16667919
+2026-09-13 20:03:12,449 [INFO] [JS-FETCH] Captured data for 16667919 (Stats: False)
+2026-09-13 20:03:13,450 [INFO] [AUTO-STATS] Fetching stats for 16517721
+2026-09-13 20:03:13,889 [INFO] [JS-FETCH] Captured data for 16517721 (Stats: False)
+2026-09-13 20:03:14,890 [INFO] [AUTO-STATS] Fetching stats for 16671613
+2026-09-13 20:03:15,460 [INFO] [JS-FETCH] Captured data for 16671613 (Stats: True)
+2026-09-13 20:03:16,460 [INFO] [AUTO-STATS] Fetching stats for 16671619
+2026-09-13 20:03:17,343 [INFO] [JS-FETCH] Captured data for 16671619 (Stats: True)
+2026-09-13 20:03:18,344 [INFO] [AUTO-STATS] Fetching stats for 15276901
+2026-09-13 20:03:18,962 [INFO] [JS-FETCH] Captured data for 15276901 (Stats: True)
+2026-09-13 20:03:19,963 [INFO] [AUTO-STATS] Fetching stats for 17085101
+2026-09-13 20:03:20,869 [INFO] [JS-FETCH] Captured data for 17085101 (Stats: False)
+2026-09-13 20:03:24,073 [INFO] Captured DETAIL for 16539747 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16539747_detail.json
+2026-09-13 20:03:24,474 [INFO] [JS-FETCH] Captured data for 16539747 (Stats: False)
+2026-09-13 20:03:24,474 [INFO] Fallback SUCCESS for 16539747 (STATS)
+2026-09-13 20:03:24,635 [INFO] Captured STATS for 16539765 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16539765_stats.json
+2026-09-13 20:03:24,815 [INFO] Captured DETAIL for 16539765 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16539765_detail.json
+2026-09-13 20:03:25,019 [INFO] Captured DETAIL for 16667919 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16667919_detail.json
+2026-09-13 20:03:26,027 [INFO] [JS-FETCH] Captured data for 16667919 (Stats: False)
+2026-09-13 20:03:26,028 [INFO] Fallback SUCCESS for 16667919 (STATS)
+2026-09-13 20:03:27,007 [INFO] Captured DETAIL for 16517721 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16517721_detail.json
+2026-09-13 20:03:28,111 [INFO] [JS-FETCH] Captured data for 16517721 (Stats: False)
+2026-09-13 20:03:28,111 [INFO] Fallback SUCCESS for 16517721 (STATS)
+2026-09-13 20:03:28,802 [INFO] Captured DETAIL for 16671613 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16671613_detail.json
+2026-09-13 20:03:28,992 [INFO] Captured STATS for 16671613 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16671613_stats.json
+2026-09-13 20:03:29,301 [INFO] Captured STATS for 16671619 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16671619_stats.json
+2026-09-13 20:03:29,722 [INFO] Captured DETAIL for 16671619 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16671619_detail.json
+2026-09-13 20:03:29,850 [INFO] Captured DETAIL for 15276901 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15276901_detail.json
+2026-09-13 20:03:29,988 [INFO] Captured STATS for 15276901 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\15276901_stats.json
+2026-09-13 20:03:30,599 [INFO] [JS-FETCH] Captured data for 17085101 (Stats: False)
+2026-09-13 20:03:30,600 [INFO] Fallback SUCCESS for 17085101 (STATS)
+2026-09-13 20:03:30,737 [INFO] Captured DETAIL for 17085101 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\17085101_detail.json
+2026-09-13 20:03:30,737 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322610)
+2026-09-13 20:03:32,938 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:03:34,958 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:03:50,991 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322630)
+2026-09-13 20:03:53,319 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:03:55,310 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:03:55,329 [INFO] [AUTO-STATS] Processing batch 7/29 (10 matches)
+2026-09-13 20:03:55,330 [INFO] [AUTO-STATS] Fetching stats for 16932704
+2026-09-13 20:03:55,720 [INFO] [JS-FETCH] Captured data for 16932704 (Stats: True)
+2026-09-13 20:03:56,722 [INFO] [AUTO-STATS] Fetching stats for 17070617
+2026-09-13 20:03:57,482 [INFO] [JS-FETCH] Captured data for 17070617 (Stats: False)
+2026-09-13 20:03:58,483 [INFO] [AUTO-STATS] Fetching stats for 16582251
+2026-09-13 20:03:59,745 [INFO] [JS-FETCH] Captured data for 16582251 (Stats: False)
+2026-09-13 20:04:00,747 [INFO] [AUTO-STATS] Fetching stats for 16582255
+2026-09-13 20:04:01,160 [INFO] [JS-FETCH] Captured data for 16582255 (Stats: False)
+2026-09-13 20:04:02,161 [INFO] [AUTO-STATS] Fetching stats for 17078607
+2026-09-13 20:04:02,541 [INFO] [JS-FETCH] Captured data for 17078607 (Stats: False)
+2026-09-13 20:04:03,542 [INFO] [AUTO-STATS] Fetching stats for 17029328
+2026-09-13 20:04:03,920 [INFO] [JS-FETCH] Captured data for 17029328 (Stats: False)
+2026-09-13 20:04:04,921 [INFO] [AUTO-STATS] Fetching stats for 16705685
+2026-09-13 20:04:05,471 [INFO] [JS-FETCH] Captured data for 16705685 (Stats: False)
+2026-09-13 20:04:06,472 [INFO] [AUTO-STATS] Fetching stats for 16609166
+2026-09-13 20:04:07,000 [INFO] [JS-FETCH] Captured data for 16609166 (Stats: True)
+2026-09-13 20:04:08,000 [INFO] [AUTO-STATS] Fetching stats for 16705675
+2026-09-13 20:04:08,413 [INFO] [JS-FETCH] Captured data for 16705675 (Stats: True)
+2026-09-13 20:04:12,101 [INFO] Captured STATS for 16932704 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16932704_stats.json
+2026-09-13 20:04:12,912 [INFO] Captured DETAIL for 16932704 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16932704_detail.json
+2026-09-13 20:04:13,686 [INFO] Captured DETAIL for 17070617 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\17070617_detail.json
+2026-09-13 20:04:14,250 [INFO] [JS-FETCH] Captured data for 17070617 (Stats: False)
+2026-09-13 20:04:14,250 [INFO] Fallback SUCCESS for 17070617 (STATS)
+2026-09-13 20:04:16,117 [INFO] [JS-FETCH] Captured data for 16582251 (Stats: False)
+2026-09-13 20:04:16,117 [INFO] Fallback SUCCESS for 16582251 (STATS)
+2026-09-13 20:04:16,760 [INFO] Captured DETAIL for 16582251 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16582251_detail.json
+2026-09-13 20:04:17,113 [INFO] [JS-FETCH] Captured data for 16582255 (Stats: False)
+2026-09-13 20:04:17,113 [INFO] Fallback SUCCESS for 16582255 (STATS)
+2026-09-13 20:04:17,259 [INFO] Captured DETAIL for 16582255 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16582255_detail.json
+2026-09-13 20:04:17,451 [INFO] Captured DETAIL for 17078607 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\17078607_detail.json
+2026-09-13 20:04:17,812 [INFO] [JS-FETCH] Captured data for 17078607 (Stats: False)
+2026-09-13 20:04:17,813 [INFO] Fallback SUCCESS for 17078607 (STATS)
+2026-09-13 20:04:18,150 [INFO] [JS-FETCH] Captured data for 17029328 (Stats: False)
+2026-09-13 20:04:18,151 [INFO] Fallback SUCCESS for 17029328 (STATS)
+2026-09-13 20:04:18,296 [INFO] Captured DETAIL for 17029328 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\17029328_detail.json
+2026-09-13 20:04:18,735 [INFO] [JS-FETCH] Captured data for 16705685 (Stats: False)
+2026-09-13 20:04:18,735 [INFO] Fallback SUCCESS for 16705685 (STATS)
+2026-09-13 20:04:18,935 [INFO] Captured DETAIL for 16705685 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16705685_detail.json
+2026-09-13 20:04:19,228 [INFO] Captured DETAIL for 16609166 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16609166_detail.json
+2026-09-13 20:04:19,492 [INFO] Captured STATS for 16609166 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16609166_stats.json
+2026-09-13 20:04:19,831 [INFO] Captured STATS for 16705675 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16705675_stats.json
+2026-09-13 20:04:19,982 [INFO] Captured DETAIL for 16705675 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16705675_detail.json
+2026-09-13 20:04:19,983 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322659)
+2026-09-13 20:04:22,057 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:04:24,664 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:04:40,695 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322680)
+2026-09-13 20:04:43,255 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:04:45,438 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:04:45,458 [INFO] [AUTO-STATS] Processing batch 8/29 (10 matches)
+2026-09-13 20:04:45,460 [INFO] [AUTO-STATS] Fetching stats for 16609167
+2026-09-13 20:04:45,883 [INFO] [JS-FETCH] Captured data for 16609167 (Stats: True)
+2026-09-13 20:04:46,884 [INFO] [AUTO-STATS] Fetching stats for 16671794
+2026-09-13 20:04:47,357 [INFO] [JS-FETCH] Captured data for 16671794 (Stats: True)
+2026-09-13 20:04:48,358 [INFO] [AUTO-STATS] Fetching stats for 16920594
+2026-09-13 20:04:48,923 [INFO] [JS-FETCH] Captured data for 16920594 (Stats: True)
+2026-09-13 20:04:49,923 [INFO] [AUTO-STATS] Fetching stats for 16964631
+2026-09-13 20:04:50,419 [INFO] [JS-FETCH] Captured data for 16964631 (Stats: True)
+2026-09-13 20:04:51,419 [INFO] [AUTO-STATS] Fetching stats for 16832970
+2026-09-13 20:04:52,094 [INFO] [JS-FETCH] Captured data for 16832970 (Stats: False)
+2026-09-13 20:04:53,095 [INFO] [AUTO-STATS] Fetching stats for 16932089
+2026-09-13 20:04:53,541 [INFO] [JS-FETCH] Captured data for 16932089 (Stats: False)
+2026-09-13 20:04:56,734 [INFO] Captured DETAIL for 16609167 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16609167_detail.json
+2026-09-13 20:04:56,875 [INFO] Captured STATS for 16609167 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16609167_stats.json
+2026-09-13 20:04:57,034 [INFO] Captured STATS for 16671794 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16671794_stats.json
+2026-09-13 20:04:57,175 [INFO] Captured DETAIL for 16671794 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16671794_detail.json
+2026-09-13 20:04:57,321 [INFO] Captured STATS for 16920594 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16920594_stats.json
+2026-09-13 20:04:57,485 [INFO] Captured DETAIL for 16920594 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16920594_detail.json
+2026-09-13 20:04:57,639 [INFO] Captured DETAIL for 16964631 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16964631_detail.json
+2026-09-13 20:04:57,780 [INFO] Captured STATS for 16964631 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16964631_stats.json
+2026-09-13 20:04:58,067 [INFO] [JS-FETCH] Captured data for 16832970 (Stats: False)
+2026-09-13 20:04:58,068 [INFO] Fallback SUCCESS for 16832970 (STATS)
+2026-09-13 20:04:58,207 [INFO] Captured DETAIL for 16832970 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16832970_detail.json
+2026-09-13 20:04:58,502 [INFO] [JS-FETCH] Captured data for 16932089 (Stats: False)
+2026-09-13 20:04:58,502 [INFO] Fallback SUCCESS for 16932089 (STATS)
+2026-09-13 20:04:58,682 [INFO] Captured DETAIL for 16932089 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16932089_detail.json
+2026-09-13 20:05:01,690 [INFO] [JS-FETCH] Captured data for 16832970 (Stats: False)
+2026-09-13 20:05:01,690 [INFO] Fallback SUCCESS for 16832970 (STATS)
+2026-09-13 20:05:02,050 [INFO] Captured DETAIL for 16832970 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16832970_detail.json
+2026-09-13 20:05:02,750 [INFO] [JS-FETCH] Captured data for 16932089 (Stats: False)
+2026-09-13 20:05:02,750 [INFO] Fallback SUCCESS for 16932089 (STATS)
+2026-09-13 20:05:03,315 [INFO] Captured DETAIL for 16932089 -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\stats\16932089_detail.json
+2026-09-13 20:05:03,316 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322703)
+2026-09-13 20:05:05,679 [INFO] [JS-FETCH] Captured LIVE_LIST directly -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:05:07,658 [INFO] Captured LIVE_LIST -> C:\Users\ok\Desktop\Is Projeleri\LIVE\LIVEBETCODE\server\sofascore_live.json
+2026-09-13 20:05:23,684 [INFO] Periodic fetch for LIVE_LIST (TS: 1789322723)
