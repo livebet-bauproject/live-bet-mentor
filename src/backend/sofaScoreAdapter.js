@@ -12,9 +12,9 @@ export const sofaScoreAdapter = {
      */
     async fetchScheduledEvents() {
         try {
-            // Detect environment: Use local proxy for anything that isn't the production Firebase domain
-            const isProduction = window.location.hostname === 'vipbetpicks77.web.app' || window.location.hostname.includes('firebaseapp.com');
-            const isLocalDev = !isProduction;
+            // Detect environment: Local dev uses local proxy, any deployed domain uses cloud/Firebase
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isProduction = !isLocalDev;
 
             if (isLocalDev) {
                 // LOCAL DEVELOPMENT: Use local proxy (faster, no Firebase quota)
@@ -135,8 +135,8 @@ export const sofaScoreAdapter = {
         const startTime = Date.now();
 
         try {
-            const isProduction = window.location.hostname === 'vipbetpicks77.web.app' || window.location.hostname.includes('firebaseapp.com');
-            const isLocalDev = !isProduction;
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isProduction = !isLocalDev;
 
             if (isLocalDev) {
                 // LOCAL DEVELOPMENT: Use local proxy for stats
@@ -207,8 +207,8 @@ export const sofaScoreAdapter = {
      */
     async fetchEventOdds(eventId) {
         try {
-            const isProduction = window.location.hostname === 'vipbetpicks77.web.app' || window.location.hostname.includes('firebaseapp.com');
-            const isLocalDev = !isProduction;
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isProduction = !isLocalDev;
             let data = null;
 
             if (isLocalDev) {
