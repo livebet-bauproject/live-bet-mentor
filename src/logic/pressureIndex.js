@@ -22,8 +22,9 @@ export const pressureIndex = {
         const homeRed = Number(cards?.home?.red ?? s.cards?.home?.red ?? 0);
         const awayRed = Number(cards?.away?.red ?? s.cards?.away?.red ?? 0);
 
-        // Parse minute safely (minimum 5 to avoid division spikes in early game)
+        // Parse minute safely with sample-size smoothing (avoids early game rate spikes)
         const min = Math.max(5, parseInt(minute) || 15);
+        const minDivisor = Math.max(20, min);
 
         // Weights for raw stats (these multiply the per-minute RATE)
         const W_SOG = 200;       // Shots on goal per minute rate × this
@@ -35,10 +36,10 @@ export const pressureIndex = {
         const getScore = (side) => {
             let score = 0;
 
-            // Per-minute rates (normalized by time elapsed)
-            const sogRate = (s.shotsOnGoal?.[side] || 0) / min;
-            const daRate = (s.dangerousAttacks?.[side] || 0) / min;
-            const cornerRate = (s.corners?.[side] || 0) / min;
+            // Per-minute rates (normalized by time elapsed with sample smoothing)
+            const sogRate = (s.shotsOnGoal?.[side] || 0) / minDivisor;
+            const daRate = (s.dangerousAttacks?.[side] || 0) / minDivisor;
+            const cornerRate = (s.corners?.[side] || 0) / minDivisor;
 
             // Primary metrics (rate-based)
             score += sogRate * W_SOG;
@@ -47,7 +48,7 @@ export const pressureIndex = {
 
             // Secondary fallback (Total shots rate)
             if ((s.shotsOnGoal?.[side] || 0) === 0) {
-                const tsRate = (s.totalShots?.[side] || 0) / min;
+                const tsRate = (s.totalShots?.[side] || 0) / minDivisor;
                 score += tsRate * W_TOTAL_SHOTS;
             }
 
@@ -106,10 +107,16 @@ export const pressureIndex = {
 
         const normalize = (val) => Math.min(100, Math.round(val));
 
+        // Total Match Pressure: 75% dominant team pressure + 25% overall game tempo
+        // Prevents mediocre games from falsely summing up to 100%!
+        const dominantVal = Math.max(adjustedHome, adjustedAway);
+        const tempoVal = (adjustedHome + adjustedAway) / 2;
+        const blendedPressure = Math.round((dominantVal * 0.75) + (tempoVal * 0.25));
+
         return {
             home: normalize(adjustedHome),
             away: normalize(adjustedAway),
-            total: normalize(adjustedHome + adjustedAway),
+            total: normalize(blendedPressure),
             dominantTeam,
             redCards: {
                 home: homeRed,

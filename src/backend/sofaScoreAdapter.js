@@ -407,13 +407,15 @@ export const sofaScoreAdapter = {
                     normalizedStats.cards.away.red = Math.max(normalizedStats.cards.away.red || 0, event.awayRedCards || 0);
                 }
 
-                // Fallback: If dangerous attacks not explicitly tracked by league, estimate from pressure metrics
+                // Fallback: If dangerous attacks not explicitly tracked by league, estimate from actual actions (shots & corners)
                 if (normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
-                    const homePoss = normalizedStats.possession.home || 50;
-                    const awayPoss = normalizedStats.possession.away || 50;
-                    if (normalizedStats.totalShots.home > 0 || normalizedStats.totalShots.away > 0 || normalizedStats.corners.home > 0 || normalizedStats.corners.away > 0) {
-                        normalizedStats.dangerousAttacks.home = Math.round((normalizedStats.totalShots.home * 3) + (normalizedStats.corners.home * 4) + (homePoss * 0.3));
-                        normalizedStats.dangerousAttacks.away = Math.round((normalizedStats.totalShots.away * 3) + (normalizedStats.corners.away * 4) + (awayPoss * 0.3));
+                    const shotsHome = normalizedStats.totalShots.home || 0;
+                    const shotsAway = normalizedStats.totalShots.away || 0;
+                    const cornersHome = normalizedStats.corners.home || 0;
+                    const cornersAway = normalizedStats.corners.away || 0;
+                    if (shotsHome > 0 || shotsAway > 0 || cornersHome > 0 || cornersAway > 0) {
+                        normalizedStats.dangerousAttacks.home = Math.round((shotsHome * 2) + (cornersHome * 2));
+                        normalizedStats.dangerousAttacks.away = Math.round((shotsAway * 2) + (cornersAway * 2));
                     }
                 }
 

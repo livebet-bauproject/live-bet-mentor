@@ -197,8 +197,9 @@ class LiveOpportunityScorer {
 
         // SMART MONEY & ODDS MOVEMENT BONUS / PENALTY
         const oddsMovement = this._detectOddsMovement(match);
+        let externalBonus = 0;
         if (oddsMovement.smartMoney?.active) {
-            totalScore += 12; // Smart Money Confirmation Bonus!
+            externalBonus += 8; // Smart Money Confirmation Bonus!
         } else if (oddsMovement.isTrap) {
             totalScore -= 15; // Trap penalty
         }
@@ -208,7 +209,7 @@ class LiveOpportunityScorer {
         try {
             evAnalysis = poissonEngine.analyzeMatch(match);
             if (evAnalysis?.hasValue && evAnalysis?.bestEV) {
-                totalScore += 10; // Institutional +EV confirmation bonus!
+                externalBonus += 6; // Institutional +EV confirmation bonus!
             }
         } catch (e) {
             console.warn('[OpportunityScorer] Error in poissonEngine:', e.message);
@@ -219,10 +220,24 @@ class LiveOpportunityScorer {
         try {
             latencyEdge = latencyArbitrageRadar.detectLatencyEdge(match);
             if (latencyEdge) {
-                totalScore += 15; // Critical edge: Slow bookmaker has not adjusted!
+                externalBonus += 8; // Critical edge: Slow bookmaker has not adjusted!
             }
         } catch (e) {
             console.warn('[OpportunityScorer] Error in latencyArbitrageRadar:', e.message);
+        }
+
+        // Apply external bonuses with capped ceiling (max +15)
+        totalScore += Math.min(15, externalBonus);
+
+        // EARLY GAME SANITY CEILING:
+        // In early minutes (< 25'), matches without substantial xG (< 0.6) or heavy shots (<= 4 SOG)
+        // are still in early exploration and must be capped at 78 (SICAK) rather than shooting to 95-100 ALEV!
+        if (minute < 25) {
+            const totalSog = (match.stats?.shotsOnGoal?.home || 0) + (match.stats?.shotsOnGoal?.away || 0);
+            const totalXg = (match.stats?.xg?.home || 0) + (match.stats?.xg?.away || 0);
+            if (totalSog <= 4 && totalXg < 0.6) {
+                totalScore = Math.min(78, totalScore);
+            }
         }
         
         totalScore = Math.max(0, Math.min(100, totalScore));
@@ -912,20 +927,28 @@ class LiveOpportunityScorer {
 
         // SCENARIO 2: ACTIVE MATCH (< 75') WITH OPPORTUNITY SCORE (score >= 50)
         if (score >= 50) {
+            const totalAttackPts = homeAttackPoints + awayAttackPoints;
+            const homeDominanceRatio = totalAttackPts > 0 ? (homeAttackPoints / totalAttackPts) : 0.5;
+            const awayDominanceRatio = totalAttackPts > 0 ? (awayAttackPoints / totalAttackPts) : 0.5;
+
+            // Realistic confidence: bounded reasonably (60% - 85%), proportional to real dominance
+            const homeConfidence = Math.min(85, Math.max(60, Math.round(50 + (homeDominanceRatio * 30) + (score * 0.1))));
+            const awayConfidence = Math.min(85, Math.max(60, Math.round(50 + (awayDominanceRatio * 30) + (score * 0.1))));
+
             // SUB-CASE A: Home is Dominant
             if (isHomeDominant) {
                 // If Home is already leading by 1 or more goals:
                 if (goalDiff >= 1) {
                     // Late in the match (>= 65'), Home likely to protect/close out win:
                     if (minute >= 65) {
-                        return { marketKey: 'HOME_WIN_NEXT', confidence: Math.min(90, Math.max(70, Math.round(score * 0.92))), team: match.homeTeam, odds: liveHomeOdds };
+                        return { marketKey: 'HOME_WIN_NEXT', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
                     }
                     // Earlier, Next Goal is the sharper in-play prediction:
-                    return { marketKey: 'HOME_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.homeTeam, odds: liveHomeOdds };
+                    return { marketKey: 'HOME_NEXT_GOAL', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
                 }
                 // Home is DRAWING (0) or TRAILING (<0):
                 // Trailing team is pushing for NEXT GOAL! (Never "Kazanmaya Yakın" when trailing!)
-                return { marketKey: 'HOME_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.homeTeam, odds: liveHomeOdds };
+                return { marketKey: 'HOME_NEXT_GOAL', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
             }
 
             // SUB-CASE B: Away is Dominant
@@ -933,13 +956,13 @@ class LiveOpportunityScorer {
                 // If Away is already leading by 1 or more goals:
                 if (goalDiff <= -1) {
                     if (minute >= 65) {
-                        return { marketKey: 'AWAY_WIN_NEXT', confidence: Math.min(90, Math.max(70, Math.round(score * 0.92))), team: match.awayTeam, odds: liveAwayOdds };
+                        return { marketKey: 'AWAY_WIN_NEXT', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
                     }
-                    return { marketKey: 'AWAY_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.awayTeam, odds: liveAwayOdds };
+                    return { marketKey: 'AWAY_NEXT_GOAL', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
                 }
                 // Away is DRAWING (0) or TRAILING (>0, like Monza 1 - 3 Lecce):
                 // Trailing team is pushing for NEXT GOAL! (Never "Monza Kazanmaya Yakın" when trailing 1-3!)
-                return { marketKey: 'AWAY_NEXT_GOAL', confidence: Math.min(90, Math.max(70, Math.round(score * 0.95))), team: match.awayTeam, odds: liveAwayOdds };
+                return { marketKey: 'AWAY_NEXT_GOAL', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
             }
 
             // SUB-CASE C: Neither team dominates, but match has high pace/pressure:
