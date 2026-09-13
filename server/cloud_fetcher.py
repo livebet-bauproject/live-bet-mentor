@@ -1,13 +1,27 @@
-﻿import os
+import os
 import sys
 import time
 import json
 import logging
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_FILE = os.path.join(BASE_DIR, 'sofascore_live.json')
+STATS_DIR = os.path.join(BASE_DIR, 'stats')
+ODDS_FILE = os.path.join(BASE_DIR, 'live_odds.json')
+REQUEST_QUEUE = os.path.join(BASE_DIR, 'stats_request.json')
+LOG_FILE = os.path.join(BASE_DIR, 'scraper.log')
+
+if not os.path.exists(STATS_DIR):
+    os.makedirs(STATS_DIR, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] [CLOUD_FETCHER] %(message)s',
-    datefmt='%H:%M:%S'
+    datefmt='%H:%M:%S',
+    handlers=[
+        logging.FileHandler(LOG_FILE, encoding='utf-8', mode='a'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
 logger = logging.getLogger("CloudFetcher")
 
@@ -19,15 +33,6 @@ except ImportError:
     import requests as cffi_requests
     HAS_CURL_CFFI = False
     logger.warning("curl_cffi NOT found. Falling back to standard requests (may trigger 403 on cloud IPs).")
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(BASE_DIR, 'sofascore_live.json')
-STATS_DIR = os.path.join(BASE_DIR, 'stats')
-ODDS_FILE = os.path.join(BASE_DIR, 'live_odds.json')
-REQUEST_QUEUE = os.path.join(BASE_DIR, 'stats_request.json')
-
-if not os.path.exists(STATS_DIR):
-    os.makedirs(STATS_DIR, exist_ok=True)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",

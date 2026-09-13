@@ -58,6 +58,94 @@ if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
 app.use('/data', express.static(__dirname));
 
+// Root Status Page
+app.get('/', (req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Bet Mentor - API Backend</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 40px 20px; display: flex; justify-content: center; }
+        .card { background: #1e293b; border-radius: 12px; padding: 32px; max-width: 600px; width: 100%; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
+        h1 { color: #38bdf8; margin-top: 0; font-size: 22px; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; background: #065f46; color: #34d399; margin-bottom: 12px; }
+        p { color: #94a3b8; line-height: 1.6; }
+        .link-box { margin: 20px 0; display: flex; flex-direction: column; gap: 10px; }
+        .link-box a { display: block; padding: 12px 16px; background: #334155; color: #f1f5f9; text-decoration: none; border-radius: 8px; font-weight: 500; }
+        .link-box a:hover { background: #0284c7; color: #fff; }
+        .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #334155; font-size: 13px; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⚡ Live Bet Mentor API Backend</h1>
+        <div><span class="status-badge">● Backend Aktif</span></div>
+        <p>Render üzerinde 7/24 API sunucusu çalışıyor.</p>
+        
+        <div class="link-box">
+            <a href="/api/sofascore/live" target="_blank">📊 /api/sofascore/live (Canlı Maç Verisi)</a>
+            <a href="/api/debug" target="_blank">🔍 /api/debug (Sistem Durumu & Teşhis)</a>
+            <a href="/api/sync/status" target="_blank">⏱ /api/sync/status (Senkronizasyon)</a>
+        </div>
+
+        <div class="footer">
+            Canlı kullanıcı arayüzü Vercel üzerinde barındırılmaktadır.
+        </div>
+    </div>
+</body>
+</html>`);
+});
+
+// Diagnostic Endpoint
+app.get('/api/debug', async (req, res) => {
+    let pythonVersion = 'none';
+    let curlCffiStatus = 'unknown';
+    try {
+        const { execSync } = await import('child_process');
+        const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
+        try {
+            pythonVersion = execSync(`${pyCmd} --version`, { timeout: 3000 }).toString().trim();
+        } catch (e) {
+            pythonVersion = `Error: ${e.message}`;
+        }
+        try {
+            curlCffiStatus = execSync(`${pyCmd} -c "import curl_cffi; print('OK v' + curl_cffi.__version__)"`, { timeout: 3000 }).toString().trim();
+        } catch (e) {
+            curlCffiStatus = `Error: ${e.message}`;
+        }
+    } catch (e) {}
+
+    let liveFileExists = fs.existsSync(SOFASCORE_FILE);
+    let liveFileCount = 0;
+    let liveFileAge = -1;
+    if (liveFileExists) {
+        try {
+            const stats = fs.statSync(SOFASCORE_FILE);
+            liveFileAge = Math.floor((Date.now() - stats.mtimeMs) / 1000);
+            const content = JSON.parse(fs.readFileSync(SOFASCORE_FILE, 'utf8'));
+            liveFileCount = content.events?.length || 0;
+        } catch(e) {}
+    }
+
+    res.json({
+        status: 'online',
+        environment: IS_CLOUD ? 'CLOUD (Render)' : 'LOCAL',
+        nodeVersion: process.version,
+        pythonVersion,
+        curlCffiStatus,
+        sofascoreLive: {
+            fileExists: liveFileExists,
+            eventsCount: liveFileCount,
+            ageSeconds: liveFileAge
+        },
+        memoryLiveDataEvents: memoryLiveData?.events?.length || 0,
+        uptimeSeconds: Math.floor(process.uptime())
+    });
+});
+
 // --- IN-MEMORY DATA STORE (for cloud mode) ---
 let memoryLiveData = null;
 let memoryConsensusData = null;

@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "postinstall": "pip3 install curl_cffi requests python-dotenv --break-system-packages || pip3 install --user curl_cffi requests python-dotenv || pip install curl_cffi requests python-dotenv || true",
+    "postinstall": "node server/ensure_python_deps.js || true",
     "proxy": "node server/proxy.js",
     "start": "concurrently \"npm run dev\" \"npm run proxy\""
   },
