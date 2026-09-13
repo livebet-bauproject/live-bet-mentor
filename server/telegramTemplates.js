@@ -344,20 +344,28 @@ ${Object.entries(match.scorePredictions).map(([site, score]) => `  ${cleanMd(sit
 export function formatWelcome() {
     return `🏆 *LIVE BET MENTOR Bot*
 
-Profesyonel canlı maç analiz ve sinyal servisi.
+Profesyonel yapay zeka destekli canlı maç analiz ve sinyal servisi.
 
 📊 *Ne Sunuyoruz?*
 • Anlık canlı maç sinyalleri (SICAK/ALEV/ALPHA)
-• xG, DQS ve baskı indeksi analizi
-• Pre-match konsensüs tahminleri
-• Günlük performans raporları
+• 🛡️ Cash-Out & Stop-Loss Erken Çıkış Radarı
+• 🎟️ Günün Canlı Altın İkilisi (Kupon Sihirbazı)
+• ⚡ Gecikme Arbitrajı (Büro Uyumsuzluğu)
+• 🧠 Kendi Kendine Öğrenen AI Motoru
+• Günlük performans & şeffaf karne
 
-💎 *VIP Erişim:*
-Detaylı sinyaller ve anlık bildirimler için VIP gruba katılın.
+🎁 *Ücretsiz Başlangıç:*
+/deneme — *3 Günlük Ücretsiz VIP Paketinizi* anında başlatın!
 
-📩 Komutlar:
-/vip — VIP üyelik bilgisi
-/stats — Güncel performans istatistikleri
+📩 *Komutlar:*
+/deneme — 3 gün ücretsiz VIP deneme başlat
+/profil — VIP üyelik ve kalan sürenizi görün
+/kupon — Günün Canlı Altın İkili Kuponu
+/stats — Günün canlı performans istatistikleri
+/today — Günün tüm sinyalleri ve sonuçları
+/ai — Kendi kendine öğrenen zeka karnesi
+/vip — VIP abonelik ve paket bilgisi
+/id — Telegram ID numaranızı öğrenin
 
 ━━━━━━━━━━━━━━━━━━
 ⚡ Powered by Live Bet Mentor Engine`;
@@ -377,4 +385,66 @@ ${whatsapp ? `• WhatsApp: ${whatsapp}` : '• Admin ile iletişime geçin'}
 
 ━━━━━━━━━━━━━━━━━━
 💎 *LIVE BET MENTOR*`;
+}
+
+export function formatCashOutAlert(cashOut) {
+    const home = cleanMd(cashOut.matchTitle?.split(' vs ')[0] || 'Ev');
+    const away = cleanMd(cashOut.matchTitle?.split(' vs ')[1] || 'Dep');
+    const market = cleanMd(cashOut.market || 'Sinyal');
+    const reason = cleanMd(cashOut.reason || 'Tempo düşüşü ve risk artışı');
+
+    return `⚠️ *CASHOUT / BAHİS BOZDUR ALARMI* ⚠️
+━━━━━━━━━━━━━━━━━━
+⚽ *${home} vs ${away}*
+⏱️ *Dakika:* ${cashOut.minute}' | 📊 *Skor:* ${cashOut.score}
+🎯 *Mevcut Tahmin:* ${market}
+🔴 *Risk Seviyesi:* ${cashOut.severity === 'HIGH' ? '🚨 YÜKSEK' : '⚠️ ORTA'}
+
+📋 *Neden Bozdurmalı?*
+• ${reason}
+
+💡 *Stratejik Öneri:*
+Büronun verdiği karı realize edin veya kalan sermayeyi korumak için bahsi bozdurun!
+━━━━━━━━━━━━━━━━━━
+🛡️ *Sermaye Koruma Motoru (Stop-Loss)*
+💎 *LIVE BET MENTOR VIP*`;
+}
+
+export function formatGoldenCombo(combo) {
+    if (!combo || !combo.picks || combo.picks.length === 0) return '';
+    const dateStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
+    const picksText = combo.picks.map((p, i) => {
+        return `*${i + 1}. ${cleanMd(p.matchTitle)}* (${p.minute}')\n🎯 *Seçim:* ${cleanMd(p.market)}\n📊 Güven: %${p.confidence} | Oran: *${p.odds || '1.50'}*`;
+    }).join('\n\n');
+
+    return `🔥 *GÜNÜN CANLI ALTIN İKİLİSİ (KUPON SİHİRBAZI)* 🔥
+━━━━━━━━━━━━━━━━━━
+⏰ *Bülten Saati:* ${dateStr}
+💰 *Toplam Oran:* *${combo.totalOdds || '2.25'}*
+🎯 *Sistem Güveni:* *%${combo.averageConfidence || 82}*
+
+${picksText}
+
+💡 *Kasa Stratejisi:* %2.00 Kasa (Dengeli Kombin)
+━━━━━━━━━━━━━━━━━━
+🤖 *Smart Bet Builder Engine v4.0*
+💎 *LIVE BET MENTOR VIP*`;
+}
+
+export function formatLatencyArbitrageAlert(arb) {
+    const home = cleanMd(arb.homeTeam || 'Ev');
+    const away = cleanMd(arb.awayTeam || 'Dep');
+    return `⚡ *GECİKME ARBİTRAJI ALARMI (BÜRO UYUMSUZLUĞU)* ⚡
+━━━━━━━━━━━━━━━━━━
+⚽ *${home} vs ${away}* (${arb.minute}')
+🎯 *Pazar:* ${cleanMd(arb.market || 'Sıradaki Gol / Üst')}
+📊 *Açık Büro Oranı:* *${arb.bookmakerOdds || '1.75'}*
+📉 *Piyasa Adil Oranı:* *${arb.fairOdds || '1.45'}*
+💎 *Matematiksel Avantaj:* *+${arb.discrepancyPct || 20}%*
+
+📋 *Durum Analizi:*
+Global bürolar oranı sert indirdi, yerel büro oranı henüz güncellemedi! Fırsat penceresi kapanmadan değerlendirin.
+━━━━━━━━━━━━━━━━━━
+📡 *Latency Radar Edge*
+💎 *LIVE BET MENTOR VIP*`;
 }

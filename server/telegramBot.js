@@ -15,9 +15,14 @@ import {
     formatSignalResult,
     formatRadarPick,
     formatWelcome,
-    formatVIPInfo
+    formatVIPInfo,
+    formatCashOutAlert,
+    formatGoldenCombo,
+    formatLatencyArbitrageAlert
 } from './telegramTemplates.js';
 import { learningEngine } from './learningEngine.js';
+import { cashOutEngine } from './cashOutEngine.js';
+import { vipManager } from './vipManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,6 +63,13 @@ class TelegramBot {
                 const today = new Date().toISOString().split('T')[0];
                 if (lastDate !== today) {
                     this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
+                } else if (this.dailyStats && Array.isArray(this.dailyStats.signals)) {
+                    // Re-register active pending signals for cash-out evaluation
+                    this.dailyStats.signals.forEach(s => {
+                        if (s.status === 'PENDING') {
+                            cashOutEngine.registerSignal(s);
+                        }
+                    });
                 }
             }
         } catch (e) {
@@ -197,7 +209,7 @@ class TelegramBot {
 
         this.dailyStats.total++;
         this.dailyStats.pending++;
-        this.dailyStats.signals.push({
+        const signalData = {
             id: signalId,
             matchId: alert.matchId ? String(alert.matchId) : null,
             homeTeam: alert.homeTeam || '',
@@ -212,7 +224,9 @@ class TelegramBot {
             status: 'PENDING',
             resultScore: null,
             resolvedAt: null
-        });
+        };
+        this.dailyStats.signals.push(signalData);
+        cashOutEngine.registerSignal(signalData);
         this.saveHistory();
 
         const results = { vip: null, public: null };
@@ -273,6 +287,30 @@ class TelegramBot {
     }
 
     /**
+     * Send Golden Double Combo to VIP
+     */
+    async sendGoldenCombo(combo) {
+        if (!this.enabled || !this.vipGroupId || !combo) return null;
+        const message = formatGoldenCombo(combo);
+        if (!message) return null;
+        const result = await this.sendMessage(this.vipGroupId, message);
+        console.log(`[TELEGRAM] 🎟️ Golden Double Combo sent to VIP`);
+        return result;
+    }
+
+    /**
+     * Send Latency Arbitrage Alert to VIP
+     */
+    async sendLatencyArbitrage(arb) {
+        if (!this.enabled || !this.vipGroupId || !arb) return null;
+        const message = formatLatencyArbitrageAlert(arb);
+        if (!message) return null;
+        const result = await this.sendMessage(this.vipGroupId, message);
+        console.log(`[TELEGRAM] ⚡ Latency Arbitrage alert sent to VIP: ${arb.homeTeam} vs ${arb.awayTeam}`);
+        return result;
+    }
+
+    /**
      * Settle / Resolve a prediction signal
      */
     async resolveSignal(criteria, result, score = null, sendNotification = true) {
@@ -295,6 +333,7 @@ class TelegramBot {
         signal.status = result;
         signal.resultScore = score;
         signal.resolvedAt = new Date().toISOString();
+        cashOutEngine.unregisterSignal(signal.id);
 
         if (this.dailyStats.pending > 0) {
             this.dailyStats.pending--;
@@ -453,6 +492,20 @@ class TelegramBot {
             }
         }
 
+        // 5. Evaluate Cash-Out & Stop-Loss Radar for active signals
+        try {
+            const cashOuts = cashOutEngine.evaluateCashOuts(liveEvents);
+            for (const co of cashOuts) {
+                if (this.vipGroupId) {
+                    const coMsg = formatCashOutAlert(co);
+                    await this.sendMessage(this.vipGroupId, coMsg);
+                    console.log(`[TELEGRAM] ⚠️ Cash-out alert dispatched for ${co.matchTitle}: ${co.reason}`);
+                }
+            }
+        } catch (err) {
+            console.error('[TELEGRAM] Error evaluating cash-outs:', err.message);
+        }
+
         return resolved;
     }
 
@@ -503,7 +556,12 @@ class TelegramBot {
 
         console.log(`[TELEGRAM] Command from ${username}: ${text}`);
 
-        switch (text) {
+        const parts = text.split(/\s+/);
+        const cmd = parts[0].toLowerCase();
+        const arg1 = parts[1];
+        const arg2 = parts[2];
+
+        switch (cmd) {
             case '/start':
                 await this.sendMessage(chatId, formatWelcome());
                 break;
@@ -511,6 +569,89 @@ class TelegramBot {
             case '/vip':
                 await this.sendMessage(chatId, formatVIPInfo());
                 break;
+
+            case '/deneme': {
+                const trialRes = vipManager.startTrial(chatId, username);
+                if (trialRes.success) {
+                    const inviteLink = await this.createInviteLink(username, 72);
+                    const msg = `🎉 *3 GÜNLÜK VIP DENEME PAKETİNİZ TANIMLANDI!* 🎉\n━━━━━━━━━━━━━━━━━━\nSayın @${username},\nSistemimizin tüm kurumsal algoritmaları ve anlık canlı sinyal akışı 3 gün boyunca (72 saat) kullanımınıza açılmıştır.\n\n⏰ *Kalan Süre:* 3 Gün (72 Saat)\n💎 *Paket:* Ücretsiz VIP Deneme\n\n🎟️ *VIP Katılım Bağlantınız (72 Saat Geçerli):*\n👉 ${inviteLink || 'VIP Gruba doğrudan ekleniyorsunuz...'}\n\n_Süre bitiminde üyeliğinizi uzatmak için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP*`;
+                    await this.sendMessage(chatId, msg);
+                } else if (trialRes.reason === 'ACTIVE_TRIAL') {
+                    const rem = vipManager.getRemainingTime(chatId);
+                    await this.sendMessage(chatId, `⏳ *Aktif Bir Deneme Paketiniz Bulunuyor!*\n\n• Kalan Süreniz: *${rem?.text || 'Devam Ediyor'}*\n\nVIP kanalımızdan anlık sinyalleri ve canlı fırsatları takip etmeye devam edebilirsiniz.`);
+                } else {
+                    await this.sendMessage(chatId, `ℹ️ *Deneme Paketi Hakkınız Sona Ermiştir.*\n\nDaha önce 3 günlük ücretsiz denemenizi kullandınız. VIP üyeliğinizi hemen başlatmak için /vip yazarak avantajlı paketlerimizi inceleyebilirsiniz.`);
+                }
+                break;
+            }
+
+            case '/profil':
+            case '/kalan': {
+                const rem = vipManager.getRemainingTime(chatId);
+                const userObj = vipManager.getUser(chatId);
+                if (rem && rem.active) {
+                    const planName = userObj?.plan === 'TRIAL' ? '3 Günlük Deneme Paketi' : 'VIP Abonelik';
+                    await this.sendMessage(chatId, `👑 *VIP Üyelik & Profil Durumu:*\n━━━━━━━━━━━━━━━━━━\n• Kullanıcı: @${username}\n• Chat ID: \`${chatId}\`\n• Plan: *${planName}*\n• Durum: *AKTİF*\n• Kalan Süre: *${rem.text}*\n• Haklar: Anlık Sinyal + Stop-Loss + Gecikme Radar\n━━━━━━━━━━━━━━━━━━\n_Süre uzatımı ve bilgi için /vip yazabilirsiniz._`);
+                } else if (userObj && !rem.active) {
+                    await this.sendMessage(chatId, `⚠️ *VIP Üyeliğinizin Süresi Dolmuştur.*\n━━━━━━━━━━━━━━━━━━\nSayın @${username}, aboneliğinizi yenilemek için /vip yazabilir veya yöneticinizle iletişime geçebilirsiniz.`);
+                } else {
+                    await this.sendMessage(chatId, `ℹ️ *Henüz Kayıtlı Bir VIP Üyeliğiniz Bulunmuyor.*\n━━━━━━━━━━━━━━━━━━\n• 3 Günlük *ÜCRETSİZ* deneme başlatmak için: /deneme\n• VIP paketlerimizi incelemek için: /vip`);
+                }
+                break;
+            }
+
+            case '/kupon':
+            case '/kombine':
+                await this.sendMessage(chatId, `🎟️ *Günün Canlı Altın İkilisi (Kupon Sihirbazı):*\n\nSistemimiz eşzamanlı devam eden maçlar arasından en yüksek güven ve korelasyona sahip 2 canlı fırsatı 'Altın İkili' olarak otomatik birleştirir.\n\n🌐 Anlık canlı altın ikili kuponunu web panelimizden inceleyebilirsiniz:\n👉 https://live-bet-mentor.vercel.app\n\n_Ayrıca VIP grupta gün içi yüksek güvenli kombinler otomatik paylaşılır._`);
+                break;
+
+            case '/vipver': {
+                if (!vipManager.isAdmin(chatId)) {
+                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
+                    break;
+                }
+                const targetId = arg1;
+                const days = parseInt(arg2) || 30;
+                if (!targetId) {
+                    await this.sendMessage(chatId, `ℹ️ *Kullanım:* \`/vipver <TelegramID> <Gün>\`\nÖrnek: \`/vipver 12345678 30\``);
+                    break;
+                }
+                const grantRes = vipManager.addVip(targetId, days, 'VIP Member', 'VIP');
+                const userInvite = await this.createInviteLink(`VIP_${targetId}`, days * 24);
+                await this.sendMessage(chatId, `✅ *VIP Yetkisi Tanımlandı!*\n\n• Hedef Chat ID: \`${targetId}\`\n• Tanımlanan Süre: *${days} Gün*\n• Bitiş Tarihi: ${new Date(grantRes.expiresAt).toLocaleDateString('tr-TR')}\n• Davet Linki: ${userInvite || 'Oluşturulamadı'}`);
+                if (userInvite) {
+                    try {
+                        await this.sendMessage(targetId, `🎉 *Tebrikler! Hesabınıza ${days} Günlük VIP Yetkisi Tanımlandı!*\n\nVIP kanalımıza katılmak için bağlantınız:\n👉 ${userInvite}`);
+                    } catch (e) {}
+                }
+                break;
+            }
+
+            case '/vipsil': {
+                if (!vipManager.isAdmin(chatId)) {
+                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
+                    break;
+                }
+                const targetId = arg1;
+                if (!targetId) {
+                    await this.sendMessage(chatId, `ℹ️ *Kullanım:* \`/vipsil <TelegramID>\`\nÖrnek: \`/vipsil 12345678\``);
+                    break;
+                }
+                vipManager.removeVip(targetId);
+                await this.kickMember(targetId);
+                await this.sendMessage(chatId, `🗑️ *Kullanıcının VIP yetkisi iptal edildi:* \`${targetId}\``);
+                break;
+            }
+
+            case '/viprapor': {
+                if (!vipManager.isAdmin(chatId)) {
+                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
+                    break;
+                }
+                const stats = vipManager.getStats();
+                await this.sendMessage(chatId, `📊 *VIP Üyelik & Abone Raporu:*\n━━━━━━━━━━━━━━━━━━\n👥 Toplam Kayıtlı Üye: *${stats.total}*\n👑 Aktif VIP Üyeler: *${stats.activeVip}*\n⏳ Aktif Deneme Paketleri: *${stats.activeTrials}*\n🔴 Süresi Dolanlar: *${stats.expired}*\n━━━━━━━━━━━━━━━━━━\n⚡ Live Bet Mentor Monetization Engine`);
+                break;
+            }
 
             case '/stats':
             case '/rapor':
@@ -551,11 +692,6 @@ class TelegramBot {
 
             case '/id':
                 await this.sendMessage(chatId, `🆔 *Telegram Bilgileriniz:*\n\n• Chat ID: \`${chatId}\`\n• Kullanıcı: @${username}\n\n_Bu ID numarasını yöneticiye ileterek VIP üyeliğinizi hemen tanımlatabilirsiniz._`);
-                break;
-
-            case '/kalan':
-            case '/profil':
-                await this.sendMessage(chatId, `👑 *VIP Üyelik & Profil Durumu:*\n\n• Kullanıcı: @${username}\n• Telegram ID: \`${chatId}\`\n• Durum: *AKTİF (VIP)*\n• Günlük Sinyal Akışı: Açık (Anlık)\n• Poisson +EV & Gecikme Uyarıları: Aktif\n\n_Destek ve yenileme için yöneticinizle görüşebilirsiniz._`);
                 break;
 
             case '/katil':

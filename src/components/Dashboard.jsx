@@ -11,6 +11,8 @@ import { consensusAdapter } from '../backend/consensusAdapter';
 import { aiAnalystService } from '../backend/aiAnalystService';
 import { aiUsageLimiter } from '../backend/aiUsageLimiter';
 import { liveOpportunityScorer } from '../logic/liveOpportunityScorer';
+import { audioAlert } from '../utils/audioAlert';
+import { betBuilderEngine } from '../logic/betBuilderEngine';
 import { smartAlertService } from '../backend/smartAlertService';
 import { predictionTracker } from '../backend/predictionTracker';
 import { database, ref, get } from '../firebase/config';
@@ -200,6 +202,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [liveOpportunitiesLimit, setLiveOpportunitiesLimit] = useState(5);
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
     const [momentumWindow, setMomentumWindow] = useState(10);
+    const [audioMuted, setAudioMuted] = useState(audioAlert.isMuted);
 
     const getRemainingDays = (endDate) => {
         if (!endDate) return 0;
@@ -773,6 +776,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     setToastProgress(100);
                 }
                 setTrackingStats(predictionTracker.getStats());
+
+                // Trigger FinTech terminal chime
+                try {
+                    const topAlert = newAlerts[0];
+                    if (topAlert.level === 'ALEV' || topAlert.recommendation?.edgeType === 'LATENCY') {
+                        audioAlert.playChime('ALEV');
+                    } else {
+                        audioAlert.playChime('SICAK');
+                    }
+                } catch (e) {
+                    console.warn('[AudioAlert] Play failed:', e);
+                }
             }
         };
 
@@ -1345,6 +1360,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         >
                             <span>{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
                             <span>{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim: Açık' : 'Alerts: On') : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Bildirim: Sessiz' : 'Alerts: Silent') : (lang === 'tr' ? 'Bildirim: Kapalı' : 'Alerts: Off')}</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                const newMuted = audioAlert.toggle();
+                                setAudioMuted(newMuted);
+                            }}
+                            style={{
+                                background: !audioMuted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
+                                color: !audioMuted ? '#10b981' : '#94a3b8',
+                                border: `1px solid ${!audioMuted ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
+                                padding: '0.35rem 0.75rem',
+                                borderRadius: '20px',
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                transition: 'all 0.2s'
+                            }}
+                            title={!audioMuted ? 'Terminal Ses Uyarısı: Açık (Bloomberg Chime). Değiştirmek için tıkla.' : 'Terminal Ses Uyarısı: Sessiz. Değiştirmek için tıkla.'}
+                        >
+                            <span>{!audioMuted ? '🔊' : '🔇'}</span>
+                            <span>{!audioMuted ? (lang === 'tr' ? 'Ses: Açık' : 'Audio: On') : (lang === 'tr' ? 'Ses: Kapalı' : 'Audio: Off')}</span>
                         </button>
                         <button
                             onClick={() => {
@@ -2360,6 +2399,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     {/* Live Opportunities Panel */}
                     {(() => {
                         const allOpportunities = liveOpportunityScorer.getOpportunities(enforcedMatches, signals, momentumWindow);
+                        const goldenCombo = betBuilderEngine.generateGoldenCombo(allOpportunities, enforcedMatches);
 
                         // Apply limit to TOTAL opportunities first
                         const limitedOpportunities = liveOpportunitiesLimit === 'ALL'
@@ -2510,6 +2550,19 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         marginLeft: '4px',
                                                         boxShadow: '0 0 10px rgba(234, 179, 8, 0.6)'
                                                     }}>⚡ GECİKME (+%{opp.latencyEdge.discrepancyPct})</span>
+                                                )}
+                                                {opp.cashOutWarning && (
+                                                    <span style={{
+                                                        background: 'linear-gradient(135deg, #ef4444, #991b1b)',
+                                                        padding: '0.1rem 0.45rem',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.5rem',
+                                                        fontWeight: 900,
+                                                        color: '#fff',
+                                                        marginLeft: '4px',
+                                                        boxShadow: '0 0 10px rgba(239, 68, 68, 0.6)',
+                                                        animation: 'pulse 1.5s infinite'
+                                                    }} title={opp.cashOutWarning.reason}>🛡️ CASHOUT ÖNERİSİ</span>
                                                 )}
                                             </div>
 
@@ -2790,6 +2843,114 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* GOLDEN DOUBLE COMBO WIDGET (CANLI KUPON SİHİRBAZI) */}
+                                    {goldenCombo && (
+                                        <div style={{
+                                            marginBottom: '2.5rem',
+                                            padding: '1.5rem',
+                                            background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(249, 115, 22, 0.08) 50%, rgba(15, 23, 42, 0.7) 100%)',
+                                            border: '1.5px solid rgba(234, 179, 8, 0.4)',
+                                            borderRadius: '16px',
+                                            boxShadow: '0 10px 30px -5px rgba(234, 179, 8, 0.25)',
+                                            position: 'relative',
+                                            overflow: 'hidden'
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                                    <span style={{ fontSize: '1.8rem' }}>🎟️</span>
+                                                    <div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                            <span style={{ fontWeight: 900, fontSize: '1rem', color: '#fbbf24', letterSpacing: '0.5px' }}>
+                                                                {lang === 'tr' ? 'GÜNÜN CANLI ALTIN İKİLİSİ' : 'LIVE GOLDEN DOUBLE'}
+                                                            </span>
+                                                            <span style={{
+                                                                background: 'rgba(234, 179, 8, 0.2)',
+                                                                color: '#fbbf24',
+                                                                border: '1px solid rgba(234, 179, 8, 0.4)',
+                                                                borderRadius: '6px',
+                                                                padding: '2px 8px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 900
+                                                            }}>KUPON SİHİRBAZI v4.0</span>
+                                                        </div>
+                                                        <div style={{ fontSize: '0.72rem', opacity: 0.7, marginTop: '2px' }}>
+                                                            {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : 'Algorithmic 2-leg combo combining the highest conviction opportunities'}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+                                                    <div style={{ textAlign: 'right' }}>
+                                                        <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>
+                                                            {lang === 'tr' ? 'SİSTEM GÜVENİ' : 'CONVICTION'}
+                                                        </div>
+                                                        <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#10b981' }}>
+                                                            %{goldenCombo.averageConfidence}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{
+                                                        background: 'linear-gradient(135deg, #eab308, #f97316)',
+                                                        color: '#000',
+                                                        padding: '0.6rem 1.2rem',
+                                                        borderRadius: '12px',
+                                                        fontWeight: 900,
+                                                        fontSize: '1.3rem',
+                                                        boxShadow: '0 4px 15px rgba(234, 179, 8, 0.4)',
+                                                        textAlign: 'center'
+                                                    }}>
+                                                        <span style={{ fontSize: '0.65rem', display: 'block', textTransform: 'uppercase', opacity: 0.85, fontWeight: 900 }}>
+                                                            {lang === 'tr' ? 'TOPLAM ORAN' : 'TOTAL ODDS'}
+                                                        </span>
+                                                        {goldenCombo.totalOdds}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* 2 Picks Grid */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.9rem' }}>
+                                                {goldenCombo.picks.map((pick, pIdx) => (
+                                                    <div key={pIdx} style={{
+                                                        background: 'rgba(0,0,0,0.35)',
+                                                        border: '1px solid rgba(255,255,255,0.08)',
+                                                        borderRadius: '12px',
+                                                        padding: '1rem 1.2rem',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center'
+                                                    }}>
+                                                        <div>
+                                                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
+                                                                {pick.matchTitle}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '2px' }}>
+                                                                {renderMatchMinute(pick.minute, t, false)} • Skor: {pick.score} • {pick.league}
+                                                            </div>
+                                                            <div style={{ marginTop: '6px', fontSize: '0.85rem', fontWeight: 800, color: '#fbbf24' }}>
+                                                                🎯 {pick.market}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'right' }}>
+                                                            <div style={{
+                                                                background: 'rgba(56, 189, 248, 0.15)',
+                                                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                                                padding: '6px 12px',
+                                                                borderRadius: '8px',
+                                                                fontSize: '1rem',
+                                                                fontWeight: 900,
+                                                                color: '#38bdf8'
+                                                            }}>
+                                                                {pick.odds}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700, marginTop: '4px' }}>
+                                                                %{pick.confidence} Güven
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* SECTION 1: READY OPPORTUNITIES */}
                                     <div style={{ marginBottom: '2.5rem' }}>

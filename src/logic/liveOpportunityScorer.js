@@ -380,6 +380,42 @@ class LiveOpportunityScorer {
         // Generate enhanced reason
         const reason = this._generateReason(match, signal, heatLevel, momentumScore, pressureScore, oddsScore, oddsInfo);
 
+        // STOP-LOSS & CASH-OUT RADAR DETECTION (v4.0)
+        let cashOutWarning = null;
+        if (minute >= 68 && minute <= 88) {
+            const stats = match.stats || {};
+            const cards = match.cards || stats.cards || {};
+            const curHome = Number(match.homeScore?.current ?? match.score?.home ?? 0);
+            const curAway = Number(match.awayScore?.current ?? match.score?.away ?? 0);
+
+            const daHome = Number(stats.dangerousAttacks?.home ?? 0);
+            const daAway = Number(stats.dangerousAttacks?.away ?? 0);
+            const dominantSide = daHome >= daAway ? 'home' : 'away';
+            const domReds = Number(cards[dominantSide]?.red ?? 0);
+
+            if (domReds > 0) {
+                cashOutWarning = {
+                    reason: `${dominantSide === 'home' ? match.homeTeam : match.awayTeam} kırmızı kart gördü.`,
+                    urgency: 'HIGH'
+                };
+            } else if (dominantSide === 'home' && curAway > curHome && minute >= 74) {
+                cashOutWarning = {
+                    reason: `Deplasman öne geçti (${curHome}-${curAway}), baskı dağılıyor.`,
+                    urgency: 'HIGH'
+                };
+            } else if (dominantSide === 'away' && curHome > curAway && minute >= 74) {
+                cashOutWarning = {
+                    reason: `Ev sahibi öne geçti (${curHome}-${curAway}), deplasman baskısı dağılıyor.`,
+                    urgency: 'HIGH'
+                };
+            } else if (minute >= 78 && (daHome + daAway) < 35 && pressureScore < 45) {
+                cashOutWarning = {
+                    reason: `Son 15 dakikada maç temposu kilitlendi.`,
+                    urgency: 'MEDIUM'
+                };
+            }
+        }
+
         // Store for next cycle
         this._updateHistory(matchId, totalScore);
 
@@ -401,6 +437,7 @@ class LiveOpportunityScorer {
             bestEV: evAnalysis?.bestEV || null,
             latencyEdge: latencyEdge || null,
             hasLatencyEdge: latencyEdge !== null,
+            cashOutWarning: cashOutWarning || null,
             aiMultiplier: aiMultiplier !== 1.0 ? Number(aiMultiplier.toFixed(2)) : null,
             isStatsReady,      // NEW: Flag for UI
             isHalftime: !!isHalftime,

@@ -552,6 +552,17 @@ app.post('/api/telegram/send-report', async (req, res) => {
     }
 });
 
+// Send golden double combo to VIP
+app.post('/api/telegram/send-combo', async (req, res) => {
+    try {
+        const { combo } = req.body || {};
+        const result = await telegramBot.sendGoldenCombo(combo);
+        res.json({ sent: true, result });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Resolve a Telegram signal
 app.post('/api/telegram/resolve-signal', async (req, res) => {
     try {
