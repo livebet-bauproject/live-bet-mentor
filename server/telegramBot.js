@@ -17,6 +17,7 @@ import {
     formatWelcome,
     formatVIPInfo
 } from './telegramTemplates.js';
+import { learningEngine } from './learningEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -173,6 +174,13 @@ class TelegramBot {
             return { sent: false, reason: 'below_min_level' };
         }
 
+        // Check AI Quarantine (protect against low-winrate leagues)
+        const lCheck = learningEngine.getMultiplier(alert.league || alert.leagueName, resolveMarketText(alert), alert.minute);
+        if (!lCheck.allowed) {
+            console.warn(`[TELEGRAM] ⛔ Skipping alert for ${alert.homeTeam} vs ${alert.awayTeam} due to AI quarantine: ${lCheck.reason}`);
+            return { sent: false, reason: 'ai_quarantine' };
+        }
+
         // Check duplicate
         const matchKey = alert.matchId || `${alert.homeTeam}_${alert.awayTeam}`;
         if (this.isDuplicate(matchKey)) {
@@ -299,6 +307,13 @@ class TelegramBot {
         this.saveHistory();
 
         console.log(`[TELEGRAM] 🎯 Signal resolved: ${signal.match} -> ${result} (${score || ''}) [Won: ${this.dailyStats.won}, Lost: ${this.dailyStats.lost}, Pending: ${this.dailyStats.pending}]`);
+
+        // Feed into Self-Learning AI Engine
+        try {
+            learningEngine.recordSignalResult(signal, result, score);
+        } catch (e) {
+            console.error('[TELEGRAM] Error updating learning engine:', e.message);
+        }
 
         // Send Telegram notification
         if (sendNotification) {
@@ -502,6 +517,14 @@ class TelegramBot {
             case '/ozet':
                 const statsMsg = formatDailyReport(this.dailyStats);
                 await this.sendMessage(chatId, statsMsg);
+                break;
+
+            case '/ai':
+            case '/ogrenme':
+            case '/katsayi':
+            case '/zeka':
+                const aiReport = learningEngine.generateReport();
+                await this.sendMessage(chatId, aiReport);
                 break;
 
             case '/today':

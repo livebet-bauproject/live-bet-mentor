@@ -1,0 +1,116 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-09-13T21:15:56.238Z",
+  "stats": {
+    "totalLearned": 27,
+    "totalWon": 22,
+    "totalLost": 5,
+    "globalWinRate": 81.5
+  },
+  "leagues": {
+    "GENEL": {
+      "total": 27,
+      "won": 22,
+      "lost": 5,
+      "winRate": 81.5,
+      "multiplier": 1.12,
+      "quarantined": false,
+      "quarantinedUntil": null,
+      "lastEvaluated": "2026-09-13T21:15:56.237Z"
+    }
+  },
+  "markets": {
+    "NEXT_GOAL_HOME": {
+      "total": 20,
+      "won": 16,
+      "lost": 4,
+      "winRate": 80,
+      "multiplier": 1.09
+    },
+    "NEXT_GOAL_AWAY": {
+      "total": 1,
+      "won": 1,
+      "lost": 0,
+      "winRate": 100,
+      "multiplier": 1.04
+    },
+    "COMEBACK": {
+      "total": 3,
+      "won": 2,
+      "lost": 1,
+      "winRate": 66.7,
+      "multiplier": 1.02
+    },
+    "PRESS": {
+      "total": 1,
+      "won": 1,
+      "lost": 0,
+      "winRate": 100,
+      "multiplier": 1.04
+    },
+    "BTTS": {
+      "total": 1,
+      "won": 1,
+      "lost": 0,
+      "winRate": 100,
+      "multiplier": 1.04
+    },
+    "FAV_WIN": {
+      "total": 1,
+      "won": 1,
+      "lost": 0,
+      "winRate": 100,
+      "multiplier": 1.04
+    }
+  },
+  "minuteWindows": {
+    "15-30": {
+      "total": 0,
+      "won": 0,
+      "lost": 0,
+      "winRate": 0,
+      "multiplier": 1
+    },
+    "31-45": {
+      "total": 27,
+      "won": 22,
+      "lost": 5,
+      "winRate": 81.5,
+      "multiplier": 1.07
+    },
+    "46-60": {
+      "total": 0,
+      "won": 0,
+      "lost": 0,
+      "winRate": 0,
+      "multiplier": 1
+    },
+    "61-75": {
+      "total": 0,
+      "won": 0,
+      "lost": 0,
+      "winRate": 0,
+      "multiplier": 1
+    },
+    "76-90": {
+      "total": 0,
+      "won": 0,
+      "lost": 0,
+      "winRate": 0,
+      "multiplier": 1
+    }
+  },
+  "lossDiagnoses": {
+    "LOW_SHOT_CONVERSION": 3,
+    "ZERO_CONVERSION_STALEMATE": 2
+  },
+  "activeQuarantines": [],
+  "circuitBreakers": {
+    "minMultiplier": 0.35,
+    "maxMultiplier": 1.3,
+    "learningRate": 0.08,
+    "minSampleSizeForQuarantine": 4,
+    "quarantineThresholdWinRate": 35,
+    "quarantineDurationDays": 7
+  }
+}

@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn, spawnSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
+import { learningEngine } from './learningEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -569,6 +570,25 @@ app.post('/api/telegram/resolve-signal', async (req, res) => {
 // Get Telegram bot status
 app.get('/api/telegram/status', (req, res) => {
     res.json(telegramBot.getStatus());
+});
+
+// --- AI LEARNING ENGINE ENDPOINTS ---
+app.get('/api/learning/weights', (req, res) => {
+    res.json(learningEngine.getReportJSON());
+});
+
+app.get('/api/learning/report', (req, res) => {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(learningEngine.generateReport());
+});
+
+app.post('/api/learning/recalibrate', (req, res) => {
+    try {
+        learningEngine.recalibrateWeights();
+        res.json({ success: true, stats: learningEngine.weights.stats });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 const QUEUE_COOLDOWN = {}; // Memory-based cooldown

@@ -678,6 +678,28 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return () => clearInterval(interval);
     }, []);
 
+    // Fetch dynamic AI weights & quarantines from Self-Learning Engine
+    useEffect(() => {
+        const fetchAiWeights = async () => {
+            try {
+                const proxyBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+                const res = await fetch(`${proxyBase}/api/learning/weights`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.version) {
+                        liveOpportunityScorer.setDynamicWeights(data);
+                    }
+                }
+            } catch (e) {
+                // Silently ignore if proxy is temporarily offline
+            }
+        };
+
+        fetchAiWeights();
+        const interval = setInterval(fetchAiWeights, 60000); // Recalibrate every 60 seconds
+        return () => clearInterval(interval);
+    }, []);
+
     useEffect(() => {
         dataWorker.start();
 

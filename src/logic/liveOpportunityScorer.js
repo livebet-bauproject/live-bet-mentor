@@ -61,6 +61,17 @@ class LiveOpportunityScorer {
         this.recentEvents = {};     // NEW: Track recent events for momentum
         this.liveOdds = null;       // NEW: Store live odds
         this.previousOdds = {};     // NEW: Track odds movement
+        this.dynamicWeights = null; // AI Self-Learning weights & quarantines
+    }
+
+    /**
+     * Set dynamic weights & quarantines from the Self-Learning AI Engine
+     * @param {Object} weights - Output from /api/learning/weights
+     */
+    setDynamicWeights(weights) {
+        if (weights) {
+            this.dynamicWeights = weights;
+        }
     }
 
     /**
@@ -128,6 +139,18 @@ class LiveOpportunityScorer {
         const maxMin = thresholds.MAX_MINUTE || 80;
         if (minute >= maxMin || minute < minMin || minStr.includes('90+')) {
             return this._createEmptyResult('EXCLUDED_MINUTE');
+        }
+
+        // Strict Exclusion 3: Self-Learning AI League Quarantine Check
+        const leagueName = match.league || match.tournament?.name || match.tournamentName || '';
+        if (this.dynamicWeights?.activeQuarantines && leagueName) {
+            const isQuarantined = this.dynamicWeights.activeQuarantines.some(q => 
+                leagueName.toLowerCase().includes(q.league?.toLowerCase?.() || '') || 
+                (q.league && leagueName.toLowerCase().includes(q.league.toLowerCase()))
+            );
+            if (isQuarantined) {
+                return this._createEmptyResult('EXCLUDED_AI_QUARANTINE');
+            }
         }
 
         // Filter: Minimum DQS requirement (lowered for more opportunities, especially Tier 1)
@@ -239,6 +262,48 @@ class LiveOpportunityScorer {
                 totalScore = Math.min(78, totalScore);
             }
         }
+
+        // 6. DYNAMIC SELF-LEARNING AI MULTIPLIER (Empirical Bayesian Calibration)
+        let aiMultiplier = 1.0;
+        if (this.dynamicWeights) {
+            // Check league multiplier
+            if (leagueName && this.dynamicWeights.leagues) {
+                const foundLeagueKey = Object.keys(this.dynamicWeights.leagues).find(l => 
+                    leagueName.toLowerCase().includes(l.toLowerCase()) || l.toLowerCase().includes(leagueName.toLowerCase())
+                );
+                if (foundLeagueKey && this.dynamicWeights.leagues[foundLeagueKey]?.multiplier) {
+                    aiMultiplier *= this.dynamicWeights.leagues[foundLeagueKey].multiplier;
+                }
+            }
+
+            // Check market/strategy multiplier
+            const stratKey = signal?.type || signal?.strategy;
+            if (stratKey && this.dynamicWeights.markets?.[stratKey]?.multiplier) {
+                aiMultiplier *= this.dynamicWeights.markets[stratKey].multiplier;
+            }
+
+            // Check minute window multiplier
+            if (minute && this.dynamicWeights.minuteWindows) {
+                let winKey = null;
+                if (minute <= 30) winKey = '15-30';
+                else if (minute <= 45) winKey = '31-45';
+                else if (minute <= 60) winKey = '46-60';
+                else if (minute <= 75) winKey = '61-75';
+                else winKey = '76-90';
+
+                if (winKey && this.dynamicWeights.minuteWindows[winKey]?.multiplier) {
+                    aiMultiplier *= this.dynamicWeights.minuteWindows[winKey].multiplier;
+                }
+            }
+
+            // Clamp total aiMultiplier between minMultiplier and maxMultiplier circuit breakers
+            const minM = this.dynamicWeights.circuitBreakers?.minMultiplier || 0.35;
+            const maxM = this.dynamicWeights.circuitBreakers?.maxMultiplier || 1.30;
+            aiMultiplier = Math.max(minM, Math.min(maxM, aiMultiplier));
+            
+            // Apply multiplier
+            totalScore = Math.round(totalScore * aiMultiplier);
+        }
         
         totalScore = Math.max(0, Math.min(100, totalScore));
 
@@ -321,6 +386,7 @@ class LiveOpportunityScorer {
             bestEV: evAnalysis?.bestEV || null,
             latencyEdge: latencyEdge || null,
             hasLatencyEdge: latencyEdge !== null,
+            aiMultiplier: aiMultiplier !== 1.0 ? Number(aiMultiplier.toFixed(2)) : null,
             isStatsReady,      // NEW: Flag for UI
             components: {
                 dqs: dqsScore,
