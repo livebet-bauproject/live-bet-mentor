@@ -21,6 +21,7 @@ import { velocityModule } from './velocityModule.js';
 import { xGModule } from './xGModule.js';
 import { poissonEngine } from './poissonEngine.js';
 import { latencyArbitrageRadar } from './latencyArbitrageRadar.js';
+import { dataWorker } from '../backend/dataWorker.js';
 
 // Dynamic weights based on match minute
 const getWeightsForMinute = (minute) => {
@@ -324,20 +325,18 @@ class LiveOpportunityScorer {
         totalScore = Math.max(0, Math.min(100, totalScore));
 
         // Calculate baseline score if available for window-based trend
-        const baseline = (typeof dataWorker !== 'undefined' && dataWorker?.getStatsAtWindow) 
-            ? dataWorker.getStatsAtWindow(matchId, windowMinutes) 
-            : null;
+        const baseline = this._getStatsAtWindow(match, windowMinutes);
         let baselineScore = totalScore;
         if (baseline) {
             // Re-calculate what the score WAS at the baseline snapshot
             // This is better than storing the score because logic/weights might have changed
             const baselineMinute = this._parseMinute(baseline.minute);
-            const baselineWeights = getWeightsForMinute(baselineMinute);
+            const baselineWeights = getWeightsForMinute(baselineMinute > 0 ? baselineMinute : 45);
             const baselineDqsScore = this._calculateDQSScore(baseline.dqs || 0);
             
             // Baseline stats
             const bStats = baseline.stats || {};
-            const bPressure = pressureIndex.calculate(bStats, baselineMinute, baseline.score)?.total || 0;
+            const bPressure = pressureIndex.calculate(bStats, baselineMinute > 0 ? baselineMinute : 45, baseline.score)?.total || 0;
             const bXgData = xGModule.calculate({ stats: bStats, score: baseline.score });
             const bXgScore = bXgData.surplus?.total > 0.5 ? 95 : (bXgData.rate?.perMinute > 0.02 ? 75 : 45);
             
@@ -364,7 +363,7 @@ class LiveOpportunityScorer {
         }
 
         // Calculate trend (current vs baseline)
-        const trend = this._calculateTrend(matchId, totalScore, baselineScore);
+        const trend = this._calculateTrend(matchId, totalScore, baseline ? baselineScore : undefined);
 
         // Track xG velocity
         this._updateXGHistory(matchId, match.stats?.xg);
@@ -447,6 +446,49 @@ class LiveOpportunityScorer {
 
     // ========== ENHANCED PRIVATE METHODS ==========
 
+    /**
+     * Helper to retrieve statistics snapshot from windowMinutes ago
+     */
+    _getStatsAtWindow(match, windowMinutes) {
+        if (!match) return null;
+
+        // 1. Direct from match if minuteHistory exists
+        const history = match.minuteHistory || match.history;
+        if (history && Array.isArray(history) && history.length > 0) {
+            const targetMs = Date.now() - (windowMinutes * 60 * 1000);
+            let closest = history[0];
+            let minDiff = Math.abs(closest.timestamp - targetMs);
+
+            for (const snap of history) {
+                const diff = Math.abs(snap.timestamp - targetMs);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = snap;
+                }
+            }
+
+            // Accept if within reasonable window (within 3 minutes of target)
+            if (minDiff <= 3 * 60 * 1000) {
+                return closest;
+            }
+
+            // Fallback: return oldest available if at least 1 minute old
+            const oldest = history[history.length - 1];
+            if (oldest && (Date.now() - oldest.timestamp) >= 60000) {
+                return oldest;
+            }
+        }
+
+        // 2. Query dataWorker singleton
+        try {
+            if (typeof dataWorker !== 'undefined' && dataWorker?.getStatsAtWindow) {
+                return dataWorker.getStatsAtWindow(match.id, windowMinutes);
+            }
+        } catch (e) {}
+
+        return null;
+    }
+
     _parseMinute(minute) {
         if (minute === undefined || minute === null || minute === '') return -1;
         if (typeof minute === 'number') return minute;
@@ -491,9 +533,7 @@ class LiveOpportunityScorer {
      */
     _calculateMomentumScore(match, windowMinutes = 10) {
         // Fetch baseline from N minutes ago
-        const baseline = (typeof dataWorker !== 'undefined' && dataWorker?.getStatsAtWindow) 
-            ? dataWorker.getStatsAtWindow(match.id, windowMinutes) 
-            : null;
+        const baseline = this._getStatsAtWindow(match, windowMinutes);
         
         let stats = match.stats || {};
         let sogNow = (stats.shotsOnGoal?.home || 0) + (stats.shotsOnGoal?.away || 0);
@@ -869,10 +909,12 @@ class LiveOpportunityScorer {
 
         const delta = currentScore - referenceScore;
         
-        // Direction is still based on pure movement, but delta is now window-accurate
+        // Direction is based on window delta (or micro-movement between cycles)
         let direction = 'STABLE';
-        if (currentScore > (prevCycleScore || currentScore)) direction = 'UP';
-        if (currentScore < (prevCycleScore || currentScore)) direction = 'DOWN';
+        if (delta >= 2) direction = 'UP';
+        else if (delta <= -2) direction = 'DOWN';
+        else if (currentScore > (prevCycleScore || currentScore)) direction = 'UP';
+        else if (currentScore < (prevCycleScore || currentScore)) direction = 'DOWN';
 
         return { direction, delta };
     }
@@ -919,9 +961,7 @@ class LiveOpportunityScorer {
         const curTotalGoals = (curScore.home || 0) + (curScore.away || 0);
 
         // Check if a goal was scored recently (last 8 minutes)
-        const baseline = (typeof dataWorker !== 'undefined' && dataWorker?.getStatsAtWindow) 
-            ? dataWorker.getStatsAtWindow(match.id, 8) 
-            : null;
+        const baseline = this._getStatsAtWindow(match, 8);
         const oldTotalGoals = baseline?.score ? ((baseline.score.home || 0) + (baseline.score.away || 0)) : curTotalGoals;
         const goalJustScored = curTotalGoals > oldTotalGoals;
 

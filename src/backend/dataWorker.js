@@ -486,7 +486,7 @@ class DataWorker {
      * Get statistics from exactly N minutes ago (or closest available point)
      */
     getStatsAtWindow(matchId, windowMinutes) {
-        const fixture = this.fixtures.find(f => f.id === matchId);
+        const fixture = this.fixtures.find(f => f.id === matchId || String(f.id) === String(matchId));
         if (!fixture || !fixture.minuteHistory || fixture.minuteHistory.length === 0) return null;
 
         const targetMs = Date.now() - (windowMinutes * 60 * 1000);
