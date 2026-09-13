@@ -58,21 +58,79 @@ if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
 app.use('/data', express.static(__dirname));
 
+// --- IN-MEMORY DATA STORE (for cloud mode) ---
+let memoryLiveData = null;
+let memoryConsensusData = null;
+let memoryStatsCache = {};
+let lastUploadTime = 0;
+
+const RENDER_UPLOAD_SECRET = process.env.UPLOAD_SECRET || 'lbm-sync-2026';
+
+// 0. UPLOAD ENDPOINTS (Local proxy pushes data here)
+app.post('/api/sync/live', express.json({ limit: '10mb' }), (req, res) => {
+    if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    memoryLiveData = req.body;
+    lastUploadTime = Date.now();
+    // Also write to file if possible
+    try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
+    console.log(`[SYNC] Received live data: ${req.body?.events?.length || 0} events`);
+    res.json({ ok: true, events: req.body?.events?.length || 0 });
+});
+
+app.post('/api/sync/consensus', express.json({ limit: '10mb' }), (req, res) => {
+    if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    memoryConsensusData = req.body;
+    try { fs.writeFileSync(CONSENSUS_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
+    console.log(`[SYNC] Received consensus data: ${Object.keys(req.body || {}).length} sources`);
+    res.json({ ok: true });
+});
+
+app.post('/api/sync/stats/:id', express.json({ limit: '5mb' }), (req, res) => {
+    if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    const id = req.params.id;
+    memoryStatsCache[id] = { data: req.body, time: Date.now() };
+    // Write detail and stats to files
+    try {
+        if (req.body.detail) fs.writeFileSync(path.join(STATS_DIR, `${id}_detail.json`), JSON.stringify(req.body.detail), 'utf8');
+        if (req.body.stats) fs.writeFileSync(path.join(STATS_DIR, `${id}_stats.json`), JSON.stringify(req.body.stats), 'utf8');
+    } catch(e) {}
+    res.json({ ok: true });
+});
+
+app.get('/api/sync/status', (req, res) => {
+    res.json({
+        hasLiveData: !!memoryLiveData,
+        eventsCount: memoryLiveData?.events?.length || 0,
+        lastUpload: lastUploadTime ? new Date(lastUploadTime).toISOString() : null,
+        ageSec: lastUploadTime ? Math.floor((Date.now() - lastUploadTime) / 1000) : -1
+    });
+});
+
 // 1. Live Events List
 app.get('/api/sofascore/live', (req, res) => {
+    // Try file first (local mode)
     if (fs.existsSync(SOFASCORE_FILE)) {
         try {
             const data = fs.readFileSync(SOFASCORE_FILE, 'utf8');
             return res.json(JSON.parse(data));
         } catch (e) {
             console.error('[PROXY] Error reading sofascore_live.json:', e.message);
-            return res.status(500).json({ error: 'Parse error' });
         }
     }
-    res.status(404).json({ error: 'Data not found yet' });
+    // Fall back to memory (cloud mode - data pushed from local)
+    if (memoryLiveData) {
+        return res.json(memoryLiveData);
+    }
+    res.status(404).json({ error: 'Data not found yet. Waiting for local sync.' });
 });
 
-// 2. Consensus / Radar Data (SINGLE route - removed duplicate)
+// 2. Consensus / Radar Data
 app.get('/api/consensus', (req, res) => {
     if (fs.existsSync(CONSENSUS_FILE)) {
         try {
@@ -81,8 +139,11 @@ app.get('/api/consensus', (req, res) => {
             return res.send(data);
         } catch (e) {
             console.error('[PROXY] Error reading consensus_data.json:', e.message);
-            return res.status(500).json({ error: 'Internal Server Error' });
         }
+    }
+    // Fall back to memory
+    if (memoryConsensusData) {
+        return res.json(memoryConsensusData);
     }
     res.json({});
 });
@@ -454,4 +515,54 @@ app.listen(PORT, '0.0.0.0', async () => {
     setTimeout(() => {
         startConsensusScraper();
     }, 10000);
+
+    // LOCAL MODE: Sync data to Render cloud every 15 seconds
+    if (!IS_CLOUD) {
+        const RENDER_URL = process.env.RENDER_SYNC_URL || 'https://live-bet-mentor.onrender.com';
+        const SYNC_SECRET = process.env.UPLOAD_SECRET || 'lbm-sync-2026';
+
+        async function syncToCloud() {
+            // Sync live events
+            if (fs.existsSync(SOFASCORE_FILE)) {
+                try {
+                    const data = fs.readFileSync(SOFASCORE_FILE, 'utf8');
+                    const res = await fetch(`${RENDER_URL}/api/sync/live`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-sync-secret': SYNC_SECRET },
+                        body: data,
+                        signal: AbortSignal.timeout(10000)
+                    });
+                    if (res.ok) {
+                        const result = await res.json();
+                        console.log(`[CLOUD_SYNC] Live data pushed: ${result.events} events`);
+                    }
+                } catch (e) {
+                    console.warn(`[CLOUD_SYNC] Live sync failed: ${e.message}`);
+                }
+            }
+
+            // Sync consensus data (less frequently - every 5 min)
+            if (fs.existsSync(CONSENSUS_FILE)) {
+                try {
+                    const data = fs.readFileSync(CONSENSUS_FILE, 'utf8');
+                    const res = await fetch(`${RENDER_URL}/api/sync/consensus`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-sync-secret': SYNC_SECRET },
+                        body: data,
+                        signal: AbortSignal.timeout(10000)
+                    });
+                    if (res.ok) console.log('[CLOUD_SYNC] Consensus data pushed');
+                } catch (e) {
+                    // Silently ignore
+                }
+            }
+        }
+
+        // Start sync after scraper has time to collect first data
+        setTimeout(() => {
+            console.log(`[CLOUD_SYNC] Starting local → Render sync to ${RENDER_URL}`);
+            syncToCloud(); // First sync
+            setInterval(syncToCloud, 15000); // Then every 15 seconds
+        }, 20000);
+    }
 });
