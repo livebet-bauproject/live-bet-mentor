@@ -24,10 +24,22 @@ export const consensusAdapter = {
                 console.log(`[CONSENSUS_ADAPTER] LOCAL: Loaded consensus with ${Object.keys(data).length} sources`);
                 return data;
             } else {
-                // PRODUCTION: Use Firebase
-                const snapshot = await get(ref(database, 'consensus'));
-                if (!snapshot.exists()) return null;
-                return snapshot.val();
+                // PRODUCTION: Use Render backend proxy, Firebase as fallback
+                const renderBase = import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com';
+                try {
+                    const response = await fetch(`${renderBase}/api/consensus`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log(`[CONSENSUS_ADAPTER] RENDER: Loaded consensus with ${Object.keys(data).length} sources`);
+                        return data;
+                    }
+                } catch {}
+                // Fallback to Firebase
+                try {
+                    const snapshot = await get(ref(database, 'consensus'));
+                    if (!snapshot.exists()) return null;
+                    return snapshot.val();
+                } catch { return null; }
             }
         } catch (error) {
             console.error('[CONSENSUS_ADAPTER] Error:', error);

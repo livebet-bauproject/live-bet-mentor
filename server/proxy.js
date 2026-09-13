@@ -281,18 +281,124 @@ function queueRequest(id) {
     }
 }
 
-// --- SCRAPER MANAGEMENT ---
+// --- BUILT-IN NODE.JS DATA FETCHER (No Python/Chrome needed) ---
+// Used on cloud (Render, etc.) where Python scrapers are not available.
+
+let cachedLiveData = null;
+let cachedStatsData = {};
+
+const SOFASCORE_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.sofascore.com/',
+    'Origin': 'https://www.sofascore.com'
+};
+
+async function fetchSofaScoreLiveNode() {
+    try {
+        const url = `https://www.sofascore.com/api/v1/sport/football/events/live?_=${Date.now()}`;
+        const response = await fetch(url, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(12000) });
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.events) {
+                cachedLiveData = data;
+                // Write to file for the /api/sofascore/live endpoint
+                try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(data), 'utf8'); } catch(e) {}
+                console.log(`[NODE_FETCHER] SofaScore OK: ${data.events.length} events`);
+                return data;
+            }
+        } else {
+            console.warn(`[NODE_FETCHER] SofaScore returned ${response.status}`);
+        }
+    } catch (e) {
+        console.warn(`[NODE_FETCHER] SofaScore fetch error: ${e.message}`);
+    }
+    return null;
+}
+
+async function fetchMatchStatsNode(eventId) {
+    try {
+        const [detailRes, statsRes] = await Promise.all([
+            fetch(`https://www.sofascore.com/api/v1/event/${eventId}`, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(10000) }).catch(() => null),
+            fetch(`https://www.sofascore.com/api/v1/event/${eventId}/statistics`, { headers: SOFASCORE_HEADERS, signal: AbortSignal.timeout(10000) }).catch(() => null)
+        ]);
+
+        if (detailRes && detailRes.ok) {
+            const detail = await detailRes.json();
+            const detailPath = path.join(STATS_DIR, `${eventId}_detail.json`);
+            fs.writeFileSync(detailPath, JSON.stringify(detail), 'utf8');
+        }
+        if (statsRes && statsRes.ok) {
+            const stats = await statsRes.json();
+            const statsPath = path.join(STATS_DIR, `${eventId}_stats.json`);
+            fs.writeFileSync(statsPath, JSON.stringify(stats), 'utf8');
+        }
+    } catch (e) {
+        // Silently ignore individual match stats errors
+    }
+}
+
+async function nodeDataLoop() {
+    console.log('[NODE_FETCHER] Starting built-in data fetcher (no Python needed)...');
+    while (true) {
+        try {
+            const data = await fetchSofaScoreLiveNode();
+            
+            // Auto-fetch stats for top matches
+            if (data && data.events) {
+                const liveFootball = data.events.filter(e => 
+                    e.status?.type === 'inprogress' && 
+                    (e.tournament?.category?.sport?.id === 1 || !e.tournament?.category?.sport?.id)
+                );
+                // Fetch stats for up to 10 matches per cycle
+                const batch = liveFootball.slice(0, 10);
+                for (const ev of batch) {
+                    await fetchMatchStatsNode(ev.id);
+                    await new Promise(r => setTimeout(r, 500)); // Small delay between requests
+                }
+            }
+
+            // Also process any queued stat requests
+            if (fs.existsSync(REQUEST_QUEUE)) {
+                try {
+                    const queue = JSON.parse(fs.readFileSync(REQUEST_QUEUE, 'utf8'));
+                    if (queue.ids && queue.ids.length > 0) {
+                        const ids = queue.ids.splice(0, 5); // Process 5 at a time
+                        fs.writeFileSync(REQUEST_QUEUE, JSON.stringify({ ids: queue.ids }));
+                        for (const id of ids) {
+                            await fetchMatchStatsNode(id);
+                            await new Promise(r => setTimeout(r, 500));
+                        }
+                    }
+                } catch(e) {}
+            }
+        } catch (e) {
+            console.error('[NODE_FETCHER] Loop error:', e.message);
+        }
+        await new Promise(r => setTimeout(r, 15000)); // Every 15 seconds
+    }
+}
+
+// --- SCRAPER MANAGEMENT (Local Dev with Python) ---
 let scraperProcess = null;
+const IS_CLOUD = !fs.existsSync(path.join(__dirname, '..', '.env')) || process.env.RENDER === 'true' || process.env.RENDER_EXTERNAL_URL;
 
 function startScraper() {
+    if (IS_CLOUD) {
+        console.log('[PROXY] Cloud environment detected. Using Node.js fetcher instead of Python scraper.');
+        nodeDataLoop();
+        return;
+    }
     try {
-        console.log('[PROXY] Starting SofaScore CDP Scraper...');
+        console.log('[PROXY] Starting SofaScore CDP Scraper (local mode)...');
         scraperProcess = spawn('python', ['server/sofascore_scraper.py'], {
             stdio: 'inherit'
         });
 
         scraperProcess.on('error', (err) => {
-            console.error('[PROXY] Scraper spawn error (proxy stays alive):', err.message);
+            console.error('[PROXY] Scraper spawn error, falling back to Node.js fetcher:', err.message);
+            nodeDataLoop();
         });
 
         scraperProcess.on('close', (code) => {
@@ -301,12 +407,16 @@ function startScraper() {
             setTimeout(startScraper, 30000);
         });
     } catch (err) {
-        console.error('[PROXY] Failed to start scraper:', err.message);
-        setTimeout(startScraper, 15000);
+        console.error('[PROXY] Failed to start scraper, falling back to Node.js fetcher:', err.message);
+        nodeDataLoop();
     }
 }
 
 function startConsensusScraper() {
+    if (IS_CLOUD) {
+        console.log('[PROXY] Cloud: Consensus scraper skipped (requires Chrome).');
+        return;
+    }
     console.log('[PROXY] Initializing Consensus Scraper...');
     const spawnScraper = () => {
         try {
@@ -321,40 +431,20 @@ function startConsensusScraper() {
         }
     };
 
-    spawnScraper(); // Run once at start
-    setInterval(spawnScraper, 4 * 60 * 60 * 1000); // Re-run every 4 hours
-}
-
-function startOddsScraper() {
-    try {
-        console.log('[PROXY] Initializing Odds Scraper...');
-        const pythonProcess = spawn('python', [path.join(__dirname, 'odds_scraper.py')], {
-            stdio: 'inherit'
-        });
-
-        pythonProcess.on('error', (err) => {
-            console.error('[PROXY] Odds scraper spawn error:', err.message);
-        });
-
-        pythonProcess.on('close', (code) => {
-            console.log(`[PROXY] Odds scraper exited with code ${code}. Restarting in 30s...`);
-            setTimeout(startOddsScraper, 30000);
-        });
-    } catch (err) {
-        console.error('[PROXY] Failed to start odds scraper:', err.message);
-        setTimeout(startOddsScraper, 30000);
-    }
+    spawnScraper();
+    setInterval(spawnScraper, 4 * 60 * 60 * 1000);
 }
 
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`[PROXY SERVER] Running on http://0.0.0.0:${PORT} (accessible from network)`);
+    console.log(`[PROXY] Environment: ${IS_CLOUD ? 'CLOUD (Render)' : 'LOCAL'}`);
 
     // Initialize Telegram Bot
     const botStatus = await telegramBot.validateToken();
     if (botStatus.ok) {
         telegramBot.startPolling();
-        telegramBot.scheduleDailyReport(23, 0); // Daily report at 23:00
+        telegramBot.scheduleDailyReport(23, 0);
         console.log('[PROXY] 🤖 Telegram Bot initialized successfully');
     } else {
         console.warn('[PROXY] ⚠️ Telegram Bot not available:', botStatus.error);
@@ -362,14 +452,6 @@ app.listen(PORT, '0.0.0.0', async () => {
 
     startScraper();
     setTimeout(() => {
-        console.log('[PROXY] Starting delayed Consensus Scraper...');
         startConsensusScraper();
     }, 10000);
-    // [REMOVED] OddsPortal scraper bypassed for performance (v2.1)
-    /*
-    setTimeout(() => {
-        console.log('[PROXY] Starting delayed Odds Scraper...');
-        startOddsScraper();
-    }, 30000);
-    */
 });

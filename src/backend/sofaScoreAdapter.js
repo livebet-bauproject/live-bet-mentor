@@ -50,19 +50,37 @@ export const sofaScoreAdapter = {
                 }
                 return [];
             } else {
-                // PRODUCTION: Use Firebase (internet access required)
-                const snapshot = await get(ref(database, 'live_events'));
-                if (!snapshot.exists()) return [];
-
-                const data = snapshot.val();
-
-                if (data && data.events) {
-                    const normalized = data.events
-                        .map(event => this.normalizeEvent(event))
-                        .filter(event => event !== null);
-
-                    console.log(`[SOFASCORE_ADAPTER] FIREBASE: Found ${data.events.length} total, ${normalized.length} active football matches`);
-                    return normalized;
+                // PRODUCTION: Use Render backend proxy (replaces Firebase)
+                const renderUrl = (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com') + '/api/sofascore/live';
+                try {
+                    const response = await fetch(renderUrl);
+                    if (!response.ok) {
+                        console.warn('[SOFASCORE_ADAPTER] Render proxy error:', response.status);
+                        // Fallback to Firebase
+                        const snapshot = await get(ref(database, 'live_events'));
+                        if (!snapshot.exists()) return [];
+                        const fbData = snapshot.val();
+                        if (fbData && fbData.events) {
+                            return fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
+                        }
+                        return [];
+                    }
+                    const data = await response.json();
+                    if (data && data.events) {
+                        const normalized = data.events
+                            .map(event => this.normalizeEvent(event))
+                            .filter(event => event !== null);
+                        console.log(`[SOFASCORE_ADAPTER] RENDER: Found ${data.events.length} total, ${normalized.length} active football matches`);
+                        return normalized;
+                    }
+                } catch (renderErr) {
+                    console.warn('[SOFASCORE_ADAPTER] Render fetch failed, trying Firebase:', renderErr.message);
+                    const snapshot = await get(ref(database, 'live_events'));
+                    if (!snapshot.exists()) return [];
+                    const fbData = snapshot.val();
+                    if (fbData && fbData.events) {
+                        return fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
+                    }
                 }
                 return [];
             }
@@ -177,24 +195,45 @@ export const sofaScoreAdapter = {
                 normalized.latency = latency;
                 return normalized;
             } else {
-                // PRODUCTION: Use Firebase
-                const [detailSnap, statsSnap] = await Promise.all([
-                    get(ref(database, `stats/${eventId}/detail`)),
-                    get(ref(database, `stats/${eventId}/stats`))
-                ]);
+                // PRODUCTION: Use Render backend proxy
+                const renderBase = import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com';
+                try {
+                    const [detailRes, statsRes] = await Promise.all([
+                        fetch(`${renderBase}/api/sofascore/event/${eventId}`),
+                        fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`)
+                    ]);
 
-                const latency = Date.now() - startTime;
+                    const latency = Date.now() - startTime;
 
-                if (!detailSnap.exists()) return null;
+                    if (!detailRes.ok && detailRes.status !== 202) return null;
 
-                const detail = detailSnap.val();
-                const stats = statsSnap.exists() ? statsSnap.val() : { statistics: [] };
+                    const detail = await detailRes.json();
+                    let stats = null;
+                    if (statsRes.ok) stats = await statsRes.json();
+                    else if (statsRes.status === 404) stats = { statistics: [] };
+                    else if (statsRes.status === 202) stats = { status: 'queued' };
 
-                if (detail?.error) return null;
+                    if (detail.status === 'queued' || detail?.error) return null;
 
-                const normalized = sofaScoreAdapter.normalize(detail, stats);
-                normalized.latency = latency;
-                return normalized;
+                    const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
+                    normalized.latency = latency;
+                    return normalized;
+                } catch (renderErr) {
+                    // Fallback to Firebase
+                    try {
+                        const [detailSnap, statsSnap] = await Promise.all([
+                            get(ref(database, `stats/${eventId}/detail`)),
+                            get(ref(database, `stats/${eventId}/stats`))
+                        ]);
+                        if (!detailSnap.exists()) return null;
+                        const detail = detailSnap.val();
+                        const stats = statsSnap.exists() ? statsSnap.val() : { statistics: [] };
+                        if (detail?.error) return null;
+                        const normalized = sofaScoreAdapter.normalize(detail, stats);
+                        normalized.latency = Date.now() - startTime;
+                        return normalized;
+                    } catch { return null; }
+                }
             }
         } catch (error) {
             console.error(`SofaScore fetchEventDetails Error for ${eventId}:`, error);
@@ -217,9 +256,17 @@ export const sofaScoreAdapter = {
                 const res = await fetch(`${proxyBase}/api/sofascore/event/${eventId}/odds/1/all`);
                 if (res.ok) data = await res.json();
             } else {
-                // PRODUCTION: Firebase fallback or direct hit (depending on proxy availability)
-                const snapshot = await get(ref(database, `odds/${eventId}`));
-                if (snapshot.exists()) data = snapshot.val();
+                // PRODUCTION: Use Render backend proxy, Firebase as fallback
+                const renderBase = import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com';
+                try {
+                    const res = await fetch(`${renderBase}/api/sofascore/event/${eventId}/odds/1/all`);
+                    if (res.ok) data = await res.json();
+                } catch {
+                    try {
+                        const snapshot = await get(ref(database, `odds/${eventId}`));
+                        if (snapshot.exists()) data = snapshot.val();
+                    } catch {}
+                }
             }
 
             if (!data) return null;
