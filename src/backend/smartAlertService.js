@@ -732,9 +732,9 @@ class SmartAlertService {
      */
     sendToTelegram(alert) {
         try {
-            const proxyBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
-                : '';
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
             fetch(`${proxyBase}/api/telegram/send-signal`, {
                 method: 'POST',

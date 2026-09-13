@@ -273,11 +273,13 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [telegramStatus, setTelegramStatus] = useState(null);
     const [telegramLoading, setTelegramLoading] = useState(false);
 
+    const getProxyBase = () => (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:3001'
+        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
     const fetchTelegramStatus = async () => {
         try {
-            const proxyBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? 'http://localhost:3001'
-                : '';
+            const proxyBase = getProxyBase();
             const res = await fetch(`${proxyBase}/api/telegram/status`);
             const data = await res.json();
             setTelegramStatus(data);
@@ -289,9 +291,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const handleSendTelegramReport = async () => {
         setTelegramLoading(true);
         try {
-            const proxyBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-                ? 'http://localhost:3001'
-                : '';
+            const proxyBase = getProxyBase();
             const res = await fetch(`${proxyBase}/api/telegram/send-report`, { method: 'POST' });
             if (res.ok) {
                 setStatus({ type: 'success', message: 'Rapor başarıyla gönderildi!' });

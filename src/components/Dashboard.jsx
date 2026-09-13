@@ -271,9 +271,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const handleSendToTelegram = async (e, match, opp) => {
         if (e) e.stopPropagation();
         
-        const proxyBase = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
-            : '';
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-signal`, {
