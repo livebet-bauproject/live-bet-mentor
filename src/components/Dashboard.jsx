@@ -2517,6 +2517,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <>
                                                     <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                         <span>{renderMatchMinute(match.minute, t, false)} • <span style={{ fontWeight: 800, color: 'var(--accent-color)' }}>{match.score?.home ?? 0} - {match.score?.away ?? 0}</span></span>
+                                                        {opp.isHalftime && (
+                                                            <span style={{
+                                                                background: 'rgba(245, 158, 11, 0.15)',
+                                                                border: '1px solid rgba(245, 158, 11, 0.4)',
+                                                                color: '#fbbf24',
+                                                                fontSize: '0.6rem',
+                                                                padding: '1px 6px',
+                                                                borderRadius: '4px',
+                                                                fontWeight: 800
+                                                            }}>☕ 2. YARI DEĞERİ</span>
+                                                        )}
                                                         {match.stats?.xg && (
                                                             <span style={{ color: '#fbbf24', fontSize: '0.7rem' }}>
                                                                 xG: {(Number(match.stats?.xg?.home) || 0).toFixed(1)}-{(Number(match.stats?.xg?.away) || 0).toFixed(1)}
@@ -2618,7 +2629,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 <span style={{ fontSize: '0.75rem' }}>💡</span>
                                                                 <div>
                                                                     <div style={{ fontSize: '0.55rem', opacity: 0.6, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                                                        {lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION'}
+                                                                        {opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : '2ND HALF PREDICTION') : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION')}
                                                                     </div>
                                                                     <div style={{ fontSize: '0.8rem', fontWeight: 900, color: '#fbbf24' }}>
                                                                         {(t[opp.suggestedMarket.marketKey] || opp.suggestedMarket.label || opp.suggestedMarket.marketKey)

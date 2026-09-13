@@ -118,7 +118,7 @@ class LiveOpportunityScorer {
             return this._createEmptyResult();
         }
 
-        // Strict Exclusion 1: Finished, Halftime, Cancelled matches
+        // Strict Exclusion 1: Finished or Cancelled matches
         const statusType = (match.status?.type || '').toLowerCase();
         const statusCode = match.status?.code;
         const minStr = (match.minute || '').toString().trim();
@@ -127,18 +127,34 @@ class LiveOpportunityScorer {
             return this._createEmptyResult('EXCLUDED_FINISHED');
         }
 
-        if (statusCode === 31 || minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half')) {
-            return this._createEmptyResult('EXCLUDED_HALFTIME');
+        const isHalftime = statusCode === 31 || minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half');
+
+        // Halftime High-Value Filter:
+        // A match in Halftime is NOT over; it is the prime 15-minute decision window for second-half opportunities.
+        // We only allow Halftime matches that produced genuine 1st-half pressure/xG (e.g. Flamengo with 1.77 xG, 76% possession).
+        // Dormant/inactive halftime games are filtered out to keep feed high-signal.
+        if (isHalftime) {
+            const hStats = match.stats || {};
+            const totalXg = (Number(hStats.xg?.home) || 0) + (Number(hStats.xg?.away) || 0);
+            const totalSog = (Number(hStats.shotsOnGoal?.home) || 0) + (Number(hStats.shotsOnGoal?.away) || 0);
+            const totalAttacks = (Number(hStats.dangerousAttacks?.home) || 0) + (Number(hStats.dangerousAttacks?.away) || 0);
+            const qualifiesForHalftime = totalXg >= 0.45 || totalSog >= 3 || totalAttacks >= 25 || (match.tier === 1 && (totalSog >= 2 || totalXg >= 0.30));
+            
+            if (!qualifiesForHalftime) {
+                return this._createEmptyResult('EXCLUDED_HALFTIME_LOW_ACTIVITY');
+            }
         }
 
         const matchId = match.id;
-        const minute = this._parseMinute(match.minute);
+        const minute = isHalftime ? 45 : this._parseMinute(match.minute);
 
         // Strict Exclusion 2: Outside active in-play window (e.g. 15' to 80') or stoppage time
-        const minMin = thresholds.MIN_MINUTE || 15;
-        const maxMin = thresholds.MAX_MINUTE || 80;
-        if (minute >= maxMin || minute < minMin || minStr.includes('90+')) {
-            return this._createEmptyResult('EXCLUDED_MINUTE');
+        if (!isHalftime) {
+            const minMin = thresholds.MIN_MINUTE || 15;
+            const maxMin = thresholds.MAX_MINUTE || 80;
+            if (minute >= maxMin || minute < minMin || minStr.includes('90+')) {
+                return this._createEmptyResult('EXCLUDED_MINUTE');
+            }
         }
 
         // Strict Exclusion 3: Self-Learning AI League Quarantine Check
@@ -388,6 +404,7 @@ class LiveOpportunityScorer {
             hasLatencyEdge: latencyEdge !== null,
             aiMultiplier: aiMultiplier !== 1.0 ? Number(aiMultiplier.toFixed(2)) : null,
             isStatsReady,      // NEW: Flag for UI
+            isHalftime: !!isHalftime,
             components: {
                 dqs: dqsScore,
                 momentum: momentumScore,
@@ -894,7 +911,8 @@ class LiveOpportunityScorer {
 
         const stats = match.stats || {};
         const obs = match.observations || {};
-        const minute = this._parseMinute(match.minute);
+        const isHalftime = match.status?.code === 31 || (match.minute || '').toString().includes('İY') || (match.minute || '').toString().toLowerCase().includes('ht');
+        const minute = isHalftime ? 45 : this._parseMinute(match.minute);
         const pressure = obs.pressure || match.pressure || stats.pressure || { home: 0, away: 0 };
         const xg = stats.xg || { home: 0, away: 0 };
         const curScore = match.score || { home: 0, away: 0 };
