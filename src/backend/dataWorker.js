@@ -217,7 +217,15 @@ class DataWorker {
                                 this.odds[eventId] = liveOdds;
                             }
 
-                            if (fullDetail) return fullDetail;
+                            if (fullDetail) {
+                                return {
+                                    ...fullDetail,
+                                    // Always prioritize fresh real-time score, minute, and status from rawMatches (sofascore_live.json)
+                                    score: (match.score && (match.score.home !== undefined || match.score.away !== undefined)) ? match.score : fullDetail.score,
+                                    minute: match.minute || fullDetail.minute,
+                                    status: match.status || fullDetail.status
+                                };
+                            }
 
                             // FALLBACK: If detail fetch returns null (queued), 
                             // check if we already have this match in this.fixtures with stats.

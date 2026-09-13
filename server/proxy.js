@@ -256,6 +256,14 @@ app.post('/api/sync/bundle', express.json({ limit: '50mb' }), (req, res) => {
         for (const [id, item] of Object.entries(stats)) {
             try {
                 if (item.detail) {
+                    if (live && Array.isArray(live.events)) {
+                        const ev = live.events.find(e => e.id == id);
+                        if (ev && item.detail.event) {
+                            if (ev.homeScore) item.detail.event.homeScore = ev.homeScore;
+                            if (ev.awayScore) item.detail.event.awayScore = ev.awayScore;
+                            if (ev.status) item.detail.event.status = ev.status;
+                        }
+                    }
                     fs.writeFileSync(path.join(STATS_DIR, `${id}_detail.json`), JSON.stringify(item.detail), 'utf8');
                 }
                 if (item.stats) {
@@ -339,35 +347,46 @@ app.get('/api/consensus', (req, res) => {
 // 3. Match Details (with freshness check)
 app.get('/api/sofascore/event/:id', (req, res) => {
     const id = req.params.id;
+    let detailJson = null;
+
     if (memoryStatsCache[id]?.data?.detail) {
-        return res.json(memoryStatsCache[id].data.detail);
+        detailJson = memoryStatsCache[id].data.detail;
+    } else {
+        const filePath = path.join(STATS_DIR, `${id}_detail.json`);
+        if (fs.existsSync(filePath)) {
+            const stats = fs.statSync(filePath);
+            const ageInSeconds = (Date.now() - stats.mtimeMs) / 1000;
+            if (ageInSeconds >= 60) queueRequest(id);
+
+            const data = fs.readFileSync(filePath, 'utf8');
+            try {
+                const json = JSON.parse(data);
+                if (!json.error) {
+                    detailJson = json;
+                } else if (json.error && (json.error.code === 404 || json.error.status === 404)) {
+                    return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Statistics not available for this match', noStats: true });
+                }
+            } catch (e) {
+                console.error(`Error parsing ${filePath}:`, e);
+            }
+        }
     }
-    const filePath = path.join(STATS_DIR, `${id}_detail.json`);
 
-    if (fs.existsSync(filePath)) {
-        const stats = fs.statSync(filePath);
-        const ageInSeconds = (Date.now() - stats.mtimeMs) / 1000;
-
-        // Still queue if older than 60s, but return the current data
-        if (ageInSeconds >= 60) {
-            queueRequest(id);
+    if (detailJson) {
+        // ALWAYS attach fresh live score and status from memoryLiveData or sofascore_live.json
+        let liveEvents = memoryLiveData?.events;
+        if (!liveEvents && fs.existsSync(SOFASCORE_FILE)) {
+            try { liveEvents = JSON.parse(fs.readFileSync(SOFASCORE_FILE, 'utf8'))?.events; } catch(e) {}
         }
-
-        const data = fs.readFileSync(filePath, 'utf8');
-        try {
-            const json = JSON.parse(data);
-            if (!json.error) {
-                if (ageInSeconds >= 60) queueRequest(id);
-                return res.json(json);
+        if (liveEvents && Array.isArray(liveEvents)) {
+            const ev = liveEvents.find(e => e.id == id);
+            if (ev && detailJson.event) {
+                if (ev.homeScore) detailJson.event.homeScore = ev.homeScore;
+                if (ev.awayScore) detailJson.event.awayScore = ev.awayScore;
+                if (ev.status) detailJson.event.status = ev.status;
             }
-            
-            // If the saved file is a 404 error from SofaScore, return 404 to frontend and DO NOT re-queue
-            if (json.error && (json.error.code === 404 || json.error.status === 404)) {
-                return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Statistics not available for this match', noStats: true });
-            }
-        } catch (e) {
-            console.error(`Error parsing ${filePath}:`, e);
         }
+        return res.json(detailJson);
     }
 
     queueRequest(id);
@@ -797,7 +816,17 @@ app.listen(PORT, '0.0.0.0', async () => {
 
                         if (hasDetail || hasStats || hasOdds) {
                             statsBundle[id] = {};
-                            try { if (hasDetail) statsBundle[id].detail = JSON.parse(fs.readFileSync(detailFile, 'utf8')); } catch(e) {}
+                            try {
+                                if (hasDetail) {
+                                    const d = JSON.parse(fs.readFileSync(detailFile, 'utf8'));
+                                    if (d && d.event) {
+                                        if (ev.homeScore) d.event.homeScore = ev.homeScore;
+                                        if (ev.awayScore) d.event.awayScore = ev.awayScore;
+                                        if (ev.status) d.event.status = ev.status;
+                                    }
+                                    statsBundle[id].detail = d;
+                                }
+                            } catch(e) {}
                             try { if (hasStats) statsBundle[id].stats = JSON.parse(fs.readFileSync(statsFile, 'utf8')); } catch(e) {}
                             try { if (hasOdds) statsBundle[id].odds = JSON.parse(fs.readFileSync(oddsFile, 'utf8')); } catch(e) {}
                         }
