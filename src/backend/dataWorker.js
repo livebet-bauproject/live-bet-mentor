@@ -178,6 +178,20 @@ class DataWorker {
                     const candidates = this.fixtures.filter(f => f.dqs >= CONFIG.DECISION.DQS_THRESHOLD || f.tier <= 2 || f.id.toString() === this.selectedMatchId);
                     candidates.forEach(c => priorityIds.add(c.id));
 
+                    // Prioritize all Tier 1 & Tier 2 leagues directly from rawMatches (so major leagues get full stats from poll #1)
+                    for (const rm of rawMatches) {
+                        const leagueName = rm.leagueName || rm.tournament?.name || '';
+                        if (leagueProfileModule.getTier(leagueName) <= 2) {
+                            priorityIds.add(rm.id);
+                        }
+                    }
+
+                    // Always ensure selected match has top priority
+                    if (this.selectedMatchId) {
+                        priorityIds.add(this.selectedMatchId);
+                        priorityIds.add(Number(this.selectedMatchId));
+                    }
+
                     // Sort others by DQS to get the best of the rest
                     const others = rawMatches
                         .filter(m => !priorityIds.has(m.id))

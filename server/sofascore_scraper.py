@@ -28,10 +28,11 @@ logger = logging.getLogger(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(BASE_DIR, 'sofascore_live.json')
 ODDS_FILE = os.path.join(BASE_DIR, 'live_odds.json')
+REQUEST_QUEUE_FILE = os.path.join(BASE_DIR, 'stats_request.json')
 NETWORK_LOG_FILE = os.path.join(BASE_DIR, 'network_log.txt')
 STATS_DIR = os.path.join(BASE_DIR, 'stats')
 LIVE_FETCH_INTERVAL = 15  # Fetch live list every 15 seconds for fresher data
-STATS_FETCH_INTERVAL = 30  # Auto-fetch stats for all live matches every 30 seconds
+STATS_FETCH_INTERVAL = 20  # Auto-fetch stats for all live matches every 20 seconds
 BATCH_SIZE = 10  # Number of matches to fetch stats for in each batch (to avoid rate limiting)
 
 def update_central_odds(match_id, odds_data):
@@ -133,8 +134,8 @@ def fetch_stats_via_js(driver, match_id):
             
             # 1. Save Statistics
             stats_data = result.get('stats')
+            stats_path = os.path.join(STATS_DIR, f"{match_id}_stats.json")
             if stats_data and ('statistics' in stats_data or 'error' in stats_data):
-                stats_path = os.path.join(STATS_DIR, f"{match_id}_stats.json")
                 with open(stats_path, 'w', encoding='utf-8') as f:
                     json.dump(stats_data, f)
                 captured_something = True
@@ -143,6 +144,13 @@ def fetch_stats_via_js(driver, match_id):
                 try:
                     from firebase_uploader import upload_to_firebase
                     upload_to_firebase(f"stats/{match_id}/stats", stats_data)
+                except:
+                    pass
+            else:
+                # Save empty marker so scraper doesn't waste time on unstat-tracked matches
+                try:
+                    with open(stats_path, 'w', encoding='utf-8') as f:
+                        json.dump({"error": {"code": 404, "message": "No statistics"}, "statistics": []}, f)
                 except:
                     pass
             
@@ -184,6 +192,31 @@ def fetch_stats_via_js(driver, match_id):
     except Exception as e:
         logger.warning(f"[JS-FETCH] Execution failed for {match_id}: {e}")
     return False
+
+def process_request_queue(driver, max_count=10):
+    """Process high-priority on-demand match stats requests from proxy/UI."""
+    if not os.path.exists(REQUEST_QUEUE_FILE):
+        return
+    try:
+        with open(REQUEST_QUEUE_FILE, 'r', encoding='utf-8') as rq:
+            raw_content = rq.read().strip()
+        if not raw_content:
+            return
+        req_data = json.loads(raw_content)
+        try:
+            os.remove(REQUEST_QUEUE_FILE)
+        except:
+            pass
+        
+        ids = req_data.get('ids', [])
+        if ids:
+            ids_to_fetch = ids[-max_count:] # Process most recent requests
+            logger.info(f"[ON-DEMAND] Fetching {len(ids_to_fetch)} requested matches: {ids_to_fetch}")
+            for match_id in ids_to_fetch:
+                fetch_stats_via_js(driver, str(match_id))
+                time.sleep(0.2)
+    except Exception as e:
+        logger.debug(f"[ON-DEMAND] Queue processing info: {e}")
 
 def clean_chromedriver_cache():
     """Clean undetected_chromedriver cache to fix FileExistsError lock issues."""
@@ -453,7 +486,10 @@ def capture_sofascore():
                 time.sleep(10)
                 last_page_refresh = time.time()
 
-            # AUTO-FETCH STATS: Automatically fetch stats for all live matches in batches
+            # Check on-demand user request queue first
+            process_request_queue(driver, max_count=10)
+
+            # AUTO-FETCH STATS: Two-tier smart scheduler (Tier 1 major leagues every ~25s, Tier 2 background rotation)
             if time.time() - last_stats_fetch > STATS_FETCH_INTERVAL:
                 try:
                     if os.path.exists(DATA_FILE):
@@ -462,91 +498,96 @@ def capture_sofascore():
                         
                         events = live_data.get('events', [])
                         if events:
-                            # SELECTION PRIORITY (v2.4)
-                            def get_priority(event):
+                            def get_match_priority(event):
                                 score = 0
-                                # Priority 1: Unique Tournament Priority
-                                tourney = event.get('tournament', {}).get('uniqueTournament', {})
-                                score += tourney.get('priority', 0) * 10
-                                # Priority 2: User count (popularity)
-                                score += (event.get('userCount', 0) / 1000)
-                                # Priority 3: Matches with active scoring potential (2nd half or close games)
-                                status = event.get('status', {}).get('type', '')
-                                if status == 'inprogress':
-                                    score += 5
+                                t = event.get('tournament', {})
+                                ut = t.get('uniqueTournament', {})
+                                # Priority 1: Official tournament priority (Serie A=702, LaLiga=701, Premier League, etc.)
+                                score += t.get('priority', 0) * 1000
+                                # Priority 2: Tournament user count / popularity
+                                score += ut.get('userCount', 0) / 100
+                                # Priority 3: Teams popularity
+                                score += (event.get('homeTeam', {}).get('userCount', 0) + event.get('awayTeam', {}).get('userCount', 0)) / 500
+                                # Priority 4: Active in-progress matches
+                                if event.get('status', {}).get('type') == 'inprogress':
+                                    score += 50000
                                 return score
 
-                            # Sort all events by importance, then extract IDs
-                            sorted_events = sorted(events, key=get_priority, reverse=True)
-                            all_ids = [str(e.get('id')) for e in sorted_events if e.get('id')]
+                            sorted_events = sorted(events, key=get_match_priority, reverse=True)
                             
-                            # Calculate batch to process
-                            total_batches = (len(all_ids) + BATCH_SIZE - 1) // BATCH_SIZE
-                            if total_batches > 0:
-                                stats_batch_index = stats_batch_index % total_batches
-                                start_idx = stats_batch_index * BATCH_SIZE
-                                end_idx = min(start_idx + BATCH_SIZE, len(all_ids))
-                                batch_ids = all_ids[start_idx:end_idx]
-                                
-                                logger.info(f"[AUTO-STATS] Processing batch {stats_batch_index + 1}/{total_batches} ({len(batch_ids)} matches)")
-                                
-                                for match_id in batch_ids:
-                                    # Check if stats file exists and is fresh (< 45 seconds old)
-                                    stats_file = os.path.join(STATS_DIR, f"{match_id}_stats.json")
-                                    should_fetch = True
-                                    
-                                    if os.path.exists(stats_file):
-                                        age = time.time() - os.path.getmtime(stats_file)
-                                        # If it was an empty marker, retry more frequently
+                            # Tier 1: Top 25 major matches (Serie A, LaLiga, Premier League, Super Lig, etc.)
+                            # Tier 2: Remaining matches (rotated in small batches)
+                            tier1_events = sorted_events[:25]
+                            tier2_events = sorted_events[25:]
+                            
+                            tier1_ids = [str(e.get('id')) for e in tier1_events if e.get('id')]
+                            tier2_ids = [str(e.get('id')) for e in tier2_events if e.get('id')]
+
+                            tier1_updated = 0
+                            for match_id in tier1_ids:
+                                process_request_queue(driver, max_count=3)
+                                stats_file = os.path.join(STATS_DIR, f"{match_id}_stats.json")
+                                should_fetch = True
+
+                                if os.path.exists(stats_file):
+                                    age = time.time() - os.path.getmtime(stats_file)
+                                    if age < 25:
+                                        should_fetch = False
+                                    else:
                                         try:
-                                            with open(stats_file, 'r') as sf:
+                                            with open(stats_file, 'r', encoding='utf-8') as sf:
                                                 content = sf.read()
-                                                if "error" in content:
-                                                    # SofaScore has no stats for this match (404), wait 10 mins before retrying
-                                                    should_fetch = (age > 600)
-                                                elif age < 45:
+                                                if "error" in content and age < 300:
                                                     should_fetch = False
                                         except:
                                             should_fetch = True
-                                    
+
+                                if should_fetch:
+                                    fetch_stats_via_js(driver, match_id)
+                                    tier1_updated += 1
+                                    time.sleep(0.2)
+
+                            if tier1_updated > 0:
+                                logger.info(f"[TIER-1 STATS] Refreshed {tier1_updated}/{len(tier1_ids)} top matches")
+
+                            # Background rotation for Tier 2 matches (5 per cycle)
+                            if tier2_ids:
+                                t2_batch_size = 5
+                                total_t2_batches = (len(tier2_ids) + t2_batch_size - 1) // t2_batch_size
+                                stats_batch_index = stats_batch_index % total_t2_batches
+                                t2_start = stats_batch_index * t2_batch_size
+                                t2_end = min(t2_start + t2_batch_size, len(tier2_ids))
+                                t2_batch = tier2_ids[t2_start:t2_end]
+
+                                for match_id in t2_batch:
+                                    process_request_queue(driver, max_count=3)
+                                    stats_file = os.path.join(STATS_DIR, f"{match_id}_stats.json")
+                                    should_fetch = True
+                                    if os.path.exists(stats_file):
+                                        age = time.time() - os.path.getmtime(stats_file)
+                                        try:
+                                            with open(stats_file, 'r', encoding='utf-8') as sf:
+                                                content = sf.read()
+                                                if "error" in content:
+                                                    should_fetch = (age > 600)
+                                                elif age < 60:
+                                                    should_fetch = False
+                                        except:
+                                            should_fetch = True
+
                                     if should_fetch:
-                                        logger.info(f"[AUTO-STATS] Fetching stats for {match_id}")
                                         fetch_stats_via_js(driver, match_id)
-                                        time.sleep(1.0)
-                                
+                                        time.sleep(0.2)
+
                                 stats_batch_index += 1
                 except Exception as e:
                     logger.error(f"[AUTO-STATS] Error: {e}")
-                
+
                 last_stats_fetch = time.time()
 
-            request_queue = 'server/stats_request.json'
-            if os.path.exists(request_queue):
-                try:
-                    with open(request_queue, 'r', encoding='utf-8') as rq:
-                        raw_content = rq.read().strip()
-                    if raw_content:
-                        req_data = json.loads(raw_content)
-                        try:
-                            os.remove(request_queue)
-                        except:
-                            pass
-                        
-                        ids = req_data.get('ids', [])
-                        if ids:
-                            # Limit targeted fetch to avoid rate limiting
-                            max_targeted = 10
-                            ids_to_fetch = ids[-max_targeted:] # Process the most recent requests
-                            logger.info(f"Processing queue: {len(ids)} total, fetching {len(ids_to_fetch)} most recent")
-                            
-                            for match_id in ids_to_fetch:
-                                logger.info(f"Targeted fetch for Match ID: {match_id}")
-                                fetch_stats_via_js(driver, match_id)
-                                time.sleep(0.5)
-                except Exception as e:
-                    logger.debug(f"Queue processing info: {e}")
-
-            time.sleep(2)
+            # Check queue again before sleep
+            process_request_queue(driver, max_count=10)
+            time.sleep(1)
             
     except Exception as e:
         logger.error(f"FATAL ERROR in capture loop: {e}", exc_info=True)

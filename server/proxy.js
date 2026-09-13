@@ -190,6 +190,7 @@ let memoryLiveData = null;
 let memoryConsensusData = null;
 let memoryStatsCache = {};
 let lastUploadTime = 0;
+const pendingRenderRequests = new Set();
 
 const RENDER_UPLOAD_SECRET = process.env.UPLOAD_SECRET || 'lbm-sync-2026';
 
@@ -278,19 +279,26 @@ app.post('/api/sync/bundle', express.json({ limit: '50mb' }), (req, res) => {
         }
     }
 
-    console.log(`[SYNC_BUNDLE] Synced: live=${live?.events?.length || 0} events, statsSaved=${statsSaved} matches`);
-    res.json({ ok: true, liveEvents: live?.events?.length || 0, statsSaved });
+    const pendingIds = Array.from(pendingRenderRequests);
+    pendingRenderRequests.clear();
+    console.log(`[SYNC_BUNDLE] Synced: live=${live?.events?.length || 0} events, statsSaved=${statsSaved} matches, pendingReqs=${pendingIds.length}`);
+    res.json({ ok: true, liveEvents: live?.events?.length || 0, statsSaved, pendingRequests: pendingIds });
 });
 
 // Queue endpoint for local scraper to fetch user-demanded match IDs
 app.get('/api/sync/queue', (req, res) => {
+    let ids = [];
     if (fs.existsSync(REQUEST_QUEUE)) {
         try {
             const data = JSON.parse(fs.readFileSync(REQUEST_QUEUE, 'utf8'));
-            return res.json(data);
+            ids = data.ids || [];
         } catch(e) {}
     }
-    res.json({ ids: [] });
+    for (const pid of pendingRenderRequests) {
+        if (!ids.includes(pid)) ids.push(pid);
+    }
+    pendingRenderRequests.clear();
+    res.json({ ids });
 });
 
 app.get('/api/sync/status', (req, res) => {
@@ -350,13 +358,15 @@ app.get('/api/sofascore/event/:id', (req, res) => {
     let detailJson = null;
 
     if (memoryStatsCache[id]?.data?.detail) {
+        const cacheAge = (Date.now() - (memoryStatsCache[id].time || 0)) / 1000;
+        if (cacheAge >= 30) queueRequest(id);
         detailJson = memoryStatsCache[id].data.detail;
     } else {
         const filePath = path.join(STATS_DIR, `${id}_detail.json`);
         if (fs.existsSync(filePath)) {
             const stats = fs.statSync(filePath);
             const ageInSeconds = (Date.now() - stats.mtimeMs) / 1000;
-            if (ageInSeconds >= 60) queueRequest(id);
+            if (ageInSeconds >= 30) queueRequest(id);
 
             const data = fs.readFileSync(filePath, 'utf8');
             try {
@@ -397,7 +407,13 @@ app.get('/api/sofascore/event/:id', (req, res) => {
 app.get('/api/sofascore/event/:id/statistics', (req, res) => {
     const id = req.params.id;
     if (memoryStatsCache[id]?.data?.stats) {
-        return res.json(memoryStatsCache[id].data.stats);
+        const cacheAge = (Date.now() - (memoryStatsCache[id].time || 0)) / 1000;
+        if (cacheAge >= 30) queueRequest(id);
+        const statsObj = memoryStatsCache[id].data.stats;
+        if (statsObj.error && (statsObj.error.code === 404 || statsObj.error.status === 404)) {
+            return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Statistics not available for this match', noStats: true });
+        }
+        return res.json(statsObj);
     }
     const filePath = path.join(STATS_DIR, `${id}_stats.json`);
 
@@ -409,7 +425,7 @@ app.get('/api/sofascore/event/:id/statistics', (req, res) => {
             const data = fs.readFileSync(filePath, 'utf8');
             const json = JSON.parse(data);
             if (!json.error) {
-                if (ageInSeconds >= 60) queueRequest(id);
+                if (ageInSeconds >= 30) queueRequest(id);
                 return res.json(json);
             }
 
@@ -540,11 +556,13 @@ app.get('/api/telegram/status', (req, res) => {
 const QUEUE_COOLDOWN = {}; // Memory-based cooldown
 
 function queueRequest(id) {
+    if (!id) return;
     const now = Date.now();
-    if (QUEUE_COOLDOWN[id] && (now - QUEUE_COOLDOWN[id]) < 60000) {
-        return; // Skip if requested in the last 60 seconds
+    if (QUEUE_COOLDOWN[id] && (now - QUEUE_COOLDOWN[id]) < 20000) {
+        return; // Skip if requested in the last 20 seconds
     }
     QUEUE_COOLDOWN[id] = now;
+    pendingRenderRequests.add(String(id));
 
     let queue = { ids: [] };
     if (fs.existsSync(REQUEST_QUEUE)) {
@@ -552,8 +570,9 @@ function queueRequest(id) {
             queue = JSON.parse(fs.readFileSync(REQUEST_QUEUE, 'utf8'));
         } catch (e) { }
     }
-    if (!queue.ids.includes(id)) {
-        queue.ids.push(id);
+    const strId = String(id);
+    if (!queue.ids.includes(strId) && !queue.ids.includes(Number(id))) {
+        queue.ids.push(strId);
         fs.writeFileSync(REQUEST_QUEUE, JSON.stringify(queue));
     }
 }
@@ -854,6 +873,11 @@ app.listen(PORT, '0.0.0.0', async () => {
                     if (res.ok) {
                         const result = await res.json();
                         console.log(`[CLOUD_SYNC] 🚀 Bundle pushed: ${result.liveEvents} events, ${result.statsSaved} stats saved on Render`);
+                        if (result.pendingRequests && result.pendingRequests.length > 0) {
+                            for (const qid of result.pendingRequests) {
+                                queueRequest(qid);
+                            }
+                        }
                     } else if (res.status === 404) {
                         // Older Render version fallback: send live separately
                         console.warn('[CLOUD_SYNC] /api/sync/bundle returned 404. Falling back to /api/sync/live...');
