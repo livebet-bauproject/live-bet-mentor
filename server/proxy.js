@@ -243,6 +243,9 @@ app.post('/api/sync/bundle', express.json({ limit: '50mb' }), (req, res) => {
         memoryLiveData = live;
         lastUploadTime = Date.now();
         try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(live), 'utf8'); } catch(e) {}
+        if (Array.isArray(live.events)) {
+            telegramBot.autoResolveSignals(live.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
+        }
     }
 
     if (consensus) {
@@ -548,6 +551,21 @@ app.post('/api/telegram/send-report', async (req, res) => {
     }
 });
 
+// Resolve a Telegram signal
+app.post('/api/telegram/resolve-signal', async (req, res) => {
+    try {
+        const { id, alertId, matchId, result, score } = req.body || {};
+        if (!result) {
+            return res.status(400).json({ error: 'Result (WON/LOST/VOID) is required' });
+        }
+        const resolved = await telegramBot.resolveSignal({ id, alertId, matchId }, result, score, true);
+        res.json({ success: !!resolved, signal: resolved });
+    } catch (e) {
+        console.error('[PROXY] Error resolving telegram signal:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Get Telegram bot status
 app.get('/api/telegram/status', (req, res) => {
     res.json(telegramBot.getStatus());
@@ -816,8 +834,10 @@ app.listen(PORT, '0.0.0.0', async () => {
                     } catch (e) {}
                 }
 
-                // 3. Gather stats for active in-progress football matches
+                // 3. Gather stats for active in-progress football matches & auto-resolve Telegram signals
                 if (liveData && Array.isArray(liveData.events)) {
+                    telegramBot.autoResolveSignals(liveData.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
+
                     const activeEvents = liveData.events.filter(e => 
                         e.status?.type === 'inprogress' &&
                         (e.tournament?.category?.sport?.id === 1 || !e.tournament?.category?.sport?.id)

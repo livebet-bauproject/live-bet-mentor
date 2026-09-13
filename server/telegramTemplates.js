@@ -263,6 +263,39 @@ ${stats.bestPick ? `🏆 En İyi Seçim: ${cleanMd(stats.bestPick)}` : ''}
     return message;
 }
 
+export function formatSignalResult(signal, result, finalScore, currentStats = {}) {
+    const isWon = result === 'WON';
+    const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || 'Ev Sahibi');
+    const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || 'Deplasman');
+    const market = cleanMd(signal.market || 'Sinyal');
+    const scoreStr = finalScore ? (typeof finalScore === 'object' ? `${finalScore.home}-${finalScore.away}` : finalScore) : '';
+
+    const totalResolved = (currentStats.won || 0) + (currentStats.lost || 0);
+    const winRate = totalResolved > 0 ? (((currentStats.won || 0) / totalResolved) * 100).toFixed(1) : (isWon ? '100.0' : '0.0');
+
+    if (isWon) {
+        return `🟢 *TAHMİN TUTTU! (KAZANDI)* 🟢
+
+⚽ *${home} vs ${away}*
+🎯 *Tahmin:* ${market}
+${scoreStr ? `📊 *Skor:* ${scoreStr}\n` : ''}✅ *Sonuç:* BAŞARILI!
+
+━━━━━━━━━━━━━━━━━━
+📈 *Günlük Başarı:* %${winRate} (${currentStats.won || 1}/${totalResolved || 1} Kazanan)
+💎 *LIVE BET MENTOR VIP*`;
+    } else {
+        return `🔴 *TAHMİN SONUÇLANDI (KAYBETTİ)*
+
+⚽ *${home} vs ${away}*
+🎯 *Tahmin:* ${market}
+${scoreStr ? `📊 *Son Skor:* ${scoreStr}\n` : ''}❌ *Sonuç:* Kaybetti
+
+━━━━━━━━━━━━━━━━━━
+📈 *Günlük Başarı:* %${winRate} (${currentStats.won || 0}/${totalResolved || 1})
+💎 *LIVE BET MENTOR VIP*`;
+    }
+}
+
 export function formatRadarPick(match) {
     // Consensus agreement analysis  
     const agreement = match.agreement || {};

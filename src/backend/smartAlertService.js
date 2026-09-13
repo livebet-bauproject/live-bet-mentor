@@ -588,6 +588,7 @@ class SmartAlertService {
             try {
                 localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
             } catch (e) {}
+            this.sendResolutionToTelegram(alert, result);
         }
     }
 
@@ -687,10 +688,12 @@ class SmartAlertService {
                     alert.status = 'WON';
                     alert.resolvedAt = now;
                     updated = true;
+                    this.sendResolutionToTelegram(alert, 'WON', `${curHome}-${curAway}`);
                 } else if (isFinished) {
                     alert.status = 'LOST';
                     alert.resolvedAt = now;
                     updated = true;
+                    this.sendResolutionToTelegram(alert, 'LOST', `${curHome}-${curAway}`);
                 }
             }
             // 2. BTTS / KG Var Check
@@ -699,10 +702,12 @@ class SmartAlertService {
                     alert.status = 'WON';
                     alert.resolvedAt = now;
                     updated = true;
+                    this.sendResolutionToTelegram(alert, 'WON', `${curHome}-${curAway}`);
                 } else if (isFinished) {
                     alert.status = 'LOST';
                     alert.resolvedAt = now;
                     updated = true;
+                    this.sendResolutionToTelegram(alert, 'LOST', `${curHome}-${curAway}`);
                 }
             }
             // 3. Next Goal Check
@@ -718,14 +723,17 @@ class SmartAlertService {
                     alert.status = isHomeTarget ? 'WON' : 'LOST';
                     alert.resolvedAt = now;
                     updated = true;
+                    this.sendResolutionToTelegram(alert, alert.status, `${curHome}-${curAway}`);
                 } else if (curAway > initAway && curHome === initHome) {
                     alert.status = isAwayTarget ? 'WON' : 'LOST';
                     alert.resolvedAt = now;
                     updated = true;
+                    this.sendResolutionToTelegram(alert, alert.status, `${curHome}-${curAway}`);
                 } else if (isFinished && totalGoals === (initHome + initAway)) {
                     alert.status = 'LOST';
                     alert.resolvedAt = now;
                     updated = true;
+                    this.sendResolutionToTelegram(alert, 'LOST', `${curHome}-${curAway}`);
                 }
             }
         });
@@ -750,6 +758,7 @@ class SmartAlertService {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    id: alert.id,
                     matchId: alert.matchId,
                     homeTeam: alert.homeTeam,
                     awayTeam: alert.awayTeam,
@@ -784,6 +793,36 @@ class SmartAlertService {
             });
         } catch (e) {
             console.warn('[TELEGRAM] Error in sendToTelegram:', e.message);
+        }
+    }
+
+    /**
+     * Send signal resolution to Telegram via backend proxy
+     */
+    sendResolutionToTelegram(alert, result, score = null) {
+        try {
+            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://localhost:3001'
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+            fetch(`${proxyBase}/api/telegram/resolve-signal`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: alert.id,
+                    matchId: alert.matchId,
+                    result: result,
+                    score: score || alert.score
+                })
+            }).then(res => {
+                if (res.ok) {
+                    console.log(`[TELEGRAM] ✅ Resolution (${result}) forwarded to Telegram for ${alert.homeTeam} vs ${alert.awayTeam}`);
+                }
+            }).catch(err => {
+                console.warn('[TELEGRAM] ⚠️ Failed to forward resolution:', err.message);
+            });
+        } catch (e) {
+            console.warn('[TELEGRAM] Error in sendResolutionToTelegram:', e.message);
         }
     }
 

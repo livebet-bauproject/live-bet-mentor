@@ -12,6 +12,7 @@ import {
     resolveMarketText,
     formatPublicTeaser,
     formatDailyReport,
+    formatSignalResult,
     formatRadarPick,
     formatWelcome,
     formatVIPInfo
@@ -182,14 +183,27 @@ class TelegramBot {
         // Mark as sent
         this.sentSignals.set(matchKey, Date.now());
 
-        // Track stats
+        // Track stats with full settlement metadata
+        const signalId = alert.id || `sig_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const marketLabel = resolveMarketText(alert) || alert.recommendation?.predictionText || alert.recommendation?.marketLabel || 'N/A';
+
         this.dailyStats.total++;
         this.dailyStats.pending++;
         this.dailyStats.signals.push({
+            id: signalId,
+            matchId: alert.matchId ? String(alert.matchId) : null,
+            homeTeam: alert.homeTeam || '',
+            awayTeam: alert.awayTeam || '',
             match: `${alert.homeTeam} vs ${alert.awayTeam}`,
             level: alert.level,
             time: new Date().toISOString(),
-            market: resolveMarketText(alert) || alert.recommendation?.predictionText || alert.recommendation?.marketLabel || 'N/A'
+            scoreAtPrediction: alert.score || '0-0',
+            minute: alert.minute || 0,
+            market: marketLabel,
+            recommendation: alert.recommendation || {},
+            status: 'PENDING',
+            resultScore: null,
+            resolvedAt: null
         });
         this.saveHistory();
 
@@ -229,7 +243,7 @@ class TelegramBot {
     /**
      * Send daily performance report
      */
-    async sendDailyReport() {
+    async sendDailyReport(reset = false) {
         const report = formatDailyReport(this.dailyStats);
 
         const results = {};
@@ -242,11 +256,189 @@ class TelegramBot {
 
         console.log('[TELEGRAM] 📊 Daily report sent');
 
-        // Reset daily stats at report time
-        this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
-        this.saveHistory();
+        if (reset) {
+            this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
+            this.saveHistory();
+        }
 
         return results;
+    }
+
+    /**
+     * Settle / Resolve a prediction signal
+     */
+    async resolveSignal(criteria, result, score = null, sendNotification = true) {
+        if (!criteria || !result) return null;
+
+        const targetId = typeof criteria === 'object' ? (criteria.id || criteria.alertId) : criteria;
+        const targetMatchId = typeof criteria === 'object' ? criteria.matchId : null;
+        const targetMatch = typeof criteria === 'object' ? criteria.match : null;
+
+        const signal = this.dailyStats.signals.find(s => {
+            if (s.status !== 'PENDING') return false;
+            if (targetId && String(s.id) === String(targetId)) return true;
+            if (targetMatchId && String(s.matchId) === String(targetMatchId)) return true;
+            if (targetMatch && s.match && s.match.toLowerCase() === targetMatch.toLowerCase()) return true;
+            return false;
+        });
+
+        if (!signal) return null;
+
+        signal.status = result;
+        signal.resultScore = score;
+        signal.resolvedAt = new Date().toISOString();
+
+        if (this.dailyStats.pending > 0) {
+            this.dailyStats.pending--;
+        }
+        if (result === 'WON') {
+            this.dailyStats.won++;
+        } else if (result === 'LOST') {
+            this.dailyStats.lost++;
+        }
+        this.saveHistory();
+
+        console.log(`[TELEGRAM] 🎯 Signal resolved: ${signal.match} -> ${result} (${score || ''}) [Won: ${this.dailyStats.won}, Lost: ${this.dailyStats.lost}, Pending: ${this.dailyStats.pending}]`);
+
+        // Send Telegram notification
+        if (sendNotification) {
+            try {
+                const message = formatSignalResult(signal, result, score, this.dailyStats);
+                if (result === 'WON') {
+                    if (this.vipGroupId) {
+                        await this.sendMessage(this.vipGroupId, message);
+                    }
+                    if (this.publicChannelId) {
+                        await this.sendMessage(this.publicChannelId, message);
+                    }
+                } else if (result === 'LOST' && this.vipGroupId) {
+                    await this.sendMessage(this.vipGroupId, message);
+                }
+            } catch (e) {
+                console.error('[TELEGRAM] Error sending resolution notification:', e.message);
+            }
+        }
+
+        return signal;
+    }
+
+    /**
+     * Automatically evaluate results of pending signals using live match events
+     */
+    async autoResolveSignals(liveEvents) {
+        if (!Array.isArray(liveEvents) || liveEvents.length === 0) return [];
+
+        const pendingSignals = this.dailyStats.signals.filter(s => s.status === 'PENDING');
+        if (pendingSignals.length === 0) return [];
+
+        const resolved = [];
+
+        for (const signal of pendingSignals) {
+            // Find event by matchId or team names
+            const ev = liveEvents.find(e => {
+                if (signal.matchId && String(e.id) === String(signal.matchId)) return true;
+                const home = (signal.homeTeam || signal.match?.split(' vs ')[0] || '').toLowerCase().trim();
+                const away = (signal.awayTeam || signal.match?.split(' vs ')[1] || '').toLowerCase().trim();
+                if (!home || !away) return false;
+                const evHome = (e.homeTeam?.name || '').toLowerCase().trim();
+                const evAway = (e.awayTeam?.name || '').toLowerCase().trim();
+                return (evHome.includes(home.slice(0, 5)) || home.includes(evHome.slice(0, 5))) &&
+                       (evAway.includes(away.slice(0, 5)) || away.includes(evAway.slice(0, 5)));
+            });
+
+            if (!ev) continue;
+
+            const curHome = Number(ev.homeScore?.current ?? ev.score?.home ?? 0);
+            const curAway = Number(ev.awayScore?.current ?? ev.score?.away ?? 0);
+            const totalGoals = curHome + curAway;
+            const currentScoreStr = `${curHome}-${curAway}`;
+            const isFinished = ev.status?.type === 'finished' || ev.status?.code === 100 || ev.minute === 'MS';
+
+            let initHome = 0, initAway = 0;
+            if (typeof signal.scoreAtPrediction === 'string' && signal.scoreAtPrediction.includes('-')) {
+                const parts = signal.scoreAtPrediction.split('-');
+                initHome = parseInt(parts[0]) || 0;
+                initAway = parseInt(parts[1]) || 0;
+            }
+
+            const marketText = (signal.market || '').toLowerCase();
+
+            // 1. OVER GOALS (Üst)
+            if (marketText.includes('üst') || marketText.includes('over')) {
+                const matchLine = marketText.match(/(\d+\.?\d*)/);
+                const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
+                if (totalGoals > line) {
+                    const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                } else if (isFinished) {
+                    const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                }
+            }
+            // 2. BTTS / KG VAR
+            else if (marketText.includes('karşılıklı') || marketText.includes('kg var') || marketText.includes('btts')) {
+                if (curHome >= 1 && curAway >= 1) {
+                    const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                } else if (isFinished) {
+                    const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                }
+            }
+            // 3. NEXT GOAL (Sıradaki Gol / Comeback / Press)
+            else if (marketText.includes('sıradaki') || marketText.includes('next_goal') || marketText.includes('comeback') || marketText.includes('press') || marketText.includes('dominasyon')) {
+                const homeName = (signal.homeTeam || signal.match?.split(' vs ')[0] || '').toLowerCase();
+                const awayName = (signal.awayTeam || signal.match?.split(' vs ')[1] || '').toLowerCase();
+
+                const isHomeTarget = marketText.includes('home') || marketText.includes('ev') || (homeName && marketText.includes(homeName.slice(0, 5)));
+                const isAwayTarget = marketText.includes('away') || marketText.includes('deplasman') || (awayName && marketText.includes(awayName.slice(0, 5)));
+
+                if (isHomeTarget && !isAwayTarget) {
+                    if (curHome > initHome) {
+                        const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    } else if (curAway > initAway && isFinished) {
+                        const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    } else if (isFinished && totalGoals === (initHome + initAway)) {
+                        const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    }
+                } else if (isAwayTarget && !isHomeTarget) {
+                    if (curAway > initAway) {
+                        const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    } else if (curHome > initHome && isFinished) {
+                        const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    } else if (isFinished && totalGoals === (initHome + initAway)) {
+                        const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    }
+                } else {
+                    // Default expectation: any goal scored in this match
+                    if (totalGoals > (initHome + initAway)) {
+                        const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    } else if (isFinished) {
+                        const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    }
+                }
+            }
+            // 4. MATCH FINISHED FALLBACK
+            else if (isFinished) {
+                if (totalGoals > (initHome + initAway)) {
+                    const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                } else {
+                    const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                }
+            }
+        }
+
+        return resolved;
     }
 
     /**
@@ -306,18 +498,31 @@ class TelegramBot {
                 break;
 
             case '/stats':
+            case '/rapor':
+            case '/ozet':
                 const statsMsg = formatDailyReport(this.dailyStats);
                 await this.sendMessage(chatId, statsMsg);
                 break;
 
             case '/today':
+            case '/sonuclar':
+            case '/sinyaller':
                 if (this.dailyStats.signals.length === 0) {
                     await this.sendMessage(chatId, '📊 Bugün henüz sinyal gönderilmedi.');
                 } else {
                     const signalList = this.dailyStats.signals
-                        .map((s, i) => `${i + 1}. ${s.level === 'ALPHA' ? '💎' : s.level === 'ALEV' ? '🔥' : '⚡'} ${s.match}`)
+                        .map((s, i) => {
+                            const statusIcon = s.status === 'WON' ? '✅' : s.status === 'LOST' ? '❌' : '⏳';
+                            const scoreText = s.resultScore ? ` (${s.resultScore})` : (s.scoreAtPrediction ? ` (${s.scoreAtPrediction})` : '');
+                            const marketText = s.market ? ` · _${s.market.slice(0, 25)}_` : '';
+                            return `${i + 1}. ${statusIcon} *${s.match}*${scoreText}${marketText}`;
+                        })
                         .join('\n');
-                    await this.sendMessage(chatId, `📋 *Bugünkü Sinyaller (${this.dailyStats.total}):*\n\n${signalList}`);
+                    
+                    const totalResolved = (this.dailyStats.won || 0) + (this.dailyStats.lost || 0);
+                    const winRate = totalResolved > 0 ? (((this.dailyStats.won || 0) / totalResolved) * 100).toFixed(1) : '0.0';
+                    const header = `📋 *Günün Sinyalleri (${this.dailyStats.total})*\n✅ Kazanan: ${this.dailyStats.won} | ❌ Kaybeden: ${this.dailyStats.lost} | ⏳ Bekleyen: ${this.dailyStats.pending}\n📈 Başarı Oranı: *%${winRate}*\n━━━━━━━━━━━━━━━━━━\n\n`;
+                    await this.sendMessage(chatId, header + signalList);
                 }
                 break;
 
