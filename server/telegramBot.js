@@ -30,8 +30,17 @@ const __dirname = path.dirname(__filename);
 class TelegramBot {
     constructor() {
         this.token = process.env.TELEGRAM_BOT_TOKEN || '8958625592:AAFvGVVFF-GKHklYfzR_lexD39t7TurlI5U';
-        this.vipGroupId = process.env.TELEGRAM_VIP_GROUP_ID || '-1004361386816';
-        this.publicChannelId = process.env.TELEGRAM_PUBLIC_CHANNEL_ID || '-1003660350476';
+        let vId = process.env.TELEGRAM_VIP_GROUP_ID || '-1004361386816';
+        if (vId === '8965087988' || !vId.startsWith('-100')) {
+            vId = '-1004361386816';
+        }
+        this.vipGroupId = vId;
+
+        let pId = process.env.TELEGRAM_PUBLIC_CHANNEL_ID || '-1003660350476';
+        if (!pId.startsWith('-100')) {
+            pId = '-1003660350476';
+        }
+        this.publicChannelId = pId;
         this.enabled = process.env.TELEGRAM_ENABLED !== 'false';
         this.minLevel = process.env.TELEGRAM_MIN_LEVEL || 'SICAK';
         this.publicDelay = parseInt(process.env.TELEGRAM_PUBLIC_DELAY_MIN || '15') * 60 * 1000;
