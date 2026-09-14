@@ -4,6 +4,10 @@ import site
 import time
 import json
 import logging
+import threading
+import urllib.request
+import concurrent.futures
+from collections import deque
 
 # Ensure user site-packages are accessible
 try:
@@ -18,7 +22,14 @@ DATA_FILE = os.path.join(BASE_DIR, 'sofascore_live.json')
 STATS_DIR = os.path.join(BASE_DIR, 'stats')
 ODDS_FILE = os.path.join(BASE_DIR, 'live_odds.json')
 REQUEST_QUEUE = os.path.join(BASE_DIR, 'stats_request.json')
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 LOG_FILE = os.path.join(BASE_DIR, 'scraper.log')
+STATUS_FILE = os.path.join(BASE_DIR, 'cloud_fetcher_status.json')
 
 if not os.path.exists(STATS_DIR):
     os.makedirs(STATS_DIR, exist_ok=True)
@@ -50,45 +61,12 @@ HEADERS = {
     "Origin": "https://www.sofascore.com"
 }
 
-proxy_pool = []
-current_proxy_idx = 0
-
-def refresh_proxies():
-    global proxy_pool, current_proxy_idx
-    try:
-        import urllib.request
-        url = "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=4000&country=all&ssl=all&anonymity=all"
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=6) as resp:
-            content = resp.read().decode('utf-8', errors='ignore').strip().split('\r\n')
-            valid = [p.strip() for p in content if ':' in p and len(p.strip()) > 6]
-            if valid:
-                proxy_pool = valid
-                current_proxy_idx = 0
-                logger.info(f"Loaded {len(proxy_pool)} fallback proxies.")
-    except Exception as e:
-        logger.debug(f"Proxy refresh notice: {e}")
-
-def get_next_proxy():
-    global current_proxy_idx
-    if not proxy_pool:
-        refresh_proxies()
-    if proxy_pool:
-        proxy = proxy_pool[current_proxy_idx % len(proxy_pool)]
-        current_proxy_idx += 1
-        return f"http://{proxy}"
-    return None
-
-def create_session(proxy=None):
-    if HAS_CURL_CFFI:
-        if proxy:
-            return cffi_requests.Session(impersonate="chrome120", proxies={"http": proxy, "https": proxy})
-        return cffi_requests.Session(impersonate="chrome120")
-    if proxy:
-        s = cffi_requests.Session()
-        s.proxies = {"http": proxy, "https": proxy}
-        return s
-    return cffi_requests.Session()
+PROXY_SOURCES = [
+    "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=http&timeout=3000&country=all&ssl=yes&anonymity=elite",
+    "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/http.txt",
+    "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt",
+    "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt"
+]
 
 def atomic_write_json(filepath, data):
     temp_path = f"{filepath}.tmp"
@@ -102,9 +80,203 @@ def atomic_write_json(filepath, data):
         try:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
-        except:
+        except Exception:
             pass
         return False
+
+class ParallelProxyManager:
+    """Manages an active, pre-validated pool of elite proxies for SofaScore."""
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.verified_pool = deque()
+        self.tested_dead = set()
+        self.current_proxy = None
+        self.active_session = None
+        self.direct_mode = False
+        self.direct_checked = False
+        self.last_pool_refresh = 0
+        self.is_refreshing = False
+        self.status = {
+            "mode": "initializing",
+            "active_proxy": None,
+            "verified_pool_count": 0,
+            "last_success": None,
+            "last_events_count": 0,
+            "errors_on_current": 0
+        }
+        self.save_status()
+
+    def save_status(self):
+        self.status["verified_pool_count"] = len(self.verified_pool)
+        self.status["active_proxy"] = self.current_proxy
+        atomic_write_json(STATUS_FILE, self.status)
+
+    def check_proxy_single(self, proxy_str):
+        """Quickly tests if a proxy can query SofaScore live API."""
+        if not proxy_str or proxy_str in self.tested_dead:
+            return None
+        protocol = "socks5" if proxy_str.startswith("socks5://") else "http"
+        clean_addr = proxy_str.replace("socks5://", "").replace("http://", "").strip()
+        proxy_url = f"{protocol}://{clean_addr}"
+
+        try:
+            s = cffi_requests.Session(
+                impersonate="chrome120",
+                proxies={"http": proxy_url, "https": proxy_url}
+            )
+            r = s.get("https://api.sofascore.com/api/v1/sport/football/events/live", headers=HEADERS, timeout=4.5)
+            if r.status_code == 200 and 'events' in r.text:
+                return proxy_str
+        except Exception:
+            pass
+        self.tested_dead.add(proxy_str)
+        return None
+
+    def refresh_proxy_pool(self, max_candidates=150):
+        """Scrapes candidate proxies and validates them concurrently."""
+        with self.lock:
+            if self.is_refreshing:
+                return
+            self.is_refreshing = True
+
+        try:
+            candidates = set()
+            for src in PROXY_SOURCES:
+                try:
+                    req = urllib.request.Request(src, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=5) as resp:
+                        lines = resp.read().decode('utf-8', errors='ignore').splitlines()
+                        for line in lines:
+                            p = line.strip()
+                            if ':' in p and not p.startswith('#'):
+                                if src.endswith('socks5.txt') or 'socks5' in src:
+                                    candidates.add(f"socks5://{p}")
+                                else:
+                                    candidates.add(p)
+                except Exception as e:
+                    logger.debug(f"Source fetch error {src}: {e}")
+
+            logger.info(f"Gathered {len(candidates)} raw proxy candidates. Validating top {max_candidates}...")
+            to_test = [c for c in list(candidates) if c not in self.tested_dead][:max_candidates]
+
+            found = []
+            with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+                futures = {executor.submit(self.check_proxy_single, p): p for p in to_test}
+                for f in concurrent.futures.as_completed(futures):
+                    res = f.result()
+                    if res:
+                        found.append(res)
+                        with self.lock:
+                            if res not in self.verified_pool and res != self.current_proxy:
+                                self.verified_pool.append(res)
+                        logger.info(f"[POOL] Validated working proxy: {res} (Pool size: {len(self.verified_pool)})")
+                        if len(self.verified_pool) >= 10:
+                            break
+
+            self.last_pool_refresh = time.time()
+            self.save_status()
+        finally:
+            with self.lock:
+                self.is_refreshing = False
+
+    def test_direct_connection(self):
+        """Tests if direct connection is unblocked (e.g. residential local IP)."""
+        try:
+            s = cffi_requests.Session(impersonate="chrome120")
+            r = s.get("https://api.sofascore.com/api/v1/sport/football/events/live", headers=HEADERS, timeout=5)
+            if r.status_code == 200 and 'events' in r.text:
+                logger.info("Direct connection to SofaScore SUCCESS (No proxy required).")
+                self.direct_mode = True
+                self.status["mode"] = "direct"
+                self.current_proxy = "DIRECT"
+                self.active_session = s
+                self.save_status()
+                return True
+        except Exception:
+            pass
+        self.direct_mode = False
+        return False
+
+    def get_session(self):
+        """Returns the current healthy session, auto-rotating if needed."""
+        if not self.direct_checked:
+            self.direct_checked = True
+            if self.test_direct_connection():
+                return self.active_session
+
+        if self.direct_mode and self.active_session:
+            return self.active_session
+
+        if self.active_session and self.current_proxy:
+            return self.active_session
+
+        # Needs a working proxy
+        with self.lock:
+            if self.verified_pool:
+                self.current_proxy = self.verified_pool.popleft()
+                protocol = "socks5" if self.current_proxy.startswith("socks5://") else "http"
+                clean_addr = self.current_proxy.replace("socks5://", "").replace("http://", "").strip()
+                p_url = f"{protocol}://{clean_addr}"
+                self.active_session = cffi_requests.Session(
+                    impersonate="chrome120",
+                    proxies={"http": p_url, "https": p_url}
+                )
+                self.status["mode"] = "proxy"
+                self.status["active_proxy"] = self.current_proxy
+                self.status["errors_on_current"] = 0
+                self.save_status()
+                logger.info(f"Switched active session to verified proxy: {self.current_proxy}")
+                return self.active_session
+
+        # No proxy in pool, trigger synchronous quick discovery
+        logger.warning("No verified proxy available in pool! Triggering immediate discovery...")
+        self.refresh_proxy_pool(max_candidates=100)
+
+        with self.lock:
+            if self.verified_pool:
+                self.current_proxy = self.verified_pool.popleft()
+                protocol = "socks5" if self.current_proxy.startswith("socks5://") else "http"
+                clean_addr = self.current_proxy.replace("socks5://", "").replace("http://", "").strip()
+                p_url = f"{protocol}://{clean_addr}"
+                self.active_session = cffi_requests.Session(
+                    impersonate="chrome120",
+                    proxies={"http": p_url, "https": p_url}
+                )
+                self.status["mode"] = "proxy"
+                self.status["active_proxy"] = self.current_proxy
+                self.save_status()
+                return self.active_session
+
+        return None
+
+    def report_error(self):
+        """Reports a failure on the current proxy and triggers zero-delay rotation."""
+        if self.direct_mode:
+            logger.warning("Direct connection failed. Switching to proxy pool mode...")
+            self.direct_mode = False
+            self.active_session = None
+            return
+
+        self.status["errors_on_current"] = self.status.get("errors_on_current", 0) + 1
+        if self.status["errors_on_current"] >= 2:
+            logger.warning(f"Proxy {self.current_proxy} failed repeatedly. Discarding and rotating...")
+            if self.current_proxy:
+                self.tested_dead.add(self.current_proxy)
+            self.current_proxy = None
+            self.active_session = None
+
+        # If pool is running low, trigger background top-up
+        if len(self.verified_pool) < 4 and not self.is_refreshing:
+            threading.Thread(target=self.refresh_proxy_pool, kwargs={"max_candidates": 100}, daemon=True).start()
+
+    def report_success(self, events_count):
+        self.status["errors_on_current"] = 0
+        self.status["last_success"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        self.status["last_events_count"] = events_count
+        self.save_status()
+
+# Initialize global proxy manager
+proxy_mgr = ParallelProxyManager()
 
 def update_central_odds(match_id, odds_data):
     try:
@@ -137,35 +309,48 @@ def update_central_odds(match_id, odds_data):
                 'timestamp': time.time()
             }
             atomic_write_json(ODDS_FILE, current_odds)
-            logger.debug(f"[ODDS] Updated {match_id}: 1={home_val} X={draw_val} 2={away_val}")
     except Exception as e:
         logger.warning(f"[ODDS] Update failed for {match_id}: {e}")
 
-def fetch_live_events(session):
-    for domain in ["https://api.sofascore.com", "https://www.sofascore.com"]:
-        url = f"{domain}/api/v1/sport/football/events/live?_={int(time.time())}"
+def fetch_live_events():
+    for attempt in range(3):
+        session = proxy_mgr.get_session()
+        if not session:
+            logger.warning("Waiting for available session...")
+            time.sleep(3)
+            continue
+
+        url = f"https://api.sofascore.com/api/v1/sport/football/events/live?_={int(time.time())}"
         try:
-            resp = session.get(url, headers=HEADERS, timeout=12)
+            resp = session.get(url, headers=HEADERS, timeout=6.5)
             if resp.status_code == 200:
                 data = resp.json()
                 events = data.get('events', [])
                 atomic_write_json(DATA_FILE, data)
-                logger.info(f"Live events updated: {len(events)} matches found (via {domain})")
+                proxy_mgr.report_success(len(events))
+                logger.info(f"[OK] Live events updated: {len(events)} matches found (via {proxy_mgr.current_proxy})")
                 return events
             else:
-                logger.warning(f"SofaScore live ({domain}) returned HTTP {resp.status_code}")
+                logger.warning(f"Live fetch returned HTTP {resp.status_code} on {proxy_mgr.current_proxy}")
+                proxy_mgr.report_error()
         except Exception as e:
-            logger.error(f"Live events fetch error ({domain}): {e}")
+            logger.warning(f"Live fetch error on {proxy_mgr.current_proxy}: {e}")
+            proxy_mgr.report_error()
+
     return None
 
-def fetch_match_details_and_stats(session, match_id):
+def fetch_match_details_and_stats(match_id):
+    session = proxy_mgr.get_session()
+    if not session:
+        return False
+
     detail_saved = False
     stats_saved = False
 
     # 1. Detail
     try:
         url = f"https://api.sofascore.com/api/v1/event/{match_id}?_={int(time.time())}"
-        resp = session.get(url, headers=HEADERS, timeout=8)
+        resp = session.get(url, headers=HEADERS, timeout=5)
         if resp.status_code == 200:
             detail_data = resp.json()
             if 'event' in detail_data:
@@ -174,12 +359,12 @@ def fetch_match_details_and_stats(session, match_id):
         elif resp.status_code == 404:
             atomic_write_json(os.path.join(STATS_DIR, f"{match_id}_detail.json"), {"error": {"code": 404}})
     except Exception as e:
-        logger.debug(f"Detail fetch error for {match_id}: {e}")
+        logger.debug(f"Detail fetch notice for {match_id}: {e}")
 
     # 2. Statistics
     try:
         url = f"https://api.sofascore.com/api/v1/event/{match_id}/statistics?_={int(time.time())}"
-        resp = session.get(url, headers=HEADERS, timeout=8)
+        resp = session.get(url, headers=HEADERS, timeout=5)
         if resp.status_code == 200:
             stats_data = resp.json()
             if 'statistics' in stats_data:
@@ -188,12 +373,12 @@ def fetch_match_details_and_stats(session, match_id):
         elif resp.status_code == 404:
             atomic_write_json(os.path.join(STATS_DIR, f"{match_id}_stats.json"), {"error": {"code": 404}})
     except Exception as e:
-        logger.debug(f"Stats fetch error for {match_id}: {e}")
+        logger.debug(f"Stats fetch notice for {match_id}: {e}")
 
-    # 3. Odds (best effort)
+    # 3. Odds
     try:
         url = f"https://api.sofascore.com/api/v1/event/{match_id}/odds/1/3?_={int(time.time())}"
-        resp = session.get(url, headers=HEADERS, timeout=6)
+        resp = session.get(url, headers=HEADERS, timeout=4)
         if resp.status_code == 200:
             odds_data = resp.json()
             if 'odds' in odds_data or 'markets' in odds_data or 'choices' in odds_data:
@@ -204,7 +389,7 @@ def fetch_match_details_and_stats(session, match_id):
 
     return detail_saved or stats_saved
 
-def process_queue(session):
+def process_queue():
     if not os.path.exists(REQUEST_QUEUE):
         return
 
@@ -231,30 +416,47 @@ def process_queue(session):
 
     logger.info(f"Processing {len(batch)} queued match request(s): {batch}")
     for mid in batch:
-        fetch_match_details_and_stats(session, mid)
-        time.sleep(0.3)
+        fetch_match_details_and_stats(mid)
+        time.sleep(0.2)
+
+def background_pool_keeper():
+    """Keeps the proxy pool populated and healthy in the background 24/7."""
+    while True:
+        try:
+            # Refresh if pool is low or every 3 minutes
+            if not proxy_mgr.direct_mode:
+                if len(proxy_mgr.verified_pool) < 5 or (time.time() - proxy_mgr.last_pool_refresh > 180):
+                    proxy_mgr.refresh_proxy_pool(max_candidates=150)
+        except Exception as e:
+            logger.debug(f"Pool keeper notice: {e}")
+        time.sleep(30)
 
 def run_loop():
-    logger.info("Starting Cloud SofaScore Fetcher loop...")
-    session = create_session()
+    logger.info("==================================================")
+    logger.info("   Starting Autonomous 24/7 Cloud SofaScore Fetcher")
+    logger.info("==================================================")
+
+    # 1. Check direct connection first
+    if not proxy_mgr.test_direct_connection():
+        logger.info("Direct connection unavailable. Starting proxy pool pre-warming...")
+        proxy_mgr.refresh_proxy_pool(max_candidates=120)
+
+    # 2. Start background proxy maintenance thread
+    keeper_thread = threading.Thread(target=background_pool_keeper, daemon=True)
+    keeper_thread.start()
+
     match_index = 0
     BATCH_SIZE = 8
-    consecutive_errors = 0
 
     while True:
         try:
-            events = fetch_live_events(session)
+            events = fetch_live_events()
             if events is None:
-                consecutive_errors += 1
-                if consecutive_errors >= 2:
-                    p = get_next_proxy()
-                    logger.warning(f"Consecutive errors ({consecutive_errors}). Switching session to proxy: {p}")
-                    session = create_session(proxy=p)
-                time.sleep(8)
+                logger.warning("No events returned on this cycle. Retrying in 5 seconds...")
+                time.sleep(5)
                 continue
-            
-            consecutive_errors = 0
-            process_queue(session)
+
+            process_queue()
 
             in_progress = [
                 e for e in events
@@ -272,17 +474,18 @@ def run_loop():
                 for ev in batch:
                     mid = ev.get('id')
                     if mid:
-                        fetch_match_details_and_stats(session, mid)
-                        time.sleep(0.35)
+                        fetch_match_details_and_stats(mid)
+                        time.sleep(0.3)
 
+            # Cycle interval: 15 seconds for live matches
             time.sleep(15)
 
         except KeyboardInterrupt:
-            logger.info("Stopped by user.")
+            logger.info("Cloud fetcher stopped by user.")
             break
         except Exception as e:
-            logger.error(f"Unexpected error in fetch loop: {e}", exc_info=True)
-            time.sleep(10)
+            logger.error(f"Unexpected error in cloud fetcher loop: {e}", exc_info=True)
+            time.sleep(8)
 
 if __name__ == "__main__":
     run_loop()

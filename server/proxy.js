@@ -152,6 +152,14 @@ app.get('/api/debug', async (req, res) => {
         } catch(e) {}
     }
 
+    let cloudFetcherStatus = null;
+    const statusFile = path.join(__dirname, 'cloud_fetcher_status.json');
+    if (fs.existsSync(statusFile)) {
+        try {
+            cloudFetcherStatus = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+        } catch(e) {}
+    }
+
     res.json({
         status: 'online',
         environment: IS_CLOUD ? 'CLOUD (Render)' : 'LOCAL',
@@ -159,6 +167,7 @@ app.get('/api/debug', async (req, res) => {
         pythonVersion,
         curlCffiStatus,
         sofascoreDirectTest,
+        cloudFetcherStatus,
         statsFilesCount,
         scraperLogTail,
         sofascoreLive: {
@@ -322,20 +331,24 @@ app.get('/api/sync/status', (req, res) => {
 
 // 1. Live Events List
 app.get('/api/sofascore/live', (req, res) => {
-    // Try file first (local mode)
+    // Try file first (local mode or cloud_fetcher written file)
     if (fs.existsSync(SOFASCORE_FILE)) {
         try {
             const data = fs.readFileSync(SOFASCORE_FILE, 'utf8');
-            return res.json(JSON.parse(data));
+            const parsed = JSON.parse(data);
+            if (parsed && Array.isArray(parsed.events) && parsed.events.length > 0) {
+                memoryLiveData = parsed;
+                return res.json(parsed);
+            }
         } catch (e) {
             console.error('[PROXY] Error reading sofascore_live.json:', e.message);
         }
     }
-    // Fall back to memory (cloud mode - data pushed from local)
-    if (memoryLiveData) {
+    // Fall back to memory (cloud mode or last known data)
+    if (memoryLiveData && Array.isArray(memoryLiveData.events) && memoryLiveData.events.length > 0) {
         return res.json(memoryLiveData);
     }
-    res.status(404).json({ error: 'Data not found yet. Waiting for local sync.' });
+    res.status(404).json({ error: 'Data not found yet. Initializing autonomous fetch...' });
 });
 
 // 2. Consensus / Radar Data
@@ -835,6 +848,20 @@ app.listen(PORT, '0.0.0.0', async () => {
     setTimeout(() => {
         startConsensusScraper();
     }, 10000);
+
+    // 24/7 CLOUD MODE: Keep-alive self-ping to prevent Render free-tier spin-down
+    if (IS_CLOUD) {
+        const pingUrl = process.env.RENDER_EXTERNAL_URL || 'https://live-bet-mentor.onrender.com';
+        console.log(`[KEEP-ALIVE] Initiating 24/7 self-ping loop for: ${pingUrl}`);
+        setInterval(async () => {
+            try {
+                const res = await fetch(`${pingUrl}/api/debug`, { signal: AbortSignal.timeout(12000) });
+                console.log(`[KEEP-ALIVE] Heartbeat ping success: HTTP ${res.status}`);
+            } catch (err) {
+                console.warn(`[KEEP-ALIVE] Heartbeat ping notice: ${err.message}`);
+            }
+        }, 8 * 60 * 1000); // Ping every 8 minutes (Render sleeps after 15 min)
+    }
 
     // LOCAL MODE: Sync data to Render cloud every 15 seconds
     if (!IS_CLOUD) {
