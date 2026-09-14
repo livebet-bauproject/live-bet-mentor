@@ -795,7 +795,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             const updatedSignals = {};
             const enrichedFixtures = currentFixtures.map(m => {
-                const sig = dataWorker.getSignalForMatch(m.id);
+                const sig = dataWorker.getSignalForMatch(m.id) || m.signal;
                 if (sig) {
                     updatedSignals[m.id] = sig;
                     bankrollManager.logVerdict(m.id, sig.verdict);

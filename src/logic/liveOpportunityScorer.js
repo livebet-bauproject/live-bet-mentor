@@ -112,12 +112,18 @@ class LiveOpportunityScorer {
     /**
      * Calculate opportunity score for a single match
      */
-    calculateOpportunityScore(match, signal, windowMinutes = 10) {
+    calculateOpportunityScore(match, signal = null, windowMinutes = 10) {
         const { thresholds } = this.getConfig();
 
-        if (!match || !signal) {
+        if (!match) {
             return this._createEmptyResult();
         }
+
+        // Active signal with robust fallback (never drop match solely for missing external signal)
+        const activeSignal = signal || match.signal || {
+            verdict: 'OBSERVE',
+            observations: match.observations || {}
+        };
 
         // Strict Exclusion 1: Finished or Cancelled matches
         const statusType = (match.status?.type || '').toLowerCase();
@@ -128,26 +134,29 @@ class LiveOpportunityScorer {
             return this._createEmptyResult('EXCLUDED_FINISHED');
         }
 
-        const isHalftime = statusCode === 31 || minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half');
+        // Halftime Detection: MUST NOT match '1st half' or '2nd half' (active in-play periods)
+        const isHalftime = statusCode === 31 || minStr === 'İY' || minStr === 'HT' || 
+            minStr.toLowerCase() === 'halftime' || minStr.toLowerCase() === 'half-time' || 
+            minStr.toLowerCase().includes('devre') || (minStr.toLowerCase().includes('half') && minStr.toLowerCase().includes('time'));
 
         // Halftime High-Value Filter:
         // A match in Halftime is NOT over; it is the prime 15-minute decision window for second-half opportunities.
-        // We only allow Halftime matches that produced genuine 1st-half pressure/xG (e.g. Flamengo with 1.77 xG, 76% possession).
-        // Dormant/inactive halftime games are filtered out to keep feed high-signal.
         if (isHalftime) {
             const hStats = match.stats || {};
             const totalXg = (Number(hStats.xg?.home) || 0) + (Number(hStats.xg?.away) || 0);
             const totalSog = (Number(hStats.shotsOnGoal?.home) || 0) + (Number(hStats.shotsOnGoal?.away) || 0);
             const totalAttacks = (Number(hStats.dangerousAttacks?.home) || 0) + (Number(hStats.dangerousAttacks?.away) || 0);
+            const hasStats = totalXg > 0 || totalSog > 0 || totalAttacks > 0;
             const qualifiesForHalftime = totalXg >= 0.45 || totalSog >= 3 || totalAttacks >= 25 || (match.tier === 1 && (totalSog >= 2 || totalXg >= 0.30));
             
-            if (!qualifiesForHalftime) {
+            // Only exclude inactive halftime games if full stats are already present
+            if (hasStats && !qualifiesForHalftime) {
                 return this._createEmptyResult('EXCLUDED_HALFTIME_LOW_ACTIVITY');
             }
         }
 
         const matchId = match.id;
-        const minute = isHalftime ? 45 : this._parseMinute(match.minute);
+        const minute = isHalftime ? 45 : this._parseMinute(match.minute, match);
 
         // Strict Exclusion 2: Outside active in-play window (e.g. 15' to 80') or stoppage time
         if (!isHalftime) {
@@ -170,13 +179,11 @@ class LiveOpportunityScorer {
             }
         }
 
-        // Filter: Minimum DQS requirement (lowered for more opportunities, especially Tier 1)
+        // Determine if enough stats are available for full analysis or pending queue
         const dqs = match.dqs || 0;
-        const effectiveMinDqs = match.tier === 1 ? (thresholds.MIN_DQS * 0.75) : thresholds.MIN_DQS; 
-        
-        if (dqs < effectiveMinDqs) {
-            return this._createEmptyResult('LOW_DQS');
-        }
+        const totalSog = (match.stats?.shotsOnGoal?.home || 0) + (match.stats?.shotsOnGoal?.away || 0);
+        const totalAttacks = (match.stats?.dangerousAttacks?.home || 0) + (match.stats?.dangerousAttacks?.away || 0);
+        const isStatsReady = (dqs >= 0.55) || (totalSog > 0) || (totalAttacks >= 15);
 
         // Get dynamic weights based on minute
         const weights = getWeightsForMinute(minute);
@@ -185,7 +192,7 @@ class LiveOpportunityScorer {
         const dqsScore = this._calculateDQSScore(dqs);
         
         // 2. Use the Signal's Observation Data
-        const obs = signal?.observations || {};
+        const obs = activeSignal?.observations || {};
         const pressureData = obs.pressure || pressureIndex.calculate(match.stats, minute, match.score);
         const xgData = obs.xg || xGModule.calculate(match);
         
@@ -194,8 +201,8 @@ class LiveOpportunityScorer {
         const pressureScore = pressureData.total || 0;
         const xgScore = xgData.surplus?.total > 0.5 ? 95 : (xgData.rate?.perMinute > 0.02 ? 75 : 45);
         
-        const riskScore = this._calculateRiskScore(signal);
-        const oddsScore = this._calculateOddsScore(match, signal);
+        const riskScore = this._calculateRiskScore(activeSignal);
+        const oddsScore = this._calculateOddsScore(match, activeSignal);
 
         // 4. Synergy Bonus (xG + Pressure Alignment)
         let synergyBonus = 0;
@@ -213,12 +220,9 @@ class LiveOpportunityScorer {
             oddsScore * weights.ODDS
         ) + synergyBonus;
 
-        // Determine if enough stats are available for a high-quality score
-        const isStatsReady = dqs >= 0.6 || (match.stats?.shotsOnGoal?.home > 0 || match.stats?.shotsOnGoal?.away > 0);
-
-        // CRITICAL: Cap score if stats are not ready (Maximum 50 - SOGUK)
+        // CRITICAL: Cap score if stats are not ready (Maximum 48 - SOGUK / BEKLEMEDE)
         if (!isStatsReady) {
-            totalScore = Math.min(50, totalScore);
+            totalScore = Math.min(48, totalScore);
         }
 
         // RED CARD PENALTY Implementation (using accurate cards mapping)
@@ -375,10 +379,10 @@ class LiveOpportunityScorer {
         const oddsInfo = this._getMatchOdds(match);
 
         // Enhanced market suggestion with odds
-        const suggestedMarket = this._suggestMarket(match, signal, totalScore, oddsInfo);
+        const suggestedMarket = this._suggestMarket(match, activeSignal, totalScore, oddsInfo);
 
         // Generate enhanced reason
-        const reason = this._generateReason(match, signal, heatLevel, momentumScore, pressureScore, oddsScore, oddsInfo);
+        const reason = this._generateReason(match, activeSignal, heatLevel, momentumScore, pressureScore, oddsScore, oddsInfo);
 
         // STOP-LOSS & CASH-OUT RADAR DETECTION (v4.0)
         let cashOutWarning = null;
@@ -462,7 +466,7 @@ class LiveOpportunityScorer {
 
         const opportunities = matches
             .map(match => {
-                const signal = signalsMap[match.id];
+                const signal = signalsMap?.[match.id] || match.signal;
                 return this.calculateOpportunityScore(match, signal, windowMinutes);
             })
             .filter(opp => !opp.excluded)
@@ -526,18 +530,17 @@ class LiveOpportunityScorer {
         return null;
     }
 
-    _parseMinute(minute) {
-        if (minute === undefined || minute === null || minute === '') return -1;
+    _parseMinute(minute, match = null) {
         if (typeof minute === 'number') return minute;
-        const minStr = minute.toString().trim();
+        const minStr = (minute || '').toString().trim();
         
         // Match Finished / Sona Erdi -> 999
         if (minStr === 'MS' || minStr.includes('FT') || minStr.toLowerCase().includes('ended') || minStr.toLowerCase().includes('finish')) {
             return 999;
         }
         
-        // Halftime / Devre Arası -> -2
-        if (minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half')) {
+        // Halftime / Devre Arası -> -2 (Must NOT match '1st half' or '2nd half')
+        if (minStr === 'İY' || minStr === 'HT' || minStr.toLowerCase() === 'halftime' || minStr.toLowerCase() === 'half-time' || minStr.toLowerCase().includes('devre') || (minStr.toLowerCase().includes('half') && minStr.toLowerCase().includes('time'))) {
             return -2;
         }
 
@@ -552,7 +555,24 @@ class LiveOpportunityScorer {
         }
 
         const str = minStr.replace(/[^0-9]/g, '');
-        return parseInt(str) || 0;
+        const parsed = parseInt(str);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+
+        // Dynamic fallback: compute from match timestamps
+        if (match) {
+            const timeObj = match.time || {};
+            const statusTime = match.statusTime || {};
+            const code = match.status?.code;
+            const periodTimestamp = statusTime.timestamp || timeObj.currentPeriodStartTimestamp || match.startTimestamp;
+            if (periodTimestamp) {
+                const now = Math.floor(Date.now() / 1000);
+                const elapsedSec = Math.max(0, now - periodTimestamp);
+                const initialSec = statusTime.initial ?? timeObj.initial ?? (code === 7 ? 2700 : 0);
+                return Math.floor((initialSec + elapsedSec) / 60);
+            }
+        }
+
+        return 0;
     }
 
     _calculateDQSScore(dqs) {

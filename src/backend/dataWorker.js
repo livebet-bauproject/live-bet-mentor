@@ -386,7 +386,8 @@ class DataWorker {
         else if (hasSOG || hasAttacks) score += weights.STATS_AVAILABILITY * 0.7;
 
         // 3. Freshness (Güncellik)
-        if (fixture.minute > 0) score += weights.FRESHNESS;
+        const minuteNum = parseInt(String(fixture.minute || '').replace(/[^0-9]/g, '')) || 0;
+        if (minuteNum > 0 || fixture.minute === 'İY' || fixture.minute === 'HT') score += weights.FRESHNESS;
 
         // 4. Detailed Data Rewards (Detaylı Veri Ödülleri)
         if (hasXG) score += 0.1;

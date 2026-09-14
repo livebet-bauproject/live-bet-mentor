@@ -124,6 +124,9 @@ export const sofaScoreAdapter = {
                 away: event.awayScore?.current ?? 0
             },
             minute: this.calculateMinute(event),
+            status: event.status,
+            time: event.time,
+            statusTime: event.statusTime,
             cards: {
                 home: { yellow: 0, red: event.homeRedCards || 0 },
                 away: { yellow: 0, red: event.awayRedCards || 0 }
