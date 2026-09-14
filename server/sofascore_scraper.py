@@ -35,6 +35,36 @@ LIVE_FETCH_INTERVAL = 15  # Fetch live list every 15 seconds for fresher data
 STATS_FETCH_INTERVAL = 20  # Auto-fetch stats for all live matches every 20 seconds
 BATCH_SIZE = 10  # Number of matches to fetch stats for in each batch (to avoid rate limiting)
 
+def parse_odds_value(choice):
+    """Parses decimal or fractional odds (e.g. '1/10' -> 1.10, '16/5' -> 4.20) into a float."""
+    if not choice or not isinstance(choice, dict):
+        return None
+    for k in ('decimalValue', 'value'):
+        val = choice.get(k)
+        if val is not None:
+            try:
+                v = float(val)
+                if v > 0:
+                    return v
+            except:
+                pass
+    frac = choice.get('fractionalValue') or choice.get('initialFractionalValue')
+    if frac:
+        try:
+            parts = str(frac).strip().split('/')
+            if len(parts) == 2:
+                num = float(parts[0])
+                den = float(parts[1])
+                if den > 0:
+                    return round((num / den) + 1.0, 2)
+            else:
+                v = float(frac)
+                if v > 0:
+                    return v
+        except:
+            pass
+    return None
+
 def update_central_odds(match_id, odds_data):
     """Synchronize match odds into a central file for the proxy/frontend."""
     try:
@@ -53,25 +83,27 @@ def update_central_odds(match_id, odds_data):
         choices = odds_data.get('odds', [])
         if not choices and 'markets' in odds_data:
             for m in odds_data.get('markets', []):
-                if m.get('id') == 1 or 'full' in (m.get('marketName') or '').lower():
+                m_name = (m.get('marketName') or '').lower()
+                if m.get('id') == 1 or m.get('marketId') == 1 or 'full' in m_name or m.get('marketGroup') == '1X2':
                     choices = m.get('choices', [])
                     break
 
         if len(choices) >= 3:
-            home_val = choices[0].get('value') or choices[0].get('decimalValue')
-            draw_val = choices[1].get('value') or choices[1].get('decimalValue')
-            away_val = choices[2].get('value') or choices[2].get('decimalValue')
+            home_val = parse_odds_value(choices[0])
+            draw_val = parse_odds_value(choices[1])
+            away_val = parse_odds_value(choices[2])
 
-            current_odds[str(match_id)] = {
-                'home': home_val,
-                'draw': draw_val,
-                'away': away_val,
-                'timestamp': time.time()
-            }
-            
-            with open(ODDS_FILE, 'w', encoding='utf-8') as f:
-                json.dump(current_odds, f, indent=2)
-            logger.debug(f"[ODDS] Updated {match_id} in {ODDS_FILE}")
+            if home_val or draw_val or away_val:
+                current_odds[str(match_id)] = {
+                    'home': home_val,
+                    'draw': draw_val,
+                    'away': away_val,
+                    'timestamp': time.time()
+                }
+                
+                with open(ODDS_FILE, 'w', encoding='utf-8') as f:
+                    json.dump(current_odds, f, indent=2)
+                logger.debug(f"[ODDS] Updated {match_id} in {ODDS_FILE}: {home_val} | {draw_val} | {away_val}")
     except Exception as e:
         logger.warning(f"[ODDS] Update failed for {match_id}: {e}")
 
@@ -121,7 +153,7 @@ def fetch_stats_via_js(driver, match_id):
         Promise.all([
             fetch('https://www.sofascore.com/api/v1/event/{match_id}/statistics').then(r => r.json()).catch(() => ({{}})),
             fetch('https://www.sofascore.com/api/v1/event/{match_id}').then(r => r.json()).catch(() => ({{}})),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/odds/1/3').then(r => r.json()).catch(() => ({{}}))
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/odds/1/all').then(r => r.json()).catch(() => ({{}}))
         ])
         .then(([stats, detail, odds]) => done({{status: 'success', stats: stats, detail: detail, odds: odds}}))
         .catch(err => done({{status: 'error', message: err.toString()}}));

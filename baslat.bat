@@ -15,7 +15,6 @@ REM 2. Cache ve Surec Temizleme
 echo [2/4] Eski cache ve sarkan surecler temizleniyor...
 taskkill /F /IM python.exe /T >nul 2>&1
 taskkill /F /IM node.exe /T >nul 2>&1
-taskkill /F /IM chrome.exe /T >nul 2>&1
 taskkill /F /IM chromedriver.exe /T >nul 2>&1
 taskkill /F /IM undetected_chromedriver.exe /T >nul 2>&1
 if exist "dist" (

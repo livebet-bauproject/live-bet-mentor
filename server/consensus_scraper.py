@@ -5,6 +5,12 @@ import sys
 import re
 from datetime import datetime, timedelta
 
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 if SERVER_DIR not in sys.path:
     sys.path.insert(0, SERVER_DIR)

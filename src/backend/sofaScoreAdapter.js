@@ -283,17 +283,43 @@ export const sofaScoreAdapter = {
 
             // SofaScore market structure (Full Time 1X2 market)
             if (data.markets) {
-                const ftMarket = data.markets.find(m => m.id === 1 || m.marketName?.toLowerCase() === 'full time');
+                const ftMarket = data.markets.find(m => m.id === 1 || m.marketId === 1 || m.marketName?.toLowerCase() === 'full time' || m.marketGroup === '1X2');
                 if (ftMarket && ftMarket.choices) {
+                    const parseChoice = (c) => {
+                        if (!c) return 0;
+                        for (const k of ['decimalValue', 'value']) {
+                            if (c[k] !== undefined && c[k] !== null) {
+                                const v = parseFloat(c[k]);
+                                if (!isNaN(v) && v > 0) return v;
+                            }
+                        }
+                        const frac = c.fractionalValue || c.initialFractionalValue;
+                        if (frac) {
+                            const parts = String(frac).trim().split('/');
+                            if (parts.length === 2) {
+                                const num = parseFloat(parts[0]);
+                                const den = parseFloat(parts[1]);
+                                if (!isNaN(num) && !isNaN(den) && den > 0) {
+                                    return parseFloat(((num / den) + 1.0).toFixed(2));
+                                }
+                            }
+                        }
+                        return 0;
+                    };
+
                     const homeChoice = ftMarket.choices.find(c => c.name === '1' || c.idx === 1);
                     const drawChoice = ftMarket.choices.find(c => c.name === 'X' || c.idx === 2);
                     const awayChoice = ftMarket.choices.find(c => c.name === '2' || c.idx === 3);
 
-                    if (homeChoice && awayChoice) {
+                    const homeOdds = parseChoice(homeChoice);
+                    const drawOdds = parseChoice(drawChoice);
+                    const awayOdds = parseChoice(awayChoice);
+
+                    if (homeOdds > 0 || awayOdds > 0) {
                         return {
-                            home: parseFloat(homeChoice.value) || 0,
-                            draw: parseFloat(drawChoice?.value) || 0,
-                            away: parseFloat(awayChoice.value) || 0,
+                            home: homeOdds,
+                            draw: drawOdds,
+                            away: awayOdds,
                             source: 'SOFASCORE_DIRECT'
                         };
                     }
