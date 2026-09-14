@@ -374,22 +374,41 @@ Institutional AI-powered live football analysis & automated value signal service
 }
 
 export function formatVIPInfo(settings = {}) {
-    const whatsapp = settings.whatsapp || '';
+    const adminUser = settings.adminUsername || process.env.TELEGRAM_ADMIN_USERNAME || 'our Official Admin';
+    const usdtAddress = 'TXDCxXx5XjNWFRLQmNZeHVcwjpHjDDPrvd';
     
-    return `💎 *VIP QUANT SYNDICATE MEMBERSHIP*
+    return `💎 *VIP QUANT SYNDICATE TIERS & ACCESS*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Unlock unfiltered real-time in-play signals, mathematical +EV alerts, latency arbitrage opportunities, and pre-match consensus radar.
 
-🔓 *Unlock Institutional Access:*
+🎟️ *Available Membership Passes:*
 
-Join our exclusive VIP Syndicate for unfiltered real-time in-play signals, mathematical +EV alerts, latency arbitrage opportunities, and pre-match consensus radar.
+1️⃣ *Weekly Syndicate Pass:* *$19 USDT*
+• 7 Days full access to live in-play signals & stop-loss alerts
 
-🎟️ *Get Started Free:*
-Type /trial to claim your 3-Day complimentary pass!
+2️⃣ *Monthly Quant Pro (Most Popular):* *$49 USDT*
+• 30 Days unrestricted VIP Syndicate stream + Golden Doubles
 
-📩 *Subscriptions & Support:*
-${whatsapp ? `• WhatsApp Support: ${whatsapp}\n` : ''}• Contact Admin via @Livebetmentorbot
+3️⃣ *Quarterly Syndicate Pass:* *$119 USDT*
+• 90 Days comprehensive syndicate access + priority support
 
-━━━━━━━━━━━━━━━━━━
-💎 *LIVE BET MENTOR VIP*`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+💳 *Instant Payment Method:*
+• Network: *USDT (Tron TRC-20)*
+• Deposit Address:
+\`${usdtAddress}\`
+_(Tap address to copy)_
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ *How to Activate Your VIP Pass:*
+1. Send the exact tier amount in *USDT (TRC-20)* to the address above.
+2. Send your transaction screenshot / TXID to ${adminUser.startsWith('@') ? adminUser : '@' + adminUser}.
+3. Your personal single-use VIP access link will be issued immediately!
+
+🎁 *Want to test first?*
+Type /trial to claim your *3-Day Free VIP Trial*!
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *LIVE BET MENTOR VIP SYNDICATE*`;
 }
 
 export function formatCashOutAlert(cashOut) {
