@@ -116,6 +116,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     });
     const [view, setView] = useState('DASHBOARD'); // 'DASHBOARD', 'ADMIN', 'RADAR'
     const [consensusData, setConsensusData] = useState({});
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const [dismissTrialBanner, setDismissTrialBanner] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -1314,78 +1316,52 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </div>
                 </div>
             )}
-            {/* Header */}
-            <header className="glass-panel" style={{ padding: '2rem', marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--glass-border)' }}>
-                <div className="header-title-area">
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-1px', background: 'linear-gradient(to right, var(--text-primary), var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t.title}</h1>
-                    <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{t.subtitle}</p>
-                    <div className="header-stats-bar" style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', fontSize: '0.8rem' }}>
-                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.4rem 0.8rem', borderRadius: '20px', border: '1px solid rgba(16, 185, 129, 0.2)', color: 'var(--success-color)', fontWeight: 600 }}>
-                            {t.pass_rate}: {(analytics.passRate || 0).toFixed(1)}%
+            {/* Modern Institutional Terminal Header */}
+            <header className="terminal-header glass-panel">
+                {/* Top Row: Brand & Quick Action Controls */}
+                <div className="terminal-header-top">
+                    <div className="brand-group" onClick={() => setView('DASHBOARD')}>
+                        <div className="brand-logo-badge">⚡</div>
+                        <div className="brand-text">
+                            <div className="brand-title">
+                                <span>{t.title || 'LIVE BET MENTOR'}</span>
+                                <span className="live-status-dot" title="Autonomous Radar Online"></span>
+                            </div>
+                            <div className="brand-subtitle">{t.subtitle}</div>
                         </div>
-                        <div style={{ background: 'rgba(255, 255, 255, 0.05)', padding: '0.4rem 0.8rem', borderRadius: '20px', border: '1px solid var(--glass-border)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                            {t.no_bet_rate}: {(analytics.noBetRate || 0).toFixed(1)}%
-                        </div>
-                        <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.4rem 0.8rem', borderRadius: '20px', border: '1px solid rgba(56, 189, 248, 0.2)', color: 'var(--accent-color)', fontWeight: 600 }}>
-                            {t.limit}: {bankState.daily_bet_count}/{CONFIG.BANKROLL.HIERARCHY.THRESHOLDS.DAILY_BET_LIMIT}
-                        </div>
+                    </div>
+
+                    <div className="terminal-header-actions">
+                        {/* Notification Mode Toggle */}
                         <button
+                            className="icon-ctrl-btn"
                             onClick={() => {
                                 const nextMode = alertNotifyMode === 'TOAST' ? 'SILENT' : alertNotifyMode === 'SILENT' ? 'OFF' : 'TOAST';
                                 setAlertNotifyMode(nextMode);
                                 try { localStorage.setItem('alert_notify_mode', nextMode); } catch (e) {}
                             }}
-                            style={{
-                                background: alertNotifyMode === 'TOAST' ? 'rgba(16, 185, 129, 0.15)' :
-                                            alertNotifyMode === 'SILENT' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                color: alertNotifyMode === 'TOAST' ? '#10b981' :
-                                       alertNotifyMode === 'SILENT' ? '#fbbf24' : '#ef4444',
-                                border: `1px solid ${alertNotifyMode === 'TOAST' ? 'rgba(16, 185, 129, 0.3)' :
-                                                     alertNotifyMode === 'SILENT' ? 'rgba(251, 191, 36, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
-                                padding: '0.35rem 0.75rem',
-                                borderRadius: '20px',
-                                fontSize: '0.75rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
-                                transition: 'all 0.2s'
-                            }}
-                            title={
-                                alertNotifyMode === 'TOAST' ? 'Sıcak Fırsat Bildirimi: Açık (Sağ Alt Toast). Değiştirmek için tıkla.' :
-                                alertNotifyMode === 'SILENT' ? 'Sıcak Fırsat Bildirimi: Sessiz (Yalnızca Listeye Ekler). Değiştirmek için tıkla.' :
-                                'Sıcak Fırsat Bildirimi: Kapalı. Değiştirmek için tıkla.'
-                            }
+                            title={alertNotifyMode === 'TOAST' ? 'Bildirim: Açık (Toast)' : alertNotifyMode === 'SILENT' ? 'Bildirim: Sessiz' : 'Bildirim: Kapalı'}
                         >
                             <span>{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
-                            <span>{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim: Açık' : 'Alerts: On') : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Bildirim: Sessiz' : 'Alerts: Silent') : (lang === 'tr' ? 'Bildirim: Kapalı' : 'Alerts: Off')}</span>
+                            <span className="ctrl-label">{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Açık' : 'On') : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
                         </button>
+
+                        {/* Audio Alert Toggle */}
                         <button
+                            className="icon-ctrl-btn"
                             onClick={() => {
                                 const newMuted = audioAlert.toggle();
                                 setAudioMuted(newMuted);
                             }}
-                            style={{
-                                background: !audioMuted ? 'rgba(16, 185, 129, 0.15)' : 'rgba(148, 163, 184, 0.15)',
-                                color: !audioMuted ? '#10b981' : '#94a3b8',
-                                border: `1px solid ${!audioMuted ? 'rgba(16, 185, 129, 0.3)' : 'rgba(148, 163, 184, 0.3)'}`,
-                                padding: '0.35rem 0.75rem',
-                                borderRadius: '20px',
-                                fontSize: '0.75rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
-                                transition: 'all 0.2s'
-                            }}
-                            title={!audioMuted ? 'Terminal Ses Uyarısı: Açık (Bloomberg Chime). Değiştirmek için tıkla.' : 'Terminal Ses Uyarısı: Sessiz. Değiştirmek için tıkla.'}
+                            title={!audioMuted ? 'Ses: Açık' : 'Ses: Kapalı'}
                         >
                             <span>{!audioMuted ? '🔊' : '🔇'}</span>
-                            <span>{!audioMuted ? (lang === 'tr' ? 'Ses: Açık' : 'Audio: On') : (lang === 'tr' ? 'Ses: Kapalı' : 'Audio: Off')}</span>
+                            <span className="ctrl-label">{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : 'Audio On') : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
                         </button>
+
+                        {/* Signal History & Bets Button */}
                         <button
+                            className="icon-ctrl-btn signal-history-btn"
                             onClick={() => {
                                 smartAlertService.autoResolveAlerts(matches);
                                 setAlertHistoryList(smartAlertService.getHistory(50));
@@ -1393,278 +1369,188 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 setTrackingActiveTab('ALERTS');
                                 setShowTrackingPanel(true);
                             }}
-                            style={{
-                                background: 'rgba(56, 189, 248, 0.15)',
-                                color: '#38bdf8',
-                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                padding: '0.35rem 0.75rem',
-                                borderRadius: '20px',
-                                fontSize: '0.75rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.45rem',
-                                transition: 'all 0.2s'
-                            }}
-                            title="Gelen tüm bildirim sinyallerini ve tahmin geçmişini gör"
+                            title="Sinyal Geçmişi & Tahmin Karnesi"
                         >
                             <span>📊</span>
-                            <span>{lang === 'tr' ? 'Sinyal Geçmişi & Karne' : 'Signal History & Bets'}</span>
+                            <span className="ctrl-label">{lang === 'tr' ? 'Sinyaller' : 'Signals'}</span>
                             {alertHistoryList.length > 0 && (
-                                <span style={{
-                                    background: '#38bdf8',
-                                    color: '#0f172a',
-                                    borderRadius: '10px',
-                                    padding: '0.1rem 0.45rem',
-                                    fontSize: '0.65rem',
-                                    fontWeight: 900
-                                }}>
-                                    {alertHistoryList.length}
-                                </span>
+                                <span className="badge-count">{alertHistoryList.length}</span>
                             )}
                         </button>
-                        <button onClick={() => { setFaqMode('live'); setShowFAQ(true); }} className="faq-btn" style={{ width: '1.8rem', height: '1.8rem', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.7rem' }}>?</button>
+
+                        {/* User Profile Avatar / Menu Trigger */}
+                        <div className="user-menu-wrapper" style={{ position: 'relative' }}>
+                            <button
+                                className="user-profile-trigger"
+                                onClick={() => setShowUserMenu(!showUserMenu)}
+                            >
+                                <span className="user-avatar-icon">👤</span>
+                                <span className="user-plan-badge" style={{
+                                    background: PLAN_COLORS[userProfile?.plan || 'trial'] + '22',
+                                    color: PLAN_COLORS[userProfile?.plan || 'trial'],
+                                    border: `1px solid ${PLAN_COLORS[userProfile?.plan || 'trial']}55`
+                                }}>
+                                    {t[(userProfile?.plan || 'trial') + '_badge']}
+                                </span>
+                                <span className="user-arrow-icon">{showUserMenu ? '▲' : '▼'}</span>
+                            </button>
+
+                            {/* Dropdown Popover */}
+                            {showUserMenu && (
+                                <div className="user-dropdown-popover glass-panel">
+                                    <div className="user-popover-header">
+                                        <div className="user-email-text">{user?.email}</div>
+                                        {userProfile?.subscription_end && (
+                                            <div className="user-expiry-text" style={{ color: getRemainingDays(userProfile.subscription_end) <= 3 ? '#ef4444' : '#94a3b8' }}>
+                                                ⏳ {getRemainingDays(userProfile.subscription_end)} {t.days_remaining}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="user-popover-divider"></div>
+
+                                    {/* Language Switch */}
+                                    <div className="popover-row">
+                                        <span className="popover-label">🌐 {lang === 'tr' ? 'Dil' : 'Language'}</span>
+                                        <div className="popover-lang-group">
+                                            {['tr', 'en'].map(l => (
+                                                <button
+                                                    key={l}
+                                                    onClick={() => setLang(l)}
+                                                    className={`popover-lang-btn ${lang === l ? 'active' : ''}`}
+                                                >
+                                                    {l.toUpperCase()}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Settings Button */}
+                                    <button
+                                        className="popover-action-btn"
+                                        onClick={() => { setShowAdvanced(true); setShowUserMenu(false); }}
+                                    >
+                                        <span>⚙️</span>
+                                        <span>{t.advanced_settings || 'Gelişmiş Ayarlar'}</span>
+                                    </button>
+
+                                    {/* Reset Data Button */}
+                                    <button
+                                        className="popover-action-btn text-danger"
+                                        onClick={() => {
+                                            localStorage.removeItem('lbm_bankroll_state');
+                                            window.location.reload();
+                                        }}
+                                    >
+                                        <span>🔄</span>
+                                        <span>{lang === 'tr' ? 'Verileri Sıfırla' : 'Reset System'}</span>
+                                    </button>
+
+                                    <div className="user-popover-divider"></div>
+
+                                    {/* Logout Button */}
+                                    <button
+                                        className="popover-logout-btn"
+                                        onClick={() => { setShowUserMenu(false); onLogout(); }}
+                                    >
+                                        <span>🚪</span>
+                                        <span>{t.logout}</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
-                <div className="header-actions" style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                    <div className="auth-user-info" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <div style={{
-                                background: PLAN_COLORS[userProfile?.plan || 'trial'] + '22',
-                                color: PLAN_COLORS[userProfile?.plan || 'trial'],
-                                border: `1px solid ${PLAN_COLORS[userProfile?.plan || 'trial']}44`,
-                                padding: '0.2rem 0.6rem',
-                                borderRadius: '6px',
-                                fontSize: '0.6rem',
-                                fontWeight: 900,
-                                letterSpacing: '0.5px'
-                            }}>
-                                {t[(userProfile?.plan || 'trial') + '_badge']}
-                            </div>
-                            <div style={{ color: 'var(--accent-color)', fontWeight: 800, fontSize: '0.7rem', opacity: 0.8 }}>{user?.email}</div>
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            {userProfile?.subscription_end && (
-                                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: getRemainingDays(userProfile.subscription_end) <= 3 ? '#ef4444' : '#94a3b8' }}>
-                                    ⏳ {getRemainingDays(userProfile.subscription_end)} {t.days_remaining}
-                                </div>
-                            )}
-                            <button
-                                onClick={onLogout}
-                                className="logout-btn"
-                                style={{
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                                    color: '#ef4444',
-                                    fontSize: '0.6rem',
-                                    fontWeight: 800,
-                                    cursor: 'pointer',
-                                    padding: '0.35rem 0.7rem',
-                                    borderRadius: '6px',
-                                    transition: 'all 0.2s',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                🚪 {t.logout}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* View Toggle - Available to all users */}
-                    <div className="view-toggle-wrapper" style={{ display: 'flex', gap: '0.3rem', background: 'rgba(15, 23, 42, 0.8)', padding: '0.2rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
+                {/* Middle Row: Single Unified Navigation Bar */}
+                <div className="terminal-nav-row">
+                    <div className="unified-nav-tabs">
                         <button
+                            className={`unified-tab-btn ${view === 'DASHBOARD' ? 'active' : ''}`}
                             onClick={() => setView('DASHBOARD')}
-                            style={{
-                                padding: '0.4rem 0.8rem',
-                                fontSize: '0.65rem',
-                                cursor: 'pointer',
-                                background: view === 'DASHBOARD' ? 'var(--accent-color)' : 'transparent',
-                                color: view === 'DASHBOARD' ? '#000' : 'var(--text-secondary)',
-                                border: 'none',
-                                borderRadius: '7px',
-                                fontWeight: 800,
-                                transition: 'all 0.2s'
-                            }}
-                        >📊 {t.title}</button>
+                        >
+                            <span>⚡</span>
+                            <span>{lang === 'tr' ? 'CANLI RADAR' : 'LIVE RADAR'}</span>
+                            {matches.length > 0 && <span className="tab-count-pill">{matches.length}</span>}
+                        </button>
                         <button
+                            className={`unified-tab-btn ${view === 'RADAR' ? 'active' : ''}`}
                             onClick={() => setView('RADAR')}
-                            style={{
-                                padding: '0.4rem 0.8rem',
-                                fontSize: '0.65rem',
-                                cursor: 'pointer',
-                                background: view === 'RADAR' ? 'var(--accent-color)' : 'transparent',
-                                color: view === 'RADAR' ? '#000' : 'var(--text-secondary)',
-                                border: 'none',
-                                borderRadius: '7px',
-                                fontWeight: 800,
-                                transition: 'all 0.2s'
-                            }}
-                        >🎯 RADAR</button>
-                    </div>
-
-                    <div className="nav-tabs" style={{ display: 'flex', gap: '0.4rem', background: 'rgba(15, 23, 42, 0.8)', padding: '0.3rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                        >
+                            <span>🎯</span>
+                            <span>{lang === 'tr' ? 'GÜNLÜK RADAR' : 'DAILY RADAR'}</span>
+                        </button>
                         <button
-                            onClick={() => setView('DASHBOARD')}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                fontSize: '0.7rem',
-                                cursor: 'pointer',
-                                background: view === 'DASHBOARD' ? 'var(--accent-color)' : 'transparent',
-                                color: view === 'DASHBOARD' ? '#000' : 'var(--text-secondary)',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: 800,
-                                transition: 'all 0.2s'
-                            }}
-                        >🏠 CANLI</button>
-                        <button
-                            onClick={() => setView('RADAR')}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                fontSize: '0.7rem',
-                                cursor: 'pointer',
-                                background: view === 'RADAR' ? 'var(--accent-color)' : 'transparent',
-                                color: view === 'RADAR' ? '#000' : 'var(--text-secondary)',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: 800,
-                                transition: 'all 0.2s'
-                            }}
-                        >🎯 RADAR</button>
-                        <button
+                            className={`unified-tab-btn ${view === 'PORTFOLIO' ? 'active' : ''}`}
                             onClick={() => setView('PORTFOLIO')}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                fontSize: '0.7rem',
-                                cursor: 'pointer',
-                                background: view === 'PORTFOLIO' ? 'var(--success-color)' : 'transparent',
-                                color: view === 'PORTFOLIO' ? '#000' : 'var(--text-secondary)',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: 800,
-                                transition: 'all 0.2s'
-                            }}
-                        >📈 PORFÖY</button>
+                        >
+                            <span>📈</span>
+                            <span>{lang === 'tr' ? 'PORTFÖY' : 'PORTFOLIO'}</span>
+                        </button>
                         {(isAdmin || userProfile?.plan === 'admin') && (
                             <button
+                                className={`unified-tab-btn admin ${view === 'ADMIN' ? 'active' : ''}`}
                                 onClick={() => setView('ADMIN')}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    fontSize: '0.7rem',
-                                    cursor: 'pointer',
-                                    background: view === 'ADMIN' ? 'var(--warning-color)' : 'transparent',
-                                    color: view === 'ADMIN' ? '#000' : 'var(--text-secondary)',
-                                    border: 'none',
-                                    borderRadius: '8px',
-                                    fontWeight: 800,
-                                    transition: 'all 0.2s'
-                                }}
-                            >🛡️ ADMIN</button>
+                            >
+                                <span>🛡️</span>
+                                <span>ADMIN</span>
+                            </button>
                         )}
                     </div>
+                </div>
 
-                    <div className="lang-toggle" style={{ display: 'flex', gap: '0.3rem', background: 'rgba(15, 23, 42, 0.8)', padding: '0.2rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
-                        {['tr', 'en'].map(l => (
-                            <button
-                                key={l}
-                                onClick={() => setLang(l)}
-                                style={{
-                                    padding: '0.4rem 0.8rem',
-                                    fontSize: '0.65rem',
-                                    cursor: 'pointer',
-                                    background: lang === l ? 'var(--accent-color)' : 'transparent',
-                                    color: lang === l ? '#000' : 'var(--text-secondary)',
-                                    border: 'none',
-                                    borderRadius: '7px',
-                                    fontWeight: 800,
-                                    transition: 'all 0.2s'
-                                }}
-                            >{l.toUpperCase()}</button>
-                        ))}
+                {/* Bottom Row: Micro KPI Ticker Strip */}
+                <div className="terminal-kpi-strip">
+                    <div className="kpi-pill success">
+                        <span className="kpi-label">{t.pass_rate}:</span>
+                        <span className="kpi-val">{(analytics.passRate || 0).toFixed(1)}%</span>
                     </div>
-
-                    <div className="utility-btns" style={{ display: 'flex', gap: '0.8rem', alignItems: 'center' }}>
-                        <button onClick={() => setShowAdvanced(true)} className="settings-btn" style={{ fontSize: '1.1rem', background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.7 }}>⚙️</button>
-                        <button
-                            onClick={() => {
-                                console.log('[DEBUG] Reset button clicked - executing immediately!');
-                                localStorage.removeItem('lbm_bankroll_state');
-                                window.location.reload();
-                            }}
-                            style={{
-                                background: 'rgba(239, 68, 68, 0.2)',
-                                border: '1px solid rgba(239, 68, 68, 0.5)',
-                                borderRadius: '8px',
-                                padding: '0.4rem 0.8rem',
-                                cursor: 'pointer',
-                                fontSize: '0.7rem',
-                                color: 'var(--danger-color)',
-                                fontWeight: 700
-                            }}
-                        >
-                            🔄 SIFIRLA
-                        </button>
+                    <div className="kpi-pill neutral">
+                        <span className="kpi-label">{t.no_bet_rate}:</span>
+                        <span className="kpi-val">{(analytics.noBetRate || 0).toFixed(1)}%</span>
                     </div>
+                    <div className="kpi-pill accent">
+                        <span className="kpi-label">{t.limit}:</span>
+                        <span className="kpi-val">{bankState.daily_bet_count}/{CONFIG.BANKROLL.HIERARCHY.THRESHOLDS.DAILY_BET_LIMIT}</span>
+                    </div>
+                    <button
+                        onClick={() => { setFaqMode('live'); setShowFAQ(true); }}
+                        className="kpi-faq-btn"
+                        title={lang === 'tr' ? 'Sistem Rehberi & SSS' : 'System Guide & FAQ'}
+                    >
+                        <span>❓</span>
+                        <span className="kpi-faq-text">{lang === 'tr' ? 'Rehber' : 'Guide'}</span>
+                    </button>
                 </div>
             </header>
 
-            {/* Membership Warning Banner */}
-            {(userProfile?.plan === 'trial' || getRemainingDays(userProfile?.subscription_end) <= 3) && (
-                <div className="glass-panel" style={{
-                    marginBottom: '3rem',
-                    padding: '1.2rem 2.5rem',
-                    background: getRemainingDays(userProfile?.subscription_end) <= 3
-                        ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.15), rgba(15, 23, 42, 0.4))'
-                        : 'linear-gradient(90deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.4))',
-                    border: `1px solid ${getRemainingDays(userProfile?.subscription_end) <= 3 ? 'var(--danger-color)' : 'var(--success-color)'}44`,
-                    borderRadius: '16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    animation: 'pulse 3s infinite'
-                }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                        <div style={{
-                            width: '45px',
-                            height: '45px',
-                            borderRadius: '50%',
-                            background: getRemainingDays(userProfile?.subscription_end) <= 3 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '1.5rem'
-                        }}>
-                            {getRemainingDays(userProfile?.subscription_end) <= 3 ? '⚠️' : '🎁'}
-                        </div>
-                        <div>
-                            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 900, color: '#fff', letterSpacing: '0.5px' }}>
-                                {getRemainingDays(userProfile?.subscription_end) <= 3 ? t.expiry_warning : t.trial_banner_title}
-                            </h4>
-                            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', opacity: 0.6, fontWeight: 500 }}>{t.trial_banner_desc}</p>
+            {/* Slim Dismissible Membership Warning Banner */}
+            {!dismissTrialBanner && (userProfile?.plan === 'trial' || getRemainingDays(userProfile?.subscription_end) <= 3) && (
+                <div className="slim-membership-banner glass-panel">
+                    <div className="banner-left">
+                        <span className="banner-icon">{getRemainingDays(userProfile?.subscription_end) <= 3 ? '⚠️' : '🎁'}</span>
+                        <div className="banner-text">
+                            <strong>{getRemainingDays(userProfile?.subscription_end) <= 3 ? t.expiry_warning : t.trial_banner_title}:</strong>
+                            <span> {getRemainingDays(userProfile?.subscription_end) <= 3
+                                ? `${getRemainingDays(userProfile?.subscription_end)} ${t.days_remaining}`
+                                : t.trial_banner_desc}</span>
                         </div>
                     </div>
-                    <button
-                        onClick={() => setShowAdvanced(true)}
-                        style={{
-                            background: getRemainingDays(userProfile?.subscription_end) <= 3 ? 'var(--danger-color)' : 'var(--success-color)',
-                            color: '#000',
-                            border: 'none',
-                            padding: '0.7rem 1.8rem',
-                            borderRadius: '10px',
-                            fontSize: '0.8rem',
-                            fontWeight: 900,
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                            transition: 'transform 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
-                        onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-                    >
-                        {t.upgrade_plan}
-                    </button>
+                    <div className="banner-right">
+                        <button
+                            onClick={() => setShowAdvanced(true)}
+                            className="banner-upgrade-btn"
+                        >
+                            {t.upgrade_plan}
+                        </button>
+                        <button
+                            onClick={() => setDismissTrialBanner(true)}
+                            className="banner-dismiss-btn"
+                            title={lang === 'tr' ? 'Kapat' : 'Close'}
+                        >
+                            ✕
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -3367,10 +3253,79 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     {/* Raw Data Explorer */}
                     <section className="dashboard-section explorer" style={{ marginBottom: '5rem' }}>
-                        <div className="section-header" style={{ marginBottom: '2rem' }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{t.raw_data_explorer}</h2>
+                        <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 style={{ fontSize: '1.3rem', fontWeight: 800 }}>{t.raw_data_explorer}</h2>
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>{matches.length} {lang === 'tr' ? 'canlı maç' : 'live matches'}</span>
                         </div>
-                        <div className="glass-panel" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+
+                        {/* Mobile Match Cards (Screen < 768px) */}
+                        <div className="mobile-matches-view">
+                            {matches.length === 0 ? (
+                                <div className="no-matches-mobile glass-panel">
+                                    <span>📡</span>
+                                    <p>{lang === 'tr' ? 'Şu anda canlı maç taranıyor...' : 'Scanning live matches...'}</p>
+                                </div>
+                            ) : (
+                                matches.map(m => {
+                                    const isQualified = (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD;
+                                    const scoreHome = (m.score && typeof m.score === 'object') ? (m.score.home ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[0]?.trim() : 0);
+                                    const scoreAway = (m.score && typeof m.score === 'object') ? (m.score.away ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[1]?.trim() : 0);
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            className="mobile-match-card glass-panel"
+                                            onClick={() => setSelectedMatch(m)}
+                                        >
+                                            <div className="match-card-header">
+                                                <span className="match-league">{m.league || 'Football'}</span>
+                                                <div className="match-minute-pill">
+                                                    <span className="live-minute-dot"></span>
+                                                    <span>{renderMatchMinute(m.minute, t, false)}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="match-card-body">
+                                                <div className="match-teams-box">
+                                                    <div className="team-row">
+                                                        <span className="team-name">{m.homeTeam}</span>
+                                                        <span className="team-score">{scoreHome}</span>
+                                                    </div>
+                                                    <div className="team-row">
+                                                        <span className="team-name">{m.awayTeam}</span>
+                                                        <span className="team-score">{scoreAway}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="match-card-footer">
+                                                <div className="match-metric">
+                                                    <span className="metric-label">DQS</span>
+                                                    <span className={`metric-value ${isQualified ? 'text-success' : 'text-danger'}`}>
+                                                        {m.dqs ? m.dqs.toFixed(2) : '0.00'}
+                                                    </span>
+                                                </div>
+                                                <div className="match-metric">
+                                                    <span className="metric-label">{t.sog}</span>
+                                                    <span className="metric-value">{m.stats?.shotsOnGoal?.home || 0}:{m.stats?.shotsOnGoal?.away || 0}</span>
+                                                </div>
+                                                <div className="match-metric">
+                                                    <span className="metric-label">TIER</span>
+                                                    <span className="metric-value">T{m.tier}</span>
+                                                </div>
+                                                <div className="match-status-badge">
+                                                    <span className={`status-pill ${isQualified ? 'qualified' : 'rejected'}`}>
+                                                        {isQualified ? t.in_analysis : t.rejected}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Desktop Table (Screen >= 768px) */}
+                        <div className="desktop-matches-view glass-panel" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
                                     <thead>
@@ -4565,6 +4520,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             {showStakingCalc && <StakingCalculator onClose={() => setShowStakingCalc(false)} lang={lang} />}
             {showFAQ && <FAQ onClose={() => setShowFAQ(false)} lang={lang} mode={faqMode} />}
             <button
+                className="floating-kpi-fab"
                 onClick={() => {
                     smartAlertService.autoResolveAlerts(matches);
                     setAlertHistoryList(smartAlertService.getHistory(50));
