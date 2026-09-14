@@ -303,16 +303,16 @@ ${scoreStr ? `📊 *Final Score:* ${scoreStr}\n` : ''}❌ *Result:* Missed
 function resolveConsensusPredName(pred) {
     if (!pred) return 'N/A';
     const p = String(pred).trim();
-    if (p === '1') return 'MS 1 (Ev Sahibi)';
-    if (p === 'X') return 'MS X (Beraberlik)';
-    if (p === '2') return 'MS 2 (Deplasman)';
-    if (p === '1X') return 'ÇŞ 1X (Çifte Şans)';
-    if (p === 'X2') return 'ÇŞ X2 (Çifte Şans)';
-    if (p === '12') return 'ÇŞ 12 (Çifte Şans)';
-    if (p.toLowerCase().includes('üst') || p.toLowerCase().includes('over')) return '2.5 Gol Üstü';
-    if (p.toLowerCase().includes('alt') || p.toLowerCase().includes('under')) return '2.5 Gol Altı';
-    if (p.toLowerCase().includes('var') || p.toLowerCase().includes('yes')) return 'Karşılıklı Gol Var (KG Var)';
-    if (p.toLowerCase().includes('yok') || p.toLowerCase().includes('no')) return 'Karşılıklı Gol Yok (KG Yok)';
+    if (p === '1') return 'Home Win (1)';
+    if (p === 'X') return 'Draw (X)';
+    if (p === '2') return 'Away Win (2)';
+    if (p === '1X') return 'Double Chance (1X)';
+    if (p === 'X2') return 'Double Chance (X2)';
+    if (p === '12') return 'Double Chance (12)';
+    if (p.toLowerCase().includes('üst') || p.toLowerCase().includes('over')) return 'Over 2.5 Goals';
+    if (p.toLowerCase().includes('alt') || p.toLowerCase().includes('under')) return 'Under 2.5 Goals';
+    if (p.toLowerCase().includes('var') || p.toLowerCase().includes('yes')) return 'Both Teams To Score (BTTS: Yes)';
+    if (p.toLowerCase().includes('yok') || p.toLowerCase().includes('no')) return 'Both Teams To Score (BTTS: No)';
     return p;
 }
 
@@ -329,13 +329,13 @@ export function formatRadarPick(match) {
 
     const home = cleanMd(match.home || 'Home');
     const away = cleanMd(match.away || 'Away');
-    const league = cleanMd(match.league || 'Bülten');
+    const league = cleanMd(match.league || 'Pre-Match Fixture');
 
     const predDetails = Object.entries(match.predictions || {})
         .map(([site, pred]) => {
             const prob = match.probabilities?.[site];
             const predName = resolveConsensusPredName(pred);
-            return `  • ${cleanMd(site)}: *${cleanMd(predName)}*${prob ? ` (%${prob} İhtimal)` : ''}`;
+            return `  • ${cleanMd(site)}: *${cleanMd(predName)}*${prob ? ` (${prob}% Probability)` : ''}`;
         })
         .join('\n');
 
@@ -350,37 +350,37 @@ export function formatRadarPick(match) {
         if (typeof match.form === 'object') {
             const hf = Array.isArray(match.form.home) ? match.form.home.join('-') : (match.form.home || '');
             const af = Array.isArray(match.form.away) ? match.form.away.join('-') : (match.form.away || '');
-            if (hf || af) formText = `📈 *Son Form Grafiği:*\n  • ${home}: \`${hf || 'N/A'}\`\n  • ${away}: \`${af || 'N/A'}\``;
+            if (hf || af) formText = `📈 *Recent Form Guide:*\n  • ${home}: \`${hf || 'N/A'}\`\n  • ${away}: \`${af || 'N/A'}\``;
         } else if (typeof match.form === 'string') {
-            formText = `📈 *Form Bilgisi:* \`${match.form}\``;
+            formText = `📈 *Form Guide:* \`${match.form}\``;
         }
     }
 
     let standingsText = '';
     if (match.ranks && (match.ranks.home !== '-' || match.ranks.away !== '-')) {
-        standingsText = `📊 *Lig Sıralaması & Puan:*\n  • ${home}: ${match.ranks.home || '-'}. Sıra (${match.points?.home || '-'} Puan)\n  • ${away}: ${match.ranks.away || '-'}. Sıra (${match.points?.away || '-'} Puan)`;
+        standingsText = `📊 *League Standings & Points:*\n  • ${home}: Rank #${match.ranks.home || '-'} (${match.points?.home || '-'} Pts)\n  • ${away}: Rank #${match.ranks.away || '-'} (${match.points?.away || '-'} Pts)`;
     }
 
     const headerEmoji = agreePercent === 100 ? '🔥' : '🎯';
-    const headerTitle = agreePercent === 100 ? 'GÜNÜN %100 ORTAK AKIL BANKOSU' : 'GÜNÜN KONSENSÜS DEĞER SEÇİMİ';
+    const headerTitle = agreePercent === 100 ? 'PRE-MATCH 100% QUANT CONSENSUS' : 'PRE-MATCH CONSENSUS RADAR PICK';
 
     const message = `${headerEmoji} *${headerTitle}*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚽ *${home} vs ${away}*
-🏆 *Lig:* ${league}
-${match.time ? `⏰ *Başlama Saati:* ${match.time}` : ''}${match.date ? ` (Tarih: ${match.date})` : ''}
+🏆 *League:* ${league}
+${match.time ? `⏰ *Kickoff:* ${match.time}` : ''}${match.date ? ` (Date: ${match.date})` : ''}
 
-🎯 *KONSENSÜS TERCİHİ:* *${topPredText}*
-📊 *Uzlaşma Oranı:* *%${agreePercent}* (${topCount} / ${totalSources} Platform Hemfikir!)
+🎯 *CONSENSUS PICK:* *${topPredText}*
+📊 *Syndicate Agreement:* *${agreePercent}%* (${topCount} / ${totalSources} Platforms Concurring!)
 
-📋 *Platform & Model Dağılımı:*
-${predDetails || '  Platform tahminleri işleniyor...'}
+📋 *Algorithmic Model Breakdown:*
+${predDetails || '  Model predictions processing...'}
 
-${scoreDetails ? `🔢 *Algoritmik Skor Beklentileri:*\n${scoreDetails}\n` : ''}${formText ? `${formText}\n` : ''}${standingsText ? `${standingsText}\n` : ''}
-💰 *Kasa Yönetimi (Bankroll):*
-Önerilen: *%1.50 - %2.00 Sabit Kasa* (Quarter-Kelly Modeli)
+${scoreDetails ? `🔢 *Algorithmic Score Forecasts:*\n${scoreDetails}\n` : ''}${formText ? `${formText}\n` : ''}${standingsText ? `${standingsText}\n` : ''}
+💰 *Staking Advice (Bankroll):*
+Recommended: *1.50% - 2.00% Bankroll* (Quarter-Kelly Model)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🤖 *10-Kaynak Konsensüs & AI Füzyon Motoru*
+🤖 *10-Source Consensus & AI Fusion Engine*
 💎 *LIVE BET MENTOR VIP SYNDICATE*`;
 
     return message;
@@ -396,21 +396,21 @@ export function formatRadarTeaser(match) {
 
     const home = cleanMd(match.home || 'Home');
     const away = cleanMd(match.away || 'Away');
-    const league = cleanMd(match.league || 'Bülten');
+    const league = cleanMd(match.league || 'Pre-Match Fixture');
 
-    return `📡 *GÜNÜN ORTAK AKIL RADAR UYARISI*
+    return `📡 *PRE-MATCH QUANT RADAR ALERT*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚽ *${home} vs ${away}*
-🏆 *Lig:* ${league}
-${match.time ? `⏰ *Başlama Saati:* ${match.time}` : ''}
+🏆 *League:* ${league}
+${match.time ? `⏰ *Kickoff:* ${match.time}` : ''}
 
-⚡ *10 Global Yapay Zeka Modelinin %${agreePercent} Uzlaşması Tespit Edildi!*
-📊 *${topCount} / ${totalSources} Platform* bu maçta ortak sonuca vardı.
+⚡ *10 Global Predictive Models Reached ${agreePercent}% Consensus!*
+📊 *${topCount} / ${totalSources} Ingestion Platforms* concurred on the highest-probability outcome.
 
-🔒 _Günün bu banko tercihi, skor beklentileri ve kasa yönetim rehberi VIP Grubumuzda paylaşıldı._
+🔒 _Full prediction, fair-odds benchmark, score forecasts & Kelly stake released in VIP Syndicate._
 
-👉 *VIP Ayrıcalıklarını Başlatın:*
-/trial — 3 Günlük Ücretsiz VIP Deneme Paketi!
+👉 *Claim Complimentary VIP Pass:*
+/trial — Activate your *3-Day Free VIP Syndicate Pass* instantly!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *LIVE BET MENTOR VIP SYNDICATE*`;
 }

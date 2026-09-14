@@ -2176,7 +2176,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 158, 217, 0.25)';
                                                 }}
                                             >
-                                                <span>✈️</span> Telegram VIP'ye Gönder
+                                                <span>✈️</span> {lang === 'tr' ? "Telegram VIP'ye Gönder" : "Broadcast to Telegram VIP"}
                                             </button>
                                         </div>
                                     </div>

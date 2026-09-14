@@ -938,36 +938,37 @@ _Average activation time: 2–5 minutes._
 
             case '/radar':
             case '/banko':
+            case '/consensus':
             case '/konsensus': {
                 const picks = consensusReader.getTopConsensusPicks({ minSources: 4, minAgreement: 75, limit: 3 });
                 if (!picks || picks.length === 0) {
-                    await this.sendMessage(chatId, `📡 *Günün Konsensüs Radarı:*\n\nŞu anda yüksek uzlaşma sağlanan (%75+ / 4+ kaynak) maç bulunamadı. Güncel bülten taranıyor...`);
+                    await this.sendMessage(chatId, `📡 *Pre-Match Consensus Radar:*\n\nNo fixtures currently meet the 75%+ consensus threshold across 4+ ingestion sources. Scraping live bulletin...`);
                     break;
                 }
-                const header = `🎯 *GÜNÜN EN YÜKSEK KONSENSÜS MAÇLARI (10 Model)*\n━━━━━━━━━━━━━━━━━━\n`;
+                const header = `🎯 *PRE-MATCH CONSENSUS RADAR (Top Quantitative Picks)*\n━━━━━━━━━━━━━━━━━━\n`;
                 const list = picks.map((p, idx) => {
                     const agreeIcon = p.agreementPercent === 100 ? '🔥' : '⭐';
                     const score = Object.values(p.scorePredictions || {})[0] || '-';
-                    return `${idx + 1}. ${agreeIcon} *${p.home} vs ${p.away}*\n   • Tercih: *${p.topPred}* (%${p.agreementPercent} — ${p.topCount}/${p.totalSources} Model)\n   • Lig: _${p.league}_ | Saat: ${p.time || '-'}\n   • Skor Beklentisi: \`${score}\``;
+                    return `${idx + 1}. ${agreeIcon} *${p.home} vs ${p.away}*\n   • Selection: *${p.topPred}* (${p.agreementPercent}% — ${p.topCount}/${p.totalSources} Models)\n   • League: _${p.league}_ | Kickoff: ${p.time || '-'}\n   • Algorithmic Score: \`${score}\``;
                 }).join('\n\n');
 
-                const footer = `\n\n━━━━━━━━━━━━━━━━━━\n💡 _Detaylı skor, AI model dağılımı ve kasa tavsiyeleri için VIP kanalımızı takip edin._`;
+                const footer = `\n\n━━━━━━━━━━━━━━━━━━\n💡 _Full algorithmic breakdown, score forecasts and bankroll advice available in VIP Syndicate._`;
                 await this.sendMessage(chatId, header + list + footer);
                 break;
             }
 
-            case '/yayinla':
-            case '/broadcastradar': {
+            case '/broadcastradar':
+            case '/yayinla': {
                 if (!vipManager.isAdmin(chatId)) {
-                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
+                    await this.sendMessage(chatId, `⛔ *Unauthorized:* Only system administrators can execute this command.`);
                     break;
                 }
-                await this.sendMessage(chatId, `⏳ Günün en yüksek konsensüs maçları taranıp Telegram kanallarına yayınlanıyor...`);
+                await this.sendMessage(chatId, `⏳ Scanning highest-consensus fixtures and broadcasting to Telegram channels...`);
                 const bRes = await this.broadcastConsensusPicks({ force: true, limit: 2 });
                 if (bRes.ok) {
-                    await this.sendMessage(chatId, `✅ *Yayın Başarılı!*\n\n• Gönderilen Maç Sayısı: *${bRes.count}*\n• VIP Grup & Genel Kanal güncellendi.`);
+                    await this.sendMessage(chatId, `✅ *Broadcast Successful!*\n\n• Dispatched Fixtures: *${bRes.count}*\n• VIP Group & Public Channel updated.`);
                 } else {
-                    await this.sendMessage(chatId, `❌ Yayın hatası: ${bRes.error || bRes.message}`);
+                    await this.sendMessage(chatId, `❌ Broadcast Error: ${bRes.error || bRes.message}`);
                 }
                 break;
             }
