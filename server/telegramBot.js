@@ -150,6 +150,38 @@ class TelegramBot {
     }
 
     /**
+     * Send photo to chat
+     */
+    async sendPhoto(chatId, photo, caption = '', options = {}) {
+        if (!this.token || !chatId || !photo) return null;
+        try {
+            const body = {
+                chat_id: chatId,
+                photo: photo,
+                caption: caption,
+                parse_mode: 'Markdown',
+                ...options
+            };
+
+            const res = await fetch(`https://api.telegram.org/bot${this.token}/sendPhoto`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+
+            const data = await res.json();
+            if (!data.ok) {
+                console.error(`[TELEGRAM] Send photo failed to ${chatId}:`, data.description);
+                return null;
+            }
+            return data.result;
+        } catch (e) {
+            console.error(`[TELEGRAM] Send photo error:`, e.message);
+            return null;
+        }
+    }
+
+    /**
      * Check if signal level meets minimum threshold
      */
     meetsMinLevel(level) {
@@ -552,6 +584,7 @@ class TelegramBot {
 
         const chatId = msg.chat.id;
         const username = msg.from?.username || msg.from?.first_name || 'User';
+        const isAdmin = vipManager.isAdmin(chatId);
 
         // 0. Auto-detect forwarded channel or group ID
         if (msg.forward_from_chat) {
@@ -560,8 +593,59 @@ class TelegramBot {
             return;
         }
 
-        if (!msg.text) return;
-        const text = msg.text.trim();
+        const text = (msg.text || msg.caption || '').trim();
+        const hasPhoto = Array.isArray(msg.photo) && msg.photo.length > 0;
+        const photoFileId = hasPhoto ? msg.photo[msg.photo.length - 1].file_id : null;
+
+        // If not a command (doesn't start with /)
+        if (!text.startsWith('/')) {
+            // If sender is NOT an admin, relay payment proof / question to Admin
+            if (!isAdmin && (text || hasPhoto)) {
+                console.log(`[TELEGRAM] 📩 Customer submission from @${username} (${chatId}): ${text || '[Photo]'}`);
+
+                // A. Professional receipt acknowledgement to customer
+                const customerAck = `📩 *Submission Received!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Dear @${username},
+Our quantitative verification desk has received your submission.
+
+⏱️ *Status:* Under Verification
+Once verified, your private single-use VIP Syndicate access link will be delivered directly here in this chat.
+
+_Average activation time: 2–5 minutes._
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *LIVE BET MENTOR VIP SYNDICATE*`;
+                await this.sendMessage(chatId, customerAck);
+
+                // B. Relay alert directly to Admin
+                const adminAlert = `🔔 *NEW PAYMENT / RECEIPT SUBMITTED!* 🔔
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 *User:* @${username}
+🆔 *Chat ID:* \`${chatId}\`
+💬 *Note:* ${text || '(Receipt screenshot attached)'}
+
+⚡ *One-Tap VIP Approval:*
+• 30 Days: \`/grantvip ${chatId} 30\`
+• 7 Days: \`/grantvip ${chatId} 7\`
+• 90 Days: \`/grantvip ${chatId} 90\`
+
+💬 *To reply to user:*
+\`/reply ${chatId} Your message here...\`
+━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+                for (const adminId of vipManager.adminIds) {
+                    if (adminId && adminId !== 'admin' && adminId !== '12345678') {
+                        if (hasPhoto) {
+                            await this.sendPhoto(adminId, photoFileId, adminAlert);
+                        } else {
+                            await this.sendMessage(adminId, adminAlert);
+                        }
+                    }
+                }
+                return;
+            }
+            return;
+        }
 
         console.log(`[TELEGRAM] Command from ${username}: ${text}`);
 
@@ -638,6 +722,22 @@ class TelegramBot {
                         await this.sendMessage(targetId, `🎉 *Congratulations! You have been granted ${days} days of VIP Syndicate Access!*\n\nClick below to join the private VIP channel:\n👉 ${userInvite}`);
                     } catch (e) {}
                 }
+                break;
+            }
+
+            case '/reply': {
+                if (!vipManager.isAdmin(chatId)) {
+                    await this.sendMessage(chatId, `⛔ *Unauthorized:* Only system administrators can execute this command.`);
+                    break;
+                }
+                const targetId = arg1;
+                const replyMsg = parts.slice(2).join(' ');
+                if (!targetId || !replyMsg) {
+                    await this.sendMessage(chatId, `ℹ️ *Usage:* \`/reply <ChatID> <Message>\`\nExample: \`/reply 12345678 Payment received, thank you!\``);
+                    break;
+                }
+                await this.sendMessage(targetId, `📩 *Message from VIP Support Desk:*\n\n${replyMsg}\n\n━━━━━━━━━━━━━━━━━━\n💎 *Live Bet Mentor VIP Syndicate*`);
+                await this.sendMessage(chatId, `✅ *Reply delivered successfully to:* \`${targetId}\``);
                 break;
             }
 

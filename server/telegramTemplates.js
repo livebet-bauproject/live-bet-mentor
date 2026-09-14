@@ -401,9 +401,9 @@ _(Tap address to copy)_
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ *How to Activate Your VIP Pass:*
-1. Send the exact tier amount in *USDT (TRC-20)* to the address above.
-2. Send your transaction screenshot / TXID to ${adminUser.startsWith('@') ? adminUser : '@' + adminUser}.
-3. Your personal single-use VIP access link will be issued immediately!
+1. Send the exact tier amount in *USDT (TRC-20)* to the deposit address above.
+2. Send your transaction screenshot or TXID directly here in this bot chat!
+3. Our desk will verify and dispatch your personal VIP Syndicate link immediately!
 
 🎁 *Want to test first?*
 Type /trial to claim your *3-Day Free VIP Trial*!
