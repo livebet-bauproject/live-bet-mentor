@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 export class VipManager {
     constructor() {
         this.filePath = path.join(__dirname, 'vip_users.json');
-        this.adminIds = (process.env.TELEGRAM_ADMIN_IDS || '12345678,admin').split(',').map(s => s.trim());
+        this.adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988,12345678').split(',').map(s => s.trim());
         this.users = {};
         this.loadUsers();
     }

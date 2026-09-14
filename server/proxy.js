@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { spawn, spawnSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
 import { learningEngine } from './learningEngine.js';
+import { autonomousSignalEngine } from './autonomousSignalEngine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -843,6 +844,9 @@ app.listen(PORT, '0.0.0.0', async () => {
     } else {
         console.warn('[PROXY] ⚠️ Telegram Bot not available:', botStatus.error);
     }
+
+    // 24/7 Autonomous In-Play Quant Signal Engine
+    autonomousSignalEngine.start(25);
 
     startScraper();
     setTimeout(() => {

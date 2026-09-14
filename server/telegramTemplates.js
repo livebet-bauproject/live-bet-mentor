@@ -9,97 +9,95 @@ export function cleanMd(str) {
 }
 
 export function resolveMarketText(alert) {
-    const home = cleanMd(alert.homeTeam || 'Ev Sahibi');
-    const away = cleanMd(alert.awayTeam || 'Deplasman');
+    const home = cleanMd(alert.homeTeam || 'Home');
+    const away = cleanMd(alert.awayTeam || 'Away');
     const rec = alert.recommendation || {};
     const key = rec.marketKey || '';
     const label = cleanMd(rec.marketLabel || rec.market || '');
     const team = cleanMd(rec.team || (key.includes('home') ? home : key.includes('away') ? away : ''));
-    const oddsStr = rec.odds ? ` (Oran: ${rec.odds})` : '';
+    const oddsStr = rec.odds ? ` (Odds: ${rec.odds})` : '';
 
     // Direct explicit prediction if provided
     if (rec.predictionText) {
         return `${cleanMd(rec.predictionText)}${oddsStr}`;
     }
 
-    // 1. Gecikme Arbitrajı (En yüksek öncelik)
+    // 1. Latency Arbitrage (Highest priority)
     if (key === 'market_latency_arbitrage' || rec.edgeType === 'LATENCY') {
-        const target = team ? `${team} (${label || 'Sıradaki Gol'})` : (label || 'Sıradaki Gol');
-        return `Gecikme Arbitrajı: ${target}${oddsStr}`;
+        const target = team ? `${team} (${label || 'Next Goal'})` : (label || 'Next Goal');
+        return `Latency Arbitrage: ${target}${oddsStr}`;
     }
 
-    // 2. Matematiksel Değer (+EV)
+    // 2. Mathematical Value (+EV)
     if (key === 'market_plus_ev' || rec.edgeType === 'PLUS_EV') {
-        return `Değerli Bahis (+EV): ${label || 'Toplam Üst'}${oddsStr}`;
+        return `Value Edge (+EV): ${label || 'Over Goals'}${oddsStr}`;
     }
 
-    // 3. Next Goal - Ev / Deplasman
+    // 3. Next Goal - Home / Away
     if (key === 'market_next_goal_home' || key === 'HOME_NEXT_GOAL') {
-        return `Sıradaki Golü ${home} Atar${oddsStr}`;
+        return `Next Goal: ${home}${oddsStr}`;
     }
     if (key === 'market_next_goal_away' || key === 'AWAY_NEXT_GOAL') {
-        return `Sıradaki Golü ${away} Atar${oddsStr}`;
+        return `Next Goal: ${away}${oddsStr}`;
     }
 
-    // 3b. Kazanmaya Yakın (Match Winner)
+    // 3b. Match Winner
     if (key === 'HOME_WIN_NEXT') {
-        return `${home} Kazanır (Maç Sonu)${oddsStr}`;
+        return `Match Winner: ${home}${oddsStr}`;
     }
     if (key === 'AWAY_WIN_NEXT') {
-        return `${away} Kazanır (Maç Sonu)${oddsStr}`;
+        return `Match Winner: ${away}${oddsStr}`;
     }
 
-    // 4. İlk Yarı 0.5 Üst
-    if (key === 'market_fh_over05' || label.includes('İY 0.5') || label.toLowerCase().includes('ilk yarı 0.5')) {
-        return `İlk Yarı 0.5 Üst Olur${oddsStr}`;
+    // 4. First Half Over 0.5 Goals
+    if (key === 'market_fh_over05' || label.includes('İY 0.5') || label.toLowerCase().includes('first half') || label.toLowerCase().includes('ilk yarı')) {
+        return `First Half Over 0.5 Goals${oddsStr}`;
     }
 
-    // 5. Karşılıklı Gol Var (KG Var)
-    if (key === 'market_btts' || key === 'btts' || label.toUpperCase().includes('KG') || label.toLowerCase().includes('karşılıklı gol')) {
-        return `Karşılıklı Gol Var (KG Var)${oddsStr}`;
+    // 5. Both Teams To Score (BTTS: Yes)
+    if (key === 'market_btts' || key === 'btts' || label.toUpperCase().includes('KG') || label.toLowerCase().includes('both teams') || label.toLowerCase().includes('karşılıklı')) {
+        return `Both Teams To Score (BTTS: Yes)${oddsStr}`;
     }
 
-    // 6. Üst / Alt Goller
+    // 6. Over / Under Goals
     if (key === 'market_over_goals' || key === 'OVER_NEXT_DYNAMIC' || label.includes('Üst') || label.toLowerCase().includes('over')) {
-        const goalsMatch = label.match(/(\d+\.?\d*)\s*Üst/i);
+        const goalsMatch = label.match(/(\d+\.?\d*)/);
         const goals = rec.marketParams?.goals || rec.target || (goalsMatch ? goalsMatch[1] : '2.5');
-        return `${goals} Üst Olur${oddsStr}`;
+        return `Over ${goals} Match Goals${oddsStr}`;
     }
 
-    // 7. Sıradaki Gol Label kontrolü
+    // 7. Next Goal label fallback
     if (label.toLowerCase().includes('sıradaki gol') || label.toLowerCase().includes('next goal')) {
-        const targetTeam = team || (label.includes('Ev') ? home : label.includes('Dep') ? away : home);
-        return `Sıradaki Golü ${targetTeam} Atar${oddsStr}`;
+        const targetTeam = team || (label.includes('Ev') || label.includes('Home') ? home : label.includes('Dep') || label.includes('Away') ? away : home);
+        return `Next Goal: ${targetTeam}${oddsStr}`;
     }
 
-    // 7. Strateji Bazlı
+    // 8. Strategy-based signals
     if (key === 'COMEBACK' || key === 'ADV_COMEBACK') {
-        return `Geri Dönüş: Sıradaki Golü ${team || home} Atar${oddsStr}`;
+        return `Comeback In-Play: Next Goal ${team || home}${oddsStr}`;
     }
     if (key === 'PRESS' || key === 'MOMENTUM_SURGE') {
-        return `Baskı Baskın: Sıradaki Golü ${team || home} Atar${oddsStr}`;
+        return `Momentum Surge: Next Goal ${team || home}${oddsStr}`;
     }
     if (key === 'RED_CARD_ADV') {
-        return `Kırmızı Kart Avantajı: Sıradaki Golü ${team || home} Atar${oddsStr}`;
+        return `Man Advantage: Next Goal ${team || home}${oddsStr}`;
     }
     if (key === 'UNDERDOG_RESIST') {
-        return `Sürpriz Direnç: ${team || away} Gol Atar / Çifte Şans${oddsStr}`;
+        return `Underdog Resilience: ${team || away} Double Chance${oddsStr}`;
     }
     if (key === 'COUNTER_ATTACK') {
-        return `Tehlikeli Kontra: Sıradaki Golü ${team || away} Atar${oddsStr}`;
+        return `Counter Attack Blitz: Next Goal ${team || away}${oddsStr}`;
     }
 
-    // 8. Anlamlı label varsa
     if (label && label.length > 0 && label !== 'Strateji Sinyali' && label !== 'Analiz Devam Ediyor') {
         return `${label}${oddsStr}`;
     }
 
-    // 9. Takım varsa
     if (team) {
-        return `Sıradaki Golü ${team} Atar${oddsStr}`;
+        return `Next Goal: ${team}${oddsStr}`;
     }
 
-    return `Sıradaki Golü ${home} Atar${oddsStr}`;
+    return `Next Goal: ${home}${oddsStr}`;
 }
 
 export function formatVIPSignal(alert) {
@@ -110,20 +108,19 @@ export function formatVIPSignal(alert) {
     };
 
     const emoji = levelEmoji[alert.level] || '📊';
-    const levelText = alert.level === 'ALPHA' ? 'ALPHA SİNYAL' :
-                      alert.level === 'ALEV' ? 'ALEV SİNYALİ' : 'SICAK SİNYAL';
+    const levelText = alert.level === 'ALPHA' ? 'ALPHA QUANT SIGNAL' :
+                      alert.level === 'ALEV' ? 'HIGH CONVICTION ALERT' : 'IN-PLAY MOMENTUM ALERT';
 
-    const home = cleanMd(alert.homeTeam || 'Ev Sahibi');
-    const away = cleanMd(alert.awayTeam || 'Deplasman');
+    const home = cleanMd(alert.homeTeam || 'Home');
+    const away = cleanMd(alert.awayTeam || 'Away');
 
-    // Resolving clean, unambiguous prediction & market text
     const marketText = resolveMarketText(alert);
 
     // Build strategies section
     const activeStrategies = alert.activeStrategies || [];
     const strategiesText = activeStrategies.length > 0 
         ? activeStrategies.map(s => `${s.icon || '🎯'} *${cleanMd(s.label || s.id)}*`).join('\n')
-        : '• Algoritma Onaylı';
+        : '• Algorithmic In-Play Validation Passed';
 
     // Build reasons based on strategies and reasoning
     const reasons = [];
@@ -136,28 +133,28 @@ export function formatVIPSignal(alert) {
         alert.recommendation.reasoning.forEach(r => {
             if (typeof r === 'string') reasons.push(`• ${cleanMd(r)}`);
             else if (r && r.key) {
-                if (r.key === 'reason_xg_diff') reasons.push(`• xG Farkı: ${r.params?.diff || ''} üstünlük`);
-                else if (r.key === 'reason_pressure') reasons.push(`• Yoğun Hücum Baskısı: ${r.params?.pressure || ''}`);
-                else if (r.key === 'reason_value_detected') reasons.push(`• Algoritmik Değer Tespit Edildi (+EV)`);
-                else if (r.key === 'reason_alpha_signal') reasons.push(`• Yüksek Olasılıklı Alpha Sinyali`);
-                else if (r.key === 'reason_critical_min') reasons.push(`• Kritik Zaman Dilimi (${r.params?.minute}')`);
+                if (r.key === 'reason_xg_diff') reasons.push(`• xG Dominance Differential: +${r.params?.diff || ''}`);
+                else if (r.key === 'reason_pressure') reasons.push(`• Sustained Attack Pressure: ${r.params?.pressure || 'Extreme'}`);
+                else if (r.key === 'reason_value_detected') reasons.push(`• Algorithmic Price Discrepancy (+EV Detected)`);
+                else if (r.key === 'reason_alpha_signal') reasons.push(`• High Probability Institutional Alpha Trigger`);
+                else if (r.key === 'reason_critical_min') reasons.push(`• Critical Statistical Window (${r.params?.minute}')`);
             }
         });
     }
-    if (alert.maxEV > 0.15) reasons.push(`• 💰 Yüksek Değer: EV +%${(alert.maxEV * 100).toFixed(0)}`);
+    if (alert.maxEV > 0.15) reasons.push(`• 💰 High Expected Value: EV +${(alert.maxEV * 100).toFixed(0)}%`);
     
-    const reasonsText = reasons.length > 0 ? reasons.slice(0, 3).join('\n') : '• Çoklu gösterge ve kuant veri mutabakatı';
+    const reasonsText = reasons.length > 0 ? reasons.slice(0, 3).join('\n') : '• Multi-factor pitch momentum and quantitative consensus confirmed';
 
     // Confidence bar
-    const conf = alert.recommendation?.confidence || 75;
-    const filled = Math.round(conf / 10);
+    const conf = alert.recommendation?.confidence || 78;
+    const filled = Math.min(10, Math.max(1, Math.round(conf / 10)));
     const confBar = '▓'.repeat(filled) + '░'.repeat(10 - filled);
 
     let evText = '';
     if (alert.bestEV && alert.bestEV.ev >= 5) {
-        evText = `💎 *Matematiksel Değer (+EV):* +%${alert.bestEV.ev} (${alert.bestEV.label} | Adil: ${alert.bestEV.fairOdds})`;
+        evText = `💎 *Value Edge (+EV):* +${alert.bestEV.ev}% (${cleanMd(alert.bestEV.label)} | Fair: ${alert.bestEV.fairOdds})`;
     } else if (alert.maxEV > 0.05) {
-        evText = `📈 *Beklenen Değer (EV):* +%${(alert.maxEV * 100).toFixed(0)}`;
+        evText = `📈 *Expected Value (EV):* +${(alert.maxEV * 100).toFixed(0)}%`;
     }
     const surplusText = alert.xgSurplus > 0 ? `⚽ *xG Surplus:* +${alert.xgSurplus.toFixed(2)}` : '';
 
@@ -169,135 +166,142 @@ export function formatVIPSignal(alert) {
         if (homeReds !== awayReds) {
             const advTeam = awayReds > homeReds ? home : away;
             const diff = Math.abs(awayReds - homeReds);
-            redCardInfo = `🟥 *Sayısal Üstünlük:* ${advTeam} (+${diff} Kişi Fazla)`;
+            redCardInfo = `🟥 *Numerical Superiority:* ${advTeam} (+${diff} Man Advantage)`;
         } else {
-            redCardInfo = `🟥 *Kırmızı Kartlar:* ${homeReds} - ${awayReds} (10 vs 10)`;
+            redCardInfo = `🟥 *Red Cards:* ${homeReds} - ${awayReds} (10 vs 10)`;
         }
     }
 
     // Smart Money / Dropping Odds Info
     let droppingOddsInfo = '';
     if (alert.oddsMovement && alert.oddsMovement.isDropping) {
-        droppingOddsInfo = `📉 *Smart Money:* ${alert.oddsMovement.initialOdds} ➔ ${alert.oddsMovement.currentOdds} (%${alert.oddsMovement.dropPct.toFixed(0)} Düşüş)`;
+        droppingOddsInfo = `📉 *Smart Money Flow:* ${alert.oddsMovement.initialOdds} ➔ ${alert.oddsMovement.currentOdds} (${alert.oddsMovement.dropPct.toFixed(0)}% Squeeze)`;
     }
 
     // Latency Arbitrage Alert
     let latencyInfo = '';
     if (alert.latencyEdge) {
-        latencyInfo = `⚡ *Gecikme Arbitrajı:* Büro ${alert.latencyEdge.softOdds} vs Adil ${alert.latencyEdge.sharpFairOdds} (+%${alert.latencyEdge.discrepancyPct} Makas!)`;
+        latencyInfo = `⚡ *Latency Arbitrage:* Soft Bookmaker ${alert.latencyEdge.softOdds} vs Sharp Fair ${alert.latencyEdge.sharpFairOdds} (+${alert.latencyEdge.discrepancyPct}% Edge!)`;
     }
 
     const leagueName = alert.league || alert.leagueName;
-    const leagueLine = leagueName ? `🏆 *Lig:* ${cleanMd(leagueName)}\n` : '';
+    const leagueLine = leagueName ? `🏆 *League:* ${cleanMd(leagueName)}\n` : '';
+    const timeStr = new Date().toUTCString().slice(17, 22) + ' UTC';
 
     const message = `${emoji} *${levelText}*
     
 ⚽ *${home} vs ${away}*
-${leagueLine}📊 Skor: ${alert.score} · Dk ${alert.minute}'
+${leagueLine}📊 In-Play: ${alert.minute}' · Score: ${alert.score}
 
 ${strategiesText}
 
-💡 *Pazar:* ${marketText}
-🎯 Güven: ${confBar} %${conf}
+🎯 *Target Market:* ${marketText}
+📊 *System Confidence:* ${confBar} ${conf}%
 ${evText}
 ${surplusText}
-${latencyInfo ? latencyInfo + '\n' : ''}${redCardInfo ? redCardInfo + '\n' : ''}${droppingOddsInfo ? droppingOddsInfo + '\n' : ''}${alert.dqs ? `📈 Veri Kalitesi (DQS): ${alert.dqs.toFixed(2)}` : ''}
+${latencyInfo ? latencyInfo + '\n' : ''}${redCardInfo ? redCardInfo + '\n' : ''}${droppingOddsInfo ? droppingOddsInfo + '\n' : ''}${alert.dqs ? `📈 Data Quality Score (DQS): ${alert.dqs.toFixed(2)}` : ''}
 
-📋 *Analiz:*
+📋 *Quantitative Rationale:*
 ${reasonsText}
 
-💰 *Kasa Yönetimi:*
-Önerilen: *%1.00 Kasa* (Quarter-Kelly)
+💰 *Staking Advice:*
+Recommended: *1.00% Bankroll* (Quarter-Kelly Model)
 
-⏰ ${new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' })}
-
+⏰ ${timeStr}
 ━━━━━━━━━━━━━━━━━━
-🤖 *v4.0 Kuant Motoru Onaylı*
+🤖 *v4.0 Quant Syndicate Engine*
 💎 *LIVE BET MENTOR VIP*`;
 
     return message;
 }
 
 export function formatPublicTeaser(alert) {
-    const home = cleanMd(alert.homeTeam || 'Ev');
-    const away = cleanMd(alert.awayTeam || 'Dep');
-    const message = `⚡ *CANLI ANALİZ*
+    const home = cleanMd(alert.homeTeam || 'Home');
+    const away = cleanMd(alert.awayTeam || 'Away');
+    const leagueName = alert.league || alert.leagueName;
+    const leagueLine = leagueName ? `🏆 *League:* ${cleanMd(leagueName)}\n` : '';
+    const levelText = alert.level === 'ALPHA' ? 'ALPHA QUANT OPPORTUNITY' : 'HIGH VALUE LIVE SIGNAL';
+
+    const message = `📡 *LIVE IN-PLAY RADAR ALERT*
 
 ⚽ *${home} vs ${away}*
-🏟️ Dk ${alert.minute}'
+${leagueLine}⏱️ In-Play: ${alert.minute}' · Score: ${alert.score}
 
-🔒 _Detaylı analiz ve market önerisi VIP grupta..._
+⚡ *System Flag:* ${levelText} DETECTED
+🎯 High goal momentum, offensive pressure and mathematical edge confirmed!
 
-💎 VIP erişim için: /vip`;
+🔒 _Full prediction, fair odds benchmark & Kelly stake released in VIP Syndicate._
+
+👉 Get Instant Access: @Livebetmentorbot
+🌐 Live Dashboard: https://live-bet-mentor-brown.vercel.app`;
 
     return message;
 }
 
 export function formatDailyReport(stats) {
-    const date = new Date().toLocaleDateString('tr-TR', {
+    const date = new Date().toLocaleDateString('en-GB', {
         day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        timeZone: 'Europe/Istanbul'
+        month: 'short',
+        year: 'numeric'
     });
 
     const winRate = stats.total > 0 ? ((stats.won / stats.total) * 100).toFixed(1) : '0.0';
 
-    const message = `📊 *GÜNLÜK PERFORMANS RAPORU*
+    const message = `📊 *DAILY QUANT PERFORMANCE DIGEST*
 
 📅 ${date}
 ━━━━━━━━━━━━━━━━━━
 
-✅ Kazanan: *${stats.won || 0}*
-❌ Kaybeden: *${stats.lost || 0}*
-⏳ Bekleyen: *${stats.pending || 0}*
+✅ Target Hit (Won): *${stats.won || 0}*
+❌ Missed (Lost): *${stats.lost || 0}*
+⏳ In-Play: *${stats.pending || 0}*
 
-📈 *Günlük Başarı: %${winRate}*
-🔥 Toplam Sinyal: ${stats.total || 0}
+📈 *Daily Win Rate: ${winRate}%*
+🔥 Total Signals Dispatched: ${stats.total || 0}
 
-${stats.bestPick ? `🏆 En İyi Seçim: ${cleanMd(stats.bestPick)}` : ''}
+${stats.bestPick ? `🏆 Top Pick: ${cleanMd(stats.bestPick)}` : ''}
 
 ━━━━━━━━━━━━━━━━━━
-💎 *LIVE BET MENTOR*`;
+🤖 *Verified by Autonomous AI Audit Engine*
+💎 *LIVE BET MENTOR | QUANT LABS*`;
 
     return message;
 }
 
 export function formatSignalResult(signal, result, finalScore, currentStats = {}) {
     const isWon = result === 'WON';
-    const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || 'Ev Sahibi');
-    const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || 'Deplasman');
-    const market = cleanMd(signal.market || 'Sinyal');
+    const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || 'Home');
+    const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || 'Away');
+    const market = cleanMd(signal.market || 'Target Market');
     const scoreStr = finalScore ? (typeof finalScore === 'object' ? `${finalScore.home}-${finalScore.away}` : finalScore) : '';
 
     const totalResolved = (currentStats.won || 0) + (currentStats.lost || 0);
     const winRate = totalResolved > 0 ? (((currentStats.won || 0) / totalResolved) * 100).toFixed(1) : (isWon ? '100.0' : '0.0');
 
     if (isWon) {
-        return `🟢 *TAHMİN TUTTU! (KAZANDI)* 🟢
+        return `🟢 *TARGET HIT! (WON)* 🟢
 
 ⚽ *${home} vs ${away}*
-🎯 *Tahmin:* ${market}
-${scoreStr ? `📊 *Skor:* ${scoreStr}\n` : ''}✅ *Sonuç:* BAŞARILI!
+🎯 *Target Pick:* ${market}
+${scoreStr ? `📊 *Final Score:* ${scoreStr}\n` : ''}✅ *Result:* PROFIT CONFIRMED!
 
 ━━━━━━━━━━━━━━━━━━
-📈 *Günlük Başarı:* %${winRate} (${currentStats.won || 1}/${totalResolved || 1} Kazanan)
-💎 *LIVE BET MENTOR VIP*`;
+📈 *Today's Accuracy:* ${winRate}% (${currentStats.won || 1}/${totalResolved || 1} Won)
+💎 *LIVE BET MENTOR VIP SYNDICATE*`;
     } else {
-        return `🔴 *TAHMİN SONUÇLANDI (KAYBETTİ)*
+        return `🔴 *MATCH SETTLED (MISSED)*
 
 ⚽ *${home} vs ${away}*
-🎯 *Tahmin:* ${market}
-${scoreStr ? `📊 *Son Skor:* ${scoreStr}\n` : ''}❌ *Sonuç:* Kaybetti
+🎯 *Target Pick:* ${market}
+${scoreStr ? `📊 *Final Score:* ${scoreStr}\n` : ''}❌ *Result:* Missed
 
 ━━━━━━━━━━━━━━━━━━
-📈 *Günlük Başarı:* %${winRate} (${currentStats.won || 0}/${totalResolved || 1})
-💎 *LIVE BET MENTOR VIP*`;
+📈 *Today's Accuracy:* ${winRate}% (${currentStats.won || 0}/${totalResolved || 1})
+💎 *LIVE BET MENTOR VIP SYNDICATE*`;
     }
 }
 
 export function formatRadarPick(match) {
-    // Consensus agreement analysis  
     const agreement = match.agreement || {};
     const topPrediction = Object.entries(agreement)
         .sort((a, b) => b[1] - a[1])[0];
@@ -307,33 +311,32 @@ export function formatRadarPick(match) {
     const totalSources = match.totalSources || 0;
     const agreePercent = totalSources > 0 ? Math.round((topCount / totalSources) * 100) : 0;
 
-    const home = cleanMd(match.home || 'Ev');
-    const away = cleanMd(match.away || 'Dep');
-    const league = cleanMd(match.league || 'Lig Bilgisi Yok');
+    const home = cleanMd(match.home || 'Home');
+    const away = cleanMd(match.away || 'Away');
+    const league = cleanMd(match.league || 'Pre-Match');
 
-    // Source predictions detail
     const predDetails = Object.entries(match.predictions || {})
         .map(([site, pred]) => {
             const prob = match.probabilities?.[site];
-            return `  ${cleanMd(site)}: ${cleanMd(pred)}${prob ? ` (%${prob})` : ''}`;
+            return `  • ${cleanMd(site)}: ${cleanMd(pred)}${prob ? ` (${prob}%)` : ''}`;
         })
         .join('\n');
 
-    const message = `🎯 *PRE-MATCH TAHMİN*
+    const message = `🎯 *PRE-MATCH CONSENSUS RADAR*
 
 ⚽ *${home} vs ${away}*
 🏟️ ${league}
-${match.time ? `⏰ Saat: ${match.time}` : ''}
-${match.date ? `📅 Tarih: ${match.date}` : ''}
+${match.time ? `⏰ Kickoff: ${match.time}` : ''}
+${match.date ? `📅 Date: ${match.date}` : ''}
 
-📊 *Konsensüs: ${topPred}* (${topCount}/${totalSources} kaynak — %${agreePercent})
+📊 *Consensus Pick: ${topPred}* (${topCount}/${totalSources} sources — ${agreePercent}% Concurrence)
 
-📋 *Kaynak Detayları:*
-${predDetails || '  Veri bekleniyor...'}
+📋 *Source Model Breakdown:*
+${predDetails || '  Awaiting source ingestion...'}
 
 ${match.scorePredictions && Object.keys(match.scorePredictions).length > 0 ? 
-`🔢 *Skor Tahminleri:*
-${Object.entries(match.scorePredictions).map(([site, score]) => `  ${cleanMd(site)}: ${cleanMd(score)}`).join('\n')}` : ''}
+`🔢 *Algorithmic Score Forecasts:*
+${Object.entries(match.scorePredictions).map(([site, score]) => `  • ${cleanMd(site)}: ${cleanMd(score)}`).join('\n')}` : ''}
 
 ━━━━━━━━━━━━━━━━━━
 💎 *LIVE BET MENTOR VIP*`;
@@ -342,108 +345,111 @@ ${Object.entries(match.scorePredictions).map(([site, score]) => `  ${cleanMd(sit
 }
 
 export function formatWelcome() {
-    return `🏆 *LIVE BET MENTOR Bot*
+    return `🏆 *LIVE BET MENTOR BOT*
 
-Profesyonel yapay zeka destekli canlı maç analiz ve sinyal servisi.
+Institutional AI-powered live football analysis & automated value signal service.
 
-📊 *Ne Sunuyoruz?*
-• Anlık canlı maç sinyalleri (SICAK/ALEV/ALPHA)
-• 🛡️ Cash-Out & Stop-Loss Erken Çıkış Radarı
-• 🎟️ Günün Canlı Altın İkilisi (Kupon Sihirbazı)
-• ⚡ Gecikme Arbitrajı (Büro Uyumsuzluğu)
-• 🧠 Kendi Kendine Öğrenen AI Motoru
-• Günlük performans & şeffaf karne
+📊 *What We Provide:*
+• Real-time in-play value signals (HOT / FLAME / ALPHA)
+• 🛡️ Cash-Out & Stop-Loss Capital Preservation Radar
+• 🎟️ In-Play Golden Double (Smart Combo Wizard)
+• ⚡ Latency Arbitrage & Bookmaker Lag Edge
+• 🧠 Self-Learning Quant Machine Intelligence
+• Transparent daily audit reports & ledger
 
-🎁 *Ücretsiz Başlangıç:*
-/deneme — *3 Günlük Ücretsiz VIP Paketinizi* anında başlatın!
+🎁 *Claim Complimentary Access:*
+/trial — Activate your *3-Day Free VIP Syndicate Pass* instantly!
 
-📩 *Komutlar:*
-/deneme — 3 gün ücretsiz VIP deneme başlat
-/profil — VIP üyelik ve kalan sürenizi görün
-/kupon — Günün Canlı Altın İkili Kuponu
-/stats — Günün canlı performans istatistikleri
-/today — Günün tüm sinyalleri ve sonuçları
-/ai — Kendi kendine öğrenen zeka karnesi
-/vip — VIP abonelik ve paket bilgisi
-/id — Telegram ID numaranızı öğrenin
+📩 *Available Commands:*
+/trial (or /deneme) — Start 3-day free VIP trial
+/profile (or /profil) — Check VIP subscription status
+/combo (or /kupon) — Daily live Golden Double
+/stats — Today's live performance ledger
+/today — Full signal ledger for today
+/ai — Self-learning engine scorecard
+/vip — VIP syndicate tiers & subscriptions
+/id — View your Telegram Chat ID
 
 ━━━━━━━━━━━━━━━━━━
-⚡ Powered by Live Bet Mentor Engine`;
+⚡ *Live Bet Mentor Quant Engine*`;
 }
 
 export function formatVIPInfo(settings = {}) {
     const whatsapp = settings.whatsapp || '';
     
-    return `💎 *VIP ÜYELİK*
+    return `💎 *VIP QUANT SYNDICATE MEMBERSHIP*
 
-🔓 *VIP Gruba Katılmak İçin:*
+🔓 *Unlock Institutional Access:*
 
-VIP grupta anlık canlı sinyal, detaylı analiz ve pre-match tahminler alırsınız.
+Join our exclusive VIP Syndicate for unfiltered real-time in-play signals, mathematical +EV alerts, latency arbitrage opportunities, and pre-match consensus radar.
 
-📩 İletişim:
-${whatsapp ? `• WhatsApp: ${whatsapp}` : '• Admin ile iletişime geçin'}
+🎟️ *Get Started Free:*
+Type /trial to claim your 3-Day complimentary pass!
+
+📩 *Subscriptions & Support:*
+${whatsapp ? `• WhatsApp Support: ${whatsapp}\n` : ''}• Contact Admin via @Livebetmentorbot
 
 ━━━━━━━━━━━━━━━━━━
-💎 *LIVE BET MENTOR*`;
+💎 *LIVE BET MENTOR VIP*`;
 }
 
 export function formatCashOutAlert(cashOut) {
-    const home = cleanMd(cashOut.matchTitle?.split(' vs ')[0] || 'Ev');
-    const away = cleanMd(cashOut.matchTitle?.split(' vs ')[1] || 'Dep');
-    const market = cleanMd(cashOut.market || 'Sinyal');
-    const reason = cleanMd(cashOut.reason || 'Tempo düşüşü ve risk artışı');
+    const home = cleanMd(cashOut.matchTitle?.split(' vs ')[0] || 'Home');
+    const away = cleanMd(cashOut.matchTitle?.split(' vs ')[1] || 'Away');
+    const market = cleanMd(cashOut.market || 'Target Pick');
+    const reason = cleanMd(cashOut.reason || 'Momentum decline and heightened volatility');
 
-    return `⚠️ *CASHOUT / BAHİS BOZDUR ALARMI* ⚠️
+    return `⚠️ *CASHOUT / STOP-LOSS ALERT* ⚠️
 ━━━━━━━━━━━━━━━━━━
 ⚽ *${home} vs ${away}*
-⏱️ *Dakika:* ${cashOut.minute}' | 📊 *Skor:* ${cashOut.score}
-🎯 *Mevcut Tahmin:* ${market}
-🔴 *Risk Seviyesi:* ${cashOut.severity === 'HIGH' ? '🚨 YÜKSEK' : '⚠️ ORTA'}
+⏱️ *Minute:* ${cashOut.minute}' | 📊 *Score:* ${cashOut.score}
+🎯 *Active Market:* ${market}
+🔴 *Risk Level:* ${cashOut.severity === 'HIGH' ? '🚨 CRITICAL' : '⚠️ ELEVATED'}
 
-📋 *Neden Bozdurmalı?*
+📋 *Quant Rationale:*
 • ${reason}
 
-💡 *Stratejik Öneri:*
-Büronun verdiği karı realize edin veya kalan sermayeyi korumak için bahsi bozdurun!
+💡 *Strategic Action:*
+Lock in available bookmaker profit or execute stop-loss to preserve capital!
 ━━━━━━━━━━━━━━━━━━
-🛡️ *Sermaye Koruma Motoru (Stop-Loss)*
+🛡️ *Capital Preservation Engine*
 💎 *LIVE BET MENTOR VIP*`;
 }
 
 export function formatGoldenCombo(combo) {
     if (!combo || !combo.picks || combo.picks.length === 0) return '';
-    const dateStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul' });
+    const dateStr = new Date().toUTCString().slice(17, 22) + ' UTC';
     const picksText = combo.picks.map((p, i) => {
-        return `*${i + 1}. ${cleanMd(p.matchTitle)}* (${p.minute}')\n🎯 *Seçim:* ${cleanMd(p.market)}\n📊 Güven: %${p.confidence} | Oran: *${p.odds || '1.50'}*`;
+        return `*${i + 1}. ${cleanMd(p.matchTitle)}* (${p.minute}')\n🎯 *Pick:* ${cleanMd(p.market)}\n📊 Confidence: ${p.confidence}% | Odds: *${p.odds || '1.50'}*`;
     }).join('\n\n');
 
-    return `🔥 *GÜNÜN CANLI ALTIN İKİLİSİ (KUPON SİHİRBAZI)* 🔥
+    return `🔥 *IN-PLAY GOLDEN DOUBLE (COMBO WIZARD)* 🔥
 ━━━━━━━━━━━━━━━━━━
-⏰ *Bülten Saati:* ${dateStr}
-💰 *Toplam Oran:* *${combo.totalOdds || '2.25'}*
-🎯 *Sistem Güveni:* *%${combo.averageConfidence || 82}*
+⏰ *Dispatched:* ${dateStr}
+💰 *Total Odds:* *${combo.totalOdds || '2.25'}*
+🎯 *System Confidence:* *${combo.averageConfidence || 82}%*
 
 ${picksText}
 
-💡 *Kasa Stratejisi:* %2.00 Kasa (Dengeli Kombin)
+💡 *Staking Strategy:* 2.00% Bankroll (Balanced Value Double)
 ━━━━━━━━━━━━━━━━━━
 🤖 *Smart Bet Builder Engine v4.0*
 💎 *LIVE BET MENTOR VIP*`;
 }
 
 export function formatLatencyArbitrageAlert(arb) {
-    const home = cleanMd(arb.homeTeam || 'Ev');
-    const away = cleanMd(arb.awayTeam || 'Dep');
-    return `⚡ *GECİKME ARBİTRAJI ALARMI (BÜRO UYUMSUZLUĞU)* ⚡
+    const home = cleanMd(arb.homeTeam || 'Home');
+    const away = cleanMd(arb.awayTeam || 'Away');
+    return `⚡ *LATENCY ARBITRAGE ALERT (BOOKMAKER LAG)* ⚡
 ━━━━━━━━━━━━━━━━━━
 ⚽ *${home} vs ${away}* (${arb.minute}')
-🎯 *Pazar:* ${cleanMd(arb.market || 'Sıradaki Gol / Üst')}
-📊 *Açık Büro Oranı:* *${arb.bookmakerOdds || '1.75'}*
-📉 *Piyasa Adil Oranı:* *${arb.fairOdds || '1.45'}*
-💎 *Matematiksel Avantaj:* *+${arb.discrepancyPct || 20}%*
+🎯 *Market:* ${cleanMd(arb.market || 'Next Goal / Over')}
+📊 *Soft Bookmaker Odds:* *${arb.bookmakerOdds || '1.75'}*
+📉 *Sharp Market Fair Odds:* *${arb.fairOdds || '1.45'}*
+💎 *Mathematical Advantage:* *+${arb.discrepancyPct || 20}%*
 
-📋 *Durum Analizi:*
-Global bürolar oranı sert indirdi, yerel büro oranı henüz güncellemedi! Fırsat penceresi kapanmadan değerlendirin.
+📋 *Situation Analysis:*
+Sharp exchanges have slashed the price, but soft bookmakers have not adjusted yet. Capitalize before price correction!
 ━━━━━━━━━━━━━━━━━━
 📡 *Latency Radar Edge*
 💎 *LIVE BET MENTOR VIP*`;

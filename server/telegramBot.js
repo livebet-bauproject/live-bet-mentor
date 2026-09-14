@@ -29,10 +29,10 @@ const __dirname = path.dirname(__filename);
 
 class TelegramBot {
     constructor() {
-        this.token = process.env.TELEGRAM_BOT_TOKEN || '';
-        this.vipGroupId = process.env.TELEGRAM_VIP_GROUP_ID || '';
-        this.publicChannelId = process.env.TELEGRAM_PUBLIC_CHANNEL_ID || '';
-        this.enabled = process.env.TELEGRAM_ENABLED === 'true';
+        this.token = process.env.TELEGRAM_BOT_TOKEN || '8958625592:AAFvGVVFF-GKHklYfzR_lexD39t7TurlI5U';
+        this.vipGroupId = process.env.TELEGRAM_VIP_GROUP_ID || '-1004361386816';
+        this.publicChannelId = process.env.TELEGRAM_PUBLIC_CHANNEL_ID || '-1003660350476';
+        this.enabled = process.env.TELEGRAM_ENABLED !== 'false';
         this.minLevel = process.env.TELEGRAM_MIN_LEVEL || 'SICAK';
         this.publicDelay = parseInt(process.env.TELEGRAM_PUBLIC_DELAY_MIN || '15') * 60 * 1000;
 
@@ -548,11 +548,20 @@ class TelegramBot {
 
     async handleUpdate(update) {
         const msg = update.message;
-        if (!msg || !msg.text) return;
+        if (!msg) return;
 
         const chatId = msg.chat.id;
-        const text = msg.text.trim();
         const username = msg.from?.username || msg.from?.first_name || 'User';
+
+        // 0. Auto-detect forwarded channel or group ID
+        if (msg.forward_from_chat) {
+            const fChat = msg.forward_from_chat;
+            await this.sendMessage(chatId, `📢 *Channel / Group Detected:*\n\n• Title: *${fChat.title || 'Channel'}*\n• Chat ID: \`${fChat.id}\`\n• Type: ${fChat.type}`);
+            return;
+        }
+
+        if (!msg.text) return;
+        const text = msg.text.trim();
 
         console.log(`[TELEGRAM] Command from ${username}: ${text}`);
 
@@ -563,6 +572,7 @@ class TelegramBot {
 
         switch (cmd) {
             case '/start':
+            case '/help':
                 await this.sendMessage(chatId, formatWelcome());
                 break;
 
@@ -570,79 +580,85 @@ class TelegramBot {
                 await this.sendMessage(chatId, formatVIPInfo());
                 break;
 
+            case '/trial':
             case '/deneme': {
                 const trialRes = vipManager.startTrial(chatId, username);
                 if (trialRes.success) {
                     const inviteLink = await this.createInviteLink(username, 72);
-                    const msg = `🎉 *3 GÜNLÜK VIP DENEME PAKETİNİZ TANIMLANDI!* 🎉\n━━━━━━━━━━━━━━━━━━\nSayın @${username},\nSistemimizin tüm kurumsal algoritmaları ve anlık canlı sinyal akışı 3 gün boyunca (72 saat) kullanımınıza açılmıştır.\n\n⏰ *Kalan Süre:* 3 Gün (72 Saat)\n💎 *Paket:* Ücretsiz VIP Deneme\n\n🎟️ *VIP Katılım Bağlantınız (72 Saat Geçerli):*\n👉 ${inviteLink || 'VIP Gruba doğrudan ekleniyorsunuz...'}\n\n_Süre bitiminde üyeliğinizi uzatmak için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP*`;
+                    const msg = `🎉 *3-DAY VIP TRIAL PASS ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\nYou have been granted full institutional access to our quantitative live signal feed for 72 hours.\n\n⏰ *Duration:* 3 Days (72 Hours)\n💎 *Tier:* Complimentary VIP Trial Pass\n\n🎟️ *Your One-Time VIP Access Link:* \n👉 ${inviteLink || 'Direct VIP access in progress...'}\n\n_To extend your pass or subscribe, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
                     await this.sendMessage(chatId, msg);
                 } else if (trialRes.reason === 'ACTIVE_TRIAL') {
                     const rem = vipManager.getRemainingTime(chatId);
-                    await this.sendMessage(chatId, `⏳ *Aktif Bir Deneme Paketiniz Bulunuyor!*\n\n• Kalan Süreniz: *${rem?.text || 'Devam Ediyor'}*\n\nVIP kanalımızdan anlık sinyalleri ve canlı fırsatları takip etmeye devam edebilirsiniz.`);
+                    await this.sendMessage(chatId, `⏳ *Active Trial in Progress!*\n\n• Remaining Time: *${rem?.text || 'Active'}*\n\nYou can continue accessing all signals and real-time alerts in our VIP channel.`);
                 } else {
-                    await this.sendMessage(chatId, `ℹ️ *Deneme Paketi Hakkınız Sona Ermiştir.*\n\nDaha önce 3 günlük ücretsiz denemenizi kullandınız. VIP üyeliğinizi hemen başlatmak için /vip yazarak avantajlı paketlerimizi inceleyebilirsiniz.`);
+                    await this.sendMessage(chatId, `ℹ️ *Trial Pass Already Used.*\n\nYou have already claimed your 3-day trial. To unlock permanent access to our VIP Quant Syndicate, type /vip.`);
                 }
                 break;
             }
 
+            case '/profile':
             case '/profil':
             case '/kalan': {
                 const rem = vipManager.getRemainingTime(chatId);
                 const userObj = vipManager.getUser(chatId);
                 if (rem && rem.active) {
-                    const planName = userObj?.plan === 'TRIAL' ? '3 Günlük Deneme Paketi' : 'VIP Abonelik';
-                    await this.sendMessage(chatId, `👑 *VIP Üyelik & Profil Durumu:*\n━━━━━━━━━━━━━━━━━━\n• Kullanıcı: @${username}\n• Chat ID: \`${chatId}\`\n• Plan: *${planName}*\n• Durum: *AKTİF*\n• Kalan Süre: *${rem.text}*\n• Haklar: Anlık Sinyal + Stop-Loss + Gecikme Radar\n━━━━━━━━━━━━━━━━━━\n_Süre uzatımı ve bilgi için /vip yazabilirsiniz._`);
+                    const planName = userObj?.plan === 'TRIAL' ? '3-Day Free Trial' : 'VIP Quant Subscription';
+                    await this.sendMessage(chatId, `👑 *VIP Subscription & Profile Status:*\n━━━━━━━━━━━━━━━━━━\n• User: @${username}\n• Chat ID: \`${chatId}\`\n• Tier: *${planName}*\n• Status: *ACTIVE*\n• Time Remaining: *${rem.text}*\n• Privileges: Real-time Signals + Stop-Loss + Latency Radar\n━━━━━━━━━━━━━━━━━━\n_To renew or upgrade, type /vip._`);
                 } else if (userObj && !rem.active) {
-                    await this.sendMessage(chatId, `⚠️ *VIP Üyeliğinizin Süresi Dolmuştur.*\n━━━━━━━━━━━━━━━━━━\nSayın @${username}, aboneliğinizi yenilemek için /vip yazabilir veya yöneticinizle iletişime geçebilirsiniz.`);
+                    await this.sendMessage(chatId, `⚠️ *VIP Subscription Expired.*\n━━━━━━━━━━━━━━━━━━\nDear @${username}, your VIP pass has ended. Type /vip to renew.`);
                 } else {
-                    await this.sendMessage(chatId, `ℹ️ *Henüz Kayıtlı Bir VIP Üyeliğiniz Bulunmuyor.*\n━━━━━━━━━━━━━━━━━━\n• 3 Günlük *ÜCRETSİZ* deneme başlatmak için: /deneme\n• VIP paketlerimizi incelemek için: /vip`);
+                    await this.sendMessage(chatId, `ℹ️ *No Active VIP Subscription Found.*\n━━━━━━━━━━━━━━━━━━\n• Start 3-day *FREE* trial: /trial\n• Explore VIP Syndicate tiers: /vip`);
                 }
                 break;
             }
 
+            case '/combo':
             case '/kupon':
             case '/kombine':
-                await this.sendMessage(chatId, `🎟️ *Günün Canlı Altın İkilisi (Kupon Sihirbazı):*\n\nSistemimiz eşzamanlı devam eden maçlar arasından en yüksek güven ve korelasyona sahip 2 canlı fırsatı 'Altın İkili' olarak otomatik birleştirir.\n\n🌐 Anlık canlı altın ikili kuponunu web panelimizden inceleyebilirsiniz:\n👉 https://live-bet-mentor.vercel.app\n\n_Ayrıca VIP grupta gün içi yüksek güvenli kombinler otomatik paylaşılır._`);
+                await this.sendMessage(chatId, `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n🌐 View real-time golden doubles on our platform:\n👉 https://live-bet-mentor-brown.vercel.app\n\n_Curated combo alerts are also posted directly into the VIP Syndicate._`);
                 break;
 
+            case '/grantvip':
             case '/vipver': {
                 if (!vipManager.isAdmin(chatId)) {
-                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
+                    await this.sendMessage(chatId, `⛔ *Unauthorized:* Only system administrators can execute this command.`);
                     break;
                 }
                 const targetId = arg1;
                 const days = parseInt(arg2) || 30;
                 if (!targetId) {
-                    await this.sendMessage(chatId, `ℹ️ *Kullanım:* \`/vipver <TelegramID> <Gün>\`\nÖrnek: \`/vipver 12345678 30\``);
+                    await this.sendMessage(chatId, `ℹ️ *Usage:* \`/grantvip <TelegramID> <Days>\`\nExample: \`/grantvip 12345678 30\``);
                     break;
                 }
                 const grantRes = vipManager.addVip(targetId, days, 'VIP Member', 'VIP');
                 const userInvite = await this.createInviteLink(`VIP_${targetId}`, days * 24);
-                await this.sendMessage(chatId, `✅ *VIP Yetkisi Tanımlandı!*\n\n• Hedef Chat ID: \`${targetId}\`\n• Tanımlanan Süre: *${days} Gün*\n• Bitiş Tarihi: ${new Date(grantRes.expiresAt).toLocaleDateString('tr-TR')}\n• Davet Linki: ${userInvite || 'Oluşturulamadı'}`);
+                await this.sendMessage(chatId, `✅ *VIP Access Granted!*\n\n• Target Chat ID: \`${targetId}\`\n• Granted Duration: *${days} Days*\n• Expiration Date: ${new Date(grantRes.expiresAt).toLocaleDateString('en-GB')}\n• Invite Link: ${userInvite || 'Failed to create'}`);
                 if (userInvite) {
                     try {
-                        await this.sendMessage(targetId, `🎉 *Tebrikler! Hesabınıza ${days} Günlük VIP Yetkisi Tanımlandı!*\n\nVIP kanalımıza katılmak için bağlantınız:\n👉 ${userInvite}`);
+                        await this.sendMessage(targetId, `🎉 *Congratulations! You have been granted ${days} days of VIP Syndicate Access!*\n\nClick below to join the private VIP channel:\n👉 ${userInvite}`);
                     } catch (e) {}
                 }
                 break;
             }
 
+            case '/revokevip':
             case '/vipsil': {
                 if (!vipManager.isAdmin(chatId)) {
-                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
+                    await this.sendMessage(chatId, `⛔ *Unauthorized:* Only system administrators can execute this command.`);
                     break;
                 }
                 const targetId = arg1;
                 if (!targetId) {
-                    await this.sendMessage(chatId, `ℹ️ *Kullanım:* \`/vipsil <TelegramID>\`\nÖrnek: \`/vipsil 12345678\``);
+                    await this.sendMessage(chatId, `ℹ️ *Usage:* \`/revokevip <TelegramID>\`\nExample: \`/revokevip 12345678\``);
                     break;
                 }
                 vipManager.removeVip(targetId);
                 await this.kickMember(targetId);
-                await this.sendMessage(chatId, `🗑️ *Kullanıcının VIP yetkisi iptal edildi:* \`${targetId}\``);
+                await this.sendMessage(chatId, `🗑️ *User VIP privileges revoked:* \`${targetId}\``);
                 break;
             }
 
+            case '/vipreport':
             case '/viprapor': {
                 if (!vipManager.isAdmin(chatId)) {
                     await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
