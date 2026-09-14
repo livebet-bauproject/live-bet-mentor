@@ -322,6 +322,49 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
     };
 
+    const handleSendRadarToTelegram = async (e, s, consensusPred, agreementPercent) => {
+        if (e) e.stopPropagation();
+
+        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:3001'
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+        try {
+            const res = await fetch(`${proxyBase}/api/telegram/send-radar`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    home: s.home,
+                    away: s.away,
+                    league: s.league,
+                    time: s.time,
+                    date: s.date,
+                    topPred: consensusPred,
+                    topCount: s.agreement?.[consensusPred] || 0,
+                    totalSources: s.totalSources,
+                    agreementPercent: agreementPercent,
+                    predictions: s.predictions,
+                    probabilities: s.probabilities,
+                    scorePredictions: s.scorePredictions,
+                    form: s.form,
+                    ranks: s.ranks,
+                    points: s.points,
+                    agreement: s.agreement,
+                    sendTeaser: true
+                })
+            });
+            const data = await res.json();
+            if (data.sent) {
+                alert(lang === 'tr' ? `🚀 ${s.home} vs ${s.away} maçı Telegram VIP Grubuna gönderildi!` : `🚀 ${s.home} vs ${s.away} sent to Telegram VIP!`);
+            } else {
+                alert(lang === 'tr' ? `⚠️ Gönderilemedi: ${data.error || 'Bilinmeyen hata'}` : `⚠️ Failed: ${data.error || 'Unknown error'}`);
+            }
+        } catch (err) {
+            console.error('Telegram radar send error:', err);
+            alert(lang === 'tr' ? '❌ Telegram servisine bağlanılamadı.' : '❌ Connection error to Telegram service.');
+        }
+    };
+
     const radarMatches = React.useMemo(() => {
         if (view !== 'RADAR') return [];
         return consensusAdapter.getAllConsensusSummary(consensusData, selectedMarket);
@@ -2103,6 +2146,38 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <span style={{ fontSize: '0.65rem', opacity: 0.5 }}>{t.consensus_verdict || 'AĞIRLIKLI TAHMİN'}:</span>
                                                 <span style={{ marginLeft: '0.5rem', fontWeight: 900, fontSize: '1.2rem', color: 'var(--accent-color)' }}>{consensusPred}</span>
                                             </div>
+
+                                            <button
+                                                onClick={(e) => handleSendRadarToTelegram(e, s, consensusPred, agreementPercent)}
+                                                style={{
+                                                    width: '100%',
+                                                    marginTop: '0.9rem',
+                                                    padding: '0.65rem 1rem',
+                                                    background: 'linear-gradient(135deg, #229ED9 0%, #1778F2 100%)',
+                                                    border: '1px solid rgba(255,255,255,0.15)',
+                                                    borderRadius: '10px',
+                                                    color: '#fff',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.78rem',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '0.5rem',
+                                                    boxShadow: '0 4px 12px rgba(34, 158, 217, 0.25)',
+                                                    transition: 'all 0.2s ease'
+                                                }}
+                                                onMouseEnter={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(-1px)';
+                                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(34, 158, 217, 0.4)';
+                                                }}
+                                                onMouseLeave={(e) => {
+                                                    e.currentTarget.style.transform = 'translateY(0)';
+                                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 158, 217, 0.25)';
+                                                }}
+                                            >
+                                                <span>✈️</span> Telegram VIP'ye Gönder
+                                            </button>
                                         </div>
                                     </div>
                                 );

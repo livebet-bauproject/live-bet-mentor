@@ -548,10 +548,22 @@ app.post('/api/telegram/send-radar', async (req, res) => {
         if (!match || !match.home) {
             return res.status(400).json({ error: 'Invalid match data' });
         }
-        const result = await telegramBot.sendRadarPick(match);
-        res.json({ sent: !!result });
+        const result = await telegramBot.sendRadarPick(match, { sendTeaser: req.body.sendTeaser !== false });
+        res.json({ sent: !!result, result });
     } catch (e) {
         console.error('[PROXY] Telegram radar error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Broadcast top consensus radar picks manually
+app.post('/api/telegram/broadcast-radar', async (req, res) => {
+    try {
+        const limit = parseInt(req.body?.limit) || 2;
+        const result = await telegramBot.broadcastConsensusPicks({ force: true, limit });
+        res.json(result);
+    } catch (e) {
+        console.error('[PROXY] Telegram broadcast radar error:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
@@ -840,6 +852,7 @@ app.listen(PORT, '0.0.0.0', async () => {
     if (botStatus.ok) {
         telegramBot.startPolling();
         telegramBot.scheduleDailyReport(23, 0);
+        telegramBot.scheduleDailyConsensusBroadcast(12, 0);
         console.log('[PROXY] 🤖 Telegram Bot initialized successfully');
     } else {
         console.warn('[PROXY] ⚠️ Telegram Bot not available:', botStatus.error);

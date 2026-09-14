@@ -300,47 +300,119 @@ ${scoreStr ? `📊 *Final Score:* ${scoreStr}\n` : ''}❌ *Result:* Missed
     }
 }
 
+function resolveConsensusPredName(pred) {
+    if (!pred) return 'N/A';
+    const p = String(pred).trim();
+    if (p === '1') return 'MS 1 (Ev Sahibi)';
+    if (p === 'X') return 'MS X (Beraberlik)';
+    if (p === '2') return 'MS 2 (Deplasman)';
+    if (p === '1X') return 'ÇŞ 1X (Çifte Şans)';
+    if (p === 'X2') return 'ÇŞ X2 (Çifte Şans)';
+    if (p === '12') return 'ÇŞ 12 (Çifte Şans)';
+    if (p.toLowerCase().includes('üst') || p.toLowerCase().includes('over')) return '2.5 Gol Üstü';
+    if (p.toLowerCase().includes('alt') || p.toLowerCase().includes('under')) return '2.5 Gol Altı';
+    if (p.toLowerCase().includes('var') || p.toLowerCase().includes('yes')) return 'Karşılıklı Gol Var (KG Var)';
+    if (p.toLowerCase().includes('yok') || p.toLowerCase().includes('no')) return 'Karşılıklı Gol Yok (KG Yok)';
+    return p;
+}
+
 export function formatRadarPick(match) {
     const agreement = match.agreement || {};
     const topPrediction = Object.entries(agreement)
         .sort((a, b) => b[1] - a[1])[0];
     
-    const topPred = topPrediction ? topPrediction[0] : 'N/A';
-    const topCount = topPrediction ? topPrediction[1] : 0;
+    const rawTopPred = topPrediction ? topPrediction[0] : (match.topPred || 'N/A');
+    const topCount = topPrediction ? topPrediction[1] : (match.topCount || 0);
     const totalSources = match.totalSources || 0;
-    const agreePercent = totalSources > 0 ? Math.round((topCount / totalSources) * 100) : 0;
+    const agreePercent = totalSources > 0 ? Math.round((topCount / totalSources) * 100) : (match.agreementPercent || 0);
+    const topPredText = resolveConsensusPredName(rawTopPred);
 
     const home = cleanMd(match.home || 'Home');
     const away = cleanMd(match.away || 'Away');
-    const league = cleanMd(match.league || 'Pre-Match');
+    const league = cleanMd(match.league || 'Bülten');
 
     const predDetails = Object.entries(match.predictions || {})
         .map(([site, pred]) => {
             const prob = match.probabilities?.[site];
-            return `  • ${cleanMd(site)}: ${cleanMd(pred)}${prob ? ` (${prob}%)` : ''}`;
+            const predName = resolveConsensusPredName(pred);
+            return `  • ${cleanMd(site)}: *${cleanMd(predName)}*${prob ? ` (%${prob} İhtimal)` : ''}`;
         })
         .join('\n');
 
-    const message = `🎯 *PRE-MATCH CONSENSUS RADAR*
+    const scoreDetails = match.scorePredictions && Object.keys(match.scorePredictions).length > 0
+        ? Object.entries(match.scorePredictions)
+            .map(([site, score]) => `  • ${cleanMd(site)}: *${cleanMd(score)}*`)
+            .join('\n')
+        : null;
 
+    let formText = '';
+    if (match.form) {
+        if (typeof match.form === 'object') {
+            const hf = Array.isArray(match.form.home) ? match.form.home.join('-') : (match.form.home || '');
+            const af = Array.isArray(match.form.away) ? match.form.away.join('-') : (match.form.away || '');
+            if (hf || af) formText = `📈 *Son Form Grafiği:*\n  • ${home}: \`${hf || 'N/A'}\`\n  • ${away}: \`${af || 'N/A'}\``;
+        } else if (typeof match.form === 'string') {
+            formText = `📈 *Form Bilgisi:* \`${match.form}\``;
+        }
+    }
+
+    let standingsText = '';
+    if (match.ranks && (match.ranks.home !== '-' || match.ranks.away !== '-')) {
+        standingsText = `📊 *Lig Sıralaması & Puan:*\n  • ${home}: ${match.ranks.home || '-'}. Sıra (${match.points?.home || '-'} Puan)\n  • ${away}: ${match.ranks.away || '-'}. Sıra (${match.points?.away || '-'} Puan)`;
+    }
+
+    const headerEmoji = agreePercent === 100 ? '🔥' : '🎯';
+    const headerTitle = agreePercent === 100 ? 'GÜNÜN %100 ORTAK AKIL BANKOSU' : 'GÜNÜN KONSENSÜS DEĞER SEÇİMİ';
+
+    const message = `${headerEmoji} *${headerTitle}*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚽ *${home} vs ${away}*
-🏟️ ${league}
-${match.time ? `⏰ Kickoff: ${match.time}` : ''}
-${match.date ? `📅 Date: ${match.date}` : ''}
+🏆 *Lig:* ${league}
+${match.time ? `⏰ *Başlama Saati:* ${match.time}` : ''}${match.date ? ` (Tarih: ${match.date})` : ''}
 
-📊 *Consensus Pick: ${topPred}* (${topCount}/${totalSources} sources — ${agreePercent}% Concurrence)
+🎯 *KONSENSÜS TERCİHİ:* *${topPredText}*
+📊 *Uzlaşma Oranı:* *%${agreePercent}* (${topCount} / ${totalSources} Platform Hemfikir!)
 
-📋 *Source Model Breakdown:*
-${predDetails || '  Awaiting source ingestion...'}
+📋 *Platform & Model Dağılımı:*
+${predDetails || '  Platform tahminleri işleniyor...'}
 
-${match.scorePredictions && Object.keys(match.scorePredictions).length > 0 ? 
-`🔢 *Algorithmic Score Forecasts:*
-${Object.entries(match.scorePredictions).map(([site, score]) => `  • ${cleanMd(site)}: ${cleanMd(score)}`).join('\n')}` : ''}
-
-━━━━━━━━━━━━━━━━━━
-💎 *LIVE BET MENTOR VIP*`;
+${scoreDetails ? `🔢 *Algoritmik Skor Beklentileri:*\n${scoreDetails}\n` : ''}${formText ? `${formText}\n` : ''}${standingsText ? `${standingsText}\n` : ''}
+💰 *Kasa Yönetimi (Bankroll):*
+Önerilen: *%1.50 - %2.00 Sabit Kasa* (Quarter-Kelly Modeli)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 *10-Kaynak Konsensüs & AI Füzyon Motoru*
+💎 *LIVE BET MENTOR VIP SYNDICATE*`;
 
     return message;
+}
+
+export function formatRadarTeaser(match) {
+    const agreement = match.agreement || {};
+    const topPrediction = Object.entries(agreement).sort((a, b) => b[1] - a[1])[0];
+    const rawTopPred = topPrediction ? topPrediction[0] : (match.topPred || 'N/A');
+    const topCount = topPrediction ? topPrediction[1] : (match.topCount || 0);
+    const totalSources = match.totalSources || 0;
+    const agreePercent = totalSources > 0 ? Math.round((topCount / totalSources) * 100) : (match.agreementPercent || 0);
+
+    const home = cleanMd(match.home || 'Home');
+    const away = cleanMd(match.away || 'Away');
+    const league = cleanMd(match.league || 'Bülten');
+
+    return `📡 *GÜNÜN ORTAK AKIL RADAR UYARISI*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚽ *${home} vs ${away}*
+🏆 *Lig:* ${league}
+${match.time ? `⏰ *Başlama Saati:* ${match.time}` : ''}
+
+⚡ *10 Global Yapay Zeka Modelinin %${agreePercent} Uzlaşması Tespit Edildi!*
+📊 *${topCount} / ${totalSources} Platform* bu maçta ortak sonuca vardı.
+
+🔒 _Günün bu banko tercihi, skor beklentileri ve kasa yönetim rehberi VIP Grubumuzda paylaşıldı._
+
+👉 *VIP Ayrıcalıklarını Başlatın:*
+/trial — 3 Günlük Ücretsiz VIP Deneme Paketi!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *LIVE BET MENTOR VIP SYNDICATE*`;
 }
 
 export function formatWelcome() {

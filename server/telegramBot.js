@@ -14,6 +14,7 @@ import {
     formatDailyReport,
     formatSignalResult,
     formatRadarPick,
+    formatRadarTeaser,
     formatWelcome,
     formatVIPInfo,
     formatCashOutAlert,
@@ -23,6 +24,7 @@ import {
 import { learningEngine } from './learningEngine.js';
 import { cashOutEngine } from './cashOutEngine.js';
 import { vipManager } from './vipManager.js';
+import { consensusReader } from './consensusReader.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -292,15 +294,120 @@ class TelegramBot {
     }
 
     /**
-     * Send a pre-match RADAR pick to VIP
+     * Send a pre-match RADAR pick to VIP (and optional teaser to public)
      */
-    async sendRadarPick(match) {
+    async sendRadarPick(match, options = {}) {
         if (!this.enabled || !this.vipGroupId) return null;
 
+        const results = {};
         const message = formatRadarPick(match);
-        const result = await this.sendMessage(this.vipGroupId, message);
-        console.log(`[TELEGRAM] 🎯 Radar pick sent: ${match.home} vs ${match.away}`);
-        return result;
+        results.vip = await this.sendMessage(this.vipGroupId, message);
+        console.log(`[TELEGRAM] 🎯 Radar pick sent to VIP: ${match.home} vs ${match.away}`);
+
+        // If public teaser requested (or by default for top consensus)
+        if (options.sendTeaser && this.publicChannelId) {
+            try {
+                const teaser = formatRadarTeaser(match);
+                results.public = await this.sendMessage(this.publicChannelId, teaser);
+                console.log(`[TELEGRAM] 📡 Radar teaser sent to Public Channel: ${match.home} vs ${match.away}`);
+            } catch (te) {
+                console.error('[TELEGRAM] Error sending public radar teaser:', te.message);
+            }
+        }
+
+        return results;
+    }
+
+    /**
+     * Broadcast top consensus / "Günün Bankosu" picks to VIP & Public teaser
+     */
+    async broadcastConsensusPicks(options = {}) {
+        if (!this.enabled) return { ok: false, error: 'Telegram bot disabled' };
+
+        const {
+            minSources = 4,
+            minAgreement = 75,
+            limit = 2,
+            force = false
+        } = options;
+
+        try {
+            const picks = consensusReader.getTopConsensusPicks({
+                minSources,
+                minAgreement,
+                limit
+            });
+
+            if (!picks || picks.length === 0) {
+                console.log('[TELEGRAM] ℹ️ No high-consensus picks found meeting criteria');
+                return { ok: true, sent: 0, message: 'No matches found meeting criteria' };
+            }
+
+            console.log(`[TELEGRAM] 🎯 Broadcasting ${picks.length} top consensus pick(s)...`);
+            const results = [];
+
+            for (let i = 0; i < picks.length; i++) {
+                const match = picks[i];
+                const todayStr = new Date().toISOString().split('T')[0];
+                const matchKey = `radar_${match.home}_${match.away}_${todayStr}`;
+
+                if (!force && this.sentSignals.has(matchKey)) {
+                    console.log(`[TELEGRAM] ⏩ Skipping already sent consensus pick: ${match.home} vs ${match.away}`);
+                    continue;
+                }
+
+                // 1. Send full institutional analysis to VIP Syndicate Group
+                let vipRes = null;
+                if (this.vipGroupId) {
+                    const vipMsg = formatRadarPick(match);
+                    vipRes = await this.sendMessage(this.vipGroupId, vipMsg);
+                }
+
+                // 2. Send public teaser for the #1 pick to Public Channel
+                let pubRes = null;
+                if (i === 0 && this.publicChannelId) {
+                    const publicMsg = formatRadarTeaser(match);
+                    pubRes = await this.sendMessage(this.publicChannelId, publicMsg);
+                }
+
+                results.push({ match: match.match, vip: vipRes, public: pubRes });
+                this.sentSignals.set(matchKey, Date.now());
+
+                // Small pacing delay between messages
+                await new Promise(r => setTimeout(r, 1500));
+            }
+
+            return { ok: true, count: results.length, results };
+        } catch (e) {
+            console.error('[TELEGRAM] ❌ Broadcast consensus picks error:', e.message);
+            return { ok: false, error: e.message };
+        }
+    }
+
+    /**
+     * Schedule daily consensus broadcast (default 12:00 noon)
+     */
+    scheduleDailyConsensusBroadcast(hour = 12, minute = 0) {
+        const scheduleNext = () => {
+            const now = new Date();
+            const target = new Date();
+            target.setHours(hour, minute, 0, 0);
+
+            if (target <= now) {
+                target.setDate(target.getDate() + 1);
+            }
+
+            const delay = target.getTime() - now.getTime();
+            console.log(`[TELEGRAM] 🎯 Next daily consensus broadcast scheduled in ${Math.round(delay / 60000)} minutes (${target.toLocaleTimeString()})`);
+
+            setTimeout(async () => {
+                console.log('[TELEGRAM] ⏰ Triggering scheduled daily consensus broadcast...');
+                await this.broadcastConsensusPicks();
+                scheduleNext();
+            }, delay);
+        };
+
+        scheduleNext();
     }
 
     /**
@@ -828,6 +935,42 @@ _Average activation time: 2–5 minutes._
                     await this.sendMessage(chatId, `ℹ️ *VIP Bağlantı Bilgisi:*\nVIP Grubumuz: *${this.vipGroupId || 'Canlı Kanal'}*\n\nDoğrudan ekleme veya yetki tanımlaması için lütfen sistem yöneticisiyle iletişime geçin.`);
                 }
                 break;
+
+            case '/radar':
+            case '/banko':
+            case '/konsensus': {
+                const picks = consensusReader.getTopConsensusPicks({ minSources: 4, minAgreement: 75, limit: 3 });
+                if (!picks || picks.length === 0) {
+                    await this.sendMessage(chatId, `📡 *Günün Konsensüs Radarı:*\n\nŞu anda yüksek uzlaşma sağlanan (%75+ / 4+ kaynak) maç bulunamadı. Güncel bülten taranıyor...`);
+                    break;
+                }
+                const header = `🎯 *GÜNÜN EN YÜKSEK KONSENSÜS MAÇLARI (10 Model)*\n━━━━━━━━━━━━━━━━━━\n`;
+                const list = picks.map((p, idx) => {
+                    const agreeIcon = p.agreementPercent === 100 ? '🔥' : '⭐';
+                    const score = Object.values(p.scorePredictions || {})[0] || '-';
+                    return `${idx + 1}. ${agreeIcon} *${p.home} vs ${p.away}*\n   • Tercih: *${p.topPred}* (%${p.agreementPercent} — ${p.topCount}/${p.totalSources} Model)\n   • Lig: _${p.league}_ | Saat: ${p.time || '-'}\n   • Skor Beklentisi: \`${score}\``;
+                }).join('\n\n');
+
+                const footer = `\n\n━━━━━━━━━━━━━━━━━━\n💡 _Detaylı skor, AI model dağılımı ve kasa tavsiyeleri için VIP kanalımızı takip edin._`;
+                await this.sendMessage(chatId, header + list + footer);
+                break;
+            }
+
+            case '/yayinla':
+            case '/broadcastradar': {
+                if (!vipManager.isAdmin(chatId)) {
+                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca sistem yöneticisi kullanabilir.`);
+                    break;
+                }
+                await this.sendMessage(chatId, `⏳ Günün en yüksek konsensüs maçları taranıp Telegram kanallarına yayınlanıyor...`);
+                const bRes = await this.broadcastConsensusPicks({ force: true, limit: 2 });
+                if (bRes.ok) {
+                    await this.sendMessage(chatId, `✅ *Yayın Başarılı!*\n\n• Gönderilen Maç Sayısı: *${bRes.count}*\n• VIP Grup & Genel Kanal güncellendi.`);
+                } else {
+                    await this.sendMessage(chatId, `❌ Yayın hatası: ${bRes.error || bRes.message}`);
+                }
+                break;
+            }
 
             default:
                 // Ignore non-command messages
