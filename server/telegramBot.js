@@ -615,7 +615,7 @@ class TelegramBot {
             case '/combo':
             case '/kupon':
             case '/kombine':
-                await this.sendMessage(chatId, `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n🌐 View real-time golden doubles on our platform:\n👉 https://live-bet-mentor-brown.vercel.app\n\n_Curated combo alerts are also posted directly into the VIP Syndicate._`);
+                await this.sendMessage(chatId, `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n_Curated golden double alerts are dispatched directly into our private VIP Syndicate._\n\n👉 Access VIP: /trial`);
                 break;
 
             case '/grantvip':

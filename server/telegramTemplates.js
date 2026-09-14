@@ -232,8 +232,7 @@ ${leagueLine}⏱️ In-Play: ${alert.minute}' · Score: ${alert.score}
 
 🔒 _Full prediction, fair odds benchmark & Kelly stake released in VIP Syndicate._
 
-👉 Get Instant Access: @Livebetmentorbot
-🌐 Live Dashboard: https://live-bet-mentor-brown.vercel.app`;
+👉 Unlock Full VIP Signal: @Livebetmentorbot`;
 
     return message;
 }
