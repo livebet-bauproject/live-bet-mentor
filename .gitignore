@@ -13,7 +13,6 @@ __pycache__/
 server/__pycache__/
 
 # JSON Data (exclude from git to keep repo clean)
-server/consensus_data.json
 server/live_odds.json
 server/sofascore_live.json
 server/stats/
