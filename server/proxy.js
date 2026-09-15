@@ -204,19 +204,69 @@ app.get('/api/debug', async (req, res) => {
     });
 });
 
-// Setup trigger endpoint
-app.get('/api/setup', (req, res) => {
+// --- TIPICO TRENDING BETS ENDPOINT ---
+let tipicoTrendingCache = { data: null, time: 0 };
+
+app.get('/api/tipico/trending', async (req, res) => {
+    // Return cache if fresh (< 45 seconds)
+    if (tipicoTrendingCache.data && (Date.now() - tipicoTrendingCache.time < 45000)) {
+        return res.json(tipicoTrendingCache.data);
+    }
+
     try {
-        const result = spawnSync('node', [path.join(__dirname, 'ensure_python_deps.js')], { encoding: 'utf8', timeout: 90000 });
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(`<pre style="background:#0f172a; color:#38bdf8; padding:24px; font-family:monospace; line-height:1.5;">=== PYTHON DEPENDENCY SETUP ===\n\nSTDOUT:\n${result.stdout || '(none)'}\n\nSTDERR:\n${result.stderr || '(none)'}\n\nExit Code: ${result.status}\n\n<a href="/api/debug" style="color:#facc15;">Teşhis Ekranına Dön</a> | <a href="/api/sofascore/live" style="color:#4ade80;">Canlı Veriyi Kontrol Et</a></pre>`);
-        if (result.status === 0) {
-            setTimeout(startScraper, 1000);
+        const tipicoUrl = 'https://sports.tipico.de/v1/ser/bgs/api/trendingbets?sport=soccer&language=DE&timeWindow=1&maxOutcomesPerEvent=1&eventType=live';
+        const response = await fetch(tipicoUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
+                'Referer': 'https://sports.tipico.de/de'
+            }
+        });
+
+        if (!response.ok) {
+            return res.status(response.status).json({
+                error: `Tipico responded with status ${response.status}`,
+                cached: tipicoTrendingCache.data || null
+            });
         }
-    } catch (e) {
-        res.status(500).send(`<pre>Hata: ${e.message}</pre>`);
+
+        const raw = await response.json();
+        const bets = (raw.bets || []).map(b => ({
+            eventId: b.eventId,
+            marketId: b.marketId,
+            outcomeId: b.outcomeId,
+            match: `${b.participants?.home || ''} vs ${b.participants?.away || ''}`,
+            home: b.participants?.home || '',
+            away: b.participants?.away || '',
+            competition: b.competitionName || '',
+            market: b.marketName || '',
+            marketShort: b.marketShortName || '',
+            outcome: b.outcomeName || '',
+            odds: b.odds,
+            score: b.score ? `${b.score[0]} - ${b.score[1]}` : null,
+            count: b.count,
+            timeWindow: '5m'
+        }));
+
+        const result = {
+            success: true,
+            count: bets.length,
+            updatedAt: new Date().toISOString(),
+            bets
+        };
+
+        tipicoTrendingCache = { data: result, time: Date.now() };
+        return res.json(result);
+    } catch (err) {
+        console.error('[TIPICO] Error fetching trending bets:', err.message);
+        if (tipicoTrendingCache.data) {
+            return res.json(tipicoTrendingCache.data);
+        }
+        return res.status(500).json({ error: err.message });
     }
 });
+
 
 // --- IN-MEMORY DATA STORE (for cloud mode) ---
 let memoryLiveData = null;
