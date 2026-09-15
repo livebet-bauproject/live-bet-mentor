@@ -1831,6 +1831,120 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         );
     };
 
+    // --- TRENDING BETS LOCALIZATION HELPERS ---
+    const formatTrendingMarket = (market, marketShort, currentLang = 'tr') => {
+        const m = (market || '').trim();
+        const ms = (marketShort || '').trim().toLowerCase();
+        const mLower = m.toLowerCase();
+
+        // Next Goal (Wer schießt das nächste Tor? / Who scores next? / next-point)
+        if (ms === 'next-point' || mLower.includes('next') || mLower.includes('nächste') || mLower.includes('sıradaki')) {
+            return currentLang === 'tr' ? 'Sıradaki Golü Kim Atar?' : 'Who Scores Next?';
+        }
+
+        // Rest of game Over/Under (Over/Under (0.5) rest of the game / Über/Unter (0,5) Restzeit)
+        if (mLower.includes('restzeit') || mLower.includes('rest of the game') || mLower.includes('rest of game') || mLower.includes('kalan süre')) {
+            const numMatch = m.match(/(\d+[,.]\d+)/);
+            const num = numMatch ? numMatch[1].replace(',', '.') : '';
+            return currentLang === 'tr' 
+                ? (num ? `Kalan Süre Üst/Alt (${num})` : 'Kalan Süre Üst/Alt')
+                : (num ? `Rest of Match O/U (${num})` : 'Rest of Match Over/Under');
+        }
+
+        // Normal Over/Under (Über/Unter / Over/Under)
+        if (mLower.includes('über/unter') || mLower.includes('over/under') || mLower.includes('üst/alt')) {
+            const numMatch = m.match(/(\d+[,.]\d+)/);
+            const num = numMatch ? numMatch[1].replace(',', '.') : '';
+            return currentLang === 'tr'
+                ? (num ? `Toplam Gol Üst/Alt (${num})` : 'Toplam Gol Üst/Alt')
+                : (num ? `Total Goals O/U (${num})` : 'Total Goals Over/Under');
+        }
+
+        // 1X2 / 3-Way Match Result (3-Way / Tipp / standard)
+        if (ms === 'standard' || mLower.includes('3-way') || mLower.includes('tipp') || mLower.includes('maç sonucu')) {
+            return currentLang === 'tr' ? 'Maç Sonucu (1X2)' : 'Match Result (1X2)';
+        }
+
+        // Both Teams to Score (Beide Teams treffen / BTTS)
+        if (ms === 'btts' || mLower.includes('beide teams') || mLower.includes('both teams')) {
+            return currentLang === 'tr' ? 'Karşılıklı Gol (KG)' : 'Both Teams To Score';
+        }
+
+        // Double Chance (Doppelte Chance)
+        if (mLower.includes('doppelte chance') || mLower.includes('double chance')) {
+            return currentLang === 'tr' ? 'Çifte Şans' : 'Double Chance';
+        }
+
+        return m;
+    };
+
+    const formatTrendingMarketShort = (marketShort, market, currentLang = 'tr') => {
+        const ms = (marketShort || '').trim().toLowerCase();
+        const m = (market || '').trim().toLowerCase();
+
+        if (ms === 'next-point' || m.includes('next') || m.includes('nächste') || m.includes('sıradaki')) {
+            return currentLang === 'tr' ? 'Sıradaki Gol' : 'Next Goal';
+        }
+
+        if (ms === 'standard' || m.includes('3-way') || m.includes('tipp')) {
+            return '1X2';
+        }
+
+        if (ms === 'btts' || m.includes('both teams') || m.includes('beide teams')) {
+            return currentLang === 'tr' ? 'KG' : 'BTTS';
+        }
+
+        const numMatch = ms.match(/(\d+[,.]\d+)/) || m.match(/(\d+[,.]\d+)/);
+        if (numMatch) {
+            const num = numMatch[1].replace(',', '.');
+            if (m.includes('rest') || m.includes('restzeit') || m.includes('kalan')) {
+                return currentLang === 'tr' ? `Kalan ${num}` : `Rest ${num}`;
+            }
+            return currentLang === 'tr' ? `Üst/Alt ${num}` : `O/U ${num}`;
+        }
+
+        return marketShort || market || '';
+    };
+
+    const formatTrendingOutcome = (outcome, currentLang = 'tr') => {
+        const o = (outcome || '').trim();
+        if (!o) return '';
+
+        // Over / Über X
+        const matchOver = o.match(/^(?:über|over)\s*(\d+[,.]?\d*)/i);
+        if (matchOver) {
+            const num = matchOver[1].replace(',', '.');
+            return currentLang === 'tr' ? `Üst ${num}` : `Over ${num}`;
+        }
+
+        // Under / Unter X
+        const matchUnder = o.match(/^(?:unter|under)\s*(\d+[,.]?\d*)/i);
+        if (matchUnder) {
+            const num = matchUnder[1].replace(',', '.');
+            return currentLang === 'tr' ? `Alt ${num}` : `Under ${num}`;
+        }
+
+        // Match results
+        const oLower = o.toLowerCase();
+        if (oLower === 'unentschieden' || oLower === 'draw' || oLower === 'tie' || oLower === 'x') {
+            return currentLang === 'tr' ? 'Beraberlik' : 'Draw';
+        }
+        if (oLower === 'heimsieg' || oLower === 'home') {
+            return currentLang === 'tr' ? 'Ev Sahibi (1)' : 'Home (1)';
+        }
+        if (oLower === 'auswärtssieg' || oLower === 'away') {
+            return currentLang === 'tr' ? 'Deplasman (2)' : 'Away (2)';
+        }
+        if (oLower === 'ja' || oLower === 'yes') {
+            return currentLang === 'tr' ? 'Evet / Var' : 'Yes';
+        }
+        if (oLower === 'nein' || oLower === 'no') {
+            return currentLang === 'tr' ? 'Hayır / Yok' : 'No';
+        }
+
+        return o;
+    };
+
     // --- INSTITUTIONAL MARKET MONEY FLOW EVALUATION (SMART MONEY VS PUBLIC TRAP) ---
     const evaluateTrendingBet = useCallback((bet) => {
         const liveMatch = (matches || []).find(m => 
@@ -1951,7 +2065,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             if (trendingSearch) {
                 const q = trendingSearch.toLowerCase();
-                const betsText = m.bets.map(b => `${b.market} ${b.outcome}`).join(' ');
+                const betsText = m.bets.map(b => 
+                    `${b.market} ${b.marketShort} ${b.outcome} ${formatTrendingMarket(b.market, b.marketShort, lang)} ${formatTrendingMarketShort(b.marketShort, b.market, lang)} ${formatTrendingOutcome(b.outcome, lang)}`
+                ).join(' ');
                 const matchStr = `${m.home} ${m.away} ${m.competition} ${betsText}`.toLowerCase();
                 if (!matchStr.includes(q)) return false;
             }
@@ -2409,11 +2525,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             alignItems: 'center'
                                         }}>
                                             <div>
-                                                <div style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 700, textTransform: 'uppercase' }}>
-                                                    {m.primaryBet.market || 'Bahis Pazarı'}
+                                                <div style={{ fontSize: '0.7rem', opacity: 0.6, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                    {formatTrendingMarket(m.primaryBet.market, m.primaryBet.marketShort, lang) || (lang === 'tr' ? 'Bahis Pazarı' : 'Bet Market')}
                                                 </div>
                                                 <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', marginTop: '0.1rem' }}>
-                                                    🎯 {m.primaryBet.outcome}
+                                                    🎯 {formatTrendingOutcome(m.primaryBet.outcome, lang)}
                                                 </div>
                                             </div>
 
@@ -2499,9 +2615,19 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         }}
                                                     >
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
-                                                            <span style={{ color: '#38bdf8', fontWeight: 800 }}>🎯 {ob.outcome}</span>
-                                                            <span style={{ fontSize: '0.7rem', opacity: 0.5, whiteSpace: 'nowrap' }}>
-                                                                ({ob.marketShort || ob.market})
+                                                            <span style={{ color: '#38bdf8', fontWeight: 800 }}>
+                                                                🎯 {formatTrendingOutcome(ob.outcome, lang)}
+                                                            </span>
+                                                            <span style={{
+                                                                fontSize: '0.68rem',
+                                                                opacity: 0.75,
+                                                                whiteSpace: 'nowrap',
+                                                                background: 'rgba(255, 255, 255, 0.06)',
+                                                                padding: '0.1rem 0.35rem',
+                                                                borderRadius: '4px',
+                                                                color: '#cbd5e1'
+                                                            }}>
+                                                                ({formatTrendingMarketShort(ob.marketShort, ob.market, lang)})
                                                             </span>
                                                         </div>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
