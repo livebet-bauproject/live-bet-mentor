@@ -200,6 +200,27 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [showTrackingPanel, setShowTrackingPanel] = useState(false);
     const [trackingActiveTab, setTrackingActiveTab] = useState('ALERTS'); // 'ALERTS' or 'BETS'
     const [alertHistoryList, setAlertHistoryList] = useState(() => smartAlertService.getHistory(50));
+    const [isScanningResults, setIsScanningResults] = useState(false);
+
+    const scanFinishedAlerts = async () => {
+        setIsScanningResults(true);
+        try {
+            await smartAlertService.resolveFinishedAlerts();
+            setAlertHistoryList(smartAlertService.getHistory(50));
+            setTrackingStats(predictionTracker.getStats());
+        } catch (e) {
+            console.error('Error resolving finished alerts:', e);
+        } finally {
+            setIsScanningResults(false);
+        }
+    };
+
+    useEffect(() => {
+        if (showTrackingPanel) {
+            scanFinishedAlerts();
+        }
+    }, [showTrackingPanel]);
+
     const [showStakingCalc, setShowStakingCalc] = useState(false);
     const [liveOpportunitiesLimit, setLiveOpportunitiesLimit] = useState(5);
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
@@ -811,16 +832,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             // Check for smart alerts with enriched data
             const newAlerts = smartAlertService.checkMatches(enrichedFixtures, updatedSignals);
-            smartAlertService.autoResolveAlerts(enrichedFixtures);
-            if (newAlerts.length > 0) {
+            const alertsUpdated = smartAlertService.autoResolveAlerts(enrichedFixtures);
+            if (alertsUpdated || newAlerts.length > 0) {
                 setActiveAlerts([...smartAlertService.getActiveAlerts()]);
                 setAlertHistoryList(smartAlertService.getHistory(50));
+                setTrackingStats(predictionTracker.getStats());
+            }
+            if (newAlerts.length > 0) {
                 // Only show popup/toast if notify mode is TOAST (respects SILENT and OFF)
                 if (alertNotifyModeRef.current === 'TOAST') {
                     setShowAlertPopup(newAlerts[0]);
                     setToastProgress(100);
                 }
-                setTrackingStats(predictionTracker.getStats());
 
                 // Trigger FinTech terminal chime
                 try {
@@ -4316,30 +4339,53 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         </div>
                                     </div>
 
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                                         <div style={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.8 }}>Gelen Popup & Bildirim Sinyalleri</div>
-                                        {alertHistoryList.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                             <button
-                                                onClick={() => {
-                                                    if (window.confirm('Tüm sinyal geçmişini temizlemek istediğinize emin misiniz?')) {
-                                                        smartAlertService.clearHistory();
-                                                        setAlertHistoryList([]);
-                                                    }
-                                                }}
+                                                onClick={scanFinishedAlerts}
+                                                disabled={isScanningResults}
                                                 style={{
-                                                    background: 'rgba(239, 68, 68, 0.1)',
-                                                    border: '1px solid rgba(239, 68, 68, 0.25)',
-                                                    color: '#ef4444',
+                                                    background: isScanningResults ? 'rgba(56, 189, 248, 0.2)' : 'rgba(56, 189, 248, 0.1)',
+                                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                                    color: '#38bdf8',
                                                     padding: '0.3rem 0.7rem',
                                                     borderRadius: '6px',
                                                     fontSize: '0.7rem',
                                                     fontWeight: 700,
-                                                    cursor: 'pointer'
+                                                    cursor: isScanningResults ? 'not-allowed' : 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '4px'
                                                 }}
+                                                title="Biten maçların skorlarını canlı sorgula ve sonuçlandır"
                                             >
-                                                🗑️ Geçmişi Temizle
+                                                <span>{isScanningResults ? '⏳' : '🔄'}</span>
+                                                {isScanningResults ? 'Sorgulanıyor...' : 'Biten Maçları Sorgula'}
                                             </button>
-                                        )}
+                                            {alertHistoryList.length > 0 && (
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm('Tüm sinyal geçmişini temizlemek istediğinize emin misiniz?')) {
+                                                            smartAlertService.clearHistory();
+                                                            setAlertHistoryList([]);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        background: 'rgba(239, 68, 68, 0.1)',
+                                                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                                                        color: '#ef4444',
+                                                        padding: '0.3rem 0.7rem',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    🗑️ Geçmişi Temizle
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Alert Cards */}

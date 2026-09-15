@@ -652,6 +652,112 @@ class SmartAlertService {
     }
 
     /**
+     * Core evaluation logic for a single alert against match scores and status
+     */
+    evaluateAlertStatus(alert, curHome, curAway, isFinished = false, currentMinute = null) {
+        const totalGoals = curHome + curAway;
+        let initHome = 0, initAway = 0;
+        if (typeof alert.score === 'string' && alert.score.includes('-')) {
+            const parts = alert.score.split('-');
+            initHome = parseInt(parts[0]) || 0;
+            initAway = parseInt(parts[1]) || 0;
+        } else if (alert.score && typeof alert.score === 'object') {
+            initHome = Number(alert.score.home ?? 0);
+            initAway = Number(alert.score.away ?? 0);
+        }
+
+        const rec = alert.recommendation || {};
+        const marketLabel = (rec.predictionText || rec.marketLabel || rec.marketKey || rec.market || '').toLowerCase();
+        const homeName = (alert.homeTeam || alert.match?.split(' vs ')?.[0] || '').toLowerCase();
+        const awayName = (alert.awayTeam || alert.match?.split(' vs ')?.[1] || '').toLowerCase();
+
+        // 1. OVER GOALS (Üst Gol)
+        if (marketLabel.includes('üst') || marketLabel.includes('over')) {
+            const matchLine = marketLabel.match(/(\d+\.?\d*)/);
+            const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
+            if (totalGoals > line) return 'WON';
+            if (isFinished && totalGoals <= line) return 'LOST';
+            return 'PENDING';
+        }
+
+        // 2. UNDER GOALS (Alt Gol)
+        if (marketLabel.includes('alt') || marketLabel.includes('under')) {
+            const matchLine = marketLabel.match(/(\d+\.?\d*)/);
+            const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
+            if (totalGoals > line) return 'LOST';
+            if (isFinished && totalGoals < line) return 'WON';
+            return 'PENDING';
+        }
+
+        // 3. BTTS / KG VAR
+        if (marketLabel.includes('karşılıklı') || marketLabel.includes('kg var') || marketLabel.includes('btts')) {
+            if (curHome >= 1 && curAway >= 1) return 'WON';
+            if (isFinished) return 'LOST';
+            return 'PENDING';
+        }
+
+        // 4. BTTS YOK / KG YOK
+        if (marketLabel.includes('kg yok') || marketLabel.includes('btts no')) {
+            if (curHome >= 1 && curAway >= 1) return 'LOST';
+            if (isFinished && (curHome === 0 || curAway === 0)) return 'WON';
+            return 'PENDING';
+        }
+
+        // 5. NEXT GOAL (Sıradaki Gol)
+        if (marketLabel.includes('sıradaki') || marketLabel.includes('next goal') || marketLabel.includes('next_goal')) {
+            const team = (rec.team || '').toLowerCase();
+            const isHomeTarget = marketLabel.includes('ev') || marketLabel.includes('home') || (team && homeName.includes(team)) || (homeName && marketLabel.includes(homeName.slice(0, 5)));
+            const isAwayTarget = marketLabel.includes('deplasman') || marketLabel.includes('away') || (team && awayName.includes(team)) || (awayName && marketLabel.includes(awayName.slice(0, 5)));
+
+            if (curHome > initHome && curAway === initAway) {
+                return isHomeTarget ? 'WON' : 'LOST';
+            } else if (curAway > initAway && curHome === initHome) {
+                return isAwayTarget ? 'WON' : 'LOST';
+            } else if (curHome > initHome || curAway > initAway) {
+                // Both scored or multiple goals: check which team hit their target
+                if (isHomeTarget && curHome > initHome) return 'WON';
+                if (isAwayTarget && curAway > initAway) return 'WON';
+                return 'LOST';
+            } else if (isFinished && totalGoals === (initHome + initAway)) {
+                return 'LOST';
+            }
+            return 'PENDING';
+        }
+
+        // 6. MATCH WINNER / KAZANMAYA YAKIN / MS 1 / MS 2 / 1X2
+        if (marketLabel.includes('kazan') || marketLabel.includes('win') || marketLabel.includes('ms 1') || marketLabel.includes('ms 2') || marketLabel.includes('1x2') || rec.marketKey === 'HOME_WIN_NEXT' || rec.marketKey === 'AWAY_WIN_NEXT') {
+            const team = (rec.team || '').toLowerCase();
+            const isHomeTarget = marketLabel.includes('ms 1') || marketLabel.includes('ev') || (team && homeName.includes(team)) || (homeName && marketLabel.includes(homeName.slice(0, 5)));
+            const isAwayTarget = marketLabel.includes('ms 2') || marketLabel.includes('deplasman') || (team && awayName.includes(team)) || (awayName && marketLabel.includes(awayName.slice(0, 5)));
+
+            if (isFinished) {
+                if (isHomeTarget && curHome > curAway) return 'WON';
+                if (isAwayTarget && curAway > curHome) return 'WON';
+                return 'LOST';
+            }
+
+            // In-play early win: If a team leads by 3+ goals past 80' (e.g. 4-0 at 80')
+            const minuteNum = typeof currentMinute === 'number' ? currentMinute : parseInt(currentMinute || 0);
+            if (minuteNum >= 80) {
+                if (isHomeTarget && (curHome - curAway) >= 3) return 'WON';
+                if (isAwayTarget && (curAway - curHome) >= 3) return 'WON';
+            }
+            return 'PENDING';
+        }
+
+        // 7. MATCH FINISHED GENERIC FALLBACK
+        if (isFinished) {
+            // If team was mentioned and they won:
+            if (homeName && marketLabel.includes(homeName.slice(0, 5)) && curHome > curAway) return 'WON';
+            if (awayName && marketLabel.includes(awayName.slice(0, 5)) && curAway > curHome) return 'WON';
+            if (totalGoals > (initHome + initAway)) return 'WON';
+            return 'LOST';
+        }
+
+        return 'PENDING';
+    }
+
+    /**
      * Automatically evaluate results of pending alerts based on live match scores
      */
     autoResolveAlerts(matches) {
@@ -667,74 +773,16 @@ class SmartAlertService {
 
             const curHome = Number(match.score?.home ?? match.homeScore?.current ?? 0);
             const curAway = Number(match.score?.away ?? match.awayScore?.current ?? 0);
-            const totalGoals = curHome + curAway;
-
-            let initHome = 0, initAway = 0;
-            if (typeof alert.score === 'string' && alert.score.includes('-')) {
-                const parts = alert.score.split('-');
-                initHome = parseInt(parts[0]) || 0;
-                initAway = parseInt(parts[1]) || 0;
-            }
-
-            const rec = alert.recommendation || {};
-            const marketLabel = (rec.predictionText || rec.marketLabel || rec.marketKey || '').toLowerCase();
             const isFinished = match.status?.type === 'finished' || match.status?.code === 100 || match.minute === 'MS';
 
-            // 1. Over Goals Check
-            if (marketLabel.includes('üst') || marketLabel.includes('over')) {
-                const matchLine = marketLabel.match(/(\d+\.?\d*)/);
-                const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
-                if (totalGoals > line) {
-                    alert.status = 'WON';
-                    alert.resolvedAt = now;
-                    updated = true;
-                    this.sendResolutionToTelegram(alert, 'WON', `${curHome}-${curAway}`);
-                } else if (isFinished) {
-                    alert.status = 'LOST';
-                    alert.resolvedAt = now;
-                    updated = true;
-                    this.sendResolutionToTelegram(alert, 'LOST', `${curHome}-${curAway}`);
-                }
-            }
-            // 2. BTTS / KG Var Check
-            else if (marketLabel.includes('karşılıklı') || marketLabel.includes('kg var') || marketLabel.includes('btts')) {
-                if (curHome >= 1 && curAway >= 1) {
-                    alert.status = 'WON';
-                    alert.resolvedAt = now;
-                    updated = true;
-                    this.sendResolutionToTelegram(alert, 'WON', `${curHome}-${curAway}`);
-                } else if (isFinished) {
-                    alert.status = 'LOST';
-                    alert.resolvedAt = now;
-                    updated = true;
-                    this.sendResolutionToTelegram(alert, 'LOST', `${curHome}-${curAway}`);
-                }
-            }
-            // 3. Next Goal Check
-            else if (marketLabel.includes('sıradaki') || marketLabel.includes('next goal')) {
-                const team = (rec.team || '').toLowerCase();
-                const homeName = (match.homeTeam || alert.homeTeam || '').toLowerCase();
-                const awayName = (match.awayTeam || alert.awayTeam || '').toLowerCase();
+            const outcome = this.evaluateAlertStatus(alert, curHome, curAway, isFinished, match.minute);
 
-                const isHomeTarget = marketLabel.includes('ev') || (team && homeName.includes(team));
-                const isAwayTarget = marketLabel.includes('deplasman') || (team && awayName.includes(team));
-
-                if (curHome > initHome && curAway === initAway) {
-                    alert.status = isHomeTarget ? 'WON' : 'LOST';
-                    alert.resolvedAt = now;
-                    updated = true;
-                    this.sendResolutionToTelegram(alert, alert.status, `${curHome}-${curAway}`);
-                } else if (curAway > initAway && curHome === initHome) {
-                    alert.status = isAwayTarget ? 'WON' : 'LOST';
-                    alert.resolvedAt = now;
-                    updated = true;
-                    this.sendResolutionToTelegram(alert, alert.status, `${curHome}-${curAway}`);
-                } else if (isFinished && totalGoals === (initHome + initAway)) {
-                    alert.status = 'LOST';
-                    alert.resolvedAt = now;
-                    updated = true;
-                    this.sendResolutionToTelegram(alert, 'LOST', `${curHome}-${curAway}`);
-                }
+            if (outcome === 'WON' || outcome === 'LOST') {
+                alert.status = outcome;
+                alert.resolvedAt = now;
+                alert.finalScore = `${curHome}-${curAway}`;
+                updated = true;
+                this.sendResolutionToTelegram(alert, outcome, `${curHome}-${curAway}`);
             }
         });
 
@@ -743,6 +791,66 @@ class SmartAlertService {
                 localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
             } catch (e) {}
         }
+        return updated;
+    }
+
+    /**
+     * Asynchronously query backend for finished matches to resolve pending alerts
+     * that are no longer present in the live match feed.
+     */
+    async resolveFinishedAlerts() {
+        const pending = this.alertHistory.filter(a => a.status === 'PENDING');
+        if (pending.length === 0) return 0;
+
+        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:3001'
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+        let resolvedCount = 0;
+        const now = Date.now();
+
+        // Check each pending alert whose match may have finished
+        for (const alert of pending) {
+            if (!alert.matchId) continue;
+
+            try {
+                const res = await fetch(`${proxyBase}/api/sofascore/event/${alert.matchId}`, {
+                    signal: AbortSignal.timeout(6000)
+                });
+                if (!res.ok) continue;
+                const data = await res.json();
+                const ev = data.event || data;
+
+                if (!ev || !ev.status) continue;
+
+                const statusType = (ev.status.type || '').toLowerCase();
+                const statusCode = ev.status.code;
+                const isFinished = statusType === 'finished' || statusCode === 100 || ev.status.description === 'Ended';
+
+                const curHome = Number(ev.homeScore?.current ?? ev.score?.home ?? 0);
+                const curAway = Number(ev.awayScore?.current ?? ev.score?.away ?? 0);
+
+                const outcome = this.evaluateAlertStatus(alert, curHome, curAway, isFinished, ev.minute);
+
+                if (outcome === 'WON' || outcome === 'LOST') {
+                    alert.status = outcome;
+                    alert.resolvedAt = now;
+                    alert.finalScore = `${curHome}-${curAway}`;
+                    resolvedCount++;
+                    this.sendResolutionToTelegram(alert, outcome, `${curHome}-${curAway}`);
+                }
+            } catch (err) {
+                // Ignore network timeouts for individual event fetch
+            }
+        }
+
+        if (resolvedCount > 0) {
+            try {
+                localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
+            } catch (e) {}
+        }
+
+        return resolvedCount;
     }
 
     /**
