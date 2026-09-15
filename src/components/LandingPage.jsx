@@ -179,7 +179,28 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     <span style={{ fontWeight: 900, letterSpacing: '-1px', fontSize: '1.2rem' }}>LIVE BET MENTOR</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '1.2rem', alignItems: 'center' }}>
+                    <a 
+                        href="https://t.me/Livebetdeskbot" 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '5px', 
+                            background: 'rgba(0, 136, 204, 0.15)', 
+                            border: '1px solid rgba(0, 136, 204, 0.4)', 
+                            color: '#38bdf8', 
+                            padding: '0.4rem 0.8rem', 
+                            borderRadius: '6px', 
+                            textDecoration: 'none', 
+                            fontSize: '0.78rem', 
+                            fontWeight: 700 
+                        }}
+                    >
+                        <span>✈️</span>
+                        <span>{lang === 'tr' ? 'Telegram Destek' : 'Support Desk'}</span>
+                    </a>
                     <button onClick={() => setLang(lang === 'tr' ? 'en' : 'tr')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem' }}>
                         {lang === 'tr' ? 'EN' : 'TR'}
                     </button>
@@ -385,6 +406,23 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <a
+                        href="https://t.me/Livebetdeskbot"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                            color: '#38bdf8',
+                            textDecoration: 'none',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                    >
+                        ✈️ {lang === 'tr' ? 'Telegram Canlı Destek' : 'Telegram Live Support'}
+                    </a>
+                    <span style={{ opacity: 0.3 }}>|</span>
                     <button
                         onClick={() => setIsLegalModalOpen(true)}
                         style={{

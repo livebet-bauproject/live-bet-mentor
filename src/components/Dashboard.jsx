@@ -5053,7 +5053,24 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <strong style={{ color: '#94a3b8' }}>{t.legal_not_bookmaker}</strong>{' '}
                     {t.legal_disclaimer_text}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center' }}>
+                    <a
+                        href="https://t.me/Livebetdeskbot"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                            color: '#38bdf8',
+                            textDecoration: 'none',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                        }}
+                    >
+                        ✈️ {lang === 'tr' ? '7/24 Telegram Destek' : '24/7 Telegram Support'}
+                    </a>
+                    <span style={{ opacity: 0.3 }}>|</span>
                     <button
                         onClick={() => setIsLegalModalOpen(true)}
                         style={{

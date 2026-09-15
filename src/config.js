@@ -136,7 +136,7 @@ export const CONFIG = {
   },
   SUPPORT: {
     TELEGRAM: '@Livebetdeskbot',
-    EMAIL: 'karabulut.hamza@gmail.com'
+    EMAIL: 'support@livebetmentor.com'
   },
   MEMBERSHIP_PRICING: {
     trial: 0,
