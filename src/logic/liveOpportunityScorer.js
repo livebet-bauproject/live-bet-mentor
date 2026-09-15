@@ -21,7 +21,6 @@ import { velocityModule } from './velocityModule.js';
 import { xGModule } from './xGModule.js';
 import { poissonEngine } from './poissonEngine.js';
 import { latencyArbitrageRadar } from './latencyArbitrageRadar.js';
-import { dataWorker } from '../backend/dataWorker.js';
 
 // Dynamic weights based on match minute
 const getWeightsForMinute = (minute) => {
@@ -178,15 +177,6 @@ class LiveOpportunityScorer {
         const dqs = match.dqs || 0;
         const totalSog = (match.stats?.shotsOnGoal?.home || 0) + (match.stats?.shotsOnGoal?.away || 0);
         const totalAttacks = (match.stats?.dangerousAttacks?.home || 0) + (match.stats?.dangerousAttacks?.away || 0);
-        
-        // A match is ready for full analysis if:
-        // - It has passed the initial minute window (>= 15') OR already has significant early output (>= 2 SOG or >= 20 attacks)
-        // - If in halftime, meets halftime analysis criteria
-        // - Has sufficient DQS or attacking volume
-        const hasEarlyMomentum = totalSog >= 2 || totalAttacks >= 20;
-        const isStatsReady = (!isEarlyMinute || hasEarlyMomentum) && 
-                             qualifiesForHalftimeAnalysis && 
-                             ((dqs >= 0.50) || (totalSog > 0) || (totalAttacks >= 15));
 
         // Get dynamic weights based on minute
         const weights = getWeightsForMinute(minute);
@@ -198,6 +188,23 @@ class LiveOpportunityScorer {
         const obs = activeSignal?.observations || {};
         const pressureData = obs.pressure || pressureIndex.calculate(match.stats, minute, match.score);
         const xgData = obs.xg || xGModule.calculate(match);
+
+        // DATA DENSITY GATEKEEPER (Seçenek A)
+        // Detect matches with low statistical coverage (e.g. U21, U23, regional leagues with only bare shots/corners)
+        const hasDangerousAttacks = (match.stats?.dangerousAttacks?.home > 0 || match.stats?.dangerousAttacks?.away > 0);
+        const hasRealXG = (xgData?.source === 'PRIMARY_DATA') || (match.stats?.xg?.home > 0 || match.stats?.xg?.away > 0);
+        const hasMomentumGraph = Array.isArray(match.graphPoints) && match.graphPoints.length > 5;
+        const isLowData = !hasDangerousAttacks && !hasRealXG && !hasMomentumGraph;
+        
+        // A match is ready for full analysis if:
+        // - It has passed the initial minute window (>= 15') OR already has significant early output (>= 2 SOG or >= 20 attacks)
+        // - If in halftime, meets halftime analysis criteria
+        // - Has sufficient DQS and genuine data density
+        const hasEarlyMomentum = totalSog >= 2 || totalAttacks >= 20;
+        const isStatsReady = (!isEarlyMinute || hasEarlyMomentum) && 
+                             qualifiesForHalftimeAnalysis && 
+                             !isLowData &&
+                             ((dqs >= 0.50) || (totalSog >= 3 && totalAttacks >= 15));
         
         // 3. Dynamic Momentum (Window-based)
         const momentumScore = this._calculateMomentumScore(match, windowMinutes);
@@ -208,9 +215,10 @@ class LiveOpportunityScorer {
         const oddsScore = this._calculateOddsScore(match, activeSignal);
 
         // 4. Synergy Bonus (xG + Pressure Alignment)
+        // STRICT: Only award synergy bonus if we have GENUINE xG data, NOT simulated fallback on bare stats!
         let synergyBonus = 0;
-        if (xgData.surplus?.total > 0.3 && pressureScore > 65) {
-            synergyBonus = 15; // Stats backed by xG quality
+        if (hasRealXG && xgData.surplus?.total > 0.3 && pressureScore > 65) {
+            synergyBonus = 15; // Stats backed by genuine xG quality
         }
 
         // 5. Weighted Total
@@ -223,8 +231,8 @@ class LiveOpportunityScorer {
             oddsScore * weights.ODDS
         ) + synergyBonus;
 
-        // CRITICAL: Cap score if stats are not ready (Maximum 48 - SOGUK / BEKLEMEDE)
-        if (!isStatsReady) {
+        // CRITICAL: Cap score if stats are not ready or if data density is low (Maximum 48 - SOGUK / BEKLEMEDE)
+        if (!isStatsReady || isLowData) {
             totalScore = Math.min(48, totalScore);
         }
 
@@ -435,18 +443,20 @@ class LiveOpportunityScorer {
             suggestedMarket,
             reason,
             oddsInfo,
-            valueDetected: oddsScore >= 70,
-            smartMoney: oddsMovement?.smartMoney || null,
+            valueDetected: (oddsScore >= 70) && !isLowData,
+            smartMoney: isLowData ? null : (oddsMovement?.smartMoney || null),
             oddsMovement: oddsMovement || null,
             isTrap: oddsMovement?.isTrap || false,
-            evAnalysis: evAnalysis || null,
-            hasValueEV: evAnalysis?.hasValue || false,
-            bestEV: evAnalysis?.bestEV || null,
-            latencyEdge: latencyEdge || null,
-            hasLatencyEdge: latencyEdge !== null,
+            evAnalysis: isLowData ? null : (evAnalysis || null),
+            hasValueEV: isLowData ? false : (evAnalysis?.hasValue || false),
+            bestEV: isLowData ? null : (evAnalysis?.bestEV || null),
+            latencyEdge: isLowData ? null : (latencyEdge || null),
+            hasLatencyEdge: !isLowData && latencyEdge !== null,
             cashOutWarning: cashOutWarning || null,
             aiMultiplier: aiMultiplier !== 1.0 ? Number(aiMultiplier.toFixed(2)) : null,
-            isStatsReady,      // NEW: Flag for UI
+            isStatsReady: isStatsReady && !isLowData,      // NEW: Flag for UI
+            isLowData,
+            dataDensity: isLowData ? 'LOW' : 'NORMAL',
             isHalftime: !!isHalftime,
             components: {
                 dqs: dqsScore,
@@ -1082,9 +1092,15 @@ class LiveOpportunityScorer {
         // OR in late game (minute >= 75) when the match is tied.
         // =========================================================================
 
-        const liveHomeOdds = (oddsInfo?.nextGoalHome || (goalDiff >= 1 ? oddsInfo?.home : oddsInfo?.home)) ? parseFloat(oddsInfo.nextGoalHome || oddsInfo.home) : null;
-        const liveAwayOdds = (oddsInfo?.nextGoalAway || (goalDiff <= -1 ? oddsInfo?.away : oddsInfo?.away)) ? parseFloat(oddsInfo.nextGoalAway || oddsInfo.away) : null;
-        const liveOverOdds = (oddsInfo?.over25 || oddsInfo?.over) ? parseFloat(oddsInfo.over25 || oddsInfo.over) : null;
+        const parseSanitizedOdds = (val) => {
+            if (!val) return null;
+            const n = parseFloat(val);
+            return (!isNaN(n) && n >= 1.10 && n <= 3.50) ? n : null;
+        };
+
+        const liveHomeOdds = parseSanitizedOdds(oddsInfo?.nextGoalHome) || (goalDiff >= 1 ? parseSanitizedOdds(oddsInfo?.home) : null);
+        const liveAwayOdds = parseSanitizedOdds(oddsInfo?.nextGoalAway) || (goalDiff <= -1 ? parseSanitizedOdds(oddsInfo?.away) : null);
+        const liveOverOdds = parseSanitizedOdds(oddsInfo?.over25 || oddsInfo?.over);
 
         // SCENARIO 1: LATE GAME (minute >= 75)
         if (minute >= 75) {

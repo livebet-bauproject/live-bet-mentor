@@ -19,14 +19,39 @@ export class BetBuilderEngine {
 
         // 1. Filter qualified opportunities (SICAK or ALEV, with valid suggestedMarket)
         const candidates = opportunities
-            .filter(opp => !opp.excluded && opp.score >= 60 && opp.suggestedMarket?.marketKey && !opp.isTrap)
+            .filter(opp => {
+                if (!opp || opp.excluded || opp.isTrap) return false;
+                // STRICT DATA DENSITY GATE: Never allow low-data/bare-stats matches into Golden Double!
+                if (opp.isLowData || opp.dataDensity === 'LOW') return false;
+                if (opp.score < 60) return false;
+                if (!opp.suggestedMarket?.marketKey) return false;
+                return true;
+            })
             .map(opp => {
                 const match = matches.find(m => m.id === opp.matchId);
                 if (!match) return null;
 
-                // Estimate odds if live odds not yet parsed
-                let odds = opp.suggestedMarket.odds || opp.oddsInfo?.over || opp.oddsInfo?.home;
-                if (!odds || isNaN(odds) || odds <= 1.05) {
+                // Also check league level: reject youth/reserve matches if they don't have verified xG
+                const leagueLower = (match.league || match.leagueName || '').toLowerCase();
+                const isYouthLeague = leagueLower.includes('u21') || leagueLower.includes('u23') || 
+                                     leagueLower.includes('u19') || leagueLower.includes('development') || 
+                                     leagueLower.includes('next gen') || leagueLower.includes('reserve');
+                if (isYouthLeague && (!match.stats?.xg || (match.stats.xg.home === 0 && match.stats.xg.away === 0))) {
+                    return null;
+                }
+
+                // Sanitize and determine realistic in-play odds
+                let odds = opp.suggestedMarket.odds;
+                
+                // If suggested market is OVER, we can consider over odds (if realistic <= 3.20)
+                if ((!odds || odds > 3.20 || odds < 1.10) && opp.suggestedMarket.marketKey?.includes('OVER')) {
+                    const oVal = parseFloat(opp.oddsInfo?.over);
+                    if (oVal >= 1.10 && oVal <= 3.20) odds = oVal;
+                }
+
+                // If odds is still invalid, outside sanity range (1.10 - 3.20), or missing:
+                // Use statistical fair value based on engine conviction
+                if (!odds || isNaN(odds) || odds < 1.10 || odds > 3.20) {
                     const conf = opp.suggestedMarket.confidence || 75;
                     if (conf >= 85) odds = 1.48;
                     else if (conf >= 80) odds = 1.55;

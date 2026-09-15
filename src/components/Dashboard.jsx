@@ -2563,6 +2563,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         animation: 'pulse 1.5s infinite'
                                                     }} title={opp.cashOutWarning.reason}>🛡️ CASHOUT ÖNERİSİ</span>
                                                 )}
+                                                {opp.isLowData && (
+                                                    <span style={{
+                                                        background: 'rgba(148, 163, 184, 0.15)',
+                                                        border: '1px solid rgba(148, 163, 184, 0.3)',
+                                                        padding: '0.1rem 0.4rem',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.55rem',
+                                                        fontWeight: 700,
+                                                        color: '#94a3b8',
+                                                        marginLeft: '4px'
+                                                    }} title="xG veya Tehlikeli Atak verisi bulunmuyor (Sadece temel şut/korner)">
+                                                        ⚠️ Kısıtlı İstatistik
+                                                    </span>
+                                                )}
                                             </div>
 
                                             {!isCompact && (
