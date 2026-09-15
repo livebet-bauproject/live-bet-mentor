@@ -4147,6 +4147,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#38bdf8' }}>
                                     {showAlertPopup.recommendation?.predictionText ||
                                      (showAlertPopup.recommendation?.marketKey === 'POST_GOAL_COOLDOWN' ? (t.POST_GOAL_COOLDOWN || 'Yeni Gol Oldu (Piyasa Dengeleniyor)') :
+                                      showAlertPopup.recommendation?.marketKey === 'STABLE_GAME' ? (t.STABLE_GAME || 'Dengeli Oyun / Pas') :
                                       showAlertPopup.recommendation?.marketLabel || 
                                       (t[showAlertPopup.recommendation?.marketKey] || showAlertPopup.recommendation?.marketKey || showAlertPopup.recommendation?.market))}
                                 </div>

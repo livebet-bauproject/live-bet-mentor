@@ -114,6 +114,11 @@ class SmartAlertService {
             return { shouldAlert: false, blockedReason: 'POST_GOAL_COOLDOWN' };
         }
 
+        // Block alert if match is stable/neutral with NO actionable betting edge (Pas)
+        if (oppData.suggestedMarket?.marketKey === 'STABLE_GAME' || oppData.suggestedMarket?.marketKey === 'PASS') {
+            return { shouldAlert: false, blockedReason: 'STABLE_GAME_NO_EDGE' };
+        }
+
         // 1. xG Advantage Check
         if (xgDiff >= 0.4) {
             conditions.xgAdvantage = true;
@@ -247,6 +252,8 @@ class SmartAlertService {
                 marketLabel = sm.label || `${sm.target || (totalGoals + 0.5)} Üst Bekleniyor`;
             } else if (marketKey === 'POST_GOAL_COOLDOWN') {
                 marketLabel = 'Yeni Gol Oldu (Piyasa Dengeleniyor)';
+            } else if (marketKey === 'STABLE_GAME' || marketKey === 'PASS') {
+                marketLabel = 'Dengeli Oyun (Pas Geç)';
             } else {
                 marketLabel = sm.label || sm.marketKey.replace(/_/g, ' ');
             }
