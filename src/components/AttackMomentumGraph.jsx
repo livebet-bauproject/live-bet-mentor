@@ -6,9 +6,32 @@ export const AttackMomentumGraph = ({
     awayTeam = 'Deplasman',
     currentMinute = 90,
     height = 90,
-    lang = 'tr'
+    lang = 'tr',
+    loading = false,
+    noGraph = false
 }) => {
     const [hoveredPoint, setHoveredPoint] = useState(null);
+
+    if (loading) {
+        return (
+            <div style={{
+                padding: '1.2rem',
+                background: 'rgba(255, 255, 255, 0.02)',
+                borderRadius: '10px',
+                border: '1px dashed rgba(255, 255, 255, 0.1)',
+                textAlign: 'center',
+                color: 'var(--accent-color)',
+                fontSize: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+            }}>
+                <span style={{ animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>🌀</span>
+                <span>{lang === 'tr' ? 'SofaScore Attack Momentum verisi çekiliyor...' : 'Fetching SofaScore wave data...'}</span>
+            </div>
+        );
+    }
 
     if (!Array.isArray(points) || points.length === 0) {
         return (
@@ -21,8 +44,13 @@ export const AttackMomentumGraph = ({
                 color: '#94a3b8',
                 fontSize: '0.75rem'
             }}>
-                <div style={{ fontSize: '1rem', marginBottom: '0.3rem' }}>📈</div>
-                {lang === 'tr' ? 'Canlı Attack Momentum dalga verisi bekleniyor...' : 'Awaiting live Attack Momentum wave data...'}
+                <div style={{ fontSize: '1.1rem', marginBottom: '0.3rem' }}>{noGraph ? 'ℹ️' : '📈'}</div>
+                <div>
+                    {noGraph
+                        ? (lang === 'tr' ? 'Bu lig/kupa maçı için SofaScore canlı dalga radarı bulunmuyor' : 'No live wave radar provided by SofaScore for this event')
+                        : (lang === 'tr' ? 'Canlı Attack Momentum dalga verisi bekleniyor...' : 'Awaiting live Attack Momentum wave data...')
+                    }
+                </div>
             </div>
         );
     }

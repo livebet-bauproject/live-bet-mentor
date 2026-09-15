@@ -248,7 +248,7 @@ export const sofaScoreAdapter = {
      * Fetches minute-by-minute attack momentum graph for a match.
      */
     async fetchEventGraph(eventId) {
-        if (!eventId) return [];
+        if (!eventId) return { graphPoints: [], noGraph: false };
         try {
             const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiBase = isLocalDev
@@ -256,16 +256,20 @@ export const sofaScoreAdapter = {
                 : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
             const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/graph`, {
-                signal: AbortSignal.timeout(6000)
+                signal: AbortSignal.timeout(8000)
             });
             if (res.ok) {
                 const data = await res.json();
-                return data?.graphPoints || [];
+                const points = data?.graphPoints || data?.graphPointsV2 || [];
+                return {
+                    graphPoints: Array.isArray(points) ? points : [],
+                    noGraph: Boolean(data?.noGraph)
+                };
             }
         } catch (e) {
             console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
         }
-        return [];
+        return { graphPoints: [], noGraph: false };
     },
 
     /**

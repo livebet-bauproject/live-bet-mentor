@@ -207,25 +207,49 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     // Live Attack Momentum Graph State
     const [matchGraphPoints, setMatchGraphPoints] = useState([]);
     const [graphLoading, setGraphLoading] = useState(false);
+    const [graphNoData, setGraphNoData] = useState(false);
 
     useEffect(() => {
         if (!selectedMatch?.id) {
             setMatchGraphPoints([]);
+            setGraphNoData(false);
+            setGraphLoading(false);
             return;
         }
         let isCancelled = false;
         setGraphLoading(true);
-        sofaScoreAdapter.fetchEventGraph(selectedMatch.id).then(pts => {
-            if (!isCancelled) {
-                setMatchGraphPoints(pts || []);
-                setGraphLoading(false);
-            }
-        }).catch(() => {
-            if (!isCancelled) {
-                setMatchGraphPoints([]);
-                setGraphLoading(false);
-            }
-        });
+        setGraphNoData(false);
+
+        const fetchGraph = (retries = 0) => {
+            sofaScoreAdapter.fetchEventGraph(selectedMatch.id).then(res => {
+                if (isCancelled) return;
+                const pts = res?.graphPoints || (Array.isArray(res) ? res : []);
+                if (pts.length > 0) {
+                    setMatchGraphPoints(pts);
+                    setGraphNoData(false);
+                    setGraphLoading(false);
+                } else if (res?.noGraph) {
+                    setMatchGraphPoints([]);
+                    setGraphNoData(true);
+                    setGraphLoading(false);
+                } else if (retries < 2) {
+                    setTimeout(() => {
+                        if (!isCancelled) fetchGraph(retries + 1);
+                    }, 1800);
+                } else {
+                    setMatchGraphPoints([]);
+                    setGraphNoData(true);
+                    setGraphLoading(false);
+                }
+            }).catch(() => {
+                if (!isCancelled) {
+                    setMatchGraphPoints([]);
+                    setGraphLoading(false);
+                }
+            });
+        };
+
+        fetchGraph(0);
         return () => { isCancelled = true; };
     }, [selectedMatch?.id]);
 
@@ -3940,6 +3964,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     currentMinute={parseInt(currentMatch.minute) || 90}
                                                     height={100}
                                                     lang={lang}
+                                                    loading={graphLoading}
+                                                    noGraph={graphNoData}
                                                 />
                                             </div>
 

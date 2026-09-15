@@ -484,6 +484,43 @@ app.get('/api/sofascore/event/:id/statistics', (req, res) => {
 
 // 4b. Match Attack Momentum Graph (Minute-by-minute pressure wave)
 const memoryGraphCache = {};
+
+function fetchGraphViaCurlCffi(eventId) {
+    const pyCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
+    return new Promise((resolve) => {
+        const pyScript = `import site, sys
+sys.path.insert(0, site.getusersitepackages())
+try:
+    from curl_cffi import requests
+    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/graph', impersonate='chrome120', timeout=6)
+    if r.status_code == 200:
+        print(r.text)
+    elif r.status_code == 404:
+        print('{"graphPoints":[],"noGraph":true}')
+    else:
+        print('{"graphPoints":[]}')
+except Exception:
+    print('{"graphPoints":[]}')
+`;
+        const child = spawn(pyCmd, ['-c', pyScript]);
+        let out = '';
+        child.stdout.on('data', d => { out += d.toString(); });
+        child.on('close', (code) => {
+            try {
+                const parsed = JSON.parse(out.trim());
+                resolve(parsed);
+            } catch (e) {
+                resolve({ graphPoints: [] });
+            }
+        });
+        child.on('error', () => resolve({ graphPoints: [] }));
+        setTimeout(() => {
+            try { child.kill(); } catch (e) {}
+            resolve({ graphPoints: [] });
+        }, 7000);
+    });
+}
+
 app.get('/api/sofascore/event/:id/graph', async (req, res) => {
     const id = req.params.id;
     const now = Date.now();
@@ -497,20 +534,33 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
             const stats = fs.statSync(graphFilePath);
             if ((now - stats.mtimeMs) < 60000) {
                 const data = JSON.parse(fs.readFileSync(graphFilePath, 'utf8'));
-                memoryGraphCache[id] = { time: now, data };
-                return res.json(data);
+                if (data && (data.graphPoints || data.graphPointsV2 || data.noGraph)) {
+                    memoryGraphCache[id] = { time: now, data };
+                    return res.json(data);
+                }
             }
         } catch(e) {}
     }
 
+    queueRequest(id);
+
+    // Fast on-demand fetch using curl_cffi (Chrome TLS fingerprint)
+    try {
+        const cffiData = await fetchGraphViaCurlCffi(id);
+        if (cffiData && ((cffiData.graphPoints && cffiData.graphPoints.length > 0) || (cffiData.graphPointsV2 && cffiData.graphPointsV2.length > 0) || cffiData.noGraph)) {
+            memoryGraphCache[id] = { time: now, data: cffiData };
+            try { fs.writeFileSync(graphFilePath, JSON.stringify(cffiData), 'utf8'); } catch(e) {}
+            return res.json(cffiData);
+        }
+    } catch (err) {
+        console.warn(`[PROXY] curl_cffi graph fetch error for ${id}:`, err.message);
+    }
+
+    // Fallback: Node fetch with SOFASCORE_HEADERS if curl_cffi is unavailable
     try {
         const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/graph`, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': '*/*',
-                'Referer': 'https://www.sofascore.com/'
-            },
-            signal: AbortSignal.timeout(6000)
+            headers: SOFASCORE_HEADERS,
+            signal: AbortSignal.timeout(5000)
         });
         if (fetchRes.ok) {
             const data = await fetchRes.json();
@@ -518,7 +568,10 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
             try { fs.writeFileSync(graphFilePath, JSON.stringify(data), 'utf8'); } catch(e) {}
             return res.json(data);
         } else if (fetchRes.status === 404) {
-            return res.json({ graphPoints: [] });
+            const notFoundData = { graphPoints: [], noGraph: true };
+            memoryGraphCache[id] = { time: now, data: notFoundData };
+            try { fs.writeFileSync(graphFilePath, JSON.stringify(notFoundData), 'utf8'); } catch(e) {}
+            return res.json(notFoundData);
         }
     } catch (err) {
         if (memoryGraphCache[id]) return res.json(memoryGraphCache[id].data);
