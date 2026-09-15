@@ -1593,6 +1593,8 @@ body {
    ========================================================================== */
 
 .terminal-header {
+  position: relative !important;
+  z-index: 5000 !important;
   padding: 1.25rem 1.75rem !important;
   margin-bottom: 2rem !important;
   display: flex !important;
@@ -1756,7 +1758,7 @@ body {
   border-radius: 14px !important;
   padding: 1rem !important;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7) !important;
-  z-index: 1050;
+  z-index: 99999 !important;
   animation: fadeIn 0.2s ease;
 }
 

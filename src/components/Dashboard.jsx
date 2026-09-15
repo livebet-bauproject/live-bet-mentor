@@ -1504,7 +1504,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </button>
 
                         {/* User Profile Avatar / Menu Trigger */}
-                        <div className="user-menu-wrapper" style={{ position: 'relative' }}>
+                        <div className="user-menu-wrapper" style={{ position: 'relative', zIndex: 9999 }}>
                             <button
                                 className="user-profile-trigger"
                                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -1522,7 +1522,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                             {/* Dropdown Popover */}
                             {showUserMenu && (
-                                <div className="user-dropdown-popover glass-panel">
+                                <div className="user-dropdown-popover glass-panel" style={{ zIndex: 99999 }}>
                                     <div className="user-popover-header">
                                         <div className="user-email-text">{isAdmin || userProfile?.plan === 'admin' ? 'admin@livebetmentor.com' : (user?.email || 'User')}</div>
                                         {isAdmin || userProfile?.plan === 'admin' ? (
