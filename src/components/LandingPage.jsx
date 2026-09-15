@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../backend/supabaseClient';
 import { translations } from '../locales/translations';
+import { LegalModal } from './LegalModal';
 import '../styles/global.css';
 
 export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
     const [view, setView] = useState('login'); // 'login' or 'register'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [agreedToTerms, setAgreedToTerms] = useState(true);
+    const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const [scrollY, setScrollY] = useState(0);
@@ -21,8 +24,16 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
 
     const handleAuth = async (e) => {
         e.preventDefault();
-        setLoading(true);
         setError(null);
+
+        if (view === 'register' && !agreedToTerms) {
+            setError(lang === 'tr' 
+                ? 'Lütfen kullanım koşullarını ve 18+ yaş şartını onaylayınız.' 
+                : 'Please accept the 18+ requirement and Terms of Service.');
+            return;
+        }
+
+        setLoading(true);
 
         const cleanEmail = (email || '').trim().toLowerCase();
         const isAdmin = cleanEmail === 'karabulut.hamza@gmail.com';
@@ -263,6 +274,38 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                 />
                             </div>
 
+                            {view === 'register' && (
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: '0.6rem',
+                                    fontSize: '0.72rem',
+                                    color: '#94a3b8',
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    padding: '0.7rem',
+                                    borderRadius: '10px',
+                                    border: '1px solid rgba(255, 255, 255, 0.08)'
+                                }}>
+                                    <input
+                                        type="checkbox"
+                                        id="termsCheckbox"
+                                        checked={agreedToTerms}
+                                        onChange={(e) => setAgreedToTerms(e.target.checked)}
+                                        required
+                                        style={{ marginTop: '2px', cursor: 'pointer', accentColor: '#38bdf8' }}
+                                    />
+                                    <label htmlFor="termsCheckbox" style={{ cursor: 'pointer', lineHeight: 1.4 }}>
+                                        <span>{t.legal_agree_checkbox}</span>{' '}
+                                        <span
+                                            onClick={(e) => { e.preventDefault(); setIsLegalModalOpen(true); }}
+                                            style={{ color: '#38bdf8', textDecoration: 'underline', cursor: 'pointer', fontWeight: 800 }}
+                                        >
+                                            [{t.legal_terms_link}]
+                                        </span>
+                                    </label>
+                                </div>
+                            )}
+
                             {error && (
                                 <div style={{ padding: '0.8rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', color: '#ef4444', fontSize: '0.85rem', textAlign: 'center' }}>
                                     {error}
@@ -289,10 +332,83 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                 </div>
             </main>
 
-            {/* Simple Security Footer */}
-            <footer style={{ padding: '2rem', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', color: '#475569', fontSize: '0.8rem', zIndex: 1 }}>
-                {t.landing_footer_note}
+            {/* Institutional Legal Compliance Footer */}
+            <footer style={{
+                padding: '2.5rem 2rem',
+                borderTop: '1px solid rgba(255,255,255,0.06)',
+                background: 'rgba(3, 7, 18, 0.95)',
+                textAlign: 'center',
+                color: '#64748b',
+                fontSize: '0.78rem',
+                zIndex: 1,
+                lineHeight: 1.6
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.8rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 900,
+                        fontSize: '0.7rem'
+                    }}>
+                        🔞 18+ Yasal Yaş Sınırı
+                    </span>
+                    <span style={{
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        fontSize: '0.7rem'
+                    }}>
+                        🛡️ Sorumlu Analiz
+                    </span>
+                    <span style={{
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        fontSize: '0.7rem'
+                    }}>
+                        ⚖️ 7258 Sayılı Kanun Uyumlu
+                    </span>
+                </div>
+
+                <div style={{ maxWidth: '850px', margin: '0 auto 1.2rem', color: '#64748b' }}>
+                    <strong style={{ color: '#94a3b8' }}>{t.legal_not_bookmaker}</strong>{' '}
+                    {t.legal_disclaimer_text}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                        onClick={() => setIsLegalModalOpen(true)}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#38bdf8',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontSize: '0.78rem',
+                            fontWeight: 700
+                        }}
+                    >
+                        📜 {t.legal_terms_link}
+                    </button>
+                    <span style={{ opacity: 0.3 }}>|</span>
+                    <span>{t.landing_footer_note}</span>
+                </div>
             </footer>
+
+            <LegalModal
+                isOpen={isLegalModalOpen}
+                onClose={() => setIsLegalModalOpen(false)}
+                lang={lang}
+            />
 
             <style>{`
                 @keyframes float {

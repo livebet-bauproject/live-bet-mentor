@@ -19,6 +19,7 @@ import { database, ref, get } from '../firebase/config';
 import { supabase } from '../backend/supabaseClient';
 import { AttackMomentumGraph } from './AttackMomentumGraph';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
+import { LegalModal } from './LegalModal';
 import '../styles/global.css';
 
 const RADAR_SOURCES = [
@@ -208,6 +209,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [matchGraphPoints, setMatchGraphPoints] = useState([]);
     const [graphLoading, setGraphLoading] = useState(false);
     const [graphNoData, setGraphNoData] = useState(false);
+    const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
 
     useEffect(() => {
         if (!selectedMatch?.id) {
@@ -3123,6 +3125,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         <div style={{ fontSize: '0.72rem', opacity: 0.7, marginTop: '2px' }}>
                                                             {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : 'Algorithmic 2-leg combo combining the highest conviction opportunities'}
                                                         </div>
+                                                        <div style={{ fontSize: '0.62rem', opacity: 0.5, marginTop: '3px', color: '#94a3b8' }}>
+                                                            ℹ️ {lang === 'tr' ? 'Olasılık bazlı algoritmik analiz modelidir. Kesin kazanç garantisi içermez, yatırım tavsiyesi değildir.' : 'Algorithmic probability model. Does not guarantee winnings.'}
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -4996,6 +5001,82 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             >
                 📊
             </button>
+
+            {/* Institutional Compliance & Disclaimer Footer */}
+            <footer style={{
+                marginTop: '4rem',
+                marginBottom: '2rem',
+                padding: '2.5rem 1.5rem',
+                borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                background: 'rgba(3, 7, 18, 0.65)',
+                borderRadius: '16px',
+                textAlign: 'center',
+                color: '#64748b',
+                fontSize: '0.78rem',
+                lineHeight: 1.6
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 900,
+                        fontSize: '0.7rem'
+                    }}>
+                        🔞 18+ Yasal Yaş Sınırı
+                    </span>
+                    <span style={{
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        color: '#38bdf8',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        fontSize: '0.7rem'
+                    }}>
+                        🛡️ Sorumlu Analiz
+                    </span>
+                    <span style={{
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        fontSize: '0.7rem'
+                    }}>
+                        ⚖️ 7258 Sayılı Kanun Uyumlu
+                    </span>
+                </div>
+                <div style={{ maxWidth: '850px', margin: '0 auto 0.8rem', color: '#64748b' }}>
+                    <strong style={{ color: '#94a3b8' }}>{t.legal_not_bookmaker}</strong>{' '}
+                    {t.legal_disclaimer_text}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center' }}>
+                    <button
+                        onClick={() => setIsLegalModalOpen(true)}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#38bdf8',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontSize: '0.78rem',
+                            fontWeight: 700
+                        }}
+                    >
+                        📜 {t.legal_terms_link}
+                    </button>
+                </div>
+            </footer>
+
+            <LegalModal
+                isOpen={isLegalModalOpen}
+                onClose={() => setIsLegalModalOpen(false)}
+                lang={lang}
+            />
         </div >
     );
 };

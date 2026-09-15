@@ -617,7 +617,18 @@ export const translations = {
         landing_staking_outcome: "1 Hata = Minimum Düşüş, Net Kârlılık",
         landing_cta_main: "ERİŞİM TALEP ET",
         landing_cta_login: "ÜYE GİRİŞİ",
-        landing_footer_note: "Erişim sadece onaylı strateji üyeleri ile sınırlıdır."
+        landing_footer_note: "Erişim sadece onaylı strateji üyeleri ile sınırlıdır.",
+
+        // Legal & Compliance
+        legal_disclaimer_title: "Yasal Bilgilendirme ve Sorumluluk Reddi",
+        legal_disclaimer_badge: "🔞 18+ Yasal Yaş Sınırı",
+        legal_responsible_gaming: "Sorumlu Analiz & Risk Bilinci",
+        legal_not_bookmaker: "LiveBet Mentor bir bahis oynatma, bahis kabul etme veya aracılık platformu DEĞİLDİR.",
+        legal_disclaimer_text: "Sitemizde sunulan tüm skorlar, oranlar, DQS göstergeleri, baskı metrikleri ve analitik modeller; yapay zeka ve algoritmik matematiksel modelleme çıktılarıdır. Hiçbir koşulda kesin kazanç vaat etmez ve finansal/yatırım tavsiyesi niteliği taşımaz. Kullanıcıların alacağı kararlar ve doğabilecek maddi/manevi sonuçlar tamamen kullanıcının kendi sorumluluğundadır. 7258 sayılı kanun uyarınca sitemizde yasadışı bahis oynatılmaz ve aracılık edilmez. 18 yaşından küçüklerin sitemizi ve analiz araçlarını kullanması kesinlikle yasaktır.",
+        legal_terms_link: "Kullanım Koşulları & Yasal Uyarı",
+        legal_agree_checkbox: "18 yaşından büyük olduğumu, sitenin bahis oynatmadığını ve İstatistiki Sorumluluk Reddini okuyup kabul ettiğimi onaylıyorum.",
+        legal_software_license_notice: "Yazılım ve Dijital Veri Analiz Hizmeti Lisansı",
+        legal_modal_close: "Anladım ve Kabul Ediyorum"
     },
     en: {
         title: "LIVE BET MENTOR",
@@ -1224,5 +1235,16 @@ export const translations = {
         request_pending: "Request Pending...",
         select_plan: "Select this Plan",
         benefits_title: "Plan Benefits",
+
+        // Legal & Compliance
+        legal_disclaimer_title: "Legal Notice & Disclaimer",
+        legal_disclaimer_badge: "🔞 18+ Age Restriction",
+        legal_responsible_gaming: "Responsible Analytics & Risk Awareness",
+        legal_not_bookmaker: "LiveBet Mentor is NOT a bookmaker, gambling operator, or betting intermediary.",
+        legal_disclaimer_text: "All scores, odds, DQS metrics, pressure values, and analytical models provided on this platform are mathematical algorithm outputs for informational and statistical analysis purposes only. They do not constitute financial or investment advice and do not guarantee any winnings. Users are solely responsible for their own decisions and outcomes. Access by individuals under the age of 18 is strictly prohibited.",
+        legal_terms_link: "Terms of Service & Disclaimer",
+        legal_agree_checkbox: "I certify that I am at least 18 years of age, acknowledge that this site is not a bookmaker, and agree to the Statistical Disclaimer.",
+        legal_software_license_notice: "Software and Digital Data Analytics License",
+        legal_modal_close: "I Understand and Agree"
     }
 };

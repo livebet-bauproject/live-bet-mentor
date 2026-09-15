@@ -416,7 +416,7 @@ function App() {
   // Pending Approval Screen
   if (page === 'pending') {
     const userEmail = session?.user?.email || '';
-    const whatsappMsg = encodeURIComponent(`Merhaba, LiveBet Mentor sistemine üye oldum (E-posta: ${userEmail}). Üyeliğimin aktif edilmesi / ödeme dekontum için yazıyorum.`);
+    const whatsappMsg = encodeURIComponent(`Merhaba, LiveBet Mentor sistemine üye oldum (E-posta: ${userEmail}). Analiz yazılım lisansımın aktif edilmesi için yazıyorum.`);
     const whatsappUrl = cleanWhatsapp ? `https://wa.me/${cleanWhatsapp}?text=${whatsappMsg}` : null;
 
     return (
@@ -472,7 +472,7 @@ function App() {
                 }}
               >
                 <span>💬</span>
-                <span>{lang === 'tr' ? 'WhatsApp ile Onaylat / Dekont İlet' : 'Contact via WhatsApp'}</span>
+                <span>{lang === 'tr' ? 'WhatsApp ile Lisans Aktivasyonu / Bilgi Al' : 'Contact for License Activation'}</span>
               </a>
             )}
 
@@ -554,7 +554,7 @@ function App() {
                 }}
               >
                 <span>💬</span>
-                <span>{lang === 'tr' ? 'Aboneliği Yenile (WhatsApp)' : 'Renew Subscription'}</span>
+                <span>{lang === 'tr' ? 'Yazılım Lisansını Yenile (WhatsApp)' : 'Renew Software License'}</span>
               </a>
             )}
 
