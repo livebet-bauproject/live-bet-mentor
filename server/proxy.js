@@ -528,23 +528,24 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
         return res.json(memoryGraphCache[id].data);
     }
     
+    // 1. Return from disk cache if exists (never discard valid historical points)
     const graphFilePath = path.join(STATS_DIR, `${id}_graph.json`);
     if (fs.existsSync(graphFilePath)) {
         try {
             const stats = fs.statSync(graphFilePath);
-            if ((now - stats.mtimeMs) < 60000) {
-                const data = JSON.parse(fs.readFileSync(graphFilePath, 'utf8'));
-                if (data && (data.graphPoints || data.graphPointsV2 || data.noGraph)) {
-                    memoryGraphCache[id] = { time: now, data };
-                    return res.json(data);
-                }
+            const ageInSeconds = (now - stats.mtimeMs) / 1000;
+            const data = JSON.parse(fs.readFileSync(graphFilePath, 'utf8'));
+            if (data && ((data.graphPoints && data.graphPoints.length > 0) || (data.graphPointsV2 && data.graphPointsV2.length > 0) || data.noGraph)) {
+                memoryGraphCache[id] = { time: now, data };
+                if (ageInSeconds >= 45) queueRequest(id);
+                return res.json(data);
             }
         } catch(e) {}
     }
 
     queueRequest(id);
 
-    // Fast on-demand fetch using curl_cffi (Chrome TLS fingerprint)
+    // Fast on-demand fetch using curl_cffi (works if direct connection or proxy available)
     try {
         const cffiData = await fetchGraphViaCurlCffi(id);
         if (cffiData && ((cffiData.graphPoints && cffiData.graphPoints.length > 0) || (cffiData.graphPointsV2 && cffiData.graphPointsV2.length > 0) || cffiData.noGraph)) {
@@ -556,11 +557,11 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
         console.warn(`[PROXY] curl_cffi graph fetch error for ${id}:`, err.message);
     }
 
-    // Fallback: Node fetch with SOFASCORE_HEADERS if curl_cffi is unavailable
+    // Fallback: Node fetch with SOFASCORE_HEADERS
     try {
         const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/graph`, {
             headers: SOFASCORE_HEADERS,
-            signal: AbortSignal.timeout(5000)
+            signal: AbortSignal.timeout(4000)
         });
         if (fetchRes.ok) {
             const data = await fetchRes.json();
@@ -576,7 +577,7 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
     } catch (err) {
         if (memoryGraphCache[id]) return res.json(memoryGraphCache[id].data);
     }
-    res.json({ graphPoints: [] });
+    res.status(202).json({ graphPoints: [], status: 'queued', message: 'Graph queued' });
 });
 
 // 5. Match Odds API (Supports both SofaScore market structure and direct 1X2 odds)

@@ -25,6 +25,9 @@ export class BetBuilderEngine {
                 if (opp.isLowData || opp.dataDensity === 'LOW') return false;
                 // RISK & CASHOUT GATE: If radar issued a Cashout / Bahis Bozdur warning, NEVER suggest it as a new bet!
                 if (opp.cashOutWarning) return false;
+                // STRICT: Exclude penalty shootouts or finished matches
+                const minRaw = String(opp.minute || '').toLowerCase();
+                if (minRaw.includes('pen') || minRaw === 'ms' || minRaw.includes('ft')) return false;
                 // TIME WINDOW: Do not add late matches (>= 75') where remaining time is too short for a fresh combo pick
                 const minVal = parseInt(String(opp.minute || '').replace(/[^0-9]/g, '')) || 0;
                 if (minVal >= 75) return false;
@@ -36,7 +39,16 @@ export class BetBuilderEngine {
                 const match = matches.find(m => m.id === opp.matchId);
                 if (!match) return null;
 
-                // Also double-check match minute
+                // Also double-check match minute and penalty status
+                const mMinRaw = String(match.minute || opp.minute || '').toLowerCase();
+                const mStatusCode = match.status?.code;
+                const mDesc = (match.status?.description || '').toLowerCase();
+                if (mMinRaw.includes('pen') || mStatusCode === 120 || mStatusCode === 110 || mDesc.includes('penalt') || mMinRaw === 'ms' || mMinRaw.includes('ft')) {
+                    return null;
+                }
+                const totalGoals = (Number(match.score?.home) || 0) + (Number(match.score?.away) || 0);
+                if (totalGoals >= 7) return null;
+
                 const mMin = parseInt(String(match.minute || opp.minute || '').replace(/[^0-9]/g, '')) || 0;
                 if (mMin >= 75) return null;
 

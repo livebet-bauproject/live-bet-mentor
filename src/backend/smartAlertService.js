@@ -78,9 +78,13 @@ class SmartAlertService {
         const statusType = (match.status?.type || '').toLowerCase();
         const statusCode = match.status?.code;
 
-        // Skip finished, halftime, or postponed matches
+        // Skip finished, halftime, penalty shootout, or postponed matches
+        const descLower = (match.status?.description || '').toLowerCase();
         if (statusType === 'finished' || statusCode === 100 || minStr === 'MS' || minStr.includes('FT') || minStr.toLowerCase().includes('ended')) {
             return { shouldAlert: false, blockedReason: 'FINISHED' };
+        }
+        if (statusCode === 120 || statusCode === 110 || minStr === 'Pen.' || minStr.toLowerCase().includes('pen') || descLower.includes('penalt') || descLower.includes('shootout')) {
+            return { shouldAlert: false, blockedReason: 'PENALTIES' };
         }
         if (statusCode === 31 || minStr === 'İY' || minStr.includes('HT') || minStr.toLowerCase().includes('half')) {
             return { shouldAlert: false, blockedReason: 'HALFTIME' };

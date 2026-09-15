@@ -133,6 +133,16 @@ class LiveOpportunityScorer {
             return this._createEmptyResult('EXCLUDED_FINISHED');
         }
 
+        // Strict Exclusion 1b: Penalty Shootouts (Match in penalties is NOT active in-play football!)
+        const descLower = (match.status?.description || '').toLowerCase();
+        const isPenalties = statusCode === 120 || statusCode === 110 ||
+            minStr === 'Pen.' || minStr.toLowerCase().includes('pen') || 
+            descLower.includes('penalt') || descLower.includes('shootout') || descLower.includes('aet');
+
+        if (isPenalties) {
+            return this._createEmptyResult('EXCLUDED_PENALTIES');
+        }
+
         // Halftime Detection: MUST NOT match '1st half' or '2nd half' (active in-play periods)
         const isHalftime = statusCode === 31 || minStr === 'İY' || minStr === 'HT' || 
             minStr.toLowerCase() === 'halftime' || minStr.toLowerCase() === 'half-time' || 
@@ -547,8 +557,8 @@ class LiveOpportunityScorer {
         if (typeof minute === 'number') return minute;
         const minStr = (minute || '').toString().trim();
         
-        // Match Finished / Sona Erdi -> 999
-        if (minStr === 'MS' || minStr.includes('FT') || minStr.toLowerCase().includes('ended') || minStr.toLowerCase().includes('finish')) {
+        // Match Finished / Penalties / Sona Erdi -> 999
+        if (minStr === 'MS' || minStr.includes('FT') || minStr === 'Pen.' || minStr.toLowerCase().includes('pen') || minStr.toLowerCase().includes('ended') || minStr.toLowerCase().includes('finish')) {
             return 999;
         }
         
@@ -1163,6 +1173,11 @@ class LiveOpportunityScorer {
                 // Away is DRAWING (0) or TRAILING (>0, like Monza 1 - 3 Lecce):
                 // Trailing team is pushing for NEXT GOAL! (Never "Monza Kazanmaya Yakın" when trailing 1-3!)
                 return { marketKey: 'AWAY_NEXT_GOAL', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
+            }
+
+            // Sanity check: Real open-play matches rarely exceed 6-7 goals. If current goals >= 6, cap or avoid excessive over predictions
+            if (curTotalGoals >= 6) {
+                return { marketKey: 'STABLE_GAME', confidence: 50 };
             }
 
             // SUB-CASE C: Neither team dominates, but match has high pace/pressure:

@@ -476,6 +476,15 @@ def background_pool_keeper():
             logger.debug(f"Pool keeper notice: {e}")
         time.sleep(30)
 
+def background_queue_worker():
+    """Processes user on-demand requests (stats, detail, graph) rapidly every 1.5 seconds."""
+    while True:
+        try:
+            process_queue()
+        except Exception as e:
+            logger.debug(f"Queue worker notice: {e}")
+        time.sleep(1.5)
+
 def run_loop():
     logger.info("==================================================")
     logger.info("   Starting Autonomous 24/7 Cloud SofaScore Fetcher")
@@ -489,6 +498,10 @@ def run_loop():
     # 2. Start background proxy maintenance thread
     keeper_thread = threading.Thread(target=background_pool_keeper, daemon=True)
     keeper_thread.start()
+
+    # 3. Start rapid queue worker thread (on-demand click processing)
+    queue_thread = threading.Thread(target=background_queue_worker, daemon=True)
+    queue_thread.start()
 
     match_index = 0
     BATCH_SIZE = 8

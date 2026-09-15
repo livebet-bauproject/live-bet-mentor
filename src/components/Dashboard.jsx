@@ -232,10 +232,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     setMatchGraphPoints([]);
                     setGraphNoData(true);
                     setGraphLoading(false);
-                } else if (retries < 2) {
+                } else if (retries < 7) {
+                    // Poll every 2.2s for up to 15 seconds while cloud proxy worker fetches and saves graph
                     setTimeout(() => {
                         if (!isCancelled) fetchGraph(retries + 1);
-                    }, 1800);
+                    }, 2200);
                 } else {
                     setMatchGraphPoints([]);
                     setGraphNoData(true);
@@ -243,8 +244,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 }
             }).catch(() => {
                 if (!isCancelled) {
-                    setMatchGraphPoints([]);
-                    setGraphLoading(false);
+                    if (retries < 7) {
+                        setTimeout(() => {
+                            if (!isCancelled) fetchGraph(retries + 1);
+                        }, 2200);
+                    } else {
+                        setMatchGraphPoints([]);
+                        setGraphLoading(false);
+                    }
                 }
             });
         };
@@ -2454,7 +2461,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     {/* Live Opportunities Panel - Sıcak Fırsatlar & Canlı Radar */}
                     {(() => {
-                        const oppMatches = matches.filter(filterByTier);
+                        const oppMatches = matches.filter(filterByTier).filter(m => {
+                            const minStr = String(m.minute || '').toLowerCase();
+                            const code = m.status?.code;
+                            const desc = String(m.status?.description || '').toLowerCase();
+                            const isPen = code === 120 || code === 110 || minStr === 'pen.' || minStr.includes('pen') || desc.includes('penalt');
+                            return !isPen;
+                        });
                         const allOpportunities = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
                         const goldenCombo = betBuilderEngine.generateGoldenCombo(allOpportunities, oppMatches);
 
