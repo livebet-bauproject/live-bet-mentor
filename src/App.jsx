@@ -23,7 +23,14 @@ function App() {
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) {
         const parsed = JSON.parse(savedAdmin);
-        if (parsed?.user?.email === 'admin@livebetmentor.com' || parsed?.user?.plan === 'admin' || parsed?.user?.id?.startsWith('admin-')) return parsed;
+        if (parsed?.user?.email === 'admin@livebetmentor.com' || parsed?.user?.plan === 'admin' || parsed?.user?.id?.startsWith('admin-')) {
+          if (parsed.user) {
+            parsed.user.email = 'admin@livebetmentor.com';
+            if (parsed.user.user_metadata) parsed.user.user_metadata.display_name = 'LiveBet Admin';
+            try { localStorage.setItem('lbm_admin_session', JSON.stringify(parsed)); } catch (err) {}
+          }
+          return parsed;
+        }
       }
       const savedMember = localStorage.getItem('lbm_member_session');
       if (savedMember) {
@@ -236,6 +243,11 @@ function App() {
       try {
         const parsed = JSON.parse(savedAdmin);
         if (parsed?.user?.email === 'admin@livebetmentor.com' || parsed?.user?.plan === 'admin' || parsed?.user?.id?.startsWith('admin-')) {
+          if (parsed.user) {
+            parsed.user.email = 'admin@livebetmentor.com';
+            if (parsed.user.user_metadata) parsed.user.user_metadata.display_name = 'LiveBet Admin';
+            try { localStorage.setItem('lbm_admin_session', JSON.stringify(parsed)); } catch (err) {}
+          }
           setSession(parsed);
           setUserProfile({
             id: 'admin-super',

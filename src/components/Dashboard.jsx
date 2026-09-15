@@ -1524,7 +1524,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {showUserMenu && (
                                 <div className="user-dropdown-popover glass-panel">
                                     <div className="user-popover-header">
-                                        <div className="user-email-text">{user?.email}</div>
+                                        <div className="user-email-text">{isAdmin || userProfile?.plan === 'admin' ? 'admin@livebetmentor.com' : (user?.email || 'User')}</div>
                                         {isAdmin || userProfile?.plan === 'admin' ? (
                                             <div className="user-expiry-text" style={{ color: '#f59e0b', fontWeight: 800 }}>
                                                 👑 {lang === 'tr' ? 'Süper Yönetici (Sınırsız)' : 'Super Admin (Unlimited)'}
