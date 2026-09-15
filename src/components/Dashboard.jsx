@@ -811,6 +811,373 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         );
     };
 
+    const renderMatchDetailsModal = () => {
+        if (!selectedMatch) return null;
+        const currentMatch = matches.find(m => String(m.id) === String(selectedMatch?.id)) || selectedMatch;
+        if (!currentMatch) return null;
+
+        return (
+            <div className="modal-overlay" onClick={() => setSelectedMatch(null)}>
+                <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
+                    <button className="close-btn" onClick={() => setSelectedMatch(null)}>×</button>
+
+                    <div className="intelligence-modal-content">
+                        {/* AI & Consensus Layer (Fusion) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+                            {/* AI Expert Column */}
+                            <div style={{ background: 'rgba(56, 189, 248, 0.08)', borderRadius: '15px', padding: '1.5rem', border: '1px solid rgba(56, 189, 248, 0.2)', boxShadow: '0 0 30px rgba(56, 189, 248, 0.1)', position: 'relative', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <h4 style={{ margin: 0, fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '1rem' }}>🤖</span> {t.ai_expert_summary}
+                                    </h4>
+
+                                    {(!currentMatch.aiSummary || currentMatch.aiSummary.includes('bekleniyor')) && (
+                                        currentMatch.dqs < 0.40 ? (
+                                            <div style={{
+                                                background: 'rgba(239, 68, 68, 0.1)',
+                                                color: '#ef4444',
+                                                padding: '0.4rem 0.8rem',
+                                                borderRadius: '6px',
+                                                fontSize: '0.7rem',
+                                                fontWeight: 800,
+                                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}>
+                                                <span>⚠️</span> {t.insufficient_data}
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={async () => {
+                                                    const limitCheck = aiUsageLimiter.canMakeAIRequest(user?.id, userProfile?.plan || 'trial');
+                                                    if (!limitCheck.allowed) {
+                                                        alert(lang === 'tr'
+                                                            ? `Günlük AI rapor limitinize ulaştınız (${limitCheck.limit}). Yarın tekrar deneyebilir veya planınızı yükseltebilirsiniz.`
+                                                            : `You've reached your daily AI report limit (${limitCheck.limit}). Try again tomorrow or upgrade your plan.`);
+                                                        return;
+                                                    }
+
+                                                    const matchIdx = dataWorker.fixtures.findIndex(f => String(f.id) === String(currentMatch.id));
+                                                    if (matchIdx !== -1) {
+                                                        dataWorker.fixtures[matchIdx].aiSummary = t.report_analyzing || "AI Analiz yapıyor...";
+                                                        setMatches([...dataWorker.fixtures]);
+                                                    }
+
+                                                    const summary = await dataWorker.triggerDeepAnalysis(currentMatch.id);
+                                                    aiUsageLimiter.recordAIUsage(user?.id, 'report');
+
+                                                    if (matchIdx !== -1 && summary) {
+                                                        dataWorker.fixtures[matchIdx].aiSummary = summary;
+                                                    }
+                                                    setMatches([...dataWorker.fixtures]);
+                                                }}
+                                                className="pulse"
+                                                style={{
+                                                    background: 'var(--accent-color)',
+                                                    color: '#000',
+                                                    border: 'none',
+                                                    padding: '0.4rem 0.8rem',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 800,
+                                                    cursor: 'pointer',
+                                                    textTransform: 'uppercase'
+                                                }}
+                                            >
+                                                {t.deep_analysis || 'DERİN ANALİZ'}
+                                            </button>
+                                        )
+                                    )}
+                                </div>
+
+                                {(currentMatch.aiSummary === (t.report_analyzing || "AI Analiz yapıyor...") || currentMatch.aiSummary === "AI Analiz yapıyor...") ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                        <div className="skeleton-loader" style={{ height: '0.8rem', width: '90%', borderRadius: '4px' }}></div>
+                                        <div className="skeleton-loader" style={{ height: '0.8rem', width: '70%', borderRadius: '4px' }}></div>
+                                        <div className="skeleton-loader" style={{ height: '0.8rem', width: '85%', borderRadius: '4px' }}></div>
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.5, fontStyle: 'italic', marginTop: '0.5rem' }}>{t.ai_processing || 'Gelişmiş veri setleri taranıyor...'}</span>
+                                    </div>
+                                ) : (
+                                    <div style={{ whiteSpace: 'pre-line' }}>
+                                        <p style={{ fontSize: '0.85rem', lineHeight: '1.6', color: '#fff', opacity: 0.95 }}>
+                                            {currentMatch.aiSummary || (t.ai_standby || "Analiz raporu için butona basın...")}
+                                        </p>
+
+                                        {currentMatch.aiSummary && currentMatch.aiSummary.includes('%') && (
+                                            <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <div style={{ fontSize: '0.6rem', opacity: 0.5, textTransform: 'uppercase' }}>Tahmini Güven</div>
+                                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--success-color)' }}>
+                                                        %{currentMatch.aiSummary.match(/%(\d+)/)?.[1] || '??'}
+                                                    </div>
+                                                </div>
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--accent-color)' }}>{t.quant_badge || 'KUANT ANALİZ'}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Global Consensus Column */}
+                            <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '15px', padding: '1.5rem', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                <h4 style={{ margin: 0, fontSize: '0.75rem', opacity: 0.6, fontWeight: 800, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '1rem' }}>🌐</span> {t.global_consensus_report}
+                                </h4>
+                                <div style={{ marginTop: '1.2rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '1rem' }}>
+                                        <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--success-color)' }}>
+                                            {currentMatch.consensusReport?.totalSources || 0}
+                                        </span>
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 600 }}>/ {RADAR_SOURCES.length} {t.active_badges}</span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                                        {Object.entries(currentMatch.consensusReport?.agreement || {}).map(([pred, count]) => {
+                                            const sources = (currentMatch.consensusReport?.signals || [])
+                                                .filter(s => s.prediction === pred)
+                                                .map(s => RADAR_SOURCES.find(rs => rs.id === s.site)?.label || s.site);
+
+                                            return (
+                                                <div key={pred} style={{ background: 'rgba(255,255,255,0.02)', padding: '0.8rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                                                        <span style={{ fontWeight: 800, color: 'var(--accent-color)', fontSize: '0.85rem' }}>{pred}</span>
+                                                        <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{count} Kaynak</span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                                        {sources.map(src => (
+                                                            <span key={src} style={{ fontSize: '0.6rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px', opacity: 0.8 }}>
+                                                                {src}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+
+                                        {!currentMatch.consensusReport?.totalSources && (
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.4, fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>
+                                                Henüz dış kaynak verisi eşleşmedi.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="modal-header">
+                            <div className="header-top">
+                                <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                                    <span>{currentMatch.homeTeam}</span>
+                                    {((currentMatch.cards?.home?.red || 0) > 0 || (currentMatch.stats?.cards?.home?.red || 0) > 0) && (
+                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
+                                            🟥 {(currentMatch.cards?.home?.red || currentMatch.stats?.cards?.home?.red)}
+                                        </span>
+                                    )}
+                                    <span style={{ opacity: 0.35, margin: '0 4px' }}>vs</span>
+                                    <span>{currentMatch.awayTeam}</span>
+                                    {((currentMatch.cards?.away?.red || 0) > 0 || (currentMatch.stats?.cards?.away?.red || 0) > 0) && (
+                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
+                                            🟥 {(currentMatch.cards?.away?.red || currentMatch.stats?.cards?.away?.red)}
+                                        </span>
+                                    )}
+                                </h2>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
+                                    <span className="tier-badge">TIER {currentMatch.tier}</span>
+                                    <span className="minute-badge">{renderMatchMinute(currentMatch.minute, t, false)}</span>
+                                    <span className="score-badge">{(currentMatch.score && typeof currentMatch.score === 'object') ? `${currentMatch.score.home ?? 0} - ${currentMatch.score.away ?? 0}` : (currentMatch.score || '0 - 0')}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Live Attack Momentum Wave Graph */}
+                        <div style={{
+                            marginBottom: '1.5rem',
+                            padding: '1rem',
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                            borderRadius: '16px'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                                <div style={{
+                                    fontSize: '0.78rem',
+                                    fontWeight: 900,
+                                    color: 'var(--accent-color)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '1px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+                                    <span>📈</span>
+                                    <span>{lang === 'tr' ? 'CANLI BASKI GRAFİĞİ (ATTACK MOMENTUM)' : 'LIVE ATTACK MOMENTUM WAVE'}</span>
+                                </div>
+                                {graphLoading && (
+                                    <span style={{ fontSize: '0.65rem', opacity: 0.6, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <span style={{ animation: 'spin 2s linear infinite', display: 'inline-block' }}>🌀</span>
+                                        {lang === 'tr' ? 'Grafik yükleniyor...' : 'Loading wave...'}
+                                    </span>
+                                )}
+                            </div>
+                            <AttackMomentumGraph
+                                points={matchGraphPoints}
+                                homeTeam={currentMatch.homeTeam}
+                                awayTeam={currentMatch.awayTeam}
+                                currentMinute={parseInt(currentMatch.minute) || 90}
+                                height={100}
+                                lang={lang}
+                                loading={graphLoading}
+                                noGraph={graphNoData}
+                            />
+                        </div>
+
+                        <div className="modal-grid">
+                            {/* Column 1: Engine Quality */}
+                            <div className="grid-col">
+                                <h3><span style={{ marginRight: '0.5rem' }}>⚡</span> DQS MOTORU</h3>
+                                <div className="stats-card">
+                                    <div className="dqs-display">
+                                        <div className="dqs-label">
+                                            <span>DQS Skoru:</span>
+                                            <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{(currentMatch.dqs || 0).toFixed(4)}</span>
+                                        </div>
+                                        <div className="dqs-bar-bg">
+                                            <div className="dqs-bar-fill" style={{ width: `${(currentMatch.dqs || 0) * 100}%` }}></div>
+                                        </div>
+                                    </div>
+
+                                    <div className="stat-row-pill" style={{ marginTop: '1.5rem' }}>
+                                        <span style={{ opacity: 0.6 }}>LATANS:</span>
+                                        <span style={{ fontWeight: 700 }}>{currentMatch.latency || 0}ms</span>
+                                    </div>
+
+                                    <div className="stat-row-pill" style={{ marginTop: '1rem' }}>
+                                        <span style={{ opacity: 0.6 }}>{t.data_integrity}:</span>
+                                        <span className={`status-pill ${currentMatch.dataQuality === 'OK' ? 'ok' : (currentMatch.dataQuality === 'LIMITED' ? 'warning' : 'fail')}`}>
+                                            {currentMatch.dataQuality === 'PARTIAL' ? 'BEKLENİYOR' : (currentMatch.dataQuality === 'LIMITED' ? 'KISITLI' : 'TAM')}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Column 2: Expert Analysis & Risk */}
+                            <div className="grid-col">
+                                <h3><span style={{ marginRight: '0.5rem' }}>🛡️</span> {t.risk_guard}</h3>
+                                <div className="stats-card">
+                                    {/* Expert Metrics Display */}
+                                    <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(56, 189, 248, 0.05)', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.1)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+                                            <span>{t.pressure_label}</span>
+                                            <span style={{ color: 'var(--warning-color)' }}>%{currentMatch.observations?.pressure?.total || 0}</span>
+                                        </div>
+                                        <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', marginBottom: '1rem' }}>
+                                            <div style={{ width: `${currentMatch.observations?.pressure?.total || 0}%`, height: '100%', background: 'var(--warning-color)', transition: 'width 1s ease' }}></div>
+                                        </div>
+
+                                        <div style={{ fontSize: '0.7rem', fontWeight: 800, marginBottom: '0.5rem' }}>{t.velocity_label}</div>
+                                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, textAlign: 'center' }}>
+                                            {currentMatch.observations?.velocity?.trend === 'HOT' ? t.velocity_hot :
+                                                currentMatch.observations?.velocity?.trend === 'WARMING' ? t.velocity_warming :
+                                                    currentMatch.observations?.velocity?.trend === 'COOLING' ? t.velocity_cooling : t.velocity_stable}
+                                        </div>
+                                    </div>
+
+                                    {Object.entries(dataWorker.checkRiskFilters(currentMatch)).map(([key, f]) => (
+                                        <div key={key} className="stat-row-pill" style={{ marginBottom: '0.8rem' }}>
+                                            <span style={{ opacity: 0.8 }}>{t[key] || key}</span>
+                                            <span className={`status-pill ${f.status === 'OK' ? 'ok' : f.status === 'FAIL' ? 'fail' : 'warning'}`}>
+                                                {f.status === 'OK' ? t.status_ok : t.status_fail}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Column 3: Live Snapshot */}
+                            <div className="grid-col">
+                                <h3><span style={{ marginRight: '0.5rem' }}>📊</span> {t.stats_title}</h3>
+                                <div className="stats-card" style={{ maxHeight: '420px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                                    {currentMatch.stats?.groups && currentMatch.stats.groups.length > 0 ? (
+                                        currentMatch.stats.groups.map(group => (
+                                            <div key={group.groupName} style={{ marginBottom: '1.8rem' }}>
+                                                <h4 style={{ fontSize: '0.6rem', opacity: 0.4, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '0.8rem', paddingBottom: '0.3rem', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--accent-color)' }}>
+                                                    {t[group.groupName] || group.groupName}
+                                                </h4>
+                                                {group.statisticsItems.map(item => {
+                                                    const parseVal = (v) => {
+                                                        if (typeof v === 'string') return parseFloat(v.replace('%', '')) || 0;
+                                                        return parseFloat(v) || 0;
+                                                    };
+                                                    const homeVal = parseVal(item.home);
+                                                    const awayVal = parseVal(item.away);
+                                                    const total = homeVal + awayVal;
+                                                    const homePct = total > 0 ? (homeVal / total) * 100 : 50;
+
+                                                    const isXG = item.name.toLowerCase().includes('expected') || item.name.toLowerCase() === 'xg';
+
+                                                    return (
+                                                        <div key={item.name} className="stat-item" style={{ marginBottom: '1rem' }}>
+                                                            <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
+                                                                <span style={{ opacity: 0.8, color: isXG ? 'var(--warning-color)' : 'inherit' }}>
+                                                                    {t[item.name] || item.name}
+                                                                </span>
+                                                                <span style={{ fontWeight: 800 }}>
+                                                                    {isXG ? `${homeVal.toFixed(2)} - ${awayVal.toFixed(2)}` : `${item.home} - ${item.away}`}
+                                                                </span>
+                                                            </div>
+                                                            <div className="stat-bar-bg" style={{ display: 'flex', height: '3px', borderRadius: '1.5px', background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+                                                                <div className="stat-bar-home" style={{ width: `${homePct}%`, background: isXG ? 'var(--warning-color)' : 'var(--accent-color)', height: '100%', transition: 'width 0.5s ease' }}></div>
+                                                                <div className="stat-bar-away" style={{ width: `${100 - homePct}%`, background: 'rgba(255,255,255,0.15)', height: '100%', transition: 'width 0.5s ease' }}></div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
+                                            {currentMatch.isPartial ? (t.loading_stats || 'Detaylar yükleniyor...') : (t.no_stats_available || 'İstatistik verisi bulunamadı')}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Bayesian Intelligence Section (Premium Only) */}
+                            {renderBayesianIntelligence(currentMatch)}
+                        </div>
+
+                        <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '2rem', borderTop: '1px solid var(--glass-border)', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', opacity: 0.5 }}>
+                                <span style={{ width: '8px', height: '8px', background: 'var(--success-color)', borderRadius: '50%' }}></span>
+                                {t.live_feed_connected}
+                            </div>
+                            {view !== 'DASHBOARD' && (
+                                <button
+                                    onClick={() => {
+                                        setView('DASHBOARD');
+                                    }}
+                                    className="btn btn-outline"
+                                    style={{ padding: '0.7rem 1.4rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }}
+                                >
+                                    🎯 {lang === 'tr' ? 'Canlı Radarda Masaya Git' : 'Go to Live Radar Table'}
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setSelectedMatch(null)}
+                                className="btn btn-primary"
+                                style={{ padding: '0.8rem 2rem', borderRadius: '10px' }}
+                            >
+                                {t.close_intelligence}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     useEffect(() => {
         if (selectedMatch) {
             dataWorker.setSelectedMatch(selectedMatch.id);
@@ -2188,7 +2555,6 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <button
                                                 onClick={() => {
                                                     setSelectedMatch(evalInfo.liveMatch);
-                                                    setView('DASHBOARD');
                                                 }}
                                                 style={{
                                                     width: '100%',
@@ -4657,375 +5023,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </section>
 
 
-                    {/* Match Details Modal */}
-                    {selectedMatch && (
-                        (() => {
-                            const currentMatch = matches.find(m => String(m.id) === String(selectedMatch?.id)) || selectedMatch;
-                            if (!currentMatch) return null;
-
-                            return (
-                                <div className="modal-overlay" onClick={() => setSelectedMatch(null)}>
-                                    <div className="modal-content glass-panel" onClick={e => e.stopPropagation()}>
-                                        <button className="close-btn" onClick={() => setSelectedMatch(null)}>×</button>
-
-                                        <div className="intelligence-modal-content">
-                                            {/* AI & Consensus Layer (Fusion) */}
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-                                                {/* AI Expert Column */}
-                                                <div style={{ background: 'rgba(56, 189, 248, 0.08)', borderRadius: '15px', padding: '1.5rem', border: '1px solid rgba(56, 189, 248, 0.2)', boxShadow: '0 0 30px rgba(56, 189, 248, 0.1)', position: 'relative', overflow: 'hidden' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                                                        <h4 style={{ margin: 0, fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                            <span style={{ fontSize: '1rem' }}>🤖</span> {t.ai_expert_summary}
-                                                        </h4>
-
-                                                        {(!currentMatch.aiSummary || currentMatch.aiSummary.includes('bekleniyor')) && (
-                                                            currentMatch.dqs < 0.40 ? (
-                                                                <div style={{
-                                                                    background: 'rgba(239, 68, 68, 0.1)',
-                                                                    color: '#ef4444',
-                                                                    padding: '0.4rem 0.8rem',
-                                                                    borderRadius: '6px',
-                                                                    fontSize: '0.7rem',
-                                                                    fontWeight: 800,
-                                                                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.4rem'
-                                                                }}>
-                                                                    <span>⚠️</span> {t.insufficient_data}
-                                                                </div>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={async () => {
-                                                                        // Enforce AI Usage Limits
-                                                                        const limitCheck = aiUsageLimiter.canMakeAIRequest(user?.id, userProfile?.plan || 'trial');
-                                                                        if (!limitCheck.allowed) {
-                                                                            alert(lang === 'tr'
-                                                                                ? `Günlük AI rapor limitinize ulaştınız (${limitCheck.limit}). Yarın tekrar deneyebilir veya planınızı yükseltebilirsiniz.`
-                                                                                : `You've reached your daily AI report limit (${limitCheck.limit}). Try again tomorrow or upgrade your plan.`);
-                                                                            return;
-                                                                        }
-
-                                                                        // First set loading state immediately
-                                                                        const matchIdx = dataWorker.fixtures.findIndex(f => String(f.id) === String(currentMatch.id));
-                                                                        if (matchIdx !== -1) {
-                                                                            dataWorker.fixtures[matchIdx].aiSummary = t.report_analyzing || "AI Analiz yapıyor...";
-                                                                            setMatches([...dataWorker.fixtures]);
-                                                                        }
-
-                                                                        // Then trigger the actual analysis
-                                                                        const summary = await dataWorker.triggerDeepAnalysis(currentMatch.id);
-
-                                                                        // Record usage
-                                                                        aiUsageLimiter.recordAIUsage(user?.id, 'report');
-
-                                                                        // Update state with the result
-                                                                        if (matchIdx !== -1 && summary) {
-                                                                            dataWorker.fixtures[matchIdx].aiSummary = summary;
-                                                                        }
-                                                                        setMatches([...dataWorker.fixtures]);
-                                                                    }}
-                                                                    className="pulse"
-                                                                    style={{
-                                                                        background: 'var(--accent-color)',
-                                                                        color: '#000',
-                                                                        border: 'none',
-                                                                        padding: '0.4rem 0.8rem',
-                                                                        borderRadius: '6px',
-                                                                        fontSize: '0.7rem',
-                                                                        fontWeight: 800,
-                                                                        cursor: 'pointer',
-                                                                        textTransform: 'uppercase'
-                                                                    }}
-                                                                >
-                                                                    {t.deep_analysis || 'DERİN ANALİZ'}
-                                                                </button>
-                                                            )
-                                                        )}
-                                                    </div>
-
-                                                    {(currentMatch.aiSummary === (t.report_analyzing || "AI Analiz yapıyor...") || currentMatch.aiSummary === "AI Analiz yapıyor...") ? (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                                            <div className="skeleton-loader" style={{ height: '0.8rem', width: '90%', borderRadius: '4px' }}></div>
-                                                            <div className="skeleton-loader" style={{ height: '0.8rem', width: '70%', borderRadius: '4px' }}></div>
-                                                            <div className="skeleton-loader" style={{ height: '0.8rem', width: '85%', borderRadius: '4px' }}></div>
-                                                            <span style={{ fontSize: '0.7rem', opacity: 0.5, fontStyle: 'italic', marginTop: '0.5rem' }}>{t.ai_processing || 'Gelişmiş veri setleri taranıyor...'}</span>
-                                                        </div>
-                                                    ) : (
-                                                        <div style={{ whiteSpace: 'pre-line' }}>
-                                                            <p style={{ fontSize: '0.85rem', lineHeight: '1.6', color: '#fff', opacity: 0.95 }}>
-                                                                {currentMatch.aiSummary || (t.ai_standby || "Analiz raporu için butona basın...")}
-                                                            </p>
-
-                                                            {/* Probabilistic Markets Mini-Display */}
-                                                            {currentMatch.aiSummary && currentMatch.aiSummary.includes('%') && (
-                                                                <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                                                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                                        <div style={{ fontSize: '0.6rem', opacity: 0.5, textTransform: 'uppercase' }}>Tahmini Güven</div>
-                                                                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--success-color)' }}>
-                                                                            %{currentMatch.aiSummary.match(/%(\d+)/)?.[1] || '??'}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.6rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                                        <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--accent-color)' }}>{t.quant_badge || 'KUANT ANALİZ'}</span>
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* Global Consensus Column */}
-                                                <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '15px', padding: '1.5rem', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                                                    <h4 style={{ margin: 0, fontSize: '0.75rem', opacity: 0.6, fontWeight: 800, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <span style={{ fontSize: '1rem' }}>🌐</span> {t.global_consensus_report}
-                                                    </h4>
-                                                    <div style={{ marginTop: '1.2rem' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '1rem' }}>
-                                                            <span style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--success-color)' }}>
-                                                                {currentMatch.consensusReport?.totalSources || 0}
-                                                            </span>
-                                                            <span style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 600 }}>/ {RADAR_SOURCES.length} {t.active_badges}</span>
-                                                        </div>
-
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                                            {Object.entries(currentMatch.consensusReport?.agreement || {}).map(([pred, count]) => {
-                                                                const sources = (currentMatch.consensusReport?.signals || [])
-                                                                    .filter(s => s.prediction === pred)
-                                                                    .map(s => RADAR_SOURCES.find(rs => rs.id === s.site)?.label || s.site);
-
-                                                                return (
-                                                                    <div key={pred} style={{ background: 'rgba(255,255,255,0.02)', padding: '0.8rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                                                                            <span style={{ fontWeight: 800, color: 'var(--accent-color)', fontSize: '0.85rem' }}>{pred}</span>
-                                                                            <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{count} Kaynak</span>
-                                                                        </div>
-                                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                                                            {sources.map(src => (
-                                                                                <span key={src} style={{ fontSize: '0.6rem', background: 'rgba(255,255,255,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px', opacity: 0.8 }}>
-                                                                                    {src}
-                                                                                </span>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                );
-                                                            })}
-
-                                                            {!currentMatch.consensusReport?.totalSources && (
-                                                                <div style={{ fontSize: '0.7rem', opacity: 0.4, fontStyle: 'italic', textAlign: 'center', padding: '1rem' }}>
-                                                                    Henüz dış kaynak verisi eşleşmedi.
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="modal-header">
-                                                <div className="header-top">
-                                                    <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                                                        <span>{currentMatch.homeTeam}</span>
-                                                        {((currentMatch.cards?.home?.red || 0) > 0 || (currentMatch.stats?.cards?.home?.red || 0) > 0) && (
-                                                            <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
-                                                                🟥 {(currentMatch.cards?.home?.red || currentMatch.stats?.cards?.home?.red)}
-                                                            </span>
-                                                        )}
-                                                        <span style={{ opacity: 0.35, margin: '0 4px' }}>vs</span>
-                                                        <span>{currentMatch.awayTeam}</span>
-                                                        {((currentMatch.cards?.away?.red || 0) > 0 || (currentMatch.stats?.cards?.away?.red || 0) > 0) && (
-                                                            <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
-                                                                🟥 {(currentMatch.cards?.away?.red || currentMatch.stats?.cards?.away?.red)}
-                                                            </span>
-                                                        )}
-                                                    </h2>
-                                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.5rem' }}>
-                                                        <span className="tier-badge">TIER {currentMatch.tier}</span>
-                                                        <span className="minute-badge">{renderMatchMinute(currentMatch.minute, t, false)}</span>
-                                                        <span className="score-badge">{(currentMatch.score && typeof currentMatch.score === 'object') ? `${currentMatch.score.home ?? 0} - ${currentMatch.score.away ?? 0}` : (currentMatch.score || '0 - 0')}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Live Attack Momentum Wave Graph */}
-                                            <div style={{
-                                                marginBottom: '1.5rem',
-                                                padding: '1rem',
-                                                background: 'rgba(255, 255, 255, 0.02)',
-                                                border: '1px solid rgba(255, 255, 255, 0.06)',
-                                                borderRadius: '16px'
-                                            }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                                                    <div style={{
-                                                        fontSize: '0.78rem',
-                                                        fontWeight: 900,
-                                                        color: 'var(--accent-color)',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '1px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px'
-                                                    }}>
-                                                        <span>📈</span>
-                                                        <span>{lang === 'tr' ? 'CANLI BASKI GRAFİĞİ (ATTACK MOMENTUM)' : 'LIVE ATTACK MOMENTUM WAVE'}</span>
-                                                    </div>
-                                                    {graphLoading && (
-                                                        <span style={{ fontSize: '0.65rem', opacity: 0.6, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                            <span style={{ animation: 'spin 2s linear infinite', display: 'inline-block' }}>🌀</span>
-                                                            {lang === 'tr' ? 'Grafik yükleniyor...' : 'Loading wave...'}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <AttackMomentumGraph
-                                                    points={matchGraphPoints}
-                                                    homeTeam={currentMatch.homeTeam}
-                                                    awayTeam={currentMatch.awayTeam}
-                                                    currentMinute={parseInt(currentMatch.minute) || 90}
-                                                    height={100}
-                                                    lang={lang}
-                                                    loading={graphLoading}
-                                                    noGraph={graphNoData}
-                                                />
-                                            </div>
-
-                                            <div className="modal-grid">
-                                                {/* Column 1: Engine Quality */}
-                                                <div className="grid-col">
-                                                    <h3><span style={{ marginRight: '0.5rem' }}>⚡</span> DQS MOTORU</h3>
-                                                    <div className="stats-card">
-                                                        <div className="dqs-display">
-                                                            <div className="dqs-label">
-                                                                <span>DQS Skoru:</span>
-                                                                <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{(currentMatch.dqs || 0).toFixed(4)}</span>
-                                                            </div>
-                                                            <div className="dqs-bar-bg">
-                                                                <div className="dqs-bar-fill" style={{ width: `${(currentMatch.dqs || 0) * 100}%` }}></div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="stat-row-pill" style={{ marginTop: '1.5rem' }}>
-                                                            <span style={{ opacity: 0.6 }}>LATANS:</span>
-                                                            <span style={{ fontWeight: 700 }}>{currentMatch.latency || 0}ms</span>
-                                                        </div>
-
-                                                        <div className="stat-row-pill" style={{ marginTop: '1rem' }}>
-                                                            <span style={{ opacity: 0.6 }}>{t.data_integrity}:</span>
-                                                            <span className={`status-pill ${currentMatch.dataQuality === 'OK' ? 'ok' : (currentMatch.dataQuality === 'LIMITED' ? 'warning' : 'fail')}`}>
-                                                                {currentMatch.dataQuality === 'PARTIAL' ? 'BEKLENİYOR' : (currentMatch.dataQuality === 'LIMITED' ? 'KISITLI' : 'TAM')}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                {/* Column 2: Expert Analysis & Risk */}
-                                                <div className="grid-col">
-                                                    <h3><span style={{ marginRight: '0.5rem' }}>🛡️</span> {t.risk_guard}</h3>
-                                                    <div className="stats-card">
-                                                        {/* Expert Metrics Display */}
-                                                        <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(56, 189, 248, 0.05)', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.1)' }}>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 800, marginBottom: '0.5rem' }}>
-                                                                <span>{t.pressure_label}</span>
-                                                                <span style={{ color: 'var(--warning-color)' }}>%{currentMatch.observations?.pressure?.total || 0}</span>
-                                                            </div>
-                                                            <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden', marginBottom: '1rem' }}>
-                                                                <div style={{ width: `${currentMatch.observations?.pressure?.total || 0}%`, height: '100%', background: 'var(--warning-color)', transition: 'width 1s ease' }}></div>
-                                                            </div>
-
-                                                            <div style={{ fontSize: '0.7rem', fontWeight: 800, marginBottom: '0.5rem' }}>{t.velocity_label}</div>
-                                                            <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, textAlign: 'center' }}>
-                                                                {currentMatch.observations?.velocity?.trend === 'HOT' ? t.velocity_hot :
-                                                                    currentMatch.observations?.velocity?.trend === 'WARMING' ? t.velocity_warming :
-                                                                        currentMatch.observations?.velocity?.trend === 'COOLING' ? t.velocity_cooling : t.velocity_stable}
-                                                            </div>
-                                                        </div>
-
-                                                        {Object.entries(dataWorker.checkRiskFilters(currentMatch)).map(([key, f]) => (
-                                                            <div key={key} className="stat-row-pill" style={{ marginBottom: '0.8rem' }}>
-                                                                <span style={{ opacity: 0.8 }}>{t[key] || key}</span>
-                                                                <span className={`status-pill ${f.status === 'OK' ? 'ok' : f.status === 'FAIL' ? 'fail' : 'warning'}`}>
-                                                                    {f.status === 'OK' ? t.status_ok : t.status_fail}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-
-                                                {/* Column 3: Live Snapshot */}
-                                                <div className="grid-col">
-                                                    <h3><span style={{ marginRight: '0.5rem' }}>📊</span> {t.stats_title}</h3>
-                                                    <div className="stats-card" style={{ maxHeight: '420px', overflowY: 'auto', paddingRight: '0.5rem' }}>
-                                                        {currentMatch.stats?.groups && currentMatch.stats.groups.length > 0 ? (
-                                                            currentMatch.stats.groups.map(group => (
-                                                                <div key={group.groupName} style={{ marginBottom: '1.8rem' }}>
-                                                                    <h4 style={{ fontSize: '0.6rem', opacity: 0.4, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '0.8rem', paddingBottom: '0.3rem', borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--accent-color)' }}>
-                                                                        {t[group.groupName] || group.groupName}
-                                                                    </h4>
-                                                                    {group.statisticsItems.map(item => {
-                                                                        const parseVal = (v) => {
-                                                                            if (typeof v === 'string') return parseFloat(v.replace('%', '')) || 0;
-                                                                            return parseFloat(v) || 0;
-                                                                        };
-                                                                        const homeVal = parseVal(item.home);
-                                                                        const awayVal = parseVal(item.away);
-                                                                        const total = homeVal + awayVal;
-                                                                        const homePct = total > 0 ? (homeVal / total) * 100 : 50;
-
-                                                                        const isXG = item.name.toLowerCase().includes('expected') || item.name.toLowerCase() === 'xg';
-
-                                                                        return (
-                                                                            <div key={item.name} className="stat-item" style={{ marginBottom: '1rem' }}>
-                                                                                <div className="stat-label" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.75rem' }}>
-                                                                                    <span style={{ opacity: 0.8, color: isXG ? 'var(--warning-color)' : 'inherit' }}>
-                                                                                        {t[item.name] || item.name}
-                                                                                    </span>
-                                                                                    <span style={{ fontWeight: 800 }}>
-                                                                                        {isXG ? `${homeVal.toFixed(2)} - ${awayVal.toFixed(2)}` : `${item.home} - ${item.away}`}
-                                                                                    </span>
-                                                                                </div>
-                                                                                <div className="stat-bar-bg" style={{ display: 'flex', height: '3px', borderRadius: '1.5px', background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
-                                                                                    <div className="stat-bar-home" style={{ width: `${homePct}%`, background: isXG ? 'var(--warning-color)' : 'var(--accent-color)', height: '100%', transition: 'width 0.5s ease' }}></div>
-                                                                                    <div className="stat-bar-away" style={{ width: `${100 - homePct}%`, background: 'rgba(255,255,255,0.15)', height: '100%', transition: 'width 0.5s ease' }}></div>
-                                                                                </div>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            ))
-                                                        ) : (
-                                                            <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
-                                                                {currentMatch.isPartial ? (t.loading_stats || 'Detaylar yükleniyor...') : (t.no_stats_available || 'İstatistik verisi bulunamadı')}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Bayesian Intelligence Section (Premium Only) */}
-                                                {renderBayesianIntelligence(currentMatch)}
-                                            </div>
-
-                                            <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '2rem', borderTop: '1px solid var(--glass-border)' }}>
-                                                <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', opacity: 0.5 }}>
-                                                    <span style={{ width: '8px', height: '8px', background: 'var(--success-color)', borderRadius: '50%' }}></span>
-                                                    {t.live_feed_connected}
-                                                </div>
-                                                <button
-                                                    onClick={() => setSelectedMatch(null)}
-                                                    className="btn btn-outline"
-                                                    style={{ padding: '0.8rem 2rem', borderRadius: '10px' }}
-                                                >
-                                                    {t.close_intelligence}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })()
-                    )}
-                    {/* Match Details Modal end */}
                 </>
             )
             }
 
+            {renderMatchDetailsModal()}
             {renderPlanComparison()}
             {renderUpgradeConfirmation()}
 
