@@ -513,6 +513,7 @@ export const translations = {
         approval_pending_desc: "Üyelik başvurunuz alındı. Admin onayı sonrası sisteme tam erişim sağlayabilirsiniz.",
         logout: "ÇIKIŞ YAP",
         subscription_expired: "Üyelik Süresi Doldu",
+        subscription_expired_desc: "Canlı radar abonelik süreniz {date} tarihinde sona ermiştir. VIP fırsatları kaçırmamak için üyeliğinizi hemen yenileyebilirsiniz.",
         renew_subscription_desc: "Üyeliğinizi yenilemek için admin ile iletişime geçin.",
 
         // Auth Pages
@@ -628,7 +629,22 @@ export const translations = {
         legal_terms_link: "Kullanım Koşulları & Yasal Uyarı",
         legal_agree_checkbox: "18 yaşından büyük olduğumu, sitenin bahis oynatmadığını ve İstatistiki Sorumluluk Reddini okuyup kabul ettiğimi onaylıyorum.",
         legal_software_license_notice: "Yazılım ve Dijital Veri Analiz Hizmeti Lisansı",
-        legal_modal_close: "Anladım ve Kabul Ediyorum"
+        legal_modal_close: "Anladım ve Kabul Ediyorum",
+        legal_modal_badge: "🔞 18+ YASAL BİLGİLENDİRME & KULLANIM SÖZLEŞMESİ",
+        legal_modal_title: "Hukuki Şartlar & Sorumluluk Reddi",
+        legal_section1_title: "1. Platformun Niteliği (Bahis Oynatılmaz)",
+        legal_section1_body: "LiveBet Mentor, spor müsabakalarına ilişkin kamuya açık verileri toplayan, xG, momentum ve veri kalitesi (DQS) metriklerini algoritmik olarak hesaplayan bir \"Nicel Spor Analitiği ve İstatistik Yazılımıdır\" (SaaS). Sitemiz bir bahis oynatma sitesi, kasa, aracı kurum veya bahis bürosu DEĞİLDİR. Sitemiz üzerinden hiçbir şekilde para yatırma, kupon yatırma veya bahis oynama işlemi gerçekleştirilemez.",
+        legal_section2_title: "2. 7258 Sayılı Kanun ve Yasal Uyum Beyanı",
+        legal_section2_body: "Platformumuz, Türkiye Cumhuriyeti 7258 sayılı \"Futbol ve Diğer Spor Müsabakalarında Bahis ve Şans Oyunları Düzenlenmesi Hakkında Kanun\" ve uluslararası mevzuat kurallarına harfiyen uymaktadır. Sitemizde yasadışı (kaçak) bahis sitelerinin reklamı, bağlantısı (affiliate/link) veya teşviki kesinlikle yapılmamaktadır.",
+        legal_section3_title: "3. Kesin Kazanç Garantisi Yoktur (İstatistiki Çıktı)",
+        legal_section3_body: "Sistemde yer alan tüm yüzdeler, \"Sistem Tahmini\", \"Günün Altın İkilisi\", \"Alpha Sinyaller\" ve DQS skorları matematiksel olasılık hesaplarıdır. Spor karşılaşmaları öngörülemeyen değişkenler (kırmızı kart, hava durumu, hakem kararları vb.) barındırır; bu sebeple hiçbir veri veya algoritma KESİN KAZANÇ GARANTİSİ VERMEZ. Sitemizdeki veriler finansal veya yatırım tavsiyesi değildir.",
+        legal_section4_title: "4. 18+ Yaş Sınırı ve Kullanıcı Sorumluluğu",
+        legal_section4_body: "Sitemize kaydolan kullanıcılar 18 yaşını doldurmuş olduklarını kabul ve beyan ederler. 18 yaşından küçüklerin platformu kullanması yasaktır. Kullanıcıların platformdaki istatistikleri kullanarak alacakları tüm bireysel kararlar ve bu kararların maddi/manevi tüm sonuçları münhasıran kullanıcının kendi sorumluluğundadır.",
+        legal_section5_title: "5. Üyelik ve Lisans Bedeli Tanımı",
+        legal_section5_body: "VIP / Pro üyelik karşılığı ödenen bedeller; sunucu, yapay zeka işlem maliyeti ve \"Canlı Veri Analitik Yazılımı Kullanım Lisansı\" ücretidir. Bu bedel hiçbir şekilde bahis yatırımı veya getiri havuzu değildir.",
+        badge_18_plus: "🔞 18+ Yasal Yaş Sınırı",
+        badge_responsible: "🛡️ Sorumlu Analiz",
+        badge_statutory_compliance: "⚖️ 7258 Sayılı Kanun Uyumlu"
     },
     en: {
         title: "LIVE BET MENTOR",
@@ -1099,6 +1115,7 @@ export const translations = {
         approval_pending_desc: "Your application has been received. You can access the system after admin approval.",
         logout: "LOGOUT",
         subscription_expired: "Subscription Expired",
+        subscription_expired_desc: "Your live radar subscription expired on {date}. You can renew your license now to continue accessing VIP opportunities.",
         renew_subscription_desc: "Please contact admin to renew your subscription.",
 
         // Auth Pages
@@ -1245,6 +1262,21 @@ export const translations = {
         legal_terms_link: "Terms of Service & Disclaimer",
         legal_agree_checkbox: "I certify that I am at least 18 years of age, acknowledge that this site is not a bookmaker, and agree to the Statistical Disclaimer.",
         legal_software_license_notice: "Software and Digital Data Analytics License",
-        legal_modal_close: "I Understand and Agree"
+        legal_modal_close: "I Understand and Agree",
+        legal_modal_badge: "🔞 18+ STATUTORY DISCLOSURE & TERMS OF USE",
+        legal_modal_title: "Legal Terms & Disclaimer",
+        legal_section1_title: "1. Nature of the Platform (No Gambling Conducted)",
+        legal_section1_body: "LiveBet Mentor is a quantitative sports analytics and statistics software (SaaS) processing publicly available data. It is NOT a bookmaker, betting operator, or gambling intermediary. No bets or stakes are placed or processed on this platform.",
+        legal_section2_title: "2. Statutory & Regulatory Compliance Statement",
+        legal_section2_body: "Our platform strictly complies with statutory sports wagering regulations and international standards. We do not promote, advertise, or link to unlicensed gambling operators.",
+        legal_section3_title: "3. No Guarantee of Profit (Statistical Outputs)",
+        legal_section3_body: "All probabilities, Alpha scores, and predictions are statistical outputs. Sports events involve inherent volatility; no data or algorithm guarantees winnings. Nothing on this site constitutes financial or investment advice.",
+        legal_section4_title: "4. 18+ Age Restriction & User Responsibility",
+        legal_section4_body: "Users must be at least 18 years of age. Users are solely responsible for any individual decisions made based on the provided statistics and all resulting outcomes.",
+        legal_section5_title: "5. Membership & Software License Definition",
+        legal_section5_body: "Membership and VIP fees represent software licensing, computational infrastructure, and analytical server costs. They do not constitute betting stakes or investment pools.",
+        badge_18_plus: "🔞 18+ Age Restriction",
+        badge_responsible: "🛡️ Responsible Analytics",
+        badge_statutory_compliance: "⚖️ Strict Regulatory Compliance"
     }
 };

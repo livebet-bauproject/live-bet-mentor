@@ -3120,7 +3120,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 padding: '2px 8px',
                                                                 fontSize: '0.65rem',
                                                                 fontWeight: 900
-                                                            }}>KUPON SİHİRBAZI v4.0</span>
+                                                            }}>{lang === 'tr' ? 'KUPON SİHİRBAZI v4.0' : 'COMBO WIZARD v4.0'}</span>
                                                         </div>
                                                         <div style={{ fontSize: '0.72rem', opacity: 0.7, marginTop: '2px' }}>
                                                             {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : 'Algorithmic 2-leg combo combining the highest conviction opportunities'}
@@ -3175,7 +3175,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 {pick.matchTitle}
                                                             </div>
                                                             <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '2px' }}>
-                                                                {renderMatchMinute(pick.minute, t, false)} • Skor: {pick.score} • {pick.league}
+                                                                {renderMatchMinute(pick.minute, t, false)} • {lang === 'tr' ? 'Skor' : 'Score'}: {pick.score} • {pick.league}
                                                             </div>
                                                             <div style={{ marginTop: '6px', fontSize: '0.85rem', fontWeight: 800, color: '#fbbf24' }}>
                                                                 🎯 {pick.market}
@@ -3194,7 +3194,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 {pick.odds}
                                                             </div>
                                                             <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700, marginTop: '4px' }}>
-                                                                %{pick.confidence} Güven
+                                                                %{pick.confidence} {lang === 'tr' ? 'Güven' : 'Conviction'}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -5025,7 +5025,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         fontWeight: 900,
                         fontSize: '0.7rem'
                     }}>
-                        🔞 18+ Yasal Yaş Sınırı
+                        {t.badge_18_plus || (lang === 'tr' ? '🔞 18+ Yasal Yaş Sınırı' : '🔞 18+ Age Restriction')}
                     </span>
                     <span style={{
                         background: 'rgba(56, 189, 248, 0.1)',
@@ -5036,18 +5036,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        🛡️ Sorumlu Analiz
+                        {t.badge_responsible || (lang === 'tr' ? '🛡️ Sorumlu Analiz' : '🛡️ Responsible Analytics')}
                     </span>
                     <span style={{
                         background: 'rgba(16, 185, 129, 0.1)',
                         color: '#10b981',
                         border: '1px solid rgba(16, 185, 129, 0.25)',
-                        padding: '2px 8px',
+                        padding: '3px 8px',
                         borderRadius: '6px',
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        ⚖️ 7258 Sayılı Kanun Uyumlu
+                        {t.badge_statutory_compliance || (lang === 'tr' ? '⚖️ 7258 Sayılı Kanun Uyumlu' : '⚖️ Strict Regulatory Compliance')}
                     </span>
                 </div>
                 <div style={{ maxWidth: '850px', margin: '0 auto 0.8rem', color: '#64748b' }}>

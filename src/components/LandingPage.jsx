@@ -247,7 +247,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                             {view === 'login' ? t.landing_cta_login : t.landing_cta_main}
                         </h2>
                         <p style={{ color: '#64748b', textAlign: 'center', marginBottom: '2.5rem', fontSize: '0.9rem' }}>
-                            {view === 'login' ? t.login_to_panel : t.step1Desc}
+                            {view === 'login' ? t.login_to_panel : (t.register_subtitle || (lang === 'tr' ? 'LIVE BET MENTOR topluluğuna katılın' : 'Join the LIVE BET MENTOR community'))}
                         </p>
 
                         <form onSubmit={handleAuth} style={{ display: 'grid', gap: '1.5rem' }}>
@@ -325,7 +325,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                 onClick={() => setView(view === 'login' ? 'register' : 'login')}
                                 style={{ background: 'transparent', border: 'none', color: '#38bdf8', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem' }}
                             >
-                                {view === 'login' ? t.register : t.cta2}
+                                {view === 'login' ? (t.register || 'SIGN UP') : (t.haveAccount || (lang === 'tr' ? 'Zaten hesabınız var mı? Giriş Yap' : 'Already have an account? Log In'))}
                             </button>
                         </div>
                     </div>
@@ -353,7 +353,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         fontWeight: 900,
                         fontSize: '0.7rem'
                     }}>
-                        🔞 18+ Yasal Yaş Sınırı
+                        {t.badge_18_plus || (lang === 'tr' ? '🔞 18+ Yasal Yaş Sınırı' : '🔞 18+ Age Restriction')}
                     </span>
                     <span style={{
                         background: 'rgba(56, 189, 248, 0.1)',
@@ -364,7 +364,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        🛡️ Sorumlu Analiz
+                        {t.badge_responsible || (lang === 'tr' ? '🛡️ Sorumlu Analiz' : '🛡️ Responsible Analytics')}
                     </span>
                     <span style={{
                         background: 'rgba(16, 185, 129, 0.1)',
@@ -375,7 +375,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        ⚖️ 7258 Sayılı Kanun Uyumlu
+                        {t.badge_statutory_compliance || (lang === 'tr' ? '⚖️ 7258 Sayılı Kanun Uyumlu' : '⚖️ Strict Regulatory Compliance')}
                     </span>
                 </div>
 
