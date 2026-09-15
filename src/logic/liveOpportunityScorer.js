@@ -139,32 +139,25 @@ class LiveOpportunityScorer {
             minStr.toLowerCase() === 'halftime' || minStr.toLowerCase() === 'half-time' || 
             minStr.toLowerCase().includes('devre') || (minStr.toLowerCase().includes('half') && minStr.toLowerCase().includes('time'));
 
-        // Halftime High-Value Filter:
+        // Halftime Activity Evaluation:
         // A match in Halftime is NOT over; it is the prime 15-minute decision window for second-half opportunities.
+        let qualifiesForHalftimeAnalysis = true;
         if (isHalftime) {
             const hStats = match.stats || {};
             const totalXg = (Number(hStats.xg?.home) || 0) + (Number(hStats.xg?.away) || 0);
             const totalSog = (Number(hStats.shotsOnGoal?.home) || 0) + (Number(hStats.shotsOnGoal?.away) || 0);
             const totalAttacks = (Number(hStats.dangerousAttacks?.home) || 0) + (Number(hStats.dangerousAttacks?.away) || 0);
             const hasStats = totalXg > 0 || totalSog > 0 || totalAttacks > 0;
-            const qualifiesForHalftime = totalXg >= 0.45 || totalSog >= 3 || totalAttacks >= 25 || (match.tier === 1 && (totalSog >= 2 || totalXg >= 0.30));
-            
-            // Only exclude inactive halftime games if full stats are already present
-            if (hasStats && !qualifiesForHalftime) {
-                return this._createEmptyResult('EXCLUDED_HALFTIME_LOW_ACTIVITY');
-            }
+            qualifiesForHalftimeAnalysis = !hasStats || (totalXg >= 0.45 || totalSog >= 3 || totalAttacks >= 25 || (match.tier === 1 && (totalSog >= 2 || totalXg >= 0.30)));
         }
 
         const matchId = match.id;
         const minute = isHalftime ? 45 : this._parseMinute(match.minute, match);
 
-        // Strict Exclusion 2: Outside active in-play window (e.g. 15' to 80') or stoppage time
-        if (!isHalftime) {
-            const minMin = thresholds.MIN_MINUTE || 15;
-            const maxMin = thresholds.MAX_MINUTE || 80;
-            if (minute >= maxMin || minute < minMin || minStr.includes('90+')) {
-                return this._createEmptyResult('EXCLUDED_MINUTE');
-            }
+        // Strict Exclusion 2: Outside active in-play window (late game closing/dead zone 80'+ or 90+)
+        const maxMin = thresholds.MAX_MINUTE || 80;
+        if (minute >= maxMin || minStr.includes('90+')) {
+            return this._createEmptyResult('EXCLUDED_MINUTE');
         }
 
         // Strict Exclusion 3: Self-Learning AI League Quarantine Check
@@ -179,11 +172,21 @@ class LiveOpportunityScorer {
             }
         }
 
-        // Determine if enough stats are available for full analysis or pending queue
+        // Determine if enough stats are available for full analysis (Ready) or pending queue (Radar Active)
+        const minMin = thresholds.MIN_MINUTE || 15;
+        const isEarlyMinute = !isHalftime && minute < minMin;
         const dqs = match.dqs || 0;
         const totalSog = (match.stats?.shotsOnGoal?.home || 0) + (match.stats?.shotsOnGoal?.away || 0);
         const totalAttacks = (match.stats?.dangerousAttacks?.home || 0) + (match.stats?.dangerousAttacks?.away || 0);
-        const isStatsReady = (dqs >= 0.55) || (totalSog > 0) || (totalAttacks >= 15);
+        
+        // A match is ready for full analysis if:
+        // - It has passed the initial minute window (>= 15') OR already has significant early output (>= 2 SOG or >= 20 attacks)
+        // - If in halftime, meets halftime analysis criteria
+        // - Has sufficient DQS or attacking volume
+        const hasEarlyMomentum = totalSog >= 2 || totalAttacks >= 20;
+        const isStatsReady = (!isEarlyMinute || hasEarlyMomentum) && 
+                             qualifiesForHalftimeAnalysis && 
+                             ((dqs >= 0.50) || (totalSog > 0) || (totalAttacks >= 15));
 
         // Get dynamic weights based on minute
         const weights = getWeightsForMinute(minute);

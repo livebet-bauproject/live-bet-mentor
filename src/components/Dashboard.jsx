@@ -2369,151 +2369,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         })}
                     </div>
 
-                    {/* Live Matches Main Display (IMMEDIATELY VISIBLE) */}
-                    <section className="dashboard-section live-matches-main" style={{ marginBottom: '3.5rem' }}>
-                        <div className="section-header" style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <span style={{ fontSize: '1.4rem' }}>⚽</span>
-                                <h2 style={{ fontSize: '1.3rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
-                                    {lang === 'tr' ? 'CANLI MAÇLAR' : 'LIVE MATCHES'}
-                                </h2>
-                                <span style={{
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#10b981',
-                                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                                    padding: '0.15rem 0.6rem',
-                                    borderRadius: '12px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 900
-                                }}>
-                                    {matches.filter(filterByTier).length} {lang === 'tr' ? 'Maç' : 'Matches'}
-                                </span>
-                            </div>
-                            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                {activeTierFilter === 'ALL' ? (lang === 'tr' ? 'Tüm Kademeler' : 'All Tiers') : `Tier ${activeTierFilter}`}
-                            </span>
-                        </div>
 
-                        {/* Mobile Match Cards (Screen < 768px) */}
-                        <div className="mobile-matches-view">
-                            {matches.filter(filterByTier).length === 0 ? (
-                                <div className="no-matches-mobile glass-panel">
-                                    <span>📡</span>
-                                    <p>{lang === 'tr' ? 'Bu kademede şu anda canlı maç bulunmuyor.' : 'No live matches in this tier currently.'}</p>
-                                </div>
-                            ) : (
-                                matches.filter(filterByTier).map(m => {
-                                    const isQualified = (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD;
-                                    const scoreHome = (m.score && typeof m.score === 'object') ? (m.score.home ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[0]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[0]?.trim() : 0));
-                                    const scoreAway = (m.score && typeof m.score === 'object') ? (m.score.away ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[1]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[1]?.trim() : 0));
-                                    return (
-                                        <div
-                                            key={m.id}
-                                            className="mobile-match-card glass-panel"
-                                            onClick={() => setSelectedMatch(m)}
-                                        >
-                                            <div className="match-card-header">
-                                                <span className="match-league">{m.league || m.leagueName || 'Football'}</span>
-                                                <div className="match-minute-pill">
-                                                    <span className="live-minute-dot"></span>
-                                                    <span>{renderMatchMinute(m.minute, t, false)}</span>
-                                                </div>
-                                            </div>
 
-                                            <div className="match-card-body">
-                                                <div className="match-teams-box">
-                                                    <div className="team-row">
-                                                        <span className="team-name">{m.homeTeam}</span>
-                                                        <span className="team-score">{scoreHome}</span>
-                                                    </div>
-                                                    <div className="team-row">
-                                                        <span className="team-name">{m.awayTeam}</span>
-                                                        <span className="team-score">{scoreAway}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="match-card-footer">
-                                                <div className="match-metric">
-                                                    <span className="metric-label">DQS</span>
-                                                    <span className={`metric-value ${isQualified ? 'text-success' : 'text-danger'}`}>
-                                                        {m.dqs ? m.dqs.toFixed(2) : '0.00'}
-                                                    </span>
-                                                </div>
-                                                <div className="match-metric">
-                                                    <span className="metric-label">{t.sog}</span>
-                                                    <span className="metric-value">{m.stats?.shotsOnGoal?.home || 0}:{m.stats?.shotsOnGoal?.away || 0}</span>
-                                                </div>
-                                                <div className="match-metric">
-                                                    <span className="metric-label">TIER</span>
-                                                    <span className="metric-value">T{m.tier}</span>
-                                                </div>
-                                                <div className="match-status-badge">
-                                                    <span className={`status-pill ${isQualified ? 'qualified' : 'rejected'}`}>
-                                                        {isQualified ? (t.in_analysis || 'ANALİZDE') : (t.rejected || 'BEKLEMEDE')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        {/* Desktop Table (Screen >= 768px) */}
-                        <div className="desktop-matches-view glass-panel" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                                    <thead>
-                                        <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--glass-border)' }}>
-                                            <th style={{ padding: '1.25rem 2rem', color: 'var(--accent-color)', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.match_score}</th>
-                                            <th style={{ padding: '1.25rem 1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.minute_short}</th>
-                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.dqs}</th>
-                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.tier_label}</th>
-                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.sog}</th>
-                                            <th style={{ padding: '1.25rem 2rem', textAlign: 'right', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.status}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {matches.filter(filterByTier).map(m => (
-                                            <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                                                <td style={{ padding: '1.25rem 2rem' }}>
-                                                    <div style={{ fontWeight: 800 }}>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{(m.score && typeof m.score === 'object') ? `${m.score.home ?? 0} : ${m.score.away ?? 0}` : (m.score || '0 : 0')}</div>
-                                                </td>
-                                                <td style={{ padding: '1.25rem 1rem', fontWeight: 800 }}>{renderMatchMinute(m.minute, t, false)}</td>
-                                                <td style={{ padding: '1rem', fontWeight: 800, color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)' }}>
-                                                    {m.dqs ? m.dqs.toFixed(2) : '0.00'}
-                                                </td>
-                                                <td style={{ padding: '1rem' }}><span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800 }}>T{m.tier}</span></td>
-                                                <td style={{ padding: '1rem', opacity: 0.7, fontWeight: 700 }}>{m.stats?.shotsOnGoal?.home || 0} <span style={{ opacity: 0.3 }}>/</span> {m.stats?.shotsOnGoal?.away || 0}</td>
-                                                <td style={{ padding: '1.25rem 2rem', textAlign: 'right' }}>
-                                                    <span style={{
-                                                        padding: '0.4rem 0.8rem',
-                                                        borderRadius: '6px',
-                                                        fontSize: '0.7rem',
-                                                        fontWeight: 800,
-                                                        background: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                        color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)',
-                                                        border: `1px solid ${(m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
-                                                    }}>
-                                                        {(m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? (t.in_analysis || 'ANALİZDE') : (t.rejected || 'BEKLEMEDE')}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </section>
-
-                    {renderGlobalAISection('LIVE')}
-
-                    {/* Live Opportunities Panel */}
+                    {/* Live Opportunities Panel - Sıcak Fırsatlar & Canlı Radar */}
                     {(() => {
-                        const allOpportunities = liveOpportunityScorer.getOpportunities(enforcedMatches, signals, momentumWindow);
-                        const goldenCombo = betBuilderEngine.generateGoldenCombo(allOpportunities, enforcedMatches);
+                        const oppMatches = matches.filter(filterByTier);
+                        const allOpportunities = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
+                        const goldenCombo = betBuilderEngine.generateGoldenCombo(allOpportunities, oppMatches);
 
                         // Apply limit to TOTAL opportunities first
                         const limitedOpportunities = liveOpportunitiesLimit === 'ALL'
@@ -2879,7 +2741,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 alignItems: 'center',
                                                 gap: '0.8rem'
                                             }}>
-                                                🔥 {lang === 'tr' ? 'CANLI FIRSATLAR' : 'LIVE OPPORTUNITIES'}
+                                                🔥 {lang === 'tr' ? 'SICAK FIRSATLAR & CANLI RADAR' : 'HOT OPPORTUNITIES & LIVE RADAR'}
                                             </h3>
                                             
                                             {/* Momentum Window Selector */}
@@ -3152,6 +3014,146 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         );
                     })()}
 
+                    {/* Live Matches Main Display */}
+                    <section className="dashboard-section live-matches-main" style={{ marginBottom: '3.5rem' }}>
+                        <div className="section-header" style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <span style={{ fontSize: '1.4rem' }}>⚽</span>
+                                <h2 style={{ fontSize: '1.3rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
+                                    {lang === 'tr' ? 'CANLI MAÇLAR' : 'LIVE MATCHES'}
+                                </h2>
+                                <span style={{
+                                    background: 'rgba(16, 185, 129, 0.15)',
+                                    color: '#10b981',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                    padding: '0.15rem 0.6rem',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 900
+                                }}>
+                                    {matches.filter(filterByTier).length} {lang === 'tr' ? 'Maç' : 'Matches'}
+                                </span>
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                                {activeTierFilter === 'ALL' ? (lang === 'tr' ? 'Tüm Kademeler' : 'All Tiers') : `Tier ${activeTierFilter}`}
+                            </span>
+                        </div>
+
+                        {/* Mobile Match Cards (Screen < 768px) */}
+                        <div className="mobile-matches-view">
+                            {matches.filter(filterByTier).length === 0 ? (
+                                <div className="no-matches-mobile glass-panel">
+                                    <span>📡</span>
+                                    <p>{lang === 'tr' ? 'Bu kademede şu anda canlı maç bulunmuyor.' : 'No live matches in this tier currently.'}</p>
+                                </div>
+                            ) : (
+                                matches.filter(filterByTier).map(m => {
+                                    const isQualified = (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD;
+                                    const scoreHome = (m.score && typeof m.score === 'object') ? (m.score.home ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[0]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[0]?.trim() : 0));
+                                    const scoreAway = (m.score && typeof m.score === 'object') ? (m.score.away ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[1]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[1]?.trim() : 0));
+                                    return (
+                                        <div
+                                            key={m.id}
+                                            className="mobile-match-card glass-panel"
+                                            onClick={() => setSelectedMatch(m)}
+                                        >
+                                            <div className="match-card-header">
+                                                <span className="match-league">{m.league || m.leagueName || 'Football'}</span>
+                                                <div className="match-minute-pill">
+                                                    <span className="live-minute-dot"></span>
+                                                    <span>{renderMatchMinute(m.minute, t, false)}</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="match-card-body">
+                                                <div className="match-teams-box">
+                                                    <div className="team-row">
+                                                        <span className="team-name">{m.homeTeam}</span>
+                                                        <span className="team-score">{scoreHome}</span>
+                                                    </div>
+                                                    <div className="team-row">
+                                                        <span className="team-name">{m.awayTeam}</span>
+                                                        <span className="team-score">{scoreAway}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="match-card-footer">
+                                                <div className="match-metric">
+                                                    <span className="metric-label">DQS</span>
+                                                    <span className={`metric-value ${isQualified ? 'text-success' : 'text-danger'}`}>
+                                                        {m.dqs ? m.dqs.toFixed(2) : '0.00'}
+                                                    </span>
+                                                </div>
+                                                <div className="match-metric">
+                                                    <span className="metric-label">{t.sog}</span>
+                                                    <span className="metric-value">{m.stats?.shotsOnGoal?.home || 0}:{m.stats?.shotsOnGoal?.away || 0}</span>
+                                                </div>
+                                                <div className="match-metric">
+                                                    <span className="metric-label">TIER</span>
+                                                    <span className="metric-value">T{m.tier}</span>
+                                                </div>
+                                                <div className="match-status-badge">
+                                                    <span className={`status-pill ${isQualified ? 'qualified' : 'rejected'}`}>
+                                                        {isQualified ? (t.in_analysis || 'ANALİZDE') : (t.rejected || 'BEKLEMEDE')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+
+                        {/* Desktop Table (Screen >= 768px) */}
+                        <div className="desktop-matches-view glass-panel" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                                    <thead>
+                                        <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--glass-border)' }}>
+                                            <th style={{ padding: '1.25rem 2rem', color: 'var(--accent-color)', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.match_score}</th>
+                                            <th style={{ padding: '1.25rem 1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.minute_short}</th>
+                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.dqs}</th>
+                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.tier_label}</th>
+                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.sog}</th>
+                                            <th style={{ padding: '1.25rem 2rem', textAlign: 'right', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.status}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {matches.filter(filterByTier).map(m => (
+                                            <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                                                <td style={{ padding: '1.25rem 2rem' }}>
+                                                    <div style={{ fontWeight: 800 }}>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</div>
+                                                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{(m.score && typeof m.score === 'object') ? `${m.score.home ?? 0} : ${m.score.away ?? 0}` : (m.score || '0 : 0')}</div>
+                                                </td>
+                                                <td style={{ padding: '1.25rem 1rem', fontWeight: 800 }}>{renderMatchMinute(m.minute, t, false)}</td>
+                                                <td style={{ padding: '1rem', fontWeight: 800, color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)' }}>
+                                                    {m.dqs ? m.dqs.toFixed(2) : '0.00'}
+                                                </td>
+                                                <td style={{ padding: '1rem' }}><span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800 }}>T{m.tier}</span></td>
+                                                <td style={{ padding: '1rem', opacity: 0.7, fontWeight: 700 }}>{m.stats?.shotsOnGoal?.home || 0} <span style={{ opacity: 0.3 }}>/</span> {m.stats?.shotsOnGoal?.away || 0}</td>
+                                                <td style={{ padding: '1.25rem 2rem', textAlign: 'right' }}>
+                                                    <span style={{
+                                                        padding: '0.4rem 0.8rem',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 800,
+                                                        background: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                                                        color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)',
+                                                        border: `1px solid ${(m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                                                    }}>
+                                                        {(m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? (t.in_analysis || 'ANALİZDE') : (t.rejected || 'BEKLEMEDE')}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    {renderGlobalAISection('LIVE')}
 
                     {/* Analysis Candidates */}
                     <section className="dashboard-section" style={{ marginBottom: '5rem' }}>
