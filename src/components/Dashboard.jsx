@@ -201,6 +201,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [trackingStats, setTrackingStats] = useState(predictionTracker.getStats());
     const [showTrackingPanel, setShowTrackingPanel] = useState(false);
     const [trackingActiveTab, setTrackingActiveTab] = useState('ALERTS'); // 'ALERTS' or 'BETS'
+    const [alertHistoryList, setAlertHistoryList] = useState(() => smartAlertService.getHistory(50));
     const [isScanningResults, setIsScanningResults] = useState(false);
 
     // Live Attack Momentum Graph State
