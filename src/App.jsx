@@ -22,7 +22,7 @@ function App() {
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) {
         const parsed = JSON.parse(savedAdmin);
-        if (parsed?.user?.email === 'karabulut.hamza@gmail.com') return parsed;
+        if (parsed?.user?.email === 'admin@livebetmentor.com' || parsed?.user?.plan === 'admin' || parsed?.user?.id?.startsWith('admin-')) return parsed;
       }
       const savedMember = localStorage.getItem('lbm_member_session');
       if (savedMember) {
@@ -50,16 +50,16 @@ function App() {
     return 'landing';
   });
   const [userProfile, setUserProfile] = useState(() => {
-    if (isLocal) return { status: 'active', plan: 'admin', display_name: 'Admin User', subscription_end: '2099-12-31T23:59:59.000Z' };
+    if (isLocal) return { status: 'active', plan: 'admin', display_name: 'LiveBet Admin', subscription_end: '2099-12-31T23:59:59.000Z' };
     try {
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) {
         return {
-          id: 'admin-super-hamza',
-          email: 'karabulut.hamza@gmail.com',
+          id: 'admin-super',
+          email: 'admin@livebetmentor.com',
           status: 'active',
           plan: 'admin',
-          display_name: 'Hamza Karabulut (Admin)',
+          display_name: 'LiveBet Admin',
           subscription_end: '2099-12-31T23:59:59.000Z'
         };
       }
@@ -98,7 +98,7 @@ function App() {
         return null;
       }
 
-      const isAdminEmail = user.email === 'karabulut.hamza@gmail.com';
+      const isAdminEmail = user.email === 'admin@livebetmentor.com' || user.id?.startsWith('admin-') || user.plan === 'admin';
 
       // If user is a web member with a saved session, restore member profile without querying Supabase
       const savedMember = localStorage.getItem('lbm_member_session');
@@ -144,7 +144,7 @@ function App() {
               email: user.email,
               status: 'active',
               plan: 'admin',
-              display_name: 'Hamza Karabulut (Admin)',
+              display_name: 'LiveBet Admin',
               subscription_end: '2099-12-31T23:59:59.000Z'
             };
             setUserProfile(adminProfile);
@@ -213,7 +213,7 @@ function App() {
             email: user.email,
             status: 'active',
             plan: 'admin',
-            display_name: 'Hamza Karabulut (Admin)',
+            display_name: 'LiveBet Admin',
             subscription_end: '2099-12-31T23:59:59.000Z'
           };
           setUserProfile(adminProfile);
@@ -234,14 +234,14 @@ function App() {
     if (savedAdmin) {
       try {
         const parsed = JSON.parse(savedAdmin);
-        if (parsed?.user?.email === 'karabulut.hamza@gmail.com') {
+        if (parsed?.user?.email === 'admin@livebetmentor.com' || parsed?.user?.plan === 'admin' || parsed?.user?.id?.startsWith('admin-')) {
           setSession(parsed);
           setUserProfile({
-            id: 'admin-super-hamza',
-            email: 'karabulut.hamza@gmail.com',
+            id: 'admin-super',
+            email: 'admin@livebetmentor.com',
             status: 'active',
             plan: 'admin',
-            display_name: 'Hamza Karabulut (Admin)',
+            display_name: 'LiveBet Admin',
             subscription_end: '2099-12-31T23:59:59.000Z'
           });
           setPage('dashboard');
@@ -357,13 +357,13 @@ function App() {
 
   const handleLoginSuccess = (sess) => {
     setSession(sess);
-    if (sess?.user?.email === 'karabulut.hamza@gmail.com') {
+    if (sess?.user?.email === 'admin@livebetmentor.com' || sess?.user?.plan === 'admin' || sess?.user?.id?.startsWith('admin-')) {
       const adminProfile = {
-        id: sess.user.id || 'admin-super-hamza',
-        email: sess.user.email,
+        id: sess.user.id || 'admin-super',
+        email: 'admin@livebetmentor.com',
         status: 'active',
         plan: 'admin',
-        display_name: 'Hamza Karabulut (Admin)',
+        display_name: 'LiveBet Admin',
         subscription_end: '2099-12-31T23:59:59.000Z'
       };
       setUserProfile(adminProfile);

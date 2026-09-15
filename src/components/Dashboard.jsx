@@ -543,7 +543,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         });
     }, [radarMatches, radarFilters, matches, userProfile]);
 
-    const isAdmin = user?.email === 'karabulut.hamza@gmail.com' || userProfile?.plan === 'admin' || user?.email === 'admin@local.dev';
+    const isAdmin = user?.email === 'admin@livebetmentor.com' || userProfile?.plan === 'admin' || user?.email === 'admin@local.dev' || userProfile?.role === 'admin' || user?.id?.startsWith('admin-');
 
     const t = translations[lang];
 

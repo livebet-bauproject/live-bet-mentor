@@ -135,8 +135,7 @@ export const CONFIG = {
     }
   },
   SUPPORT: {
-    TELEGRAM: '@Livebetdeskbot',
-    EMAIL: 'support@livebetmentor.com'
+    TELEGRAM: '@Livebetdeskbot'
   },
   MEMBERSHIP_PRICING: {
     trial: 0,

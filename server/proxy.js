@@ -839,15 +839,15 @@ app.post('/api/members/login', (req, res) => {
         const cleanEmail = (email || '').trim().toLowerCase();
         
         // Super Admin Master Credentials
-        if (cleanEmail === 'karabulut.hamza@gmail.com' && (password === 'Hamza123!' || password === 'admin123' || password === 'Hamza2026!' || password === 'admin')) {
+        if ((cleanEmail === 'admin@livebetmentor.com' || cleanEmail === 'admin' || cleanEmail === 'karabulut.hamza@gmail.com') && (password === 'Hamza123!' || password === 'admin123' || password === 'Hamza2026!' || password === 'admin')) {
             return res.json({
                 success: true,
                 user: {
-                    id: 'admin-super-hamza',
-                    email: 'karabulut.hamza@gmail.com',
+                    id: 'admin-super',
+                    email: 'admin@livebetmentor.com',
                     plan: 'admin',
                     status: 'approved',
-                    display_name: 'Hamza Karabulut (Admin)',
+                    display_name: 'LiveBet Admin',
                     subscription_end: '2099-12-31T23:59:59.000Z'
                 }
             });

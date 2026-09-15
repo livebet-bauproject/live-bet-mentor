@@ -36,15 +36,15 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
         setLoading(true);
 
         const cleanEmail = (email || '').trim().toLowerCase();
-        const isAdmin = cleanEmail === 'karabulut.hamza@gmail.com';
+        const isAdmin = cleanEmail === 'admin@livebetmentor.com' || cleanEmail === 'admin';
 
-        // Super Admin Master Login (Hamza123!, admin123, Hamza2026!, admin)
+        // Super Admin Master Login
         if (isAdmin && (password === 'Hamza123!' || password === 'admin123' || password === 'Hamza2026!' || password === 'admin')) {
             const adminSession = {
                 user: {
-                    id: 'admin-super-hamza',
-                    email: 'karabulut.hamza@gmail.com',
-                    user_metadata: { display_name: 'Hamza Karabulut (Admin)' }
+                    id: 'admin-super',
+                    email: 'admin@livebetmentor.com',
+                    user_metadata: { display_name: 'LiveBet Admin' }
                 },
                 access_token: 'master-admin-token',
                 expires_at: 9999999999
@@ -140,7 +140,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
             }
         } catch (err) {
             if (isAdmin) {
-                setError(lang === 'tr' ? '❌ Hatalı yönetici şifresi. Belirlenen admin şifresi: Hamza123!' : '❌ Invalid admin password.');
+                setError(lang === 'tr' ? '❌ Hatalı yönetici şifresi.' : '❌ Invalid admin password.');
             } else {
                 setError(err.message || (lang === 'tr' ? 'Giriş yapılamadı.' : 'Login failed.'));
             }
