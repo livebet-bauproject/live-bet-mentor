@@ -46,6 +46,7 @@ class TelegramBot {
         this.enabled = process.env.TELEGRAM_ENABLED !== 'false';
         this.minLevel = process.env.TELEGRAM_MIN_LEVEL || 'SICAK';
         this.publicDelay = parseInt(process.env.TELEGRAM_PUBLIC_DELAY_MIN || '15') * 60 * 1000;
+        this.lang = process.env.TELEGRAM_LANG || 'tr';
 
         // State
         this.sentSignals = new Map(); // matchId -> timestamp (duplicate guard)
@@ -276,7 +277,7 @@ class TelegramBot {
 
         // 1. Send to VIP group (immediate)
         if (this.vipGroupId) {
-            const vipMessage = formatVIPSignal(alert);
+            const vipMessage = formatVIPSignal(alert, this.lang);
             results.vip = await this.sendMessage(this.vipGroupId, vipMessage);
             console.log(`[TELEGRAM] 💎 VIP signal sent: ${alert.homeTeam} vs ${alert.awayTeam} [${alert.level}]`);
         }
@@ -284,7 +285,7 @@ class TelegramBot {
         // 2. Send to public channel (delayed teaser)
         if (this.publicChannelId) {
             setTimeout(async () => {
-                const publicMessage = formatPublicTeaser(alert);
+                const publicMessage = formatPublicTeaser(alert, this.lang);
                 results.public = await this.sendMessage(this.publicChannelId, publicMessage);
                 console.log(`[TELEGRAM] 📢 Public teaser sent (delayed): ${alert.homeTeam} vs ${alert.awayTeam}`);
             }, this.publicDelay);
@@ -300,14 +301,14 @@ class TelegramBot {
         if (!this.enabled || !this.vipGroupId) return null;
 
         const results = {};
-        const message = formatRadarPick(match);
+        const message = formatRadarPick(match, this.lang);
         results.vip = await this.sendMessage(this.vipGroupId, message);
         console.log(`[TELEGRAM] 🎯 Radar pick sent to VIP: ${match.home} vs ${match.away}`);
 
         // If public teaser requested (or by default for top consensus)
         if (options.sendTeaser && this.publicChannelId) {
             try {
-                const teaser = formatRadarTeaser(match);
+                const teaser = formatRadarTeaser(match, this.lang);
                 results.public = await this.sendMessage(this.publicChannelId, teaser);
                 console.log(`[TELEGRAM] 📡 Radar teaser sent to Public Channel: ${match.home} vs ${match.away}`);
             } catch (te) {
@@ -359,14 +360,14 @@ class TelegramBot {
                 // 1. Send full institutional analysis to VIP Syndicate Group
                 let vipRes = null;
                 if (this.vipGroupId) {
-                    const vipMsg = formatRadarPick(match);
+                    const vipMsg = formatRadarPick(match, this.lang);
                     vipRes = await this.sendMessage(this.vipGroupId, vipMsg);
                 }
 
                 // 2. Send public teaser for the #1 pick to Public Channel
                 let pubRes = null;
                 if (i === 0 && this.publicChannelId) {
-                    const publicMsg = formatRadarTeaser(match);
+                    const publicMsg = formatRadarTeaser(match, this.lang);
                     pubRes = await this.sendMessage(this.publicChannelId, publicMsg);
                 }
 
@@ -414,7 +415,7 @@ class TelegramBot {
      * Send daily performance report
      */
     async sendDailyReport(reset = false) {
-        const report = formatDailyReport(this.dailyStats);
+        const report = formatDailyReport(this.dailyStats, this.lang);
 
         const results = {};
         if (this.vipGroupId) {
@@ -439,7 +440,7 @@ class TelegramBot {
      */
     async sendGoldenCombo(combo) {
         if (!this.enabled || !this.vipGroupId || !combo) return null;
-        const message = formatGoldenCombo(combo);
+        const message = formatGoldenCombo(combo, this.lang);
         if (!message) return null;
         const result = await this.sendMessage(this.vipGroupId, message);
         console.log(`[TELEGRAM] 🎟️ Golden Double Combo sent to VIP`);
@@ -451,7 +452,7 @@ class TelegramBot {
      */
     async sendLatencyArbitrage(arb) {
         if (!this.enabled || !this.vipGroupId || !arb) return null;
-        const message = formatLatencyArbitrageAlert(arb);
+        const message = formatLatencyArbitrageAlert(arb, this.lang);
         if (!message) return null;
         const result = await this.sendMessage(this.vipGroupId, message);
         console.log(`[TELEGRAM] ⚡ Latency Arbitrage alert sent to VIP: ${arb.homeTeam} vs ${arb.awayTeam}`);
@@ -505,7 +506,7 @@ class TelegramBot {
         // Send Telegram notification
         if (sendNotification) {
             try {
-                const message = formatSignalResult(signal, result, score, this.dailyStats);
+                const message = formatSignalResult(signal, result, score, this.dailyStats, this.lang);
                 if (result === 'WON') {
                     if (this.vipGroupId) {
                         await this.sendMessage(this.vipGroupId, message);
@@ -645,7 +646,7 @@ class TelegramBot {
             const cashOuts = cashOutEngine.evaluateCashOuts(liveEvents);
             for (const co of cashOuts) {
                 if (this.vipGroupId) {
-                    const coMsg = formatCashOutAlert(co);
+                    const coMsg = formatCashOutAlert(co, this.lang);
                     await this.sendMessage(this.vipGroupId, coMsg);
                     console.log(`[TELEGRAM] ⚠️ Cash-out alert dispatched for ${co.matchTitle}: ${co.reason}`);
                 }
@@ -671,7 +672,7 @@ class TelegramBot {
         while (this.isPolling) {
             try {
                 const res = await fetch(
-                    `https://api.telegram.org/bot${this.token}/getUpdates?offset=${this.pollingOffset}&timeout=30&allowed_updates=["message"]`,
+                    `https://api.telegram.org/bot${this.token}/getUpdates?offset=${this.pollingOffset}&timeout=30&allowed_updates=["message","callback_query"]`,
                     { timeout: 35000 }
                 );
                 const data = await res.json();
@@ -679,7 +680,11 @@ class TelegramBot {
                 if (data.ok && data.result.length > 0) {
                     for (const update of data.result) {
                         this.pollingOffset = update.update_id + 1;
-                        await this.handleUpdate(update);
+                        if (update.callback_query) {
+                            await this.handleCallbackQuery(update.callback_query);
+                        } else if (update.message) {
+                            await this.handleUpdate(update);
+                        }
                     }
                 }
             } catch (e) {
@@ -691,6 +696,38 @@ class TelegramBot {
 
             // Small delay between polls
             await new Promise(r => setTimeout(r, 1000));
+        }
+    }
+
+    async answerCallbackQuery(callbackQueryId, text = '') {
+        if (!this.token || !callbackQueryId) return;
+        try {
+            await fetch(`https://api.telegram.org/bot${this.token}/answerCallbackQuery`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    callback_query_id: callbackQueryId,
+                    text
+                })
+            });
+        } catch (e) {
+            console.error('[TELEGRAM] Error in answerCallbackQuery:', e.message);
+        }
+    }
+
+    async handleCallbackQuery(cq) {
+        const chatId = cq.message?.chat?.id;
+        const data = cq.data;
+        if (!chatId || !data) return;
+
+        if (data === 'set_lang_tr') {
+            vipManager.setUserLang(chatId, 'tr');
+            await this.answerCallbackQuery(cq.id, 'Dil Türkçe olarak güncellendi! 🇹🇷');
+            await this.sendMessage(chatId, `🇹🇷 *Dil Tercihiniz Kaydedildi: Türkçe*\n━━━━━━━━━━━━━━━━━━\nArtık bot bildirimleri, algoritmik analizler ve komut yanıtları Türkçe olarak görüntülenecektir.\n\nDilediğiniz zaman \`/dil\` veya \`/lang\` komutu ile değiştirebilirsiniz.`);
+        } else if (data === 'set_lang_en') {
+            vipManager.setUserLang(chatId, 'en');
+            await this.answerCallbackQuery(cq.id, 'Language set to English! 🇬🇧');
+            await this.sendMessage(chatId, `🇬🇧 *Language Preference Saved: English*\n━━━━━━━━━━━━━━━━━━\nAll quant alerts, analytical breakdowns, and bot commands will now be displayed in English.\n\nYou can change it anytime with \`/lang\` or \`/dil\`.`);
         }
     }
 
@@ -765,6 +802,9 @@ _Average activation time: 2–5 minutes._
 
         console.log(`[TELEGRAM] Command from ${username}: ${text}`);
 
+        const userLang = vipManager.getUserLang(chatId);
+        const isTr = userLang === 'tr';
+
         const parts = text.split(/\s+/);
         const cmd = parts[0].toLowerCase();
         const arg1 = parts[1];
@@ -773,11 +813,11 @@ _Average activation time: 2–5 minutes._
         switch (cmd) {
             case '/start':
             case '/help':
-                await this.sendMessage(chatId, formatWelcome());
+                await this.sendMessage(chatId, formatWelcome(userLang));
                 break;
 
             case '/vip':
-                await this.sendMessage(chatId, formatVIPInfo());
+                await this.sendMessage(chatId, formatVIPInfo({}, userLang));
                 break;
 
             case '/trial':
@@ -785,13 +825,21 @@ _Average activation time: 2–5 minutes._
                 const trialRes = vipManager.startTrial(chatId, username);
                 if (trialRes.success) {
                     const inviteLink = await this.createInviteLink(username, 72);
-                    const msg = `🎉 *3-DAY VIP TRIAL PASS ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\nYou have been granted full institutional access to our quantitative live signal feed for 72 hours.\n\n⏰ *Duration:* 3 Days (72 Hours)\n💎 *Tier:* Complimentary VIP Trial Pass\n\n🎟️ *Your One-Time VIP Access Link:* \n👉 ${inviteLink || 'Direct VIP access in progress...'}\n\n_To extend your pass or subscribe, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    const msg = isTr
+                        ? `🎉 *3 GÜNLÜK ÜCRETSİZ VIP DENEME BAŞLATILDI!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n72 saat boyunca tüm canlı quant sinyallerimize ve kasa koruma bildirimlerimize ücretsiz erişim tanımlandı.\n\n⏰ *Süre:* 3 Gün (72 Saat)\n💎 *Paket:* Ücretsiz VIP Deneme Paketi\n\n🎟️ *Tek Kullanımlık VIP Giriş Bağlantınız:* \n👉 ${inviteLink || 'VIP erişimi hazırlanıyor...'}\n\n_Sürenizi uzatmak veya paketleri incelemek için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`
+                        : `🎉 *3-DAY VIP TRIAL PASS ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\nYou have been granted full institutional access to our quantitative live signal feed for 72 hours.\n\n⏰ *Duration:* 3 Days (72 Hours)\n💎 *Tier:* Complimentary VIP Trial Pass\n\n🎟️ *Your One-Time VIP Access Link:* \n👉 ${inviteLink || 'Direct VIP access in progress...'}\n\n_To extend your pass or subscribe, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
                     await this.sendMessage(chatId, msg);
                 } else if (trialRes.reason === 'ACTIVE_TRIAL') {
-                    const rem = vipManager.getRemainingTime(chatId);
-                    await this.sendMessage(chatId, `⏳ *Active Trial in Progress!*\n\n• Remaining Time: *${rem?.text || 'Active'}*\n\nYou can continue accessing all signals and real-time alerts in our VIP channel.`);
+                    const rem = vipManager.getRemainingTime(chatId, userLang);
+                    const msg = isTr
+                        ? `⏳ *Aktif Deneme Süreniz Devam Ediyor!*\n\n• Kalan Süre: *${rem?.text || 'Aktif'}*\n\nVIP kanalımızdaki tüm canlı sinyal ve analizlerden yararlanmaya devam edebilirsiniz.`
+                        : `⏳ *Active Trial in Progress!*\n\n• Remaining Time: *${rem?.text || 'Active'}*\n\nYou can continue accessing all signals and real-time alerts in our VIP channel.`;
+                    await this.sendMessage(chatId, msg);
                 } else {
-                    await this.sendMessage(chatId, `ℹ️ *Trial Pass Already Used.*\n\nYou have already claimed your 3-day trial. To unlock permanent access to our VIP Quant Syndicate, type /vip.`);
+                    const msg = isTr
+                        ? `ℹ️ *Ücretsiz Deneme Hakkı Daha Önce Kullanılmış.*\n\nDaha önce 3 günlük deneme hakkınızı kullandınız. VIP grubumuza sınırsız erişmek için paketleri /vip yazarak inceleyebilirsiniz.`
+                        : `ℹ️ *Trial Pass Already Used.*\n\nYou have already claimed your 3-day trial. To unlock permanent access to our VIP Quant Syndicate, type /vip.`;
+                    await this.sendMessage(chatId, msg);
                 }
                 break;
             }
@@ -799,24 +847,39 @@ _Average activation time: 2–5 minutes._
             case '/profile':
             case '/profil':
             case '/kalan': {
-                const rem = vipManager.getRemainingTime(chatId);
+                const rem = vipManager.getRemainingTime(chatId, userLang);
                 const userObj = vipManager.getUser(chatId);
                 if (rem && rem.active) {
-                    const planName = userObj?.plan === 'TRIAL' ? '3-Day Free Trial' : 'VIP Quant Subscription';
-                    await this.sendMessage(chatId, `👑 *VIP Subscription & Profile Status:*\n━━━━━━━━━━━━━━━━━━\n• User: @${username}\n• Chat ID: \`${chatId}\`\n• Tier: *${planName}*\n• Status: *ACTIVE*\n• Time Remaining: *${rem.text}*\n• Privileges: Real-time Signals + Stop-Loss + Latency Radar\n━━━━━━━━━━━━━━━━━━\n_To renew or upgrade, type /vip._`);
+                    const planName = isTr
+                        ? (userObj?.plan === 'TRIAL' ? '3 Günlük Ücretsiz Deneme' : 'VIP Quant Aboneliği')
+                        : (userObj?.plan === 'TRIAL' ? '3-Day Free Trial' : 'VIP Quant Subscription');
+                    const msg = isTr
+                        ? `👑 *VIP Abonelik & Profil Durumu:*\n━━━━━━━━━━━━━━━━━━\n• Kullanıcı: @${username}\n• Chat ID: \`${chatId}\`\n• Paket: *${planName}*\n• Durum: *AKTİF*\n• Kalan Süre: *${rem.text}*\n• Tercih Edilen Dil: *${userLang.toUpperCase()}*\n• Ayrıcalıklar: Canlı Sinyaller + Stop-Loss + Arbitraj Radarı\n━━━━━━━━━━━━━━━━━━\n_Yenilemek veya yükseltmek için /vip yazabilirsiniz._`
+                        : `👑 *VIP Subscription & Profile Status:*\n━━━━━━━━━━━━━━━━━━\n• User: @${username}\n• Chat ID: \`${chatId}\`\n• Tier: *${planName}*\n• Status: *ACTIVE*\n• Time Remaining: *${rem.text}*\n• Preferred Language: *${userLang.toUpperCase()}*\n• Privileges: Real-time Signals + Stop-Loss + Latency Radar\n━━━━━━━━━━━━━━━━━━\n_To renew or upgrade, type /vip._`;
+                    await this.sendMessage(chatId, msg);
                 } else if (userObj && !rem.active) {
-                    await this.sendMessage(chatId, `⚠️ *VIP Subscription Expired.*\n━━━━━━━━━━━━━━━━━━\nDear @${username}, your VIP pass has ended. Type /vip to renew.`);
+                    const msg = isTr
+                        ? `⚠️ *VIP Abonelik Süreniz Sona Erdi.*\n━━━━━━━━━━━━━━━━━━\nSayın @${username}, VIP süreniz tamamlandı. Yenilemek için /vip yazabilirsiniz.`
+                        : `⚠️ *VIP Subscription Expired.*\n━━━━━━━━━━━━━━━━━━\nDear @${username}, your VIP pass has ended. Type /vip to renew.`;
+                    await this.sendMessage(chatId, msg);
                 } else {
-                    await this.sendMessage(chatId, `ℹ️ *No Active VIP Subscription Found.*\n━━━━━━━━━━━━━━━━━━\n• Start 3-day *FREE* trial: /trial\n• Explore VIP Syndicate tiers: /vip`);
+                    const msg = isTr
+                        ? `ℹ️ *Aktif Bir VIP Aboneliği Bulunamadı.*\n━━━━━━━━━━━━━━━━━━\n• 3 Günlük *Ücretsiz* deneme başlat: /deneme\n• VIP Paketlerini incele: /vip\n• Dil tercihi: /dil`
+                        : `ℹ️ *No Active VIP Subscription Found.*\n━━━━━━━━━━━━━━━━━━\n• Start 3-day *FREE* trial: /trial\n• Explore VIP Syndicate tiers: /vip\n• Change language: /lang`;
+                    await this.sendMessage(chatId, msg);
                 }
                 break;
             }
 
             case '/combo':
             case '/kupon':
-            case '/kombine':
-                await this.sendMessage(chatId, `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n_Curated golden double alerts are dispatched directly into our private VIP Syndicate._\n\n👉 Access VIP: /trial`);
+            case '/kombine': {
+                const msg = isTr
+                    ? `🎟️ *Canlı Altın Çifte (Kombine Sihirbazı):*\n\nQuant algoritmalarımız devam eden canlı maçları analiz eder ve en yüksek olasılıklı iki değeri tek bir yüksek +EV kuponunda birleştirir.\n\n_Özel canlı kombine alarmları doğrudan VIP kanalımızda paylaşılmaktadır._\n\n👉 VIP Deneme Başlat: /deneme`
+                    : `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n_Curated golden double alerts are dispatched directly into our private VIP Syndicate._\n\n👉 Access VIP: /trial`;
+                await this.sendMessage(chatId, msg);
                 break;
+            }
 
             case '/grantvip':
             case '/vipver': {
@@ -887,10 +950,11 @@ _Average activation time: 2–5 minutes._
 
             case '/stats':
             case '/rapor':
-            case '/ozet':
-                const statsMsg = formatDailyReport(this.dailyStats);
+            case '/ozet': {
+                const statsMsg = formatDailyReport(this.dailyStats, userLang);
                 await this.sendMessage(chatId, statsMsg);
                 break;
+            }
 
             case '/ai':
             case '/ogrenme':
@@ -904,7 +968,7 @@ _Average activation time: 2–5 minutes._
             case '/sonuclar':
             case '/sinyaller':
                 if (this.dailyStats.signals.length === 0) {
-                    await this.sendMessage(chatId, '📊 Bugün henüz sinyal gönderilmedi.');
+                    await this.sendMessage(chatId, isTr ? '📊 Bugün henüz sinyal gönderilmedi.' : '📊 No signals dispatched yet today.');
                 } else {
                     const signalList = this.dailyStats.signals
                         .map((s, i) => {
@@ -917,22 +981,58 @@ _Average activation time: 2–5 minutes._
                     
                     const totalResolved = (this.dailyStats.won || 0) + (this.dailyStats.lost || 0);
                     const winRate = totalResolved > 0 ? (((this.dailyStats.won || 0) / totalResolved) * 100).toFixed(1) : '0.0';
-                    const header = `📋 *Günün Sinyalleri (${this.dailyStats.total})*\n✅ Kazanan: ${this.dailyStats.won} | ❌ Kaybeden: ${this.dailyStats.lost} | ⏳ Bekleyen: ${this.dailyStats.pending}\n📈 Başarı Oranı: *%${winRate}*\n━━━━━━━━━━━━━━━━━━\n\n`;
+                    const header = isTr
+                        ? `📋 *Günün Sinyalleri (${this.dailyStats.total})*\n✅ Kazanan: ${this.dailyStats.won} | ❌ Kaybeden: ${this.dailyStats.lost} | ⏳ Bekleyen: ${this.dailyStats.pending}\n📈 Başarı Oranı: *%${winRate}*\n━━━━━━━━━━━━━━━━━━\n\n`
+                        : `📋 *Today's Signals (${this.dailyStats.total})*\n✅ Won: ${this.dailyStats.won} | ❌ Lost: ${this.dailyStats.lost} | ⏳ Pending: ${this.dailyStats.pending}\n📈 Win Rate: *${winRate}%*\n━━━━━━━━━━━━━━━━━━\n\n`;
                     await this.sendMessage(chatId, header + signalList);
                 }
                 break;
 
             case '/id':
-                await this.sendMessage(chatId, `🆔 *Telegram Bilgileriniz:*\n\n• Chat ID: \`${chatId}\`\n• Kullanıcı: @${username}\n\n_Bu ID numarasını yöneticiye ileterek VIP üyeliğinizi hemen tanımlatabilirsiniz._`);
+                await this.sendMessage(chatId, isTr
+                    ? `🆔 *Telegram Bilgileriniz:*\n\n• Chat ID: \`${chatId}\`\n• Kullanıcı: @${username}\n• Tercih Edilen Dil: *Türkçe* 🇹🇷\n\n_Bu ID numarasını yöneticiye ileterek VIP üyeliğinizi hemen tanımlatabilirsiniz._`
+                    : `🆔 *Your Telegram Information:*\n\n• Chat ID: \`${chatId}\`\n• Username: @${username}\n• Preferred Language: *English* 🇬🇧\n\n_Provide this Chat ID to admin to activate your VIP membership._`);
                 break;
+
+            case '/lang':
+            case '/dil': {
+                const newLang = (arg1 || '').toLowerCase();
+                if (newLang === 'tr' || newLang === 'turkce' || newLang === 'türkçe') {
+                    vipManager.setUserLang(chatId, 'tr');
+                    await this.sendMessage(chatId, `🇹🇷 *Dil tercihi Türkçe olarak güncellendi.*\n\nArtık bot bildirimleri, analizler ve komut yanıtları Türkçe gelecektir.`);
+                } else if (newLang === 'en' || newLang === 'english' || newLang === 'ingilizce') {
+                    vipManager.setUserLang(chatId, 'en');
+                    await this.sendMessage(chatId, `🇬🇧 *Language preference set to English.*\n\nBot notifications, quantitative analysis, and command responses will now be in English.`);
+                } else {
+                    const promptText = isTr
+                        ? `🌐 *Dil Tercihi / Language Selection*\n\nMevcut diliniz: *Türkçe* 🇹🇷\n\nAşağıdaki butonlardan seçebilir veya doğrudan komut yazabilirsiniz:\n• \`/dil tr\` (Türkçe)\n• \`/dil en\` (English)`
+                        : `🌐 *Language Selection / Dil Tercihi*\n\nCurrent language: *English* 🇬🇧\n\nSelect an option below or use commands:\n• \`/lang en\` (English)\n• \`/lang tr\` (Türkçe)`;
+
+                    await this.sendMessage(chatId, promptText, {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    { text: '🇹🇷 Türkçe', callback_data: 'set_lang_tr' },
+                                    { text: '🇬🇧 English', callback_data: 'set_lang_en' }
+                                ]
+                            ]
+                        }
+                    });
+                }
+                break;
+            }
 
             case '/katil':
             case '/link':
                 const inviteLink = await this.createInviteLink(username);
                 if (inviteLink) {
-                    await this.sendMessage(chatId, `🎟️ *VIP Kanala Katılım Bağlantınız:*\n\nBu bağlantı tek kullanımlıktır ve 24 saat geçerlidir:\n👉 ${inviteLink}\n\n_Giriş yaptıktan sonra bağlantı otomatik olarak kapanır._`);
+                    await this.sendMessage(chatId, isTr
+                        ? `🎟️ *VIP Kanala Katılım Bağlantınız:*\n\nBu bağlantı tek kullanımlıktır ve 24 saat geçerlidir:\n👉 ${inviteLink}\n\n_Giriş yaptıktan sonra bağlantı otomatik olarak kapanır._`
+                        : `🎟️ *Your VIP Syndicate Join Link:*\n\nThis link is single-use and valid for 24 hours:\n👉 ${inviteLink}\n\n_Link expires automatically upon entry._`);
                 } else {
-                    await this.sendMessage(chatId, `ℹ️ *VIP Bağlantı Bilgisi:*\nVIP Grubumuz: *${this.vipGroupId || 'Canlı Kanal'}*\n\nDoğrudan ekleme veya yetki tanımlaması için lütfen sistem yöneticisiyle iletişime geçin.`);
+                    await this.sendMessage(chatId, isTr
+                        ? `ℹ️ *VIP Bağlantı Bilgisi:*\nVIP Grubumuz: *${this.vipGroupId || 'Canlı Kanal'}*\n\nDoğrudan ekleme veya yetki tanımlaması için lütfen sistem yöneticisiyle iletişime geçin.`
+                        : `ℹ️ *VIP Syndicate Access Info:*\nVIP Group: *${this.vipGroupId || 'Live Channel'}*\n\nPlease contact the administrator for manual authorization.`);
                 }
                 break;
 
@@ -942,17 +1042,26 @@ _Average activation time: 2–5 minutes._
             case '/konsensus': {
                 const picks = consensusReader.getTopConsensusPicks({ minSources: 4, minAgreement: 75, limit: 3 });
                 if (!picks || picks.length === 0) {
-                    await this.sendMessage(chatId, `📡 *Pre-Match Consensus Radar:*\n\nNo fixtures currently meet the 75%+ consensus threshold across 4+ ingestion sources. Scraping live bulletin...`);
+                    const noMsg = isTr
+                        ? `📡 *Maç Öncesi Konsensüs Radarı:*\n\nŞu anda 4+ platformda %75 ve üzeri ortak uzlaşıya varan maç bulunmuyor. Canlı bülten taranıyor...`
+                        : `📡 *Pre-Match Consensus Radar:*\n\nNo fixtures currently meet the 75%+ consensus threshold across 4+ ingestion sources. Scraping live bulletin...`;
+                    await this.sendMessage(chatId, noMsg);
                     break;
                 }
-                const header = `🎯 *PRE-MATCH CONSENSUS RADAR (Top Quantitative Picks)*\n━━━━━━━━━━━━━━━━━━\n`;
+                const header = isTr
+                    ? `🎯 *MAÇ ÖNCESİ KONSENSÜS RADARI (En İyi Algoritmik Tercihler)*\n━━━━━━━━━━━━━━━━━━\n`
+                    : `🎯 *PRE-MATCH CONSENSUS RADAR (Top Quantitative Picks)*\n━━━━━━━━━━━━━━━━━━\n`;
                 const list = picks.map((p, idx) => {
                     const agreeIcon = p.agreementPercent === 100 ? '🔥' : '⭐';
                     const score = Object.values(p.scorePredictions || {})[0] || '-';
-                    return `${idx + 1}. ${agreeIcon} *${p.home} vs ${p.away}*\n   • Selection: *${p.topPred}* (${p.agreementPercent}% — ${p.topCount}/${p.totalSources} Models)\n   • League: _${p.league}_ | Kickoff: ${p.time || '-'}\n   • Algorithmic Score: \`${score}\``;
+                    return isTr
+                        ? `${idx + 1}. ${agreeIcon} *${p.home} vs ${p.away}*\n   • Tercih: *${p.topPred}* (%${p.agreementPercent} — ${p.topCount}/${p.totalSources} Model)\n   • Lig: _${p.league}_ | Başlama: ${p.time || '-'}\n   • Tahmini Skor: \`${score}\``
+                        : `${idx + 1}. ${agreeIcon} *${p.home} vs ${p.away}*\n   • Selection: *${p.topPred}* (${p.agreementPercent}% — ${p.topCount}/${p.totalSources} Models)\n   • League: _${p.league}_ | Kickoff: ${p.time || '-'}\n   • Algorithmic Score: \`${score}\``;
                 }).join('\n\n');
 
-                const footer = `\n\n━━━━━━━━━━━━━━━━━━\n💡 _Full algorithmic breakdown, score forecasts and bankroll advice available in VIP Syndicate._`;
+                const footer = isTr
+                    ? `\n\n━━━━━━━━━━━━━━━━━━\n💡 _Detaylı model dağılımları, skor tahminleri ve Kelly kasa önerileri VIP Syndicate grubumuzda._`
+                    : `\n\n━━━━━━━━━━━━━━━━━━\n💡 _Full algorithmic breakdown, score forecasts and bankroll advice available in VIP Syndicate._`;
                 await this.sendMessage(chatId, header + list + footer);
                 break;
             }
@@ -1067,6 +1176,7 @@ _Average activation time: 2–5 minutes._
             vipGroup: this.vipGroupId || 'NOT SET',
             publicChannel: this.publicChannelId || 'NOT SET',
             minLevel: this.minLevel,
+            lang: this.lang,
             todaySignals: this.dailyStats.total,
             todayStats: this.dailyStats,
             sentSignalsCache: this.sentSignals.size,

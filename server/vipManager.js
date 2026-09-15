@@ -150,15 +150,45 @@ export class VipManager {
     }
 
     /**
+     * Get user's preferred language ('tr' or 'en')
+     */
+    getUserLang(chatId) {
+        const user = this.getUser(chatId);
+        return user?.lang || process.env.TELEGRAM_LANG || 'tr';
+    }
+
+    /**
+     * Set user's preferred language ('tr' or 'en')
+     */
+    setUserLang(chatId, lang) {
+        const id = String(chatId);
+        const validLang = (lang === 'en') ? 'en' : 'tr';
+        if (!this.users[id]) {
+            this.users[id] = {
+                chatId: id,
+                username: 'User',
+                plan: 'NONE',
+                status: 'INACTIVE',
+                lang: validLang
+            };
+        } else {
+            this.users[id].lang = validLang;
+        }
+        this.saveUsers();
+        return validLang;
+    }
+
+    /**
      * Get remaining time in friendly text
      */
-    getRemainingTime(chatId) {
+    getRemainingTime(chatId, lang = 'tr') {
         const user = this.getUser(chatId);
         if (!user) return null;
 
+        const isTr = lang === 'tr';
         const diffMs = user.expiresAt - Date.now();
         if (diffMs <= 0) {
-            return { active: false, text: 'Süresi Doldu' };
+            return { active: false, text: isTr ? 'Süresi Doldu' : 'Expired' };
         }
 
         const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
@@ -168,7 +198,7 @@ export class VipManager {
             active: true,
             days,
             hours,
-            text: `${days} Gün ${hours} Saat`
+            text: isTr ? `${days} Gün ${hours} Saat` : `${days} Days ${hours} Hours`
         };
     }
 

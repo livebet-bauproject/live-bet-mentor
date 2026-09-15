@@ -609,6 +609,26 @@ app.get('/api/telegram/status', (req, res) => {
     res.json(telegramBot.getStatus());
 });
 
+// Update Telegram bot configuration (language, etc.)
+app.post('/api/telegram/config', (req, res) => {
+    try {
+        const { lang, enabled, minLevel } = req.body;
+        if (lang && (lang === 'tr' || lang === 'en')) {
+            telegramBot.lang = lang;
+            process.env.TELEGRAM_LANG = lang;
+        }
+        if (typeof enabled === 'boolean') {
+            telegramBot.enabled = enabled;
+        }
+        if (minLevel) {
+            telegramBot.minLevel = minLevel;
+        }
+        res.json({ success: true, status: telegramBot.getStatus() });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // --- AI LEARNING ENGINE ENDPOINTS ---
 app.get('/api/learning/weights', (req, res) => {
     res.json(learningEngine.getReportJSON());

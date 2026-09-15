@@ -303,6 +303,25 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         setTelegramLoading(false);
     };
 
+    const handleUpdateTelegramLang = async (newLang) => {
+        try {
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/telegram/config`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lang: newLang })
+            });
+            const data = await res.json();
+            if (data.success && data.status) {
+                setTelegramStatus(data.status);
+                setStatus({ type: 'success', message: newLang === 'tr' ? 'Telegram dili Türkçe yapıldı! 🇹🇷' : 'Telegram language set to English! 🇬🇧' });
+            }
+        } catch (e) {
+            console.error('Error updating telegram language:', e);
+            setStatus({ type: 'error', message: 'Dil güncellenirken hata oluştu.' });
+        }
+    };
+
     const fetchProfiles = async () => {
         setLoading(true);
         try {
@@ -1039,6 +1058,45 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                         <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{t.minLevel}</div>
                                         <div style={{ display: 'inline-block', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 900 }}>
                                             {telegramStatus?.minLevel || 'SICAK'}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.4rem' }}>
+                                            {lang === 'tr' ? 'Telegram Yayın Dili' : 'Telegram Broadcast Language'}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleUpdateTelegramLang('tr')}
+                                                style={{
+                                                    padding: '5px 12px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 800,
+                                                    border: (telegramStatus?.lang === 'tr' || !telegramStatus?.lang) ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
+                                                    background: (telegramStatus?.lang === 'tr' || !telegramStatus?.lang) ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.02)',
+                                                    color: (telegramStatus?.lang === 'tr' || !telegramStatus?.lang) ? '#10b981' : '#94a3b8',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                🇹🇷 Türkçe
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleUpdateTelegramLang('en')}
+                                                style={{
+                                                    padding: '5px 12px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 800,
+                                                    border: telegramStatus?.lang === 'en' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.1)',
+                                                    background: telegramStatus?.lang === 'en' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.02)',
+                                                    color: telegramStatus?.lang === 'en' ? '#38bdf8' : '#94a3b8',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                🇬🇧 English
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
