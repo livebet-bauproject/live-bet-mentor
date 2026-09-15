@@ -4146,8 +4146,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ÖNERİLEN PAZAR</div>
                                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#38bdf8' }}>
                                     {showAlertPopup.recommendation?.predictionText ||
-                                     showAlertPopup.recommendation?.marketLabel || 
-                                     (t[showAlertPopup.recommendation?.marketKey] || showAlertPopup.recommendation?.marketKey || showAlertPopup.recommendation?.market)}
+                                     (showAlertPopup.recommendation?.marketKey === 'POST_GOAL_COOLDOWN' ? (t.POST_GOAL_COOLDOWN || 'Yeni Gol Oldu (Piyasa Dengeleniyor)') :
+                                      showAlertPopup.recommendation?.marketLabel || 
+                                      (t[showAlertPopup.recommendation?.marketKey] || showAlertPopup.recommendation?.marketKey || showAlertPopup.recommendation?.market))}
                                 </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>

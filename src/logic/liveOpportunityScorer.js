@@ -1037,7 +1037,7 @@ class LiveOpportunityScorer {
 
         // If a goal was JUST scored: game is in cooldown/reset mode
         if (goalJustScored) {
-            return { marketKey: 'POST_GOAL_COOLDOWN', confidence: 60 };
+            return { marketKey: 'POST_GOAL_COOLDOWN', label: 'Yeni Gol Geldi (Piyasa Dengeleniyor)', confidence: 60 };
         }
 
         // 1. Multi-factor Dominance Analysis (Possession, Shots, xG, Pressure, Attacks, Corners, Red Cards)

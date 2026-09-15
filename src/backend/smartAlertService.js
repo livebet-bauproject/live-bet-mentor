@@ -109,6 +109,11 @@ class SmartAlertService {
         const oppData = match.opportunityData || {};
         const oddsScore = oppData.components?.odds || 50;
 
+        // Block alert if match is in post-goal cooldown (market is resetting)
+        if (oppData.suggestedMarket?.marketKey === 'POST_GOAL_COOLDOWN') {
+            return { shouldAlert: false, blockedReason: 'POST_GOAL_COOLDOWN' };
+        }
+
         // 1. xG Advantage Check
         if (xgDiff >= 0.4) {
             conditions.xgAdvantage = true;
@@ -240,6 +245,8 @@ class SmartAlertService {
                 marketLabel = `${match.awayTeam || 'Deplasman'} Kazanmaya Yakın`;
             } else if (marketKey === 'OVER_NEXT_DYNAMIC') {
                 marketLabel = sm.label || `${sm.target || (totalGoals + 0.5)} Üst Bekleniyor`;
+            } else if (marketKey === 'POST_GOAL_COOLDOWN') {
+                marketLabel = 'Yeni Gol Oldu (Piyasa Dengeleniyor)';
             } else {
                 marketLabel = sm.label || sm.marketKey.replace(/_/g, ' ');
             }
