@@ -376,6 +376,10 @@ app.get('/api/sofascore/live', (req, res) => {
 
 // 2. Consensus / Radar Data
 app.get('/api/consensus', (req, res) => {
+    // Check memory store first (freshly synced / uploaded)
+    if (memoryConsensusData) {
+        return res.json(memoryConsensusData);
+    }
     if (fs.existsSync(CONSENSUS_FILE)) {
         try {
             res.setHeader('Content-Type', 'application/json');
@@ -384,10 +388,6 @@ app.get('/api/consensus', (req, res) => {
         } catch (e) {
             console.error('[PROXY] Error reading consensus_data.json:', e.message);
         }
-    }
-    // Fall back to memory
-    if (memoryConsensusData) {
-        return res.json(memoryConsensusData);
     }
     res.json({});
 });
