@@ -56,6 +56,28 @@ const CONSENSUS_FILE = path.join(__dirname, 'consensus_data.json');
 const STATS_DIR = path.join(__dirname, 'stats');
 const REQUEST_QUEUE = path.join(__dirname, 'stats_request.json');
 const ODDS_FILE = path.join(__dirname, 'live_odds.json');
+const MEMBERS_FILE = path.join(__dirname, 'web_members.json');
+
+function loadMembers() {
+    try {
+        if (fs.existsSync(MEMBERS_FILE)) {
+            return JSON.parse(fs.readFileSync(MEMBERS_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('[MEMBERS] Error reading web_members.json:', e.message);
+    }
+    return [];
+}
+
+function saveMembers(members) {
+    try {
+        fs.writeFileSync(MEMBERS_FILE, JSON.stringify(members, null, 2), 'utf8');
+        return true;
+    } catch (e) {
+        console.error('[MEMBERS] Error saving web_members.json:', e.message);
+        return false;
+    }
+}
 
 if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
@@ -637,6 +659,249 @@ app.post('/api/telegram/notify-admin', async (req, res) => {
         res.json({ success: true, sent });
     } catch (e) {
         console.error('[PROXY] Error in notify-admin:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ==================== WEB MEMBER MANAGEMENT API ====================
+
+// 1. Get all members
+app.get('/api/members', (req, res) => {
+    try {
+        const members = loadMembers();
+        res.json({ success: true, members });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2. Register new member
+app.post('/api/members/register', async (req, res) => {
+    try {
+        const { email, password, fullName, phone, plan } = req.body || {};
+        if (!email) {
+            return res.status(400).json({ error: 'E-posta zorunludur.' });
+        }
+        const cleanEmail = email.trim().toLowerCase();
+        const members = loadMembers();
+
+        let member = members.find(m => m.email === cleanEmail);
+        if (member) {
+            if (password) member.password = password;
+            if (fullName) member.full_name = fullName;
+            if (phone) member.phone = phone;
+            if (plan) member.plan = plan;
+        } else {
+            member = {
+                id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                email: cleanEmail,
+                password: password || '',
+                full_name: fullName || '',
+                phone: phone || '',
+                status: 'pending',
+                plan: plan || 'trial',
+                created_at: new Date().toISOString(),
+                subscription_start: null,
+                subscription_end: null
+            };
+            members.unshift(member);
+        }
+        saveMembers(members);
+
+        // Telegram Notification to Hamza
+        const dateStr = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+        const msg = `🔔 *YENİ ÜYELİK BAŞVURUSU!*\n\n` +
+                    `📧 *E-posta:* \`${cleanEmail}\`\n` +
+                    (fullName ? `👤 *İsim:* ${fullName}\n` : '') +
+                    (phone ? `📞 *Telefon:* ${phone}\n` : '') +
+                    `⭐ *Paket:* ${plan || 'Trial (Deneme)'}\n` +
+                    `📅 *Tarih:* ${dateStr}\n\n` +
+                    `👉 _LiveBet Mentor Admin Paneli > 'ONAY BEKLİYOR' sekmesinden hemen onaylayabilirsiniz._`;
+
+        if (telegramBot && telegramBot.bot) {
+            const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
+            for (const adminId of adminIds) {
+                try {
+                    await telegramBot.bot.sendMessage(adminId, msg, { parse_mode: 'Markdown' });
+                } catch (tErr) {}
+            }
+        }
+
+        res.json({ success: true, member, members });
+    } catch (e) {
+        console.error('[MEMBERS] Register error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 3. Login member
+app.post('/api/members/login', (req, res) => {
+    try {
+        const { email, password } = req.body || {};
+        const cleanEmail = (email || '').trim().toLowerCase();
+        
+        // Super Admin Master Credentials
+        if (cleanEmail === 'karabulut.hamza@gmail.com' && (password === 'Hamza123!' || password === 'admin123' || password === 'Hamza2026!' || password === 'admin')) {
+            return res.json({
+                success: true,
+                user: {
+                    id: 'admin-super-hamza',
+                    email: 'karabulut.hamza@gmail.com',
+                    plan: 'admin',
+                    status: 'approved',
+                    display_name: 'Hamza Karabulut (Admin)',
+                    subscription_end: '2099-12-31T23:59:59.000Z'
+                }
+            });
+        }
+
+        const members = loadMembers();
+        const member = members.find(m => m.email === cleanEmail);
+        if (!member) {
+            return res.status(401).json({ error: 'Kayıtlı üyelik bulunamadı. Lütfen önce kayıt olun.' });
+        }
+        if (member.password && member.password !== password) {
+            return res.status(401).json({ error: 'Hatalı şifre girdiniz.' });
+        }
+
+        if (member.status === 'banned') {
+            return res.status(403).json({ error: 'Hesabınız askıya alınmıştır.' });
+        }
+        if (member.status === 'rejected') {
+            return res.status(403).json({ error: 'Üyelik başvurunuz onaylanmadı.' });
+        }
+        if (member.status === 'pending') {
+            return res.json({ success: true, status: 'pending', user: member });
+        }
+
+        // Approved - check expiration
+        if (member.subscription_end) {
+            const end = new Date(member.subscription_end);
+            if (end < new Date()) {
+                return res.json({ success: true, status: 'expired', user: member });
+            }
+        }
+
+        return res.json({ success: true, status: 'approved', user: member });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 4. Approve member
+app.post('/api/members/approve', (req, res) => {
+    try {
+        const { id, email, days, plan } = req.body || {};
+        const members = loadMembers();
+        const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
+        if (!member) {
+            return res.status(404).json({ error: 'Üye bulunamadı.' });
+        }
+
+        const subDays = Number(days) || 7;
+        const now = new Date();
+        const end = new Date(now.getTime() + subDays * 24 * 60 * 60 * 1000);
+
+        member.status = 'approved';
+        if (plan) member.plan = plan;
+        member.subscription_start = now.toISOString();
+        member.subscription_end = end.toISOString();
+        member.approved_at = now.toISOString();
+
+        saveMembers(members);
+        res.json({ success: true, member, members });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 5. Reject member
+app.post('/api/members/reject', (req, res) => {
+    try {
+        const { id, email } = req.body || {};
+        const members = loadMembers();
+        const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
+        if (!member) {
+            return res.status(404).json({ error: 'Üye bulunamadı.' });
+        }
+        member.status = 'rejected';
+        saveMembers(members);
+        res.json({ success: true, members });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6. Extend member subscription
+app.post('/api/members/extend', (req, res) => {
+    try {
+        const { id, email, days } = req.body || {};
+        const members = loadMembers();
+        const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
+        if (!member) {
+            return res.status(404).json({ error: 'Üye bulunamadı.' });
+        }
+
+        const addDays = Number(days) || 30;
+        let baseDate = member.subscription_end ? new Date(member.subscription_end) : new Date();
+        if (baseDate < new Date()) baseDate = new Date();
+        const newEnd = new Date(baseDate.getTime() + addDays * 24 * 60 * 60 * 1000);
+
+        member.status = 'approved';
+        member.subscription_end = newEnd.toISOString();
+        saveMembers(members);
+        res.json({ success: true, member, members });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 7. Delete member
+app.post('/api/members/delete', (req, res) => {
+    try {
+        const { id, email } = req.body || {};
+        let members = loadMembers();
+        members = members.filter(m => !((id && m.id === id) || (email && m.email === email.trim().toLowerCase())));
+        saveMembers(members);
+        res.json({ success: true, members });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 8. Create member (Admin manually adds)
+app.post('/api/members/create', (req, res) => {
+    try {
+        const { email, password, plan, days, fullName, phone } = req.body || {};
+        if (!email) {
+            return res.status(400).json({ error: 'E-posta zorunludur.' });
+        }
+        const cleanEmail = email.trim().toLowerCase();
+        let members = loadMembers();
+        
+        const subDays = Number(days) || 7;
+        const now = new Date();
+        const end = new Date(now.getTime() + subDays * 24 * 60 * 60 * 1000);
+
+        const newMember = {
+            id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            email: cleanEmail,
+            password: password || '123456',
+            full_name: fullName || '',
+            phone: phone || '',
+            status: 'approved',
+            plan: plan || 'trial',
+            created_at: now.toISOString(),
+            subscription_start: now.toISOString(),
+            subscription_end: end.toISOString()
+        };
+
+        members = members.filter(m => m.email !== cleanEmail);
+        members.unshift(newMember);
+        saveMembers(members);
+
+        res.json({ success: true, member: newMember, members });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });

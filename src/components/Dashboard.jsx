@@ -228,7 +228,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [audioMuted, setAudioMuted] = useState(audioAlert.isMuted);
 
     const getRemainingDays = (endDate) => {
-        if (!endDate) return 0;
+        if (!endDate) return null;
         const end = new Date(endDate);
         const now = new Date();
         const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
@@ -1466,8 +1466,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 <div className="user-dropdown-popover glass-panel">
                                     <div className="user-popover-header">
                                         <div className="user-email-text">{user?.email}</div>
-                                        {userProfile?.subscription_end && (
-                                            <div className="user-expiry-text" style={{ color: getRemainingDays(userProfile.subscription_end) <= 3 ? '#ef4444' : '#94a3b8' }}>
+                                        {isAdmin || userProfile?.plan === 'admin' ? (
+                                            <div className="user-expiry-text" style={{ color: '#f59e0b', fontWeight: 800 }}>
+                                                👑 {lang === 'tr' ? 'Süper Yönetici (Sınırsız)' : 'Super Admin (Unlimited)'}
+                                            </div>
+                                        ) : userProfile?.subscription_end && (
+                                            <div className="user-expiry-text" style={{ color: (getRemainingDays(userProfile.subscription_end) ?? 999) <= 3 ? '#ef4444' : '#94a3b8' }}>
                                                 ⏳ {getRemainingDays(userProfile.subscription_end)} {t.days_remaining}
                                             </div>
                                         )}
@@ -1590,8 +1594,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
             </header>
 
-            {/* Slim Dismissible Membership Warning Banner */}
-            {!dismissTrialBanner && (userProfile?.plan === 'trial' || getRemainingDays(userProfile?.subscription_end) <= 3) && (
+            {/* Slim Dismissible Membership Warning Banner (Never show to Admin) */}
+            {!isAdmin && userProfile?.plan !== 'admin' && !dismissTrialBanner && (
+                userProfile?.plan === 'trial' || 
+                (userProfile?.subscription_end && getRemainingDays(userProfile?.subscription_end) !== null && getRemainingDays(userProfile?.subscription_end) <= 3)
+            ) && (
                 <div className="slim-membership-banner glass-panel">
                     <div className="banner-left">
                         <span className="banner-icon">{getRemainingDays(userProfile?.subscription_end) <= 3 ? '⚠️' : '🎁'}</span>

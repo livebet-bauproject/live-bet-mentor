@@ -44,56 +44,80 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
             return;
         }
 
+        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:3001'
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
         try {
             if (view === 'login') {
+                // 1. Try Backend Members API
+                try {
+                    const res = await fetch(`${proxyBase}/api/members/login`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: cleanEmail, password })
+                    });
+                    const resData = await res.json();
+                    if (res.ok && resData.success && resData.user) {
+                        if (resData.status === 'pending') {
+                            setError(lang === 'tr' 
+                                ? '⏳ Üyeliğiniz onay beklemektedir. Yönetici onayından sonra giriş yapabilirsiniz.' 
+                                : 'Your account is pending admin approval.');
+                            setLoading(false);
+                            return;
+                        }
+                        if (resData.status === 'expired') {
+                            setError(lang === 'tr' 
+                                ? '📅 Abonelik süreniz dolmuştur. Lütfen üyeliğinizi yenileyin.' 
+                                : 'Subscription has expired.');
+                            setLoading(false);
+                            return;
+                        }
+                        const userSession = {
+                            user: {
+                                id: resData.user.id,
+                                email: resData.user.email,
+                                user_metadata: { display_name: resData.user.full_name || resData.user.email.split('@')[0] }
+                            },
+                            access_token: 'member-token-' + resData.user.id
+                        };
+                        onLoginSuccess(userSession);
+                        return;
+                    } else if (resData.error) {
+                        setError(resData.error);
+                        setLoading(false);
+                        return;
+                    }
+                } catch (beErr) {
+                    console.warn('Backend login fallback to Supabase:', beErr);
+                }
+
+                // Fallback Supabase
                 const { data, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
                 if (authError) throw authError;
                 onLoginSuccess(data.session);
             } else {
-                let signUpSession = null;
+                // REGISTER
+                // 1. Submit to Backend Members API
                 try {
-                    const { data, error: authError } = await supabase.auth.signUp({ email: cleanEmail, password });
-                    if (!authError && data?.user) {
-                        signUpSession = data.session;
-                        try {
-                            await supabase
-                                .from('profiles')
-                                .upsert([
-                                    {
-                                        id: data.user.id,
-                                        email: cleanEmail,
-                                        status: 'pending',
-                                        plan: 'trial',
-                                        created_at: new Date().toISOString()
-                                    }
-                                ]);
-                        } catch (pErr) {}
-                    }
-                } catch (supErr) {
-                    console.warn('Supabase offline/error during signup:', supErr.message);
-                }
-
-                // Notify Admin via Telegram
-                try {
-                    const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                        ? 'http://localhost:3001'
-                        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-
-                    fetch(`${proxyBase}/api/telegram/notify-admin`, {
+                    await fetch(`${proxyBase}/api/members/register`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: cleanEmail, plan: 'Trial' })
-                    }).catch(() => {});
-                } catch (tErr) {}
-
-                if (signUpSession) {
-                    onLoginSuccess(signUpSession);
-                } else {
-                    setError(lang === 'tr' 
-                        ? '✅ Kayıt başvurunuz alındı! Yönetici onayı ve dekont teyidi sonrası hesabınız aktifleşecektir.' 
-                        : '✅ Registration received! Your account will be activated after admin approval.');
-                    setView('login');
+                        body: JSON.stringify({ email: cleanEmail, password, plan: 'trial' })
+                    });
+                } catch (beErr) {
+                    console.warn('Backend register failed:', beErr);
                 }
+
+                // 2. Also attempt Supabase if available
+                try {
+                    await supabase.auth.signUp({ email: cleanEmail, password });
+                } catch (supErr) {}
+
+                setError(lang === 'tr' 
+                    ? '✅ Kayıt başvurunuz alındı! Yönetici onayı sonrası hesabınız aktifleşecektir. Lütfen WhatsApp üzerinden iletişime geçin.' 
+                    : '✅ Registration received! Your account will be activated after admin approval.');
+                setView('login');
             }
         } catch (err) {
             if (isAdmin) {

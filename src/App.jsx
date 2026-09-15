@@ -37,7 +37,7 @@ function App() {
     return 'landing';
   });
   const [userProfile, setUserProfile] = useState(() => {
-    if (isLocal) return { status: 'active', plan: 'admin', display_name: 'Admin User' };
+    if (isLocal) return { status: 'active', plan: 'admin', display_name: 'Admin User', subscription_end: '2099-12-31T23:59:59.000Z' };
     try {
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) {
@@ -46,7 +46,8 @@ function App() {
           email: 'karabulut.hamza@gmail.com',
           status: 'active',
           plan: 'admin',
-          display_name: 'Hamza Karabulut (Admin)'
+          display_name: 'Hamza Karabulut (Admin)',
+          subscription_end: '2099-12-31T23:59:59.000Z'
         };
       }
     } catch (e) {}
@@ -87,7 +88,8 @@ function App() {
               email: user.email,
               status: 'active',
               plan: 'admin',
-              display_name: 'Hamza Karabulut (Admin)'
+              display_name: 'Hamza Karabulut (Admin)',
+              subscription_end: '2099-12-31T23:59:59.000Z'
             };
             setUserProfile(adminProfile);
             setPage('dashboard');
@@ -155,7 +157,8 @@ function App() {
             email: user.email,
             status: 'active',
             plan: 'admin',
-            display_name: 'Hamza Karabulut (Admin)'
+            display_name: 'Hamza Karabulut (Admin)',
+            subscription_end: '2099-12-31T23:59:59.000Z'
           };
           setUserProfile(adminProfile);
           setPage('dashboard');
@@ -269,7 +272,8 @@ function App() {
         email: sess.user.email,
         status: 'active',
         plan: 'admin',
-        display_name: 'Hamza Karabulut (Admin)'
+        display_name: 'Hamza Karabulut (Admin)',
+        subscription_end: '2099-12-31T23:59:59.000Z'
       };
       setUserProfile(adminProfile);
       setPage('dashboard');

@@ -324,6 +324,22 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
     const fetchProfiles = async () => {
         setLoading(true);
+        const proxyBase = getProxyBase();
+        try {
+            const res = await fetch(`${proxyBase}/api/members`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Array.isArray(data.members)) {
+                    setProfiles(data.members);
+                    setSupabaseOffline(false);
+                    setLoading(false);
+                    return;
+                }
+            }
+        } catch (beErr) {
+            console.warn('Backend members fetch failed:', beErr);
+        }
+
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -459,6 +475,22 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const handleCreateUser = async (e) => {
         e.preventDefault();
         setStatus({ type: 'info', message: lang === 'tr' ? 'Kullanıcı oluşturuluyor...' : 'Creating user...' });
+        const proxyBase = getProxyBase();
+
+        try {
+            const res = await fetch(`${proxyBase}/api/members/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password, plan: selectedPlan, days: subscriptionDays })
+            });
+            if (res.ok) {
+                setStatus({ type: 'success', message: t.userCreated });
+                setEmail('');
+                setPassword('');
+                fetchProfiles();
+                return;
+            }
+        } catch (e) {}
 
         const startDate = new Date();
         const endDate = new Date();
@@ -498,6 +530,20 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     };
 
     const approveUser = async (profile, days = subscriptionDays, plan = selectedPlan) => {
+        const proxyBase = getProxyBase();
+        try {
+            const res = await fetch(`${proxyBase}/api/members/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: profile.id, email: profile.email, days, plan })
+            });
+            if (res.ok) {
+                setStatus({ type: 'success', message: t.userApproved });
+                fetchProfiles();
+                return;
+            }
+        } catch (e) {}
+
         const startDate = new Date();
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + days);
@@ -521,8 +567,24 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         }
     };
 
-    const rejectUser = async (id) => {
+    const rejectUser = async (profileOrId) => {
         if (!confirm(t.confirmReject)) return;
+        const id = typeof profileOrId === 'object' ? profileOrId.id : profileOrId;
+        const email = typeof profileOrId === 'object' ? profileOrId.email : null;
+        const proxyBase = getProxyBase();
+
+        try {
+            const res = await fetch(`${proxyBase}/api/members/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, email })
+            });
+            if (res.ok) {
+                setStatus({ type: 'success', message: t.userRejected });
+                fetchProfiles();
+                return;
+            }
+        } catch (e) {}
 
         const { error } = await supabase
             .from('profiles')
@@ -550,8 +612,24 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         }
     };
 
-    const deleteUser = async (id) => {
+    const deleteUser = async (profileOrId) => {
         if (!confirm(t.confirmDelete)) return;
+        const id = typeof profileOrId === 'object' ? profileOrId.id : profileOrId;
+        const email = typeof profileOrId === 'object' ? profileOrId.email : null;
+        const proxyBase = getProxyBase();
+
+        try {
+            const res = await fetch(`${proxyBase}/api/members/delete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, email })
+            });
+            if (res.ok) {
+                setStatus({ type: 'success', message: t.userDeleted });
+                fetchProfiles();
+                return;
+            }
+        } catch (e) {}
 
         const { error } = await supabase
             .from('profiles')
@@ -567,6 +645,20 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     };
 
     const updateSubscription = async (profileId, days, plan) => {
+        const proxyBase = getProxyBase();
+        try {
+            const res = await fetch(`${proxyBase}/api/members/extend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: profileId, days })
+            });
+            if (res.ok) {
+                setStatus({ type: 'success', message: t.subscriptionUpdated });
+                fetchProfiles();
+                return;
+            }
+        } catch (e) {}
+
         const updates = {};
         if (days) {
             const endDate = new Date();
@@ -850,24 +942,24 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
             {/* Content Section */}
             <div className="glass-panel" style={{ padding: '2rem' }}>
-                {supabaseOffline && (
+                {supabaseOffline && profiles.length === 0 && (
                     <div style={{
                         padding: '0.8rem 1.2rem',
                         borderRadius: '8px',
                         marginBottom: '1.5rem',
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        color: '#f87171',
+                        background: 'rgba(56, 189, 248, 0.1)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        color: '#38bdf8',
                         fontSize: '0.8rem',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.6rem'
                     }}>
-                        <span>⚠️</span>
+                        <span>💾</span>
                         <span>
                             {lang === 'tr'
-                                ? 'Supabase veritabanına bağlanılamadı (.env ayarlarını kontrol edin). Sistem yerel depolama (localStorage) modunda çalışmaktadır.'
-                                : 'Unable to connect to Supabase database (check .env settings). Running in local storage fallback mode.'}
+                                ? 'Bulut veritabanı beklemede. Sistem yerel/backend depolama modunda sorunsuz çalışmaktadır.'
+                                : 'Cloud database is in standby. System running in backend storage mode.'}
                         </span>
                     </div>
                 )}

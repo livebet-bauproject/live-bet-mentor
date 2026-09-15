@@ -34,50 +34,50 @@ export const RegisterPage = ({ onNavigate, lang = 'tr', setLang }) => {
             return;
         }
 
+        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:3001'
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
         try {
-            // 1. Sign up user
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: formData.email,
-                password: formData.password,
-            });
-
-            if (authError) throw authError;
-
-            // 2. Create profile entry
-            if (authData.user) {
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .insert([
-                        {
-                            id: authData.user.id,
-                            email: formData.email,
-                            full_name: formData.fullName,
-                            phone: formData.phone,
-                            status: 'pending',
-                            created_at: new Date().toISOString()
-                        }
-                    ]);
-
-                if (profileError) console.error('Profile creation error:', profileError);
-
-                // Notify Admin via Telegram
-                try {
-                    const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                        ? 'http://localhost:3001'
-                        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-
-                    fetch(`${proxyBase}/api/telegram/notify-admin`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            email: formData.email, 
-                            fullName: formData.fullName, 
-                            phone: formData.phone, 
-                            plan: 'Trial' 
-                        })
-                    }).catch(() => {});
-                } catch (tErr) {}
+            // 1. Submit to Backend Members API (Stores to web_members.json & triggers Telegram alert)
+            try {
+                await fetch(`${proxyBase}/api/members/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        email: formData.email, 
+                        password: formData.password,
+                        fullName: formData.fullName, 
+                        phone: formData.phone, 
+                        plan: 'Trial' 
+                    })
+                });
+            } catch (beErr) {
+                console.warn('Backend register failed:', beErr);
             }
+
+            // 2. Fallback Supabase signup if available
+            try {
+                const { data: authData } = await supabase.auth.signUp({
+                    email: formData.email,
+                    password: formData.password,
+                });
+
+                if (authData?.user) {
+                    await supabase
+                        .from('profiles')
+                        .insert([
+                            {
+                                id: authData.user.id,
+                                email: formData.email,
+                                full_name: formData.fullName,
+                                phone: formData.phone,
+                                status: 'pending',
+                                created_at: new Date().toISOString()
+                            }
+                        ]);
+                }
+            } catch (supErr) {}
 
             setStatus({
                 type: 'success',
