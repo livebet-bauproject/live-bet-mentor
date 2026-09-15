@@ -1049,7 +1049,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                     <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem' }}>{t.telegramSupport}</label>
                                     <input
                                         type="text"
-                                        placeholder="@LiveBetMentor"
+                                        placeholder="@Livebetdeskbot"
                                         value={systemSettings.telegram_support || ''}
                                         onChange={(e) => setSystemSettings({ ...systemSettings, telegram_support: e.target.value })}
                                         style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}

@@ -135,7 +135,7 @@ export const CONFIG = {
     }
   },
   SUPPORT: {
-    TELEGRAM: '@LiveBetMentor', // Telegram username - User can change this
+    TELEGRAM: '@Livebetdeskbot',
     EMAIL: 'karabulut.hamza@gmail.com'
   },
   MEMBERSHIP_PRICING: {

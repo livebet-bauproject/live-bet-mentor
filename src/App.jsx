@@ -410,7 +410,7 @@ function App() {
     );
   }
 
-  const telegramUsername = systemSettings.telegram_support || systemSettings.telegram || CONFIG.SUPPORT.TELEGRAM || '@LiveBetMentor';
+  const telegramUsername = systemSettings.telegram_support || systemSettings.telegram || CONFIG.SUPPORT.TELEGRAM || '@Livebetdeskbot';
   const cleanTelegram = telegramUsername.replace('@', '');
 
   // Pending Approval Screen
