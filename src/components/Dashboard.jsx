@@ -298,11 +298,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const fetchTrendingBets = useCallback(async () => {
         setTrendingLoading(true);
         try {
-            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-            const res = await fetch(`${proxyBase}/api/market/trending`);
-            if (res.ok) {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const primaryBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            const fallbackBase = 'https://live-bet-mentor.onrender.com';
+
+            let res = null;
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 2500);
+                res = await fetch(`${primaryBase}/api/market/trending`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+            } catch (fetchErr) {
+                if (isLocal) {
+                    res = await fetch(`${fallbackBase}/api/market/trending`);
+                } else {
+                    throw fetchErr;
+                }
+            }
+
+            if (res && res.ok) {
                 const data = await res.json();
                 if (data.bets) {
                     setTrendingBets(data.bets);

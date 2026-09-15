@@ -214,7 +214,7 @@ app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
     }
 
     try {
-        const tipicoUrl = 'https://sports.tipico.de/v1/ser/bgs/api/trendingbets?sport=soccer&language=DE&timeWindow=1&maxOutcomesPerEvent=1&eventType=live';
+        const tipicoUrl = 'https://sports.tipico.de/v1/ser/bgs/api/trendingbets?sport=soccer&language=DE&timeWindow=5&eventType=live';
         const response = await fetch(tipicoUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
