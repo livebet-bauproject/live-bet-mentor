@@ -483,7 +483,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         });
     }, [radarMatches, radarFilters, matches, userProfile]);
 
-    const isAdmin = user?.email === 'karabulut.hamza@gmail.com';
+    const isAdmin = user?.email === 'karabulut.hamza@gmail.com' || userProfile?.plan === 'admin' || user?.email === 'admin@local.dev';
 
     const t = translations[lang];
 

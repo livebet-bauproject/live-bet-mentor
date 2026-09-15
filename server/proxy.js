@@ -604,6 +604,43 @@ app.post('/api/telegram/resolve-signal', async (req, res) => {
     }
 });
 
+// Notify Admin of a new member registration or upgrade request
+app.post('/api/telegram/notify-admin', async (req, res) => {
+    try {
+        const { email, fullName, phone, plan, type } = req.body || {};
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required' });
+        }
+
+        const dateStr = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+        const title = type === 'UPGRADE' ? '💎 VIP ÜYELİK YÜKSELTME TALEBİ!' : '🔔 YENİ ÜYELİK BAŞVURUSU!';
+        const msg = `*${title}*\n\n` +
+                    `📧 *E-posta:* \`${email}\`\n` +
+                    (fullName ? `👤 *İsim:* ${fullName}\n` : '') +
+                    (phone ? `📞 *Telefon:* ${phone}\n` : '') +
+                    `⭐ *Paket / Plan:* ${plan || 'Trial (Deneme)'}\n` +
+                    `📅 *Tarih:* ${dateStr}\n\n` +
+                    `👉 _LiveBet Mentor Admin Panelinden onaylayabilir veya süre tanımlayabilirsiniz._`;
+
+        let sent = false;
+        if (telegramBot && telegramBot.bot) {
+            const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
+            for (const adminId of adminIds) {
+                try {
+                    await telegramBot.bot.sendMessage(adminId, msg, { parse_mode: 'Markdown' });
+                    sent = true;
+                } catch (err) {
+                    console.error(`[PROXY] Failed to notify admin ${adminId}:`, err.message);
+                }
+            }
+        }
+        res.json({ success: true, sent });
+    } catch (e) {
+        console.error('[PROXY] Error in notify-admin:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Get Telegram bot status
 app.get('/api/telegram/status', (req, res) => {
     res.json(telegramBot.getStatus());

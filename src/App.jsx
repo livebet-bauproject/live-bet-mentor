@@ -18,8 +18,8 @@ const isLocal = typeof window !== 'undefined' && (
 function App() {
   const [session, setSession] = useState(() => isLocal ? { user: { email: 'admin@local.dev', id: 'local-admin-id' } } : null)
   const [loading, setLoading] = useState(() => !isLocal)
-  const [page, setPage] = useState('dashboard') // FORCE dashboard for local dev
-  const [userProfile, setUserProfile] = useState(() => isLocal ? { status: 'active', plan: 'premium', display_name: 'Admin User' } : null)
+  const [page, setPage] = useState(() => isLocal ? 'dashboard' : 'landing')
+  const [userProfile, setUserProfile] = useState(() => isLocal ? { status: 'active', plan: 'admin', display_name: 'Admin User' } : null)
   const [systemSettings, setSystemSettings] = useState({})
   const [lang, setLang] = useState(() => {
     const saved = localStorage.getItem('app_lang');
@@ -34,7 +34,12 @@ function App() {
 
   useEffect(() => {
     const checkUserStatus = async (user) => {
-      if (!user) return null;
+      if (!user) {
+        setPage('landing');
+        return null;
+      }
+
+      const isAdminEmail = user.email === 'karabulut.hamza@gmail.com';
 
       try {
         const { data, error } = await supabase
@@ -44,17 +49,36 @@ function App() {
           .single();
 
         if (error || !data) {
-          console.warn('Profile fetch error or Supabase offline, activating fallback profile:', error?.message || 'No data');
-          const fallback = {
+          if (isAdminEmail) {
+            const adminProfile = {
+              id: user.id,
+              email: user.email,
+              status: 'active',
+              plan: 'admin',
+              display_name: 'Hamza Karabulut (Admin)'
+            };
+            setUserProfile(adminProfile);
+            setPage('dashboard');
+            return adminProfile;
+          }
+
+          // New user profile
+          const pendingProfile = {
             id: user.id,
             email: user.email,
-            status: 'active',
-            plan: 'premium',
-            display_name: user.email ? user.email.split('@')[0] : 'Admin User'
+            status: 'pending',
+            plan: 'trial',
+            display_name: user.email ? user.email.split('@')[0] : 'Kullanıcı'
           };
-          setUserProfile(fallback);
-          setPage('dashboard');
-          return fallback;
+          setUserProfile(pendingProfile);
+          setPage('pending');
+          return pendingProfile;
+        }
+
+        // If super admin, guarantee admin plan and active status
+        if (isAdminEmail) {
+          data.status = 'active';
+          data.plan = 'admin';
         }
 
         setUserProfile(data);
@@ -63,23 +87,25 @@ function App() {
         if (data?.is_banned) {
           alert(t.access_denied);
           await supabase.auth.signOut();
+          setPage('landing');
           return null;
         }
 
-        // Check approval status
-        if (data?.status === 'pending') {
+        // Check approval status (Super admin bypasses)
+        if (!isAdminEmail && data?.status === 'pending') {
           setPage('pending');
           return data;
         }
 
-        if (data?.status === 'rejected') {
+        if (!isAdminEmail && data?.status === 'rejected') {
           alert(t.membership_rejected);
           await supabase.auth.signOut();
+          setPage('landing');
           return null;
         }
 
-        // Check subscription expiry
-        if (data?.subscription_end) {
+        // Check subscription expiry (Super admin bypasses)
+        if (!isAdminEmail && data?.subscription_end) {
           const endDate = new Date(data.subscription_end);
           if (endDate < new Date()) {
             setPage('expired');
@@ -91,17 +117,20 @@ function App() {
         setPage('dashboard');
         return data;
       } catch (e) {
-        console.warn('Supabase offline or profile error, activating local dashboard:', e);
-        const fallback = {
-          id: user?.id || 'local-guest-id',
-          email: user?.email || 'guest@local.dev',
-          status: 'active',
-          plan: 'premium',
-          display_name: user?.email ? user.email.split('@')[0] : 'Admin User'
-        };
-        setUserProfile(fallback);
-        setPage('dashboard');
-        return fallback;
+        if (isAdminEmail) {
+          const adminProfile = {
+            id: user.id,
+            email: user.email,
+            status: 'active',
+            plan: 'admin',
+            display_name: 'Hamza Karabulut (Admin)'
+          };
+          setUserProfile(adminProfile);
+          setPage('dashboard');
+          return adminProfile;
+        }
+        setPage('landing');
+        return null;
       }
     };
 
@@ -109,35 +138,22 @@ function App() {
       return;
     }
 
-    // Check current session with timeout fallback
-    const authTimeout = setTimeout(() => {
-      if (loading) {
-        console.warn('Supabase timeout: Falling back to local offline mode.');
-        setSession({ user: { email: 'guest@local.dev', id: 'local-guest-id' } });
-        setUserProfile({ status: 'active', display_name: 'Guest User' });
-        setPage('dashboard');
-        setLoading(false);
-      }
-    }, 3000);
-
+    // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      clearTimeout(authTimeout);
       if (session) {
         setSession(session);
         checkUserStatus(session.user);
       } else {
-        // FORCE Dashboard for local development when Supabase is down
-        console.info('No session found, forcing Dashboard Guest mode.');
-        setSession({ user: { email: 'guest@local.dev', id: 'local-guest-id' } });
-        setUserProfile({ status: 'active', display_name: 'Guest User' });
-        setPage('dashboard');
+        setSession(null);
+        setUserProfile(null);
+        setPage('landing');
       }
       setLoading(false);
     }).catch(err => {
-      clearTimeout(authTimeout);
-      console.error('Supabase error:', err);
-      setSession({ user: { email: 'guest@local.dev', id: 'local-guest-id' } });
-      setPage('dashboard');
+      console.error('Supabase getSession error:', err);
+      setSession(null);
+      setUserProfile(null);
+      setPage('landing');
       setLoading(false);
     });
 
@@ -147,11 +163,9 @@ function App() {
       if (session) {
         checkUserStatus(session.user);
       } else {
-        // Maintain Dashboard Guest mode even if auth state changes to null
-        console.info('Auth state changed to null, maintaining Dashboard Guest mode.');
-        setSession({ user: { email: 'guest@local.dev', id: 'local-guest-id' } });
-        setUserProfile({ status: 'active', display_name: 'Guest User' });
-        setPage('dashboard');
+        setSession(null);
+        setUserProfile(null);
+        setPage('landing');
       }
     });
 
@@ -202,8 +216,15 @@ function App() {
     );
   }
 
+  const rawWhatsapp = systemSettings.whatsapp_support || systemSettings.whatsapp || '';
+  const cleanWhatsapp = rawWhatsapp.replace(/[^0-9]/g, '');
+
   // Pending Approval Screen
   if (page === 'pending') {
+    const userEmail = session?.user?.email || '';
+    const whatsappMsg = encodeURIComponent(`Merhaba, LiveBet Mentor sistemine üye oldum (E-posta: ${userEmail}). Üyeliğimin aktif edilmesi / ödeme dekontum için yazıyorum.`);
+    const whatsappUrl = cleanWhatsapp ? `https://wa.me/${cleanWhatsapp}?text=${whatsappMsg}` : null;
+
     return (
       <div style={{
         minHeight: '100vh',
@@ -215,36 +236,68 @@ function App() {
       }}>
         <div className="glass-panel" style={{
           padding: '3rem',
-          maxWidth: '500px',
+          maxWidth: '520px',
           textAlign: 'center',
-          background: 'rgba(15, 23, 42, 0.8)',
-          border: '1px solid rgba(251, 191, 36, 0.3)',
-          borderRadius: '20px'
+          background: 'rgba(15, 23, 42, 0.85)',
+          border: '1px solid rgba(251, 191, 36, 0.4)',
+          borderRadius: '20px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
         }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>⏳</div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '1rem', color: '#fbbf24' }}>
-            {t.approval_pending}
+          <div style={{ fontSize: '4rem', marginBottom: '1.2rem' }}>⏳</div>
+          <h2 style={{ fontSize: '1.7rem', fontWeight: 900, marginBottom: '0.8rem', color: '#fbbf24' }}>
+            {lang === 'tr' ? 'Üyeliğiniz Onay Bekliyor' : t.approval_pending}
           </h2>
-          <p style={{ color: '#94a3b8', marginBottom: '1.5rem', lineHeight: 1.6 }}>
-            {t.approval_pending_desc}
+          <p style={{ color: '#cbd5e1', marginBottom: '1.2rem', lineHeight: 1.6, fontSize: '0.95rem' }}>
+            {lang === 'tr' 
+              ? 'Hesap kaydınız başarıyla alındı. Canlı radar paneline erişiminiz yönetici onayından sonra aktifleşecektir.' 
+              : t.approval_pending_desc}
           </p>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '2rem' }}>
-            E-posta: {session?.user?.email}
-          </p>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#fff',
-              padding: '0.8rem 2rem',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            {t.logout}
-          </button>
+          <div style={{ background: 'rgba(255,255,255,0.04)', padding: '0.8rem', borderRadius: '8px', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.8rem' }}>
+            📧 <strong>{userEmail}</strong>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  color: '#fff',
+                  padding: '0.9rem 1.5rem',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '0.95rem',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                }}
+              >
+                <span>💬</span>
+                <span>{lang === 'tr' ? 'WhatsApp ile Onaylat / Dekont İlet' : 'Contact via WhatsApp'}</span>
+              </a>
+            )}
+
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: '#94a3b8',
+                padding: '0.7rem 1.5rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.85rem'
+              }}
+            >
+              {t.logout}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -252,7 +305,10 @@ function App() {
 
   // Subscription Expired Screen
   if (page === 'expired') {
+    const userEmail = session?.user?.email || '';
     const endDate = userProfile?.subscription_end ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US') : '-';
+    const whatsappMsg = encodeURIComponent(`Merhaba, LiveBet Mentor aboneliğimi yenilemek istiyorum (E-posta: ${userEmail}).`);
+    const whatsappUrl = cleanWhatsapp ? `https://wa.me/${cleanWhatsapp}?text=${whatsappMsg}` : null;
 
     return (
       <div style={{
@@ -265,36 +321,65 @@ function App() {
       }}>
         <div className="glass-panel" style={{
           padding: '3rem',
-          maxWidth: '500px',
+          maxWidth: '520px',
           textAlign: 'center',
-          background: 'rgba(15, 23, 42, 0.8)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '20px'
+          background: 'rgba(15, 23, 42, 0.85)',
+          border: '1px solid rgba(239, 68, 68, 0.4)',
+          borderRadius: '20px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
         }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>📅</div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 900, marginBottom: '1rem', color: '#ef4444' }}>
-            {t.subscription_expired}
+          <div style={{ fontSize: '4rem', marginBottom: '1.2rem' }}>📅</div>
+          <h2 style={{ fontSize: '1.7rem', fontWeight: 900, marginBottom: '0.8rem', color: '#ef4444' }}>
+            {lang === 'tr' ? 'Abonelik Süreniz Doldu' : t.subscription_expired}
           </h2>
-          <p style={{ color: '#94a3b8', marginBottom: '1rem', lineHeight: 1.6 }}>
-            {t.subscription_expired_desc.replace('{date}', endDate)}
+          <p style={{ color: '#cbd5e1', marginBottom: '1rem', lineHeight: 1.6, fontSize: '0.95rem' }}>
+            {lang === 'tr' 
+              ? `Canlı radar abonelik süreniz ${endDate} tarihinde sona ermiştir. VIP fırsatları kaçırmamak için üyeliğinizi hemen yenileyebilirsiniz.` 
+              : t.subscription_expired_desc.replace('{date}', endDate)}
           </p>
-          <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: '2rem' }}>
-            {t.renew_subscription_desc}
-          </p>
-          <button
-            onClick={handleLogout}
-            style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              color: '#fff',
-              padding: '0.8rem 2rem',
-              borderRadius: '10px',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            {t.logout}
-          </button>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1.5rem' }}>
+            {whatsappUrl && (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+                  color: '#000',
+                  padding: '0.9rem 1.5rem',
+                  borderRadius: '10px',
+                  fontWeight: 800,
+                  fontSize: '0.95rem',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 15px rgba(56, 189, 248, 0.3)'
+                }}
+              >
+                <span>💬</span>
+                <span>{lang === 'tr' ? 'Aboneliği Yenile (WhatsApp)' : 'Renew Subscription'}</span>
+              </a>
+            )}
+
+            <button
+              onClick={handleLogout}
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: '#94a3b8',
+                padding: '0.7rem 1.5rem',
+                borderRadius: '10px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.85rem'
+              }}
+            >
+              {t.logout}
+            </button>
+          </div>
         </div>
       </div>
     );

@@ -32,7 +32,46 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
             } else {
                 const { data, error: authError } = await supabase.auth.signUp({ email, password });
                 if (authError) throw authError;
-                setError(lang === 'tr' ? 'Kayıt başarılı! Admin onayı bekleyin.' : 'Registration successful! Wait for admin approval.');
+
+                if (data.user) {
+                    try {
+                        await supabase
+                            .from('profiles')
+                            .upsert([
+                                {
+                                    id: data.user.id,
+                                    email,
+                                    status: 'pending',
+                                    plan: 'trial',
+                                    created_at: new Date().toISOString()
+                                }
+                            ]);
+                    } catch (pErr) {
+                        console.warn('Profile upsert error:', pErr);
+                    }
+
+                    // Notify Admin via Telegram
+                    try {
+                        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                            ? 'http://localhost:3001'
+                            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+                        fetch(`${proxyBase}/api/telegram/notify-admin`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, plan: 'Trial' })
+                        }).catch(() => {});
+                    } catch (tErr) {}
+
+                    if (data.session) {
+                        onLoginSuccess(data.session);
+                    } else {
+                        setError(lang === 'tr' 
+                            ? '✅ Kayıt başarılı! Hesabınız onay bekliyor. Lütfen giriş yapın.' 
+                            : '✅ Registration successful! Your account is pending approval. Please log in.');
+                        setView('login');
+                    }
+                }
             }
         } catch (err) {
             setError(err.message);

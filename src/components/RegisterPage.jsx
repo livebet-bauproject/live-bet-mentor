@@ -59,6 +59,24 @@ export const RegisterPage = ({ onNavigate, lang = 'tr', setLang }) => {
                     ]);
 
                 if (profileError) console.error('Profile creation error:', profileError);
+
+                // Notify Admin via Telegram
+                try {
+                    const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'http://localhost:3001'
+                        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+                    fetch(`${proxyBase}/api/telegram/notify-admin`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            email: formData.email, 
+                            fullName: formData.fullName, 
+                            phone: formData.phone, 
+                            plan: 'Trial' 
+                        })
+                    }).catch(() => {});
+                } catch (tErr) {}
             }
 
             setStatus({
