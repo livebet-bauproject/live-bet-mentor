@@ -134,8 +134,8 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                 } catch (supErr) {}
 
                 setError(lang === 'tr' 
-                    ? '✅ Kayıt başvurunuz alındı! Yönetici onayı sonrası hesabınız aktifleşecektir. Lütfen WhatsApp üzerinden iletişime geçin.' 
-                    : '✅ Registration received! Your account will be activated after admin approval.');
+                    ? '✅ Kayıt başvurunuz alındı! Yönetici onayı sonrası hesabınız aktifleşecektir. Lütfen Telegram üzerinden iletişime geçin.' 
+                    : '✅ Registration received! Your account will be activated after admin approval. Please contact us via Telegram.');
                 setView('login');
             }
         } catch (err) {

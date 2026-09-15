@@ -70,7 +70,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         currentPlan: 'MEVCUT PLAN',
         tabSettings: 'SİSTEM AYARLARI',
         saveSettings: 'AYARLARI KAYDET',
-        whatsappSupport: 'WhatsApp Destek Hattı',
+        telegramSupport: 'Telegram Kullanıcı Adı',
         proPrice: 'Pro Plan Fiyatı',
         premiumPrice: 'Premium Plan Fiyatı',
         currency: 'Para Birimi',
@@ -164,7 +164,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         currentPlan: 'CURRENT',
         tabSettings: 'SYSTEM SETTINGS',
         saveSettings: 'SAVE SETTINGS',
-        whatsappSupport: 'WhatsApp Support Number',
+        telegramSupport: 'Telegram Username',
         proPrice: 'Pro Plan Price',
         premiumPrice: 'Premium Plan Price',
         currency: 'Currency Symbol',
@@ -1046,11 +1046,12 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                         <form onSubmit={handleUpdateSettings} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem' }}>{t.whatsappSupport}</label>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem' }}>{t.telegramSupport}</label>
                                     <input
                                         type="text"
-                                        value={systemSettings.whatsapp_number || ''}
-                                        onChange={(e) => setSystemSettings({ ...systemSettings, whatsapp_number: e.target.value })}
+                                        placeholder="@LiveBetMentor"
+                                        value={systemSettings.telegram_support || ''}
+                                        onChange={(e) => setSystemSettings({ ...systemSettings, telegram_support: e.target.value })}
                                         style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}
                                     />
                                 </div>

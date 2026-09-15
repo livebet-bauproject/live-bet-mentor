@@ -50,7 +50,7 @@ export const translations = {
         upgrade_plan: "Paketini Yükselt",
         confirmation_desc: "Sistemin tam gücüne erişmek üzeresiniz.",
         top_benefits: "ÖNE ÇIKAN AVANTAJLAR",
-        whatsapp_upgrade_now: "WhatsApp ile Hemen Aktif Et",
+        telegram_upgrade_now: "Telegram ile Hemen Aktif Et",
         request_upgrade: "Sistemden Talep Gönder",
         plan_trial_price: "Ücretsiz",
         plan_pro_price: "$29/ay",
@@ -169,7 +169,7 @@ export const translations = {
         trial_banner_title: "DENEME SÜRÜMÜ",
         trial_banner_desc: "Sınırlı analiz havuzundasınız. Tüm liglere ve AI raporlarına tam erişim için Pro'ya yükseltin.",
         expiry_warning: "Üyeliğiniz kısa süre içinde sona erecektir!",
-        whatsapp_upgrade: "WhatsApp ile Hemen Yükselt",
+        telegram_upgrade: "Telegram ile Hemen Yükselt",
         plan_features_pro: "Pro Plan Avantajları: Tüm Ligler, Sınırsız AI Raporu, Akıllı Alarmlar.",
         plan_features_trial: "Trial Plan: 7 gün sınırlı erişim, temel analizler.",
 
@@ -179,7 +179,7 @@ export const translations = {
         plan_premium_price: "{price} {curr}",
         plan_trial_features: ["Temel DQS Analiz Motoru", "En İyi 3 Konsensus Kaynağı", "Günlük 3 AI Uzman Raporu", "Günlük 5 Akıllı Alarm (Fire Mode)", "Sadece Ana Ligler (Tier 1)"],
         plan_pro_features: ["Tam Kapsamlı Analiz Motoru", "Tüm Konsensus Kaynakları (IQ Bazlı)", "Günlük 15 AI Uzman Raporu", "Günlük 150 Akıllı Alarm (Full Pulse)", "Tüm Küresel Ligler (Tier 1/2/3)", "Gelişmiş Alarm Geçmişi"],
-        plan_premium_features: ["Tüm Pro Özellikleri", "Günlük 50 AI Uzman Raporu", "Sınırsız Akıllı Alarm", "Bayesian Olasılık Modeli", "xG & Big Chance Analytics", "Öncelikli WhatsApp Destek Hattı"],
+        plan_premium_features: ["Tüm Pro Özellikleri", "Günlük 50 AI Uzman Raporu", "Sınırsız Akıllı Alarm", "Bayesian Olasılık Modeli", "xG & Big Chance Analytics", "Öncelikli Telegram Destek Hattı"],
 
         compare_plans: "Paketleri Karşılaştır",
         request_upgrade: "Yükseltme Talebi Gönder",
@@ -352,7 +352,7 @@ export const translations = {
         faq_tracking_desc: "Sağ alttaki 📊 butonundan erişilen bu panel, onayladığınız alertlerin başarısını ölçer. Maç bittiğinde Win/Loss işaretleyerek sistemin gerçek isabet oranını, güven seviyesine ve market tipine göre görebilirsiniz.",
 
         faq_q21_title: "21. Destek Hattı ve Fiyatları Nasıl Güncellenir?",
-        faq_q21_desc: "Admin Paneli içindeki 'SİSTEM AYARLARI' sekmesini kullanarak WhatsApp numarasını, destek e-postasını ve üyelik planı fiyatlarını tek bir yerden değiştirebilirsiniz. Yaptığınız değişiklikler anında tüm sisteme yansır.",
+        faq_q21_desc: "Admin Paneli içindeki 'SİSTEM AYARLARI' sekmesini kullanarak Telegram kullanıcı adını, destek e-postasını ve üyelik planı fiyatlarını tek bir yerden değiştirebilirsiniz. Yaptığınız değişiklikler anında tüm sisteme yansır.",
 
         // SofaScore Specific Stats
         "Ball possession": "Topla Oynama",
@@ -697,7 +697,7 @@ export const translations = {
         upgrade_plan: "Upgrade Your Plan",
         confirmation_desc: "You are about to access the full power of the system.",
         top_benefits: "TOP BENEFITS",
-        whatsapp_upgrade_now: "Quick Activate via WhatsApp",
+        telegram_upgrade_now: "Quick Activate via Telegram",
         request_upgrade: "Send System Request",
         plan_trial_price: "Free",
         plan_pro_price: "$29/mo",
@@ -970,7 +970,7 @@ export const translations = {
         faq_tracking_desc: "Accessible via the 📊 floating button, this panel measures the success of your approved alerts. By marking Win/Loss after matches, you can track the system's actual accuracy by confidence level and market type.",
 
         faq_q21_title: "21. How to Update Support Lines and Pricing?",
-        faq_q21_desc: "Using the 'SYSTEM SETTINGS' tab within the Admin Panel, you can change the WhatsApp number, support email, and membership plan prices from a single place. Your changes reflect across the entire system instantly.",
+        faq_q21_desc: "Using the 'SYSTEM SETTINGS' tab within the Admin Panel, you can change the Telegram username, support email, and membership plan prices from a single place. Your changes reflect across the entire system instantly.",
 
         // SofaScore Specific Stats (Keep keys same as source, just for consistency)
         "Ball possession": "Ball possession",
@@ -1235,7 +1235,7 @@ export const translations = {
         trial_banner_title: "TRIAL VERSION",
         trial_banner_desc: "You are on a limited analysis pool. Upgrade to Pro for full access to all leagues and AI reports.",
         expiry_warning: "Your membership is expiring soon!",
-        whatsapp_upgrade: "Upgrade Now via WhatsApp",
+        telegram_upgrade: "Upgrade Now via Telegram",
         plan_features_pro: "Pro Plan Benefits: All Leagues, Unlimited AI Reports, Smart Alerts.",
         plan_features_trial: "Trial Plan: 7 days limited access, basic analysis.",
 

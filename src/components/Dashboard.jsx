@@ -678,15 +678,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <button
                             onClick={() => {
-                                const whatsappNum = (settings.whatsapp_number || CONFIG.SUPPORT.WHATSAPP).replace('+', '').replace(/\s/g, '');
-                                const msg = encodeURIComponent(`Merhaba, ${p.name} paketi için üyeliğimi yükseltmek istiyorum. (Email: ${user?.email})`);
-                                window.open(`https://wa.me/${whatsappNum}?text=${msg}`, '_blank');
+                                const tgUser = (settings.telegram_support || CONFIG.SUPPORT.TELEGRAM || '@LiveBetMentor').replace('@', '');
+                                window.open(`https://t.me/${tgUser}`, '_blank');
                                 setSelectedPlanForUpgrade(null);
                             }}
                             className="btn btn-primary"
-                            style={{ background: '#25D366', border: 'none', padding: '1rem', borderRadius: '12px', fontSize: '1rem', color: '#000' }}
+                            style={{ background: '#0088cc', border: 'none', padding: '1rem', borderRadius: '12px', fontSize: '1rem', color: '#fff' }}
                         >
-                            🟢 {t.whatsapp_upgrade_now || 'WhatsApp ile Hemen Aktif Et'}
+                            ✈️ {t.telegram_upgrade_now || 'Telegram ile Hemen Aktif Et'}
                         </button>
 
                         <button
@@ -4179,14 +4178,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         </button>
                                         <button
                                             onClick={() => {
-                                                const whatsappNum = (settings.whatsapp_number || CONFIG.SUPPORT.WHATSAPP).replace('+', '').replace(/\s/g, '');
-                                                window.open(`https://wa.me/${whatsappNum}?text=Merhaba,%20üyeliğimi%20yükseltmek%20istiyorum.`, '_blank');
+                                                const tgUser = (settings.telegram_support || CONFIG.SUPPORT.TELEGRAM || '@LiveBetMentor').replace('@', '');
+                                                window.open(`https://t.me/${tgUser}`, '_blank');
                                             }}
                                             style={{
                                                 marginTop: '0.3rem',
-                                                background: 'rgba(37, 211, 102, 0.1)',
-                                                color: '#25D366',
-                                                border: '1px solid #25D366',
+                                                background: 'rgba(0, 136, 204, 0.1)',
+                                                color: '#0088cc',
+                                                border: '1px solid #0088cc',
                                                 padding: '0.6rem',
                                                 borderRadius: '8px',
                                                 fontWeight: 800,
@@ -4198,7 +4197,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 fontSize: '0.7rem'
                                             }}
                                         >
-                                            <span style={{ fontSize: '1rem' }}>📱</span> {t.whatsapp_upgrade}
+                                            <span style={{ fontSize: '1rem' }}>✈️</span> {t.telegram_upgrade}
                                         </button>
                                     </div>
                                 </div>

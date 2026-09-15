@@ -410,16 +410,13 @@ function App() {
     );
   }
 
-  const rawWhatsapp = systemSettings.whatsapp_support || systemSettings.whatsapp || '';
-  const cleanWhatsapp = rawWhatsapp.replace(/[^0-9]/g, '');
+  const telegramUsername = systemSettings.telegram_support || systemSettings.telegram || CONFIG.SUPPORT.TELEGRAM || '@LiveBetMentor';
+  const cleanTelegram = telegramUsername.replace('@', '');
 
   // Pending Approval Screen
   if (page === 'pending') {
     const userEmail = session?.user?.email || '';
-    const whatsappMsg = encodeURIComponent(lang === 'tr' 
-      ? `Merhaba, LiveBet Mentor sistemine üye oldum (E-posta: ${userEmail}). Analiz yazılım lisansımın aktif edilmesi için yazıyorum.`
-      : `Hello, I registered on LiveBet Mentor (Email: ${userEmail}). Contacting to activate my analysis software license.`);
-    const whatsappUrl = cleanWhatsapp ? `https://wa.me/${cleanWhatsapp}?text=${whatsappMsg}` : null;
+    const telegramUrl = `https://t.me/${cleanTelegram}`;
 
     return (
       <div style={{
@@ -453,13 +450,12 @@ function App() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-            {whatsappUrl && (
               <a
-                href={whatsappUrl}
+                href={telegramUrl}
                 target="_blank"
                 rel="noreferrer"
                 style={{
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  background: 'linear-gradient(135deg, #0088cc, #0077b5)',
                   color: '#fff',
                   padding: '0.9rem 1.5rem',
                   borderRadius: '10px',
@@ -470,13 +466,12 @@ function App() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                  boxShadow: '0 4px 15px rgba(0, 136, 204, 0.3)'
                 }}
               >
-                <span>💬</span>
-                <span>{lang === 'tr' ? 'WhatsApp ile Lisans Aktivasyonu / Bilgi Al' : 'Contact for License Activation'}</span>
+                <span>✈️</span>
+                <span>{lang === 'tr' ? 'Telegram ile Lisans Aktivasyonu' : 'Contact via Telegram for Activation'}</span>
               </a>
-            )}
 
             <button
               onClick={handleLogout}
@@ -501,12 +496,7 @@ function App() {
 
   // Subscription Expired Screen
   if (page === 'expired') {
-    const userEmail = session?.user?.email || '';
-    const endDate = userProfile?.subscription_end ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US') : '-';
-    const whatsappMsg = encodeURIComponent(lang === 'tr'
-      ? `Merhaba, LiveBet Mentor aboneliğimi yenilemek istiyorum (E-posta: ${userEmail}).`
-      : `Hello, I would like to renew my LiveBet Mentor subscription (Email: ${userEmail}).`);
-    const whatsappUrl = cleanWhatsapp ? `https://wa.me/${cleanWhatsapp}?text=${whatsappMsg}` : null;
+    const telegramUrl = `https://t.me/${cleanTelegram}`;
 
     return (
       <div style={{
@@ -537,14 +527,13 @@ function App() {
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', marginTop: '1.5rem' }}>
-            {whatsappUrl && (
               <a
-                href={whatsappUrl}
+                href={telegramUrl}
                 target="_blank"
                 rel="noreferrer"
                 style={{
-                  background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-                  color: '#000',
+                  background: 'linear-gradient(135deg, #0088cc, #0077b5)',
+                  color: '#fff',
                   padding: '0.9rem 1.5rem',
                   borderRadius: '10px',
                   fontWeight: 800,
@@ -554,13 +543,12 @@ function App() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 15px rgba(56, 189, 248, 0.3)'
+                  boxShadow: '0 4px 15px rgba(0, 136, 204, 0.3)'
                 }}
               >
-                <span>💬</span>
-                <span>{lang === 'tr' ? 'Yazılım Lisansını Yenile (WhatsApp)' : 'Renew Software License'}</span>
+                <span>✈️</span>
+                <span>{lang === 'tr' ? 'Telegram ile Lisansı Yenile' : 'Renew License via Telegram'}</span>
               </a>
-            )}
 
             <button
               onClick={handleLogout}

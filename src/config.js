@@ -135,7 +135,7 @@ export const CONFIG = {
     }
   },
   SUPPORT: {
-    WHATSAPP: '+905320000000', // Placeholder - User can change this
+    TELEGRAM: '@LiveBetMentor', // Telegram username - User can change this
     EMAIL: 'karabulut.hamza@gmail.com'
   },
   MEMBERSHIP_PRICING: {
