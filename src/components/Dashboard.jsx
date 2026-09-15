@@ -678,7 +678,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         <button
                             onClick={() => {
-                                const tgUser = (settings.telegram_support || CONFIG.SUPPORT.TELEGRAM || '@Livebetdeskbot').replace('@', '');
+                                const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
                                 window.open(`https://t.me/${tgUser}`, '_blank');
                                 setSelectedPlanForUpgrade(null);
                             }}
@@ -4178,7 +4178,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         </button>
                                         <button
                                             onClick={() => {
-                                                const tgUser = (settings.telegram_support || CONFIG.SUPPORT.TELEGRAM || '@Livebetdeskbot').replace('@', '');
+                                                const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
                                                 window.open(`https://t.me/${tgUser}`, '_blank');
                                             }}
                                             style={{

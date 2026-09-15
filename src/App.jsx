@@ -5,6 +5,7 @@ import { LandingPage } from './components/LandingPage'
 import { RegisterPage } from './components/RegisterPage'
 import { supabase } from './backend/supabaseClient'
 import { translations } from './locales/translations'
+import { CONFIG } from './config'
 import './styles/global.css'
 
 const isLocal = typeof window !== 'undefined' && (
@@ -410,7 +411,7 @@ function App() {
     );
   }
 
-  const telegramUsername = systemSettings.telegram_support || systemSettings.telegram || CONFIG.SUPPORT.TELEGRAM || '@Livebetdeskbot';
+  const telegramUsername = systemSettings?.telegram_support || systemSettings?.telegram || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot';
   const cleanTelegram = telegramUsername.replace('@', '');
 
   // Pending Approval Screen
