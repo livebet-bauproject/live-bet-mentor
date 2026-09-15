@@ -23,6 +23,11 @@ export class BetBuilderEngine {
                 if (!opp || opp.excluded || opp.isTrap) return false;
                 // STRICT DATA DENSITY GATE: Never allow low-data/bare-stats matches into Golden Double!
                 if (opp.isLowData || opp.dataDensity === 'LOW') return false;
+                // RISK & CASHOUT GATE: If radar issued a Cashout / Bahis Bozdur warning, NEVER suggest it as a new bet!
+                if (opp.cashOutWarning) return false;
+                // TIME WINDOW: Do not add late matches (>= 75') where remaining time is too short for a fresh combo pick
+                const minVal = parseInt(String(opp.minute || '').replace(/[^0-9]/g, '')) || 0;
+                if (minVal >= 75) return false;
                 if (opp.score < 60) return false;
                 if (!opp.suggestedMarket?.marketKey) return false;
                 return true;
@@ -30,6 +35,10 @@ export class BetBuilderEngine {
             .map(opp => {
                 const match = matches.find(m => m.id === opp.matchId);
                 if (!match) return null;
+
+                // Also double-check match minute
+                const mMin = parseInt(String(match.minute || opp.minute || '').replace(/[^0-9]/g, '')) || 0;
+                if (mMin >= 75) return null;
 
                 // Also check league level: reject youth/reserve matches if they don't have verified xG
                 const leagueLower = (match.league || match.leagueName || '').toLowerCase();
