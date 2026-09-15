@@ -245,6 +245,30 @@ export const sofaScoreAdapter = {
     },
 
     /**
+     * Fetches minute-by-minute attack momentum graph for a match.
+     */
+    async fetchEventGraph(eventId) {
+        if (!eventId) return [];
+        try {
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const apiBase = isLocalDev
+                ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+            const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/graph`, {
+                signal: AbortSignal.timeout(6000)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return data?.graphPoints || [];
+            }
+        } catch (e) {
+            console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
+        }
+        return [];
+    },
+
+    /**
      * Fetches live odds (1-X-2) for a specific event directly from SofaScore or Proxy.
      */
     async fetchEventOdds(eventId) {

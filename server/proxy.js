@@ -482,6 +482,50 @@ app.get('/api/sofascore/event/:id/statistics', (req, res) => {
     res.status(202).json({ status: 'queued', message: 'Stats missing' });
 });
 
+// 4b. Match Attack Momentum Graph (Minute-by-minute pressure wave)
+const memoryGraphCache = {};
+app.get('/api/sofascore/event/:id/graph', async (req, res) => {
+    const id = req.params.id;
+    const now = Date.now();
+    if (memoryGraphCache[id] && (now - memoryGraphCache[id].time) < 45000) {
+        return res.json(memoryGraphCache[id].data);
+    }
+    
+    const graphFilePath = path.join(STATS_DIR, `${id}_graph.json`);
+    if (fs.existsSync(graphFilePath)) {
+        try {
+            const stats = fs.statSync(graphFilePath);
+            if ((now - stats.mtimeMs) < 60000) {
+                const data = JSON.parse(fs.readFileSync(graphFilePath, 'utf8'));
+                memoryGraphCache[id] = { time: now, data };
+                return res.json(data);
+            }
+        } catch(e) {}
+    }
+
+    try {
+        const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/graph`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Referer': 'https://www.sofascore.com/'
+            },
+            signal: AbortSignal.timeout(6000)
+        });
+        if (fetchRes.ok) {
+            const data = await fetchRes.json();
+            memoryGraphCache[id] = { time: now, data };
+            try { fs.writeFileSync(graphFilePath, JSON.stringify(data), 'utf8'); } catch(e) {}
+            return res.json(data);
+        } else if (fetchRes.status === 404) {
+            return res.json({ graphPoints: [] });
+        }
+    } catch (err) {
+        if (memoryGraphCache[id]) return res.json(memoryGraphCache[id].data);
+    }
+    res.json({ graphPoints: [] });
+});
+
 // 5. Match Odds API (Supports both SofaScore market structure and direct 1X2 odds)
 app.get(['/api/sofascore/event/:id/odds/1/all', '/api/sofascore/event/:id/odds/:marketId?/:sub?'], (req, res) => {
     const id = req.params.id;

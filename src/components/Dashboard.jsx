@@ -17,6 +17,8 @@ import { smartAlertService } from '../backend/smartAlertService';
 import { predictionTracker } from '../backend/predictionTracker';
 import { database, ref, get } from '../firebase/config';
 import { supabase } from '../backend/supabaseClient';
+import { AttackMomentumGraph } from './AttackMomentumGraph';
+import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import '../styles/global.css';
 
 const RADAR_SOURCES = [
@@ -199,8 +201,32 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [trackingStats, setTrackingStats] = useState(predictionTracker.getStats());
     const [showTrackingPanel, setShowTrackingPanel] = useState(false);
     const [trackingActiveTab, setTrackingActiveTab] = useState('ALERTS'); // 'ALERTS' or 'BETS'
-    const [alertHistoryList, setAlertHistoryList] = useState(() => smartAlertService.getHistory(50));
     const [isScanningResults, setIsScanningResults] = useState(false);
+
+    // Live Attack Momentum Graph State
+    const [matchGraphPoints, setMatchGraphPoints] = useState([]);
+    const [graphLoading, setGraphLoading] = useState(false);
+
+    useEffect(() => {
+        if (!selectedMatch?.id) {
+            setMatchGraphPoints([]);
+            return;
+        }
+        let isCancelled = false;
+        setGraphLoading(true);
+        sofaScoreAdapter.fetchEventGraph(selectedMatch.id).then(pts => {
+            if (!isCancelled) {
+                setMatchGraphPoints(pts || []);
+                setGraphLoading(false);
+            }
+        }).catch(() => {
+            if (!isCancelled) {
+                setMatchGraphPoints([]);
+                setGraphLoading(false);
+            }
+        });
+        return () => { isCancelled = true; };
+    }, [selectedMatch?.id]);
 
     const scanFinishedAlerts = async () => {
         setIsScanningResults(true);
@@ -2625,37 +2651,187 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         <span style={{ fontSize: '0.6rem', opacity: 0.4 }}>({momentumWindow}dk)</span>
                                                     </div>
 
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        gap: '0.8rem',
-                                                        alignItems: 'center',
-                                                        marginBottom: '0.6rem',
-                                                        padding: '0.4rem 0.6rem',
-                                                        background: 'rgba(0,0,0,0.2)',
-                                                        borderRadius: '8px'
-                                                    }}>
-                                                        <div style={{ flex: 1 }}>
-                                                            {(() => {
-                                                                const daHome = match.stats?.dangerousAttacks?.home || 0;
-                                                                const daAway = match.stats?.dangerousAttacks?.away || 0;
-                                                                const total = daHome + daAway || 1;
-                                                                const homePercent = Math.round((daHome / total) * 100);
-                                                                return (
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                                        <span style={{ fontSize: '0.55rem', fontWeight: 700 }}>{homePercent}%</span>
-                                                                        <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden', display: 'flex' }}>
-                                                                            <div style={{ width: `${homePercent}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #34d399)' }} />
-                                                                        </div>
-                                                                        <span style={{ fontSize: '0.55rem', fontWeight: 700 }}>{100 - homePercent}%</span>
+                                                    {/* Modern Attack Momentum & Pitch Control Bar */}
+                                                    {(() => {
+                                                        const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
+                                                        const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
+                                                        const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
+                                                        const sogAway = Number(match.stats?.shotsOnGoal?.away || 0);
+                                                        const cornersHome = Number(match.stats?.corners?.home || 0);
+                                                        const cornersAway = Number(match.stats?.corners?.away || 0);
+                                                        const xgHome = Number(match.stats?.xg?.home || 0);
+                                                        const xgAway = Number(match.stats?.xg?.away || 0);
+                                                        const pressHome = Number(match.observations?.pressure?.home || 0);
+                                                        const pressAway = Number(match.observations?.pressure?.away || 0);
+                                                        const velocityTrend = match.observations?.velocity?.trend || 'STABLE';
+
+                                                        // Weighted Attack Pressure Index (Synthesizes dangerous attacks, shots, xG and pressure)
+                                                        const homePower = (daHome * 1.0) + (sogHome * 3.5) + (cornersHome * 1.5) + (xgHome * 15) + (pressHome * 0.5);
+                                                        const awayPower = (daAway * 1.0) + (sogAway * 3.5) + (cornersAway * 1.5) + (xgAway * 15) + (pressAway * 0.5);
+                                                        const totalPower = homePower + awayPower;
+
+                                                        let homePct = 50;
+                                                        if (totalPower > 0) {
+                                                            homePct = Math.min(88, Math.max(12, Math.round((homePower / totalPower) * 100)));
+                                                        } else if (daHome + daAway > 0) {
+                                                            homePct = Math.round((daHome / (daHome + daAway)) * 100);
+                                                        }
+                                                        const awayPct = 100 - homePct;
+
+                                                        const isHomeHeavy = homePct >= 62;
+                                                        const isAwayHeavy = awayPct >= 62;
+                                                        const isHot = velocityTrend === 'HOT';
+
+                                                        return (
+                                                            <div style={{
+                                                                marginBottom: '0.65rem',
+                                                                padding: '0.45rem 0.7rem',
+                                                                background: isHot 
+                                                                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(15, 23, 42, 0.6))'
+                                                                    : 'rgba(0, 0, 0, 0.25)',
+                                                                border: isHot 
+                                                                    ? '1px solid rgba(239, 68, 68, 0.3)' 
+                                                                    : '1px solid rgba(255, 255, 255, 0.04)',
+                                                                borderRadius: '10px',
+                                                                position: 'relative'
+                                                            }}>
+                                                                {/* Top Row: Team Labels & Momentum Status */}
+                                                                <div style={{
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    fontSize: '0.62rem',
+                                                                    fontWeight: 800,
+                                                                    marginBottom: '0.35rem'
+                                                                }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8' }}>
+                                                                        <span style={{
+                                                                            display: 'inline-block',
+                                                                            width: '6px',
+                                                                            height: '6px',
+                                                                            borderRadius: '50%',
+                                                                            background: '#38bdf8',
+                                                                            boxShadow: isHomeHeavy ? '0 0 8px #38bdf8' : 'none'
+                                                                        }} />
+                                                                        <span>%{homePct}</span>
+                                                                        {isHomeHeavy && <span style={{ fontSize: '0.55rem', opacity: 0.8, color: '#38bdf8' }}>BASKI</span>}
                                                                     </div>
-                                                                );
-                                                            })()}
-                                                        </div>
-                                                        <div style={{ display: 'flex', gap: '0.4rem', fontSize: '0.55rem', fontWeight: 700 }}>
-                                                            <span style={{ color: 'var(--accent-color)' }}>🎯 {match.stats?.shotsOnGoal?.home || 0}-{match.stats?.shotsOnGoal?.away || 0}</span>
-                                                            <span style={{ color: '#fbbf24' }}>⚔️ {match.stats?.dangerousAttacks?.home || 0}-{match.stats?.dangerousAttacks?.away || 0}</span>
-                                                        </div>
-                                                    </div>
+
+                                                                    {/* Velocity / Momentum Status Badge */}
+                                                                    <div style={{
+                                                                        fontSize: '0.58rem',
+                                                                        fontWeight: 800,
+                                                                        padding: '1px 6px',
+                                                                        borderRadius: '4px',
+                                                                        background: isHot 
+                                                                            ? 'rgba(239, 68, 68, 0.2)' 
+                                                                            : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.04)'),
+                                                                        color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8'),
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '3px'
+                                                                    }}>
+                                                                        {isHot ? '🔥 RİTİM YÜKSEK' : (isHomeHeavy ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : isAwayHeavy ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : '⚪ DENGELİ TEMPO')}
+                                                                    </div>
+
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8' }}>
+                                                                        {isAwayHeavy && <span style={{ fontSize: '0.55rem', opacity: 0.8, color: '#f43f5e' }}>BASKI</span>}
+                                                                        <span>%{awayPct}</span>
+                                                                        <span style={{
+                                                                            display: 'inline-block',
+                                                                            width: '6px',
+                                                                            height: '6px',
+                                                                            borderRadius: '50%',
+                                                                            background: '#f43f5e',
+                                                                            boxShadow: isAwayHeavy ? '0 0 8px #f43f5e' : 'none'
+                                                                        }} />
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Dual Colored Gradient Momentum Bar */}
+                                                                <div style={{
+                                                                    position: 'relative',
+                                                                    height: '6px',
+                                                                    background: 'rgba(255, 255, 255, 0.06)',
+                                                                    borderRadius: '4px',
+                                                                    overflow: 'hidden',
+                                                                    display: 'flex',
+                                                                    boxShadow: isHomeHeavy 
+                                                                        ? '0 0 10px rgba(56, 189, 248, 0.3)' 
+                                                                        : isAwayHeavy ? '0 0 10px rgba(244, 63, 94, 0.3)' : 'none'
+                                                                }}>
+                                                                    <div style={{
+                                                                        width: `${homePct}%`,
+                                                                        height: '100%',
+                                                                        background: 'linear-gradient(90deg, #0284c7, #38bdf8)',
+                                                                        transition: 'width 0.6s ease'
+                                                                    }} />
+                                                                    <div style={{
+                                                                        position: 'absolute',
+                                                                        left: '50%',
+                                                                        top: 0,
+                                                                        bottom: 0,
+                                                                        width: '1px',
+                                                                        background: 'rgba(255, 255, 255, 0.4)',
+                                                                        zIndex: 2
+                                                                    }} />
+                                                                    <div style={{
+                                                                        width: `${awayPct}%`,
+                                                                        height: '100%',
+                                                                        background: 'linear-gradient(90deg, #f43f5e, #e11d48)',
+                                                                        transition: 'width 0.6s ease'
+                                                                    }} />
+                                                                </div>
+
+                                                                {/* Bottom Row: Micro Metric Badges & Graph Link */}
+                                                                <div style={{
+                                                                    display: 'flex',
+                                                                    justifyContent: 'space-between',
+                                                                    alignItems: 'center',
+                                                                    marginTop: '0.35rem',
+                                                                    fontSize: '0.56rem',
+                                                                    fontWeight: 700,
+                                                                    color: '#94a3b8'
+                                                                }}>
+                                                                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                                                                        <span title="Kaleyi Bulan Şut" style={{ color: (sogHome > 0 || sogAway > 0) ? '#38bdf8' : 'inherit' }}>
+                                                                            🎯 {sogHome}-{sogAway}
+                                                                        </span>
+                                                                        <span title="Tehlikeli Atak" style={{ color: (daHome > 0 || daAway > 0) ? '#fbbf24' : 'inherit' }}>
+                                                                            ⚔️ {daHome}-{daAway}
+                                                                        </span>
+                                                                        <span title="Kornerler" style={{ color: (cornersHome > 0 || cornersAway > 0) ? '#a78bfa' : 'inherit' }}>
+                                                                            🚩 {cornersHome}-{cornersAway}
+                                                                        </span>
+                                                                        {(xgHome > 0 || xgAway > 0) && (
+                                                                            <span title="Beklenen Gol (xG)" style={{ color: '#34d399', fontWeight: 800 }}>
+                                                                                ⚽ {xgHome.toFixed(1)}-{xgAway.toFixed(1)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+
+                                                                    <div 
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setSelectedMatch(match);
+                                                                        }}
+                                                                        style={{ 
+                                                                            display: 'flex', 
+                                                                            alignItems: 'center', 
+                                                                            gap: '3px', 
+                                                                            cursor: 'pointer', 
+                                                                            color: 'var(--accent-color)',
+                                                                            opacity: 0.9
+                                                                        }}
+                                                                        title="Detaylı Baskı Grafiği"
+                                                                    >
+                                                                        <span>📈</span>
+                                                                        <span style={{ textDecoration: 'underline' }}>{lang === 'tr' ? 'Baskı Grafiği' : 'Wave'}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
 
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                                                         {(() => {
@@ -3725,6 +3901,45 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         <span className="score-badge">{(currentMatch.score && typeof currentMatch.score === 'object') ? `${currentMatch.score.home ?? 0} - ${currentMatch.score.away ?? 0}` : (currentMatch.score || '0 - 0')}</span>
                                                     </div>
                                                 </div>
+                                            </div>
+
+                                            {/* Live Attack Momentum Wave Graph */}
+                                            <div style={{
+                                                marginBottom: '1.5rem',
+                                                padding: '1rem',
+                                                background: 'rgba(255, 255, 255, 0.02)',
+                                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                                borderRadius: '16px'
+                                            }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                                                    <div style={{
+                                                        fontSize: '0.78rem',
+                                                        fontWeight: 900,
+                                                        color: 'var(--accent-color)',
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '1px',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px'
+                                                    }}>
+                                                        <span>📈</span>
+                                                        <span>{lang === 'tr' ? 'CANLI BASKI GRAFİĞİ (ATTACK MOMENTUM)' : 'LIVE ATTACK MOMENTUM WAVE'}</span>
+                                                    </div>
+                                                    {graphLoading && (
+                                                        <span style={{ fontSize: '0.65rem', opacity: 0.6, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            <span style={{ animation: 'spin 2s linear infinite', display: 'inline-block' }}>🌀</span>
+                                                            {lang === 'tr' ? 'Grafik yükleniyor...' : 'Loading wave...'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <AttackMomentumGraph
+                                                    points={matchGraphPoints}
+                                                    homeTeam={currentMatch.homeTeam}
+                                                    awayTeam={currentMatch.awayTeam}
+                                                    currentMinute={parseInt(currentMatch.minute) || 90}
+                                                    height={100}
+                                                    lang={lang}
+                                                />
                                             </div>
 
                                             <div className="modal-grid">
