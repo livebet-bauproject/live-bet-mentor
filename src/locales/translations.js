@@ -646,15 +646,15 @@ export const translations = {
         badge_responsible: "🛡️ Sorumlu Analiz",
         badge_statutory_compliance: "⚖️ 7258 Sayılı Kanun Uyumlu",
 
-        // Market Trends (Tipico Im Trend + DQS Cross-Reference)
+        // Market Trends (Institutional Bookmaker Influx + DQS Cross-Reference)
         trending_nav: "PİYASA TRENDLERİ",
         trending_title: "PİYASA TRENDLERİ & HALK AKIŞI",
-        trending_subtitle: "Tipico Canlı Bahis Hacmi & LiveBet Mentor DQS Doğrulaması",
-        trending_live_feed: "CANLI TIPICO AKIŞI (5 DK)",
+        trending_subtitle: "Avrupa Canlı Hacim Akışı & LiveBet Mentor DQS Doğrulaması",
+        trending_live_feed: "CANLI HACİM AKIŞI (5 DK)",
         trending_filter_all: "TÜMÜ",
         trending_filter_approved: "🟢 ONAYLI TREND",
         trending_filter_trap: "🔴 TUZAK ALARMI",
-        trending_filter_tipico: "📊 PİYASA AKIŞI",
+        trending_filter_market: "📊 PİYASA AKIŞI",
         trending_search_placeholder: "Takım, lig veya bahis tipi ara...",
         trending_last_5m: "Son 5 dk",
         trending_bets_placed: "kupon oynandı",
@@ -663,13 +663,21 @@ export const translations = {
         trending_trap_alert_badge: "🔴 TUZAK ALARMI",
         trending_neutral_badge: "🟡 NÖTR / DİKKAT",
         trending_influx_badge: "📊 PİYASA AKIŞI",
-        trending_empty: "Şu anda Tipico canlı bülteninde trend olan bahis bulunamadı.",
+        trending_empty: "Şu anda küresel canlı bültende trend olan bahis bulunamadı.",
         trending_no_results: "Seçili filtrelere uygun trend bahis bulunamadı.",
         trending_refresh: "Yenile",
         trending_total_tracked: "TOPLAM TREND",
         trending_smart_money_count: "ONAYLI TREND",
         trending_trap_count: "TUZAK UYARISI",
-        trending_direct_count: "CANLI AKIŞ"
+        trending_direct_count: "CANLI AKIŞ",
+        trending_guide_btn: "💡 Bu Sistem Nasıl Çalışır? (30 Saniyede Öğren)",
+        trending_guide_title: "PİYASA TRENDLERİ & AKILLI PARA MANTIĞI",
+        trending_guide_step1_title: "1. Canlı Para Akışı (Public Volume)",
+        trending_guide_step1_desc: "Avrupa'nın önde gelen kurumsal bahis bültenlerinde kalabalığın son 5 dakikada hangi maç ve bahislere hücum ettiği saniye saniye izlenir.",
+        trending_guide_step2_title: "2. Yapay Zeka & Saha Röntgeni",
+        trending_guide_step2_desc: "Kalabalığın %90'ı sadece takım ismine veya hırsına kapılarak oynar. Sistemimiz bu bahsi sahadaki gerçek şut, tehlikeli atak ve DQS veri kalitesiyle test eder.",
+        trending_guide_step3_title: "3. Akıllı Para vs. Kasa Tuzağı",
+        trending_guide_step3_desc: "🟢 ONAYLI TREND: Kalabalık haklı, sahada fırtına kopuyor.\n🔴 TUZAK ALARMI: Sahada tempo yok, kalabalık tuzağa çekiliyor. Kasa kazanacak, siz oynamayın!"
     },
     en: {
         title: "LIVE BET MENTOR",
@@ -1304,15 +1312,15 @@ export const translations = {
         badge_responsible: "🛡️ Responsible Analytics",
         badge_statutory_compliance: "⚖️ Strict Regulatory Compliance",
 
-        // Market Trends (Tipico Im Trend + DQS Cross-Reference)
+        // Market Trends (Institutional Bookmaker Influx + DQS Cross-Reference)
         trending_nav: "MARKET TRENDS",
         trending_title: "MARKET TRENDS & PUBLIC INFLUX",
-        trending_subtitle: "Tipico Live Bet Volume & LiveBet Mentor DQS AI Verification",
-        trending_live_feed: "LIVE TIPICO FEED (5 MIN)",
+        trending_subtitle: "European Live Volume Flow & LiveBet Mentor DQS AI Verification",
+        trending_live_feed: "LIVE VOLUME FEED (5 MIN)",
         trending_filter_all: "ALL",
         trending_filter_approved: "🟢 CONFIRMED TREND",
         trending_filter_trap: "🔴 TRAP ALERT",
-        trending_filter_tipico: "📊 MARKET INFLUX",
+        trending_filter_market: "📊 MARKET INFLUX",
         trending_search_placeholder: "Search team, league or bet market...",
         trending_last_5m: "Last 5 min",
         trending_bets_placed: "bets placed",
@@ -1321,12 +1329,20 @@ export const translations = {
         trending_trap_alert_badge: "🔴 PUBLIC TRAP",
         trending_neutral_badge: "🟡 NEUTRAL / WATCH",
         trending_influx_badge: "📊 MARKET INFLUX",
-        trending_empty: "No trending bets currently available in Tipico live bulletin.",
+        trending_empty: "No trending bets currently detected in global live books.",
         trending_no_results: "No trending bets matching current filters.",
         trending_refresh: "Refresh",
         trending_total_tracked: "TOTAL TRENDS",
         trending_smart_money_count: "CONFIRMED",
         trending_trap_count: "TRAP ALERTS",
-        trending_direct_count: "LIVE INFLUX"
+        trending_direct_count: "LIVE INFLUX",
+        trending_guide_btn: "💡 How Does This Work? (Learn in 30s)",
+        trending_guide_title: "MARKET INFLUX & SMART MONEY LOGIC",
+        trending_guide_step1_title: "1. Global Money Flow (Public Volume)",
+        trending_guide_step1_desc: "Real-time bet volume across top European sportsbooks is tracked second-by-second to detect where the crowd is pouring money in the last 5 minutes.",
+        trending_guide_step2_title: "2. AI & Pitch Reality Scan",
+        trending_guide_step2_desc: "Over 90% of bettors wager emotionally or on brand names. Our AI instantly cross-checks their bets against live shots, momentum, and DQS data quality.",
+        trending_guide_step3_title: "3. Smart Money vs. Public Trap",
+        trending_guide_step3_desc: "🟢 CONFIRMED TREND: The crowd is right, pitch momentum validates the bet.\n🔴 TRAP ALERT: Pitch is dead, crowd is walking into a trap. The bookmaker wins, don't play!"
     }
 };

@@ -204,13 +204,13 @@ app.get('/api/debug', async (req, res) => {
     });
 });
 
-// --- TIPICO TRENDING BETS ENDPOINT ---
-let tipicoTrendingCache = { data: null, time: 0 };
+// --- INSTITUTIONAL MARKET MONEY FLOW ENDPOINT (EU LIVESTREAM) ---
+let marketTrendingCache = { data: null, time: 0 };
 
-app.get('/api/tipico/trending', async (req, res) => {
+app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
     // Return cache if fresh (< 45 seconds)
-    if (tipicoTrendingCache.data && (Date.now() - tipicoTrendingCache.time < 45000)) {
-        return res.json(tipicoTrendingCache.data);
+    if (marketTrendingCache.data && (Date.now() - marketTrendingCache.time < 45000)) {
+        return res.json(marketTrendingCache.data);
     }
 
     try {
@@ -226,8 +226,8 @@ app.get('/api/tipico/trending', async (req, res) => {
 
         if (!response.ok) {
             return res.status(response.status).json({
-                error: `Tipico responded with status ${response.status}`,
-                cached: tipicoTrendingCache.data || null
+                error: `Live market provider responded with status ${response.status}`,
+                cached: marketTrendingCache.data || null
             });
         }
 
@@ -256,12 +256,12 @@ app.get('/api/tipico/trending', async (req, res) => {
             bets
         };
 
-        tipicoTrendingCache = { data: result, time: Date.now() };
+        marketTrendingCache = { data: result, time: Date.now() };
         return res.json(result);
     } catch (err) {
-        console.error('[TIPICO] Error fetching trending bets:', err.message);
-        if (tipicoTrendingCache.data) {
-            return res.json(tipicoTrendingCache.data);
+        console.error('[MARKET_TRENDS] Error fetching live volume data:', err.message);
+        if (marketTrendingCache.data) {
+            return res.json(marketTrendingCache.data);
         }
         return res.status(500).json({ error: err.message });
     }

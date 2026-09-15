@@ -287,12 +287,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [momentumWindow, setMomentumWindow] = useState(10);
     const [audioMuted, setAudioMuted] = useState(audioAlert.isMuted);
 
-    // --- TIPICO TRENDING BETS & MARKET INFLUX STATE ---
+    // --- INSTITUTIONAL MARKET MONEY FLOW STATE ---
     const [trendingBets, setTrendingBets] = useState([]);
     const [trendingLoading, setTrendingLoading] = useState(false);
     const [trendingLastUpdated, setTrendingLastUpdated] = useState(null);
     const [trendingFilter, setTrendingFilter] = useState('ALL');
     const [trendingSearch, setTrendingSearch] = useState('');
+    const [showTrendingGuide, setShowTrendingGuide] = useState(false);
 
     const fetchTrendingBets = useCallback(async () => {
         setTrendingLoading(true);
@@ -300,7 +301,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
                 : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-            const res = await fetch(`${proxyBase}/api/tipico/trending`);
+            const res = await fetch(`${proxyBase}/api/market/trending`);
             if (res.ok) {
                 const data = await res.json();
                 if (data.bets) {
@@ -309,7 +310,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 }
             }
         } catch (err) {
-            console.error('Error fetching Tipico trending bets:', err);
+            console.error('[MARKET_TRENDS] Error fetching live volume data:', err);
         } finally {
             setTrendingLoading(false);
         }
@@ -1449,7 +1450,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         );
     };
 
-    // --- TIPICO TRENDING BET EVALUATION (SMART MONEY VS PUBLIC TRAP) ---
+    // --- INSTITUTIONAL MARKET MONEY FLOW EVALUATION (SMART MONEY VS PUBLIC TRAP) ---
     const evaluateTrendingBet = useCallback((bet) => {
         const liveMatch = (matches || []).find(m => 
             consensusAdapter._isFuzzyMatch(bet.home, bet.away, m.homeTeam, m.awayTeam) ||
@@ -1458,7 +1459,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         if (!liveMatch) {
             return {
-                status: 'TIPICO',
+                status: 'MARKET',
                 badgeText: t.trending_influx_badge || '📊 PİYASA AKIŞI',
                 color: '#38bdf8',
                 bg: 'rgba(56, 189, 248, 0.1)',
@@ -1467,8 +1468,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 dqs: null,
                 liveMatch: null,
                 desc: lang === 'tr' 
-                    ? 'Tipico canlı bülteninde yüksek hacimli halk ilgisi. Canlı radar dışında veya alt lig.' 
-                    : 'High public betting volume on Tipico live bulletin. Outside active radar or minor league.'
+                    ? 'Avrupa kurumsal bahis bülteninde yüksek hacimli halk ilgisi. Canlı radar dışında veya alt lig.' 
+                    : 'High public betting volume in global sportsbook feeds. Outside active radar or minor league.'
             };
         }
 
@@ -1529,13 +1530,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         const approvedCount = evaluatedBets.filter(b => b.evaluation.status === 'APPROVED').length;
         const trapCount = evaluatedBets.filter(b => b.evaluation.status === 'TRAP').length;
-        const tipicoCount = evaluatedBets.filter(b => b.evaluation.status === 'TIPICO').length;
+        const marketCount = evaluatedBets.filter(b => b.evaluation.status === 'MARKET').length;
         const cautionCount = evaluatedBets.filter(b => b.evaluation.status === 'CAUTION').length;
 
         const filteredBets = evaluatedBets.filter(b => {
             if (trendingFilter === 'APPROVED' && b.evaluation.status !== 'APPROVED') return false;
             if (trendingFilter === 'TRAP' && b.evaluation.status !== 'TRAP') return false;
-            if (trendingFilter === 'TIPICO' && b.evaluation.status !== 'TIPICO') return false;
+            if (trendingFilter === 'MARKET' && b.evaluation.status !== 'MARKET') return false;
             if (trendingFilter === 'CAUTION' && b.evaluation.status !== 'CAUTION') return false;
 
             if (trendingSearch) {
@@ -1551,7 +1552,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return (
             <div className="trending-view" style={{ animation: 'fadeIn 0.4s ease-out', paddingBottom: '5rem' }}>
                 {/* Header Row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.4rem' }}>
                             <span style={{ fontSize: '2rem' }}>🔥</span>
@@ -1560,7 +1561,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             </h2>
                         </div>
                         <p style={{ opacity: 0.6, fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>
-                            {t.trending_subtitle || 'Tipico Canlı Bahis Hacmi & LiveBet Mentor DQS Doğrulaması'}
+                            {t.trending_subtitle || 'Avrupa Canlı Hacim Akışı & LiveBet Mentor DQS Doğrulaması'}
                         </p>
                     </div>
 
@@ -1578,7 +1579,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             color: '#f87171'
                         }}>
                             <span className="trending-pulse-dot"></span>
-                            <span>{t.trending_live_feed || 'CANLI TIPICO AKIŞI (5 DK)'}</span>
+                            <span>{t.trending_live_feed || 'CANLI HACİM AKIŞI (5 DK)'}</span>
                         </div>
 
                         {trendingLastUpdated && (
@@ -1611,6 +1612,107 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </div>
                 </div>
 
+                {/* Collapsible Customer Explainer Guide */}
+                <div style={{ marginBottom: '1.8rem' }}>
+                    <button
+                        onClick={() => setShowTrendingGuide(!showTrendingGuide)}
+                        style={{
+                            width: '100%',
+                            padding: '0.85rem 1.2rem',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(251, 191, 36, 0.35)',
+                            background: showTrendingGuide 
+                                ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.05))' 
+                                : 'rgba(251, 191, 36, 0.06)',
+                            color: '#fbbf24',
+                            fontSize: '0.85rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'all 0.2s',
+                            boxShadow: '0 4px 15px rgba(251, 191, 36, 0.1)'
+                        }}
+                    >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <span style={{ fontSize: '1.1rem' }}>💡</span>
+                            <span>{t.trending_guide_btn || 'Bu Sistem Nasıl Çalışır? (30 Saniyede Öğren)'}</span>
+                        </span>
+                        <span style={{ fontSize: '0.85rem', transition: 'transform 0.2s', transform: showTrendingGuide ? 'rotate(180deg)' : 'none' }}>
+                            ▼
+                        </span>
+                    </button>
+
+                    {showTrendingGuide && (
+                        <div style={{
+                            marginTop: '0.8rem',
+                            padding: '1.4rem',
+                            borderRadius: '14px',
+                            background: 'rgba(15, 23, 42, 0.9)',
+                            border: '1px solid rgba(251, 191, 36, 0.25)',
+                            backdropFilter: 'blur(10px)',
+                            animation: 'fadeIn 0.3s ease-out'
+                        }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                                gap: '1.2rem'
+                            }}>
+                                <div style={{
+                                    padding: '1.2rem',
+                                    borderRadius: '10px',
+                                    background: 'rgba(56, 189, 248, 0.06)',
+                                    border: '1px solid rgba(56, 189, 248, 0.2)'
+                                }}>
+                                    <div style={{ fontSize: '1.4rem', marginBottom: '0.4rem' }}>🌊</div>
+                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#38bdf8', marginBottom: '0.4rem' }}>
+                                        {t.trending_guide_step1_title || '1. Canlı Para Akışı (Public Volume)'}
+                                    </h4>
+                                    <p style={{ fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.5, color: '#cbd5e1', margin: 0 }}>
+                                        {t.trending_guide_step1_desc || "Avrupa'nın önde gelen kurumsal bahis bültenlerinde kalabalığın son 5 dakikada hangi maç ve bahislere hücum ettiği saniye saniye izlenir."}
+                                    </p>
+                                </div>
+
+                                <div style={{
+                                    padding: '1.2rem',
+                                    borderRadius: '10px',
+                                    background: 'rgba(167, 139, 250, 0.06)',
+                                    border: '1px solid rgba(167, 139, 250, 0.2)'
+                                }}>
+                                    <div style={{ fontSize: '1.4rem', marginBottom: '0.4rem' }}>🧠</div>
+                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#a78bfa', marginBottom: '0.4rem' }}>
+                                        {t.trending_guide_step2_title || '2. Yapay Zeka & Saha Röntgeni'}
+                                    </h4>
+                                    <p style={{ fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.5, color: '#cbd5e1', margin: 0 }}>
+                                        {t.trending_guide_step2_desc || "Kalabalığın %90'ı sadece takım ismine veya hırsına kapılarak oynar. Sistemimiz bu bahsi sahadaki gerçek şut, tehlikeli atak ve DQS veri kalitesiyle test eder."}
+                                    </p>
+                                </div>
+
+                                <div style={{
+                                    padding: '1.2rem',
+                                    borderRadius: '10px',
+                                    background: 'rgba(16, 185, 129, 0.06)',
+                                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                                }}>
+                                    <div style={{ fontSize: '1.4rem', marginBottom: '0.4rem' }}>⚖️</div>
+                                    <h4 style={{ fontSize: '0.95rem', fontWeight: 900, color: '#34d399', marginBottom: '0.4rem' }}>
+                                        {t.trending_guide_step3_title || '3. Akıllı Para vs. Kasa Tuzağı'}
+                                    </h4>
+                                    <div style={{ fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.5, color: '#cbd5e1' }}>
+                                        <div style={{ marginBottom: '0.4rem' }}>
+                                            <strong style={{ color: '#10b981' }}>🟢 ONAYLI TREND:</strong> {lang === 'tr' ? 'Kalabalık haklı, sahada fırtına kopuyor.' : 'Crowd is right, pitch momentum confirms.'}
+                                        </div>
+                                        <div>
+                                            <strong style={{ color: '#ef4444' }}>🔴 TUZAK ALARMI:</strong> {lang === 'tr' ? 'Sahada tempo yok, kalabalık tuzağa çekiliyor. Kasa kazanacak, siz oynamayın!' : 'No pitch tempo, crowd is falling into a bookmaker trap. Stay away!'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 {/* KPI Overview Strip */}
                 <div style={{
                     display: 'grid',
@@ -1626,7 +1728,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {trendingBets.length}
                         </div>
                         <div style={{ fontSize: '0.7rem', opacity: 0.5, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Tipico canlı bülteninde popüler' : 'Popular in Tipico live book'}
+                            {lang === 'tr' ? 'Avrupa canlı bülteninde popüler' : 'Popular in live European books'}
                         </div>
                     </div>
 
@@ -1659,10 +1761,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             📊 {t.trending_direct_count || 'CANLI AKIŞ'}
                         </div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#38bdf8' }}>
-                            {tipicoCount + cautionCount}
+                            {marketCount + cautionCount}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Tipico 5 dk Bahis Hacmi' : 'Tipico 5 min Public Volume'}
+                            {lang === 'tr' ? 'Avrupa 5 dk Bahis Hacmi' : 'European 5 min Volume'}
                         </div>
                     </div>
                 </div>
@@ -1685,7 +1787,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             { id: 'ALL', label: `${t.trending_filter_all || 'TÜMÜ'} (${evaluatedBets.length})` },
                             { id: 'APPROVED', label: `${t.trending_filter_approved || '🟢 ONAYLI'} (${approvedCount})`, color: '#10b981' },
                             { id: 'TRAP', label: `${t.trending_filter_trap || '🔴 TUZAKLAR'} (${trapCount})`, color: '#ef4444' },
-                            { id: 'TIPICO', label: `${t.trending_filter_tipico || '📊 AKIŞ'} (${tipicoCount})`, color: '#38bdf8' }
+                            { id: 'MARKET', label: `${t.trending_filter_market || '📊 AKIŞ'} (${marketCount})`, color: '#38bdf8' }
                         ].map(f => (
                             <button
                                 key={f.id}
@@ -1753,10 +1855,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <div className="glass-panel" style={{ padding: '3.5rem 2rem', textAlign: 'center', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔍</div>
                         <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.5rem' }}>
-                            {trendingBets.length === 0 ? (t.trending_empty || 'Şu anda Tipico canlı bülteninde trend olan bahis bulunamadı.') : (t.trending_no_results || 'Seçili filtrelere uygun trend bahis bulunamadı.')}
+                            {trendingBets.length === 0 ? (t.trending_empty || 'Şu anda küresel bültende trend olan bahis bulunamadı.') : (t.trending_no_results || 'Seçili filtrelere uygun trend bahis bulunamadı.')}
                         </h4>
                         <p style={{ opacity: 0.5, fontSize: '0.85rem' }}>
-                            {lang === 'tr' ? 'Tipico canlı bülteni 45 saniyede bir taranarak yeni trendler otomatik listelenir.' : 'Tipico live bulletin is scanned every 45s for trending public money.'}
+                            {lang === 'tr' ? 'Canlı piyasa bülteni 45 saniyede bir taranarak yeni trendler otomatik listelenir.' : 'Live market feed is scanned every 45s for trending public money.'}
                         </p>
                     </div>
                 ) : (
@@ -3925,6 +4027,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     const isQualified = (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD;
                                     const scoreHome = (m.score && typeof m.score === 'object') ? (m.score.home ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[0]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[0]?.trim() : 0));
                                     const scoreAway = (m.score && typeof m.score === 'object') ? (m.score.away ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[1]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[1]?.trim() : 0));
+                                    
+                                    const trendingBet = (trendingBets || []).find(tb => 
+                                        consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                                        consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                                    );
+                                    const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
+                                    const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
+
                                     return (
                                         <div
                                             key={m.id}
@@ -3932,7 +4042,28 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             onClick={() => setSelectedMatch(m)}
                                         >
                                             <div className="match-card-header">
-                                                <span className="match-league">{m.league || m.leagueName || 'Football'}</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                    <span className="match-league">{m.league || m.leagueName || 'Football'}</span>
+                                                    {trendingBet && (
+                                                        <span
+                                                            style={{
+                                                                fontSize: '0.62rem',
+                                                                padding: '0.12rem 0.45rem',
+                                                                borderRadius: '999px',
+                                                                background: isTrendApproved ? 'rgba(16, 185, 129, 0.15)' : isTrendTrap ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                                                                border: `1px solid ${isTrendApproved ? 'rgba(16, 185, 129, 0.4)' : isTrendTrap ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.4)'}`,
+                                                                color: isTrendApproved ? '#34d399' : isTrendTrap ? '#f87171' : '#38bdf8',
+                                                                fontWeight: 800,
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '0.25rem'
+                                                            }}
+                                                        >
+                                                            <span>🔥</span>
+                                                            <span>{isTrendApproved ? (lang === 'tr' ? 'Akıllı Para' : 'Smart Money') : isTrendTrap ? (lang === 'tr' ? 'Tuzak Alarmı' : 'Trap Alert') : (lang === 'tr' ? `${trendingBet.count} Kupon` : `${trendingBet.count} Bets`)}</span>
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <div className="match-minute-pill">
                                                     <span className="live-minute-dot"></span>
                                                     <span>{renderMatchMinute(m.minute, t, false)}</span>
@@ -3994,12 +4125,48 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {matches.filter(filterByTier).map(m => (
-                                            <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                                                <td style={{ padding: '1.25rem 2rem' }}>
-                                                    <div style={{ fontWeight: 800 }}>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{(m.score && typeof m.score === 'object') ? `${m.score.home ?? 0} : ${m.score.away ?? 0}` : (m.score || '0 : 0')}</div>
-                                                </td>
+                                        {matches.filter(filterByTier).map(m => {
+                                            const trendingBet = (trendingBets || []).find(tb => 
+                                                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                                                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                                            );
+                                            const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
+                                            const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
+
+                                            return (
+                                                <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                                                    <td style={{ padding: '1.25rem 2rem' }}>
+                                                        <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                            <span>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</span>
+                                                            {trendingBet && (
+                                                                <span
+                                                                    title={isTrendApproved 
+                                                                        ? (lang === 'tr' ? 'Akıllı Para: Yüksek halk hacmi saha baskısıyla doğrulanıyor.' : 'Smart Money: High public volume verified by pitch pressure.')
+                                                                        : isTrendTrap
+                                                                        ? (lang === 'tr' ? 'Tuzak Uyarısı: Kalabalık bu maça para basıyor ancak saha verisi yetersiz!' : 'Trap Alert: Public is betting heavily, but pitch stats do not support it!')
+                                                                        : (lang === 'tr' ? 'Piyasa Akışı: Son 5 dakikada yoğun kupon hacmi.' : 'Market Influx: Heavy betting volume in last 5m.')}
+                                                                    style={{
+                                                                        fontSize: '0.62rem',
+                                                                        padding: '0.15rem 0.5rem',
+                                                                        borderRadius: '999px',
+                                                                        background: isTrendApproved ? 'rgba(16, 185, 129, 0.15)' : isTrendTrap ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                                                                        border: `1px solid ${isTrendApproved ? 'rgba(16, 185, 129, 0.4)' : isTrendTrap ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.4)'}`,
+                                                                        color: isTrendApproved ? '#34d399' : isTrendTrap ? '#f87171' : '#38bdf8',
+                                                                        fontWeight: 800,
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.25rem'
+                                                                    }}
+                                                                >
+                                                                    <span>🔥</span>
+                                                                    <span>{trendingBet.count} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
+                                                                    <span>•</span>
+                                                                    <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA' : 'SMART MONEY') : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI' : 'TRAP ALERT') : (lang === 'tr' ? 'PİYASA AKIŞI' : 'INFLUX')}</span>
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{(m.score && typeof m.score === 'object') ? `${m.score.home ?? 0} : ${m.score.away ?? 0}` : (m.score || '0 : 0')}</div>
+                                                    </td>
                                                 <td style={{ padding: '1.25rem 1rem', fontWeight: 800 }}>{renderMatchMinute(m.minute, t, false)}</td>
                                                 <td style={{ padding: '1rem', fontWeight: 800, color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)' }}>
                                                     {m.dqs ? m.dqs.toFixed(2) : '0.00'}
@@ -4020,7 +4187,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     </span>
                                                 </td>
                                             </tr>
-                                        ))}
+                                        )})}
                                     </tbody>
                                 </table>
                             </div>
