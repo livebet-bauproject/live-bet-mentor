@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CONFIG } from '../config';
 import { dataWorker } from '../backend/dataWorker';
 import { bankrollManager } from '../logic/bankrollManager';
@@ -286,6 +286,40 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
     const [momentumWindow, setMomentumWindow] = useState(10);
     const [audioMuted, setAudioMuted] = useState(audioAlert.isMuted);
+
+    // --- TIPICO TRENDING BETS & MARKET INFLUX STATE ---
+    const [trendingBets, setTrendingBets] = useState([]);
+    const [trendingLoading, setTrendingLoading] = useState(false);
+    const [trendingLastUpdated, setTrendingLastUpdated] = useState(null);
+    const [trendingFilter, setTrendingFilter] = useState('ALL');
+    const [trendingSearch, setTrendingSearch] = useState('');
+
+    const fetchTrendingBets = useCallback(async () => {
+        setTrendingLoading(true);
+        try {
+            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://localhost:3001'
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            const res = await fetch(`${proxyBase}/api/tipico/trending`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.bets) {
+                    setTrendingBets(data.bets);
+                    setTrendingLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching Tipico trending bets:', err);
+        } finally {
+            setTrendingLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchTrendingBets();
+        const interval = setInterval(fetchTrendingBets, 45000);
+        return () => clearInterval(interval);
+    }, [fetchTrendingBets]);
 
     const getRemainingDays = (endDate) => {
         if (!endDate) return null;
@@ -1415,6 +1449,551 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         );
     };
 
+    // --- TIPICO TRENDING BET EVALUATION (SMART MONEY VS PUBLIC TRAP) ---
+    const evaluateTrendingBet = useCallback((bet) => {
+        const liveMatch = (matches || []).find(m => 
+            consensusAdapter._isFuzzyMatch(bet.home, bet.away, m.homeTeam, m.awayTeam) ||
+            consensusAdapter._isFuzzyMatch(bet.away, bet.home, m.homeTeam, m.awayTeam)
+        );
+
+        if (!liveMatch) {
+            return {
+                status: 'TIPICO',
+                badgeText: t.trending_influx_badge || '📊 PİYASA AKIŞI',
+                color: '#38bdf8',
+                bg: 'rgba(56, 189, 248, 0.1)',
+                borderColor: 'rgba(56, 189, 248, 0.3)',
+                icon: '📊',
+                dqs: null,
+                liveMatch: null,
+                desc: lang === 'tr' 
+                    ? 'Tipico canlı bülteninde yüksek hacimli halk ilgisi. Canlı radar dışında veya alt lig.' 
+                    : 'High public betting volume on Tipico live bulletin. Outside active radar or minor league.'
+            };
+        }
+
+        const dqs = liveMatch.dqs !== undefined ? liveMatch.dqs : 0;
+        const isApproved = dqs >= 0.50;
+        const isTrap = dqs < 0.40;
+
+        if (isApproved) {
+            return {
+                status: 'APPROVED',
+                badgeText: t.trending_smart_money_badge || '🟢 AKILLI PARA',
+                color: '#10b981',
+                bg: 'rgba(16, 185, 129, 0.12)',
+                borderColor: 'rgba(16, 185, 129, 0.4)',
+                icon: '🟢',
+                dqs,
+                liveMatch,
+                desc: lang === 'tr'
+                    ? `Yüksek DQS (%${(dqs * 100).toFixed(0)}) & saha verisi kalabalığın bahsini doğruluyor.`
+                    : `High DQS (${(dqs * 100).toFixed(0)}%) & match data confirms crowd influx.`
+            };
+        } else if (isTrap) {
+            return {
+                status: 'TRAP',
+                badgeText: t.trending_trap_alert_badge || '🔴 TUZAK ALARMI',
+                color: '#ef4444',
+                bg: 'rgba(239, 68, 68, 0.12)',
+                borderColor: 'rgba(239, 68, 68, 0.4)',
+                icon: '🔴',
+                dqs,
+                liveMatch,
+                desc: lang === 'tr'
+                    ? `Düşük DQS (%${(dqs * 100).toFixed(0)}) & yetersiz tempo. Kalabalık tuzağa çekiliyor olabilir!`
+                    : `Low DQS (${(dqs * 100).toFixed(0)}%) & weak tempo. Crowd may be walking into a trap!`
+            };
+        } else {
+            return {
+                status: 'CAUTION',
+                badgeText: t.trending_neutral_badge || '🟡 NÖTR / DİKKAT',
+                color: '#f59e0b',
+                bg: 'rgba(245, 158, 11, 0.12)',
+                borderColor: 'rgba(245, 158, 11, 0.4)',
+                icon: '🟡',
+                dqs,
+                liveMatch,
+                desc: lang === 'tr'
+                    ? `Orta seviye DQS (%${(dqs * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
+                    : `Moderate DQS (${(dqs * 100).toFixed(0)}%). Keep observing match dynamics.`
+            };
+        }
+    }, [matches, lang, t]);
+
+    const RenderTrending = () => {
+        const evaluatedBets = (trendingBets || []).map(bet => ({
+            ...bet,
+            evaluation: evaluateTrendingBet(bet)
+        }));
+
+        const approvedCount = evaluatedBets.filter(b => b.evaluation.status === 'APPROVED').length;
+        const trapCount = evaluatedBets.filter(b => b.evaluation.status === 'TRAP').length;
+        const tipicoCount = evaluatedBets.filter(b => b.evaluation.status === 'TIPICO').length;
+        const cautionCount = evaluatedBets.filter(b => b.evaluation.status === 'CAUTION').length;
+
+        const filteredBets = evaluatedBets.filter(b => {
+            if (trendingFilter === 'APPROVED' && b.evaluation.status !== 'APPROVED') return false;
+            if (trendingFilter === 'TRAP' && b.evaluation.status !== 'TRAP') return false;
+            if (trendingFilter === 'TIPICO' && b.evaluation.status !== 'TIPICO') return false;
+            if (trendingFilter === 'CAUTION' && b.evaluation.status !== 'CAUTION') return false;
+
+            if (trendingSearch) {
+                const q = trendingSearch.toLowerCase();
+                const matchStr = `${b.home} ${b.away} ${b.competition} ${b.market} ${b.outcome}`.toLowerCase();
+                if (!matchStr.includes(q)) return false;
+            }
+            return true;
+        });
+
+        const maxBetCount = Math.max(...(trendingBets || []).map(b => b.count || 1), 1);
+
+        return (
+            <div className="trending-view" style={{ animation: 'fadeIn 0.4s ease-out', paddingBottom: '5rem' }}>
+                {/* Header Row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+                    <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.4rem' }}>
+                            <span style={{ fontSize: '2rem' }}>🔥</span>
+                            <h2 style={{ fontSize: '1.9rem', fontWeight: 900, letterSpacing: '-0.5px', margin: 0, background: 'linear-gradient(135deg, #ffffff, #f87171)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                                {t.trending_title || 'PİYASA TRENDLERİ & HALK AKIŞI'}
+                            </h2>
+                        </div>
+                        <p style={{ opacity: 0.6, fontSize: '0.9rem', fontWeight: 600, margin: 0 }}>
+                            {t.trending_subtitle || 'Tipico Canlı Bahis Hacmi & LiveBet Mentor DQS Doğrulaması'}
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.45rem 0.9rem',
+                            borderRadius: '999px',
+                            background: 'rgba(239, 68, 68, 0.1)',
+                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            color: '#f87171'
+                        }}>
+                            <span className="trending-pulse-dot"></span>
+                            <span>{t.trending_live_feed || 'CANLI TIPICO AKIŞI (5 DK)'}</span>
+                        </div>
+
+                        {trendingLastUpdated && (
+                            <span style={{ fontSize: '0.75rem', opacity: 0.5, fontWeight: 600 }}>
+                                {trendingLastUpdated}
+                            </span>
+                        )}
+
+                        <button
+                            onClick={fetchTrendingBets}
+                            disabled={trendingLoading}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '8px',
+                                border: '1px solid var(--accent-color)',
+                                background: 'rgba(56, 189, 248, 0.1)',
+                                color: 'var(--accent-color)',
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                cursor: trendingLoading ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <span style={{ display: 'inline-block', transform: trendingLoading ? 'rotate(360deg)' : 'none', transition: 'transform 0.8s ease' }}>🔄</span>
+                            <span>{trendingLoading ? (lang === 'tr' ? 'Yenileniyor...' : 'Refreshing...') : (t.trending_refresh || 'Yenile')}</span>
+                        </button>
+                    </div>
+                </div>
+
+                {/* KPI Overview Strip */}
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+                    gap: '1rem',
+                    marginBottom: '2rem'
+                }}>
+                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.6, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            {t.trending_total_tracked || 'TOPLAM TREND'}
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#f8fafc' }}>
+                            {trendingBets.length}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', opacity: 0.5, marginTop: '0.2rem' }}>
+                            {lang === 'tr' ? 'Tipico canlı bülteninde popüler' : 'Popular in Tipico live book'}
+                        </div>
+                    </div>
+
+                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(0,0,0,0.2))' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            🟢 {t.trending_smart_money_count || 'ONAYLI TREND'}
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#10b981' }}>
+                            {approvedCount}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#34d399', opacity: 0.8, marginTop: '0.2rem' }}>
+                            {lang === 'tr' ? 'DQS ≥ 0.50 & Yüksek Saha Baskısı' : 'DQS ≥ 0.50 & Strong Pitch Pressure'}
+                        </div>
+                    </div>
+
+                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(0,0,0,0.2))' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            🔴 {t.trending_trap_count || 'TUZAK UYARISI'}
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#ef4444' }}>
+                            {trapCount}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#f87171', opacity: 0.8, marginTop: '0.2rem' }}>
+                            {lang === 'tr' ? 'Düşük DQS / Ölü Maç Tuzağı' : 'Low DQS / Dead Match Trap'}
+                        </div>
+                    </div>
+
+                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(0,0,0,0.2))' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            📊 {t.trending_direct_count || 'CANLI AKIŞ'}
+                        </div>
+                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#38bdf8' }}>
+                            {tipicoCount + cautionCount}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.8, marginTop: '0.2rem' }}>
+                            {lang === 'tr' ? 'Tipico 5 dk Bahis Hacmi' : 'Tipico 5 min Public Volume'}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filters & Search Toolbar */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                    marginBottom: '1.5rem',
+                    background: 'rgba(255,255,255,0.02)',
+                    padding: '1rem',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {[
+                            { id: 'ALL', label: `${t.trending_filter_all || 'TÜMÜ'} (${evaluatedBets.length})` },
+                            { id: 'APPROVED', label: `${t.trending_filter_approved || '🟢 ONAYLI'} (${approvedCount})`, color: '#10b981' },
+                            { id: 'TRAP', label: `${t.trending_filter_trap || '🔴 TUZAKLAR'} (${trapCount})`, color: '#ef4444' },
+                            { id: 'TIPICO', label: `${t.trending_filter_tipico || '📊 AKIŞ'} (${tipicoCount})`, color: '#38bdf8' }
+                        ].map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => setTrendingFilter(f.id)}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    borderRadius: '8px',
+                                    border: trendingFilter === f.id ? `1px solid ${f.color || 'var(--accent-color)'}` : '1px solid rgba(255,255,255,0.08)',
+                                    background: trendingFilter === f.id ? (f.color ? `${f.color}22` : 'var(--accent-color)') : 'rgba(255,255,255,0.03)',
+                                    color: trendingFilter === f.id ? (f.color || '#000') : '#94a3b8',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div style={{ position: 'relative', minWidth: '260px', flex: '1', maxWidth: '400px' }}>
+                        <input
+                            type="text"
+                            placeholder={t.trending_search_placeholder || 'Takım, lig veya bahis tipi ara...'}
+                            value={trendingSearch}
+                            onChange={(e) => setTrendingSearch(e.target.value)}
+                            style={{
+                                width: '100%',
+                                padding: '0.6rem 1rem 0.6rem 2.2rem',
+                                borderRadius: '8px',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                background: 'rgba(0,0,0,0.3)',
+                                color: '#fff',
+                                fontSize: '0.8rem',
+                                outline: 'none'
+                            }}
+                        />
+                        <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}>
+                            🔍
+                        </span>
+                        {trendingSearch && (
+                            <button
+                                onClick={() => setTrendingSearch('')}
+                                style={{
+                                    position: 'absolute',
+                                    right: '0.8rem',
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#fff',
+                                    opacity: 0.5,
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Bets Grid */}
+                {filteredBets.length === 0 ? (
+                    <div className="glass-panel" style={{ padding: '3.5rem 2rem', textAlign: 'center', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                        <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔍</div>
+                        <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.5rem' }}>
+                            {trendingBets.length === 0 ? (t.trending_empty || 'Şu anda Tipico canlı bülteninde trend olan bahis bulunamadı.') : (t.trending_no_results || 'Seçili filtrelere uygun trend bahis bulunamadı.')}
+                        </h4>
+                        <p style={{ opacity: 0.5, fontSize: '0.85rem' }}>
+                            {lang === 'tr' ? 'Tipico canlı bülteni 45 saniyede bir taranarak yeni trendler otomatik listelenir.' : 'Tipico live bulletin is scanned every 45s for trending public money.'}
+                        </p>
+                    </div>
+                ) : (
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+                        gap: '1.2rem'
+                    }}>
+                        {filteredBets.map((b, idx) => {
+                            const evalInfo = b.evaluation;
+                            const heatPercent = Math.min(100, Math.round(((b.count || 1) / maxBetCount) * 100));
+
+                            return (
+                                <div
+                                    key={`${b.eventId}-${b.marketId}-${b.outcomeId}-${idx}`}
+                                    className="glass-panel"
+                                    style={{
+                                        padding: '1.3rem',
+                                        borderRadius: '14px',
+                                        border: `1px solid ${evalInfo.borderColor}`,
+                                        background: `linear-gradient(165deg, ${evalInfo.bg}, rgba(15, 23, 42, 0.75))`,
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'space-between',
+                                        gap: '1rem',
+                                        boxShadow: `0 4px 20px ${evalInfo.borderColor}22`,
+                                        transition: 'transform 0.2s, box-shadow 0.2s',
+                                        position: 'relative',
+                                        overflow: 'hidden'
+                                    }}
+                                    onMouseEnter={e => {
+                                        e.currentTarget.style.transform = 'translateY(-3px)';
+                                        e.currentTarget.style.boxShadow = `0 8px 30px ${evalInfo.borderColor}44`;
+                                    }}
+                                    onMouseLeave={e => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = `0 4px 20px ${evalInfo.borderColor}22`;
+                                    }}
+                                >
+                                    {/* Top League & Status Badges */}
+                                    <div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', gap: '0.5rem' }}>
+                                            <span style={{
+                                                fontSize: '0.7rem',
+                                                fontWeight: 800,
+                                                letterSpacing: '0.5px',
+                                                textTransform: 'uppercase',
+                                                color: '#94a3b8',
+                                                background: 'rgba(255,255,255,0.05)',
+                                                padding: '0.2rem 0.5rem',
+                                                borderRadius: '6px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                maxWidth: '180px'
+                                            }}>
+                                                🏆 {b.competition || 'Soccer'}
+                                            </span>
+
+                                            <span style={{
+                                                fontSize: '0.65rem',
+                                                fontWeight: 900,
+                                                padding: '0.25rem 0.6rem',
+                                                borderRadius: '999px',
+                                                background: evalInfo.bg,
+                                                border: `1px solid ${evalInfo.borderColor}`,
+                                                color: evalInfo.color,
+                                                letterSpacing: '0.5px',
+                                                whiteSpace: 'nowrap'
+                                            }}>
+                                                {evalInfo.badgeText}
+                                            </span>
+                                        </div>
+
+                                        {/* Match Info & Score */}
+                                        <div style={{ marginBottom: '0.8rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                                                <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#f8fafc', lineHeight: 1.3 }}>
+                                                    {b.home} <span style={{ opacity: 0.3, fontWeight: 400 }}>vs</span> {b.away}
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                {b.score && (
+                                                    <span style={{
+                                                        padding: '0.15rem 0.5rem',
+                                                        borderRadius: '4px',
+                                                        background: 'rgba(0, 0, 0, 0.4)',
+                                                        border: '1px solid rgba(255,255,255,0.1)',
+                                                        fontSize: '0.8rem',
+                                                        fontWeight: 900,
+                                                        color: '#facc15'
+                                                    }}>
+                                                        ⚽ {b.score}
+                                                    </span>
+                                                )}
+                                                {evalInfo.liveMatch?.minute && (
+                                                    <span style={{
+                                                        padding: '0.15rem 0.5rem',
+                                                        borderRadius: '4px',
+                                                        background: 'rgba(239, 68, 68, 0.15)',
+                                                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 800,
+                                                        color: '#f87171'
+                                                    }}>
+                                                        ⏱️ {evalInfo.liveMatch.minute}'
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Bet Market & Odds Box */}
+                                        <div style={{
+                                            padding: '0.8rem 1rem',
+                                            borderRadius: '10px',
+                                            background: 'rgba(0, 0, 0, 0.3)',
+                                            border: '1px solid rgba(255,255,255,0.06)',
+                                            marginBottom: '0.8rem',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                        }}>
+                                            <div>
+                                                <div style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 700, textTransform: 'uppercase' }}>
+                                                    {b.market || 'Bahis Pazarı'}
+                                                </div>
+                                                <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', marginTop: '0.1rem' }}>
+                                                    🎯 {b.outcome}
+                                                </div>
+                                            </div>
+
+                                            <div style={{
+                                                padding: '0.4rem 0.8rem',
+                                                borderRadius: '8px',
+                                                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(245, 158, 11, 0.15))',
+                                                border: '1px solid rgba(251, 191, 36, 0.4)',
+                                                color: '#fbbf24',
+                                                fontWeight: 900,
+                                                fontSize: '1.1rem'
+                                            }}>
+                                                {typeof b.odds === 'number' ? b.odds.toFixed(2) : b.odds}
+                                            </div>
+                                        </div>
+
+                                        {/* Public Bet Count & Heat Bar */}
+                                        <div style={{ marginBottom: '0.8rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', fontSize: '0.75rem' }}>
+                                                <span style={{ color: '#f87171', fontWeight: 800 }}>
+                                                    🔥 {b.count} {t.trending_bets_placed || 'kupon oynandı'}
+                                                </span>
+                                                <span style={{ opacity: 0.4, fontSize: '0.7rem' }}>
+                                                    {t.trending_last_5m || 'Son 5 dk'}
+                                                </span>
+                                            </div>
+                                            <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    width: `${heatPercent}%`,
+                                                    height: '100%',
+                                                    borderRadius: '3px',
+                                                    background: 'linear-gradient(90deg, #ef4444, #f97316)'
+                                                }} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Bottom AI Verification & Action */}
+                                    <div>
+                                        <div style={{
+                                            padding: '0.75rem',
+                                            borderRadius: '8px',
+                                            background: 'rgba(0,0,0,0.25)',
+                                            border: `1px solid ${evalInfo.borderColor}66`,
+                                            fontSize: '0.75rem',
+                                            lineHeight: 1.4,
+                                            color: '#cbd5e1',
+                                            marginBottom: evalInfo.liveMatch ? '0.8rem' : 0
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                                                <strong style={{ color: evalInfo.color, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                    {evalInfo.icon} AI DOĞRULAMA
+                                                </strong>
+                                                {evalInfo.dqs !== null && (
+                                                    <span style={{ fontWeight: 800, color: evalInfo.color, fontSize: '0.7rem' }}>
+                                                        DQS: %{(evalInfo.dqs * 100).toFixed(0)}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div>{evalInfo.desc}</div>
+                                        </div>
+
+                                        {evalInfo.liveMatch && (
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedMatch(evalInfo.liveMatch);
+                                                    setView('DASHBOARD');
+                                                }}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '0.6rem',
+                                                    borderRadius: '8px',
+                                                    border: '1px solid var(--accent-color)',
+                                                    background: 'rgba(56, 189, 248, 0.12)',
+                                                    color: 'var(--accent-color)',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 900,
+                                                    cursor: 'pointer',
+                                                    letterSpacing: '0.5px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '0.4rem',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                onMouseEnter={e => {
+                                                    e.currentTarget.style.background = 'var(--accent-color)';
+                                                    e.currentTarget.style.color = '#000';
+                                                }}
+                                                onMouseLeave={e => {
+                                                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                                                    e.currentTarget.style.color = 'var(--accent-color)';
+                                                }}
+                                            >
+                                                <span>⚡</span>
+                                                <span>{t.trending_inspect_radar || 'RADARDA İNCELE'}</span>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="dashboard-container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
 
@@ -1603,6 +2182,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {matches.length > 0 && <span className="tab-count-pill">{matches.length}</span>}
                         </button>
                         <button
+                            className={`unified-tab-btn trending ${view === 'TRENDING' ? 'active' : ''}`}
+                            onClick={() => setView('TRENDING')}
+                        >
+                            <span>🔥</span>
+                            <span>{t.trending_nav || (lang === 'tr' ? 'PİYASA TRENDLERİ' : 'MARKET TRENDS')}</span>
+                            {trendingBets.length > 0 && (
+                                <span
+                                    className="tab-count-pill"
+                                    style={{
+                                        background: view === 'TRENDING' ? 'rgba(0,0,0,0.3)' : 'rgba(239, 68, 68, 0.25)',
+                                        color: view === 'TRENDING' ? '#ffffff' : '#f87171',
+                                        border: view === 'TRENDING' ? 'none' : '1px solid rgba(239, 68, 68, 0.4)'
+                                    }}
+                                >
+                                    {trendingBets.length}
+                                </span>
+                            )}
+                        </button>
+                        <button
                             className={`unified-tab-btn ${view === 'RADAR' ? 'active' : ''}`}
                             onClick={() => setView('RADAR')}
                         >
@@ -1688,6 +2286,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             {view === 'PORTFOLIO' ? (
                 <RenderPortfolio />
+            ) : view === 'TRENDING' ? (
+                <RenderTrending />
             ) : view === 'ADMIN' ? (
                 <AdminPanel lang={lang} />
             ) : view === 'RADAR' ? (

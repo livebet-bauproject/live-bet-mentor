@@ -644,7 +644,32 @@ export const translations = {
         legal_section5_body: "VIP / Pro üyelik karşılığı ödenen bedeller; sunucu, yapay zeka işlem maliyeti ve \"Canlı Veri Analitik Yazılımı Kullanım Lisansı\" ücretidir. Bu bedel hiçbir şekilde bahis yatırımı veya getiri havuzu değildir.",
         badge_18_plus: "🔞 18+ Yasal Yaş Sınırı",
         badge_responsible: "🛡️ Sorumlu Analiz",
-        badge_statutory_compliance: "⚖️ 7258 Sayılı Kanun Uyumlu"
+        badge_statutory_compliance: "⚖️ 7258 Sayılı Kanun Uyumlu",
+
+        // Market Trends (Tipico Im Trend + DQS Cross-Reference)
+        trending_nav: "PİYASA TRENDLERİ",
+        trending_title: "PİYASA TRENDLERİ & HALK AKIŞI",
+        trending_subtitle: "Tipico Canlı Bahis Hacmi & LiveBet Mentor DQS Doğrulaması",
+        trending_live_feed: "CANLI TIPICO AKIŞI (5 DK)",
+        trending_filter_all: "TÜMÜ",
+        trending_filter_approved: "🟢 ONAYLI TREND",
+        trending_filter_trap: "🔴 TUZAK ALARMI",
+        trending_filter_tipico: "📊 PİYASA AKIŞI",
+        trending_search_placeholder: "Takım, lig veya bahis tipi ara...",
+        trending_last_5m: "Son 5 dk",
+        trending_bets_placed: "kupon oynandı",
+        trending_inspect_radar: "⚡ RADARDA İNCELE",
+        trending_smart_money_badge: "🟢 AKILLI PARA",
+        trending_trap_alert_badge: "🔴 TUZAK ALARMI",
+        trending_neutral_badge: "🟡 NÖTR / DİKKAT",
+        trending_influx_badge: "📊 PİYASA AKIŞI",
+        trending_empty: "Şu anda Tipico canlı bülteninde trend olan bahis bulunamadı.",
+        trending_no_results: "Seçili filtrelere uygun trend bahis bulunamadı.",
+        trending_refresh: "Yenile",
+        trending_total_tracked: "TOPLAM TREND",
+        trending_smart_money_count: "ONAYLI TREND",
+        trending_trap_count: "TUZAK UYARISI",
+        trending_direct_count: "CANLI AKIŞ"
     },
     en: {
         title: "LIVE BET MENTOR",
@@ -1277,6 +1302,31 @@ export const translations = {
         legal_section5_body: "Membership and VIP fees represent software licensing, computational infrastructure, and analytical server costs. They do not constitute betting stakes or investment pools.",
         badge_18_plus: "🔞 18+ Age Restriction",
         badge_responsible: "🛡️ Responsible Analytics",
-        badge_statutory_compliance: "⚖️ Strict Regulatory Compliance"
+        badge_statutory_compliance: "⚖️ Strict Regulatory Compliance",
+
+        // Market Trends (Tipico Im Trend + DQS Cross-Reference)
+        trending_nav: "MARKET TRENDS",
+        trending_title: "MARKET TRENDS & PUBLIC INFLUX",
+        trending_subtitle: "Tipico Live Bet Volume & LiveBet Mentor DQS AI Verification",
+        trending_live_feed: "LIVE TIPICO FEED (5 MIN)",
+        trending_filter_all: "ALL",
+        trending_filter_approved: "🟢 CONFIRMED TREND",
+        trending_filter_trap: "🔴 TRAP ALERT",
+        trending_filter_tipico: "📊 MARKET INFLUX",
+        trending_search_placeholder: "Search team, league or bet market...",
+        trending_last_5m: "Last 5 min",
+        trending_bets_placed: "bets placed",
+        trending_inspect_radar: "⚡ VIEW IN RADAR",
+        trending_smart_money_badge: "🟢 SMART MONEY",
+        trending_trap_alert_badge: "🔴 PUBLIC TRAP",
+        trending_neutral_badge: "🟡 NEUTRAL / WATCH",
+        trending_influx_badge: "📊 MARKET INFLUX",
+        trending_empty: "No trending bets currently available in Tipico live bulletin.",
+        trending_no_results: "No trending bets matching current filters.",
+        trending_refresh: "Refresh",
+        trending_total_tracked: "TOTAL TRENDS",
+        trending_smart_money_count: "CONFIRMED",
+        trending_trap_count: "TRAP ALERTS",
+        trending_direct_count: "LIVE INFLUX"
     }
 };
