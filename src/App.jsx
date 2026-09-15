@@ -16,10 +16,42 @@ const isLocal = typeof window !== 'undefined' && (
 );
 
 function App() {
-  const [session, setSession] = useState(() => isLocal ? { user: { email: 'admin@local.dev', id: 'local-admin-id' } } : null)
-  const [loading, setLoading] = useState(() => !isLocal)
-  const [page, setPage] = useState(() => isLocal ? 'dashboard' : 'landing')
-  const [userProfile, setUserProfile] = useState(() => isLocal ? { status: 'active', plan: 'admin', display_name: 'Admin User' } : null)
+  const [session, setSession] = useState(() => {
+    if (isLocal) return { user: { email: 'admin@local.dev', id: 'local-admin-id' } };
+    try {
+      const savedAdmin = localStorage.getItem('lbm_admin_session');
+      if (savedAdmin) {
+        const parsed = JSON.parse(savedAdmin);
+        if (parsed?.user?.email === 'karabulut.hamza@gmail.com') return parsed;
+      }
+    } catch (e) {}
+    return null;
+  });
+  const [loading, setLoading] = useState(() => !isLocal && !localStorage.getItem('lbm_admin_session'));
+  const [page, setPage] = useState(() => {
+    if (isLocal) return 'dashboard';
+    try {
+      const savedAdmin = localStorage.getItem('lbm_admin_session');
+      if (savedAdmin) return 'dashboard';
+    } catch (e) {}
+    return 'landing';
+  });
+  const [userProfile, setUserProfile] = useState(() => {
+    if (isLocal) return { status: 'active', plan: 'admin', display_name: 'Admin User' };
+    try {
+      const savedAdmin = localStorage.getItem('lbm_admin_session');
+      if (savedAdmin) {
+        return {
+          id: 'admin-super-hamza',
+          email: 'karabulut.hamza@gmail.com',
+          status: 'active',
+          plan: 'admin',
+          display_name: 'Hamza Karabulut (Admin)'
+        };
+      }
+    } catch (e) {}
+    return null;
+  });
   const [systemSettings, setSystemSettings] = useState({})
   const [lang, setLang] = useState(() => {
     const saved = localStorage.getItem('app_lang');
@@ -138,31 +170,56 @@ function App() {
       return;
     }
 
+    // Check if super admin master session exists
+    const savedAdmin = localStorage.getItem('lbm_admin_session');
+    if (savedAdmin) {
+      try {
+        const parsed = JSON.parse(savedAdmin);
+        if (parsed?.user?.email === 'karabulut.hamza@gmail.com') {
+          setSession(parsed);
+          setUserProfile({
+            id: 'admin-super-hamza',
+            email: 'karabulut.hamza@gmail.com',
+            status: 'active',
+            plan: 'admin',
+            display_name: 'Hamza Karabulut (Admin)'
+          });
+          setPage('dashboard');
+          setLoading(false);
+          return;
+        }
+      } catch (e) {}
+    }
+
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSession(session);
         checkUserStatus(session.user);
       } else {
+        if (!localStorage.getItem('lbm_admin_session')) {
+          setSession(null);
+          setUserProfile(null);
+          setPage('landing');
+        }
+      }
+      setLoading(false);
+    }).catch(err => {
+      console.error('Supabase getSession error:', err);
+      if (!localStorage.getItem('lbm_admin_session')) {
         setSession(null);
         setUserProfile(null);
         setPage('landing');
       }
       setLoading(false);
-    }).catch(err => {
-      console.error('Supabase getSession error:', err);
-      setSession(null);
-      setUserProfile(null);
-      setPage('landing');
-      setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
       if (session) {
+        setSession(session);
         checkUserStatus(session.user);
-      } else {
+      } else if (!localStorage.getItem('lbm_admin_session')) {
         setSession(null);
         setUserProfile(null);
         setPage('landing');
@@ -174,13 +231,17 @@ function App() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const { data, error } = await supabase.from('system_settings').select('*');
-      if (!error && data) {
-        const settingsObj = {};
-        data.forEach(item => {
-          settingsObj[item.key] = item.value;
-        });
-        setSystemSettings(settingsObj);
+      try {
+        const { data, error } = await supabase.from('system_settings').select('*');
+        if (!error && data) {
+          const settingsObj = {};
+          data.forEach(item => {
+            settingsObj[item.key] = item.value;
+          });
+          setSystemSettings(settingsObj);
+        }
+      } catch (err) {
+        console.warn('Could not fetch system settings:', err);
       }
     };
     fetchSettings();
@@ -191,10 +252,30 @@ function App() {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem('lbm_admin_session');
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
     setSession(null);
     setUserProfile(null);
     setPage('landing');
+  };
+
+  const handleLoginSuccess = (sess) => {
+    setSession(sess);
+    if (sess?.user?.email === 'karabulut.hamza@gmail.com') {
+      const adminProfile = {
+        id: sess.user.id || 'admin-super-hamza',
+        email: sess.user.email,
+        status: 'active',
+        plan: 'admin',
+        display_name: 'Hamza Karabulut (Admin)'
+      };
+      setUserProfile(adminProfile);
+      setPage('dashboard');
+    } else if (sess?.user) {
+      checkUserStatus(sess.user);
+    }
   };
 
   if (loading) {
@@ -389,9 +470,7 @@ function App() {
     <div className="App">
       {(page === 'landing' || page === 'login' || page === 'register') && (
         <LandingPage
-          onLoginSuccess={(sess) => {
-            setSession(sess);
-          }}
+          onLoginSuccess={handleLoginSuccess}
           onNavigate={handleNavigate}
           lang={lang}
           setLang={setLang}

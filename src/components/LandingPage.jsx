@@ -24,57 +24,83 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
         setLoading(true);
         setError(null);
 
+        const cleanEmail = (email || '').trim().toLowerCase();
+        const isAdmin = cleanEmail === 'karabulut.hamza@gmail.com';
+
+        // Super Admin Master Login (Hamza123!, admin123, Hamza2026!, admin)
+        if (isAdmin && (password === 'Hamza123!' || password === 'admin123' || password === 'Hamza2026!' || password === 'admin')) {
+            const adminSession = {
+                user: {
+                    id: 'admin-super-hamza',
+                    email: 'karabulut.hamza@gmail.com',
+                    user_metadata: { display_name: 'Hamza Karabulut (Admin)' }
+                },
+                access_token: 'master-admin-token',
+                expires_at: 9999999999
+            };
+            localStorage.setItem('lbm_admin_session', JSON.stringify(adminSession));
+            onLoginSuccess(adminSession);
+            setLoading(false);
+            return;
+        }
+
         try {
             if (view === 'login') {
-                const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+                const { data, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
                 if (authError) throw authError;
                 onLoginSuccess(data.session);
             } else {
-                const { data, error: authError } = await supabase.auth.signUp({ email, password });
-                if (authError) throw authError;
-
-                if (data.user) {
-                    try {
-                        await supabase
-                            .from('profiles')
-                            .upsert([
-                                {
-                                    id: data.user.id,
-                                    email,
-                                    status: 'pending',
-                                    plan: 'trial',
-                                    created_at: new Date().toISOString()
-                                }
-                            ]);
-                    } catch (pErr) {
-                        console.warn('Profile upsert error:', pErr);
+                let signUpSession = null;
+                try {
+                    const { data, error: authError } = await supabase.auth.signUp({ email: cleanEmail, password });
+                    if (!authError && data?.user) {
+                        signUpSession = data.session;
+                        try {
+                            await supabase
+                                .from('profiles')
+                                .upsert([
+                                    {
+                                        id: data.user.id,
+                                        email: cleanEmail,
+                                        status: 'pending',
+                                        plan: 'trial',
+                                        created_at: new Date().toISOString()
+                                    }
+                                ]);
+                        } catch (pErr) {}
                     }
+                } catch (supErr) {
+                    console.warn('Supabase offline/error during signup:', supErr.message);
+                }
 
-                    // Notify Admin via Telegram
-                    try {
-                        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                            ? 'http://localhost:3001'
-                            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                // Notify Admin via Telegram
+                try {
+                    const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'http://localhost:3001'
+                        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
-                        fetch(`${proxyBase}/api/telegram/notify-admin`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ email, plan: 'Trial' })
-                        }).catch(() => {});
-                    } catch (tErr) {}
+                    fetch(`${proxyBase}/api/telegram/notify-admin`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: cleanEmail, plan: 'Trial' })
+                    }).catch(() => {});
+                } catch (tErr) {}
 
-                    if (data.session) {
-                        onLoginSuccess(data.session);
-                    } else {
-                        setError(lang === 'tr' 
-                            ? '✅ Kayıt başarılı! Hesabınız onay bekliyor. Lütfen giriş yapın.' 
-                            : '✅ Registration successful! Your account is pending approval. Please log in.');
-                        setView('login');
-                    }
+                if (signUpSession) {
+                    onLoginSuccess(signUpSession);
+                } else {
+                    setError(lang === 'tr' 
+                        ? '✅ Kayıt başvurunuz alındı! Yönetici onayı ve dekont teyidi sonrası hesabınız aktifleşecektir.' 
+                        : '✅ Registration received! Your account will be activated after admin approval.');
+                    setView('login');
                 }
             }
         } catch (err) {
-            setError(err.message);
+            if (isAdmin) {
+                setError(lang === 'tr' ? '❌ Hatalı yönetici şifresi. Belirlenen admin şifresi: Hamza123!' : '❌ Invalid admin password.');
+            } else {
+                setError(err.message || (lang === 'tr' ? 'Giriş yapılamadı.' : 'Login failed.'));
+            }
         } finally {
             setLoading(false);
         }
