@@ -486,10 +486,36 @@ class ConsensusScraper:
                         if "%" in t:
                             pct = t.replace("%", "").strip()
                             break
-                    tip_title = row.find("b")
-                    pred = "1"
-                    if tip_title and "away" in tip_title.get_text().lower(): pred = "2"
-                    elif tip_title and "draw" in tip_title.get_text().lower(): pred = "X"
+                    
+                    # OLBG tip selection is in div.sel
+                    sel_el = row.find("div", class_="sel")
+                    sel_tag = sel_el.find(["h4", "a"]) if sel_el else None
+                    sel_val = sel_tag.get_text(strip=True) if sel_tag else (sel_el.get_text(strip=True) if sel_el else "")
+
+                    pred = "N/A"
+                    s = sel_val.lower().strip()
+                    h = home.lower().strip()
+                    a = away.lower().strip()
+
+                    if "draw" in s or "tie" in s or "berabere" in s:
+                        pred = "X"
+                    elif h in s or s in h:
+                        pred = "1"
+                    elif a in s or s in a:
+                        pred = "2"
+                    else:
+                        s_tokens = set(s.split())
+                        h_tokens = set(h.split())
+                        a_tokens = set(a.split())
+                        h_overlap = len(s_tokens & h_tokens)
+                        a_overlap = len(s_tokens & a_tokens)
+                        if h_overlap > a_overlap:
+                            pred = "1"
+                        elif a_overlap > h_overlap:
+                            pred = "2"
+                        else:
+                            pred = "1"
+
                     preds.append({
                         "home": home, "away": away, "date": datetime.now().strftime("%d.%m"),
                         "score_pred": "N/A", "markets": {"1X2": {"pred": pred, "prob": pct}},

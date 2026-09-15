@@ -1,22 +1,22 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-09-13T21:15:56.238Z",
+  "lastUpdated": "2026-09-15T00:58:47.972Z",
   "stats": {
-    "totalLearned": 27,
-    "totalWon": 22,
+    "totalLearned": 36,
+    "totalWon": 31,
     "totalLost": 5,
-    "globalWinRate": 81.5
+    "globalWinRate": 86.1
   },
   "leagues": {
     "GENEL": {
-      "total": 27,
-      "won": 22,
+      "total": 36,
+      "won": 31,
       "lost": 5,
-      "winRate": 81.5,
-      "multiplier": 1.12,
+      "winRate": 86.1,
+      "multiplier": 1.14,
       "quarantined": false,
       "quarantinedUntil": null,
-      "lastEvaluated": "2026-09-13T21:15:56.237Z"
+      "lastEvaluated": "2026-09-15T00:58:47.972Z"
     }
   },
   "markets": {
@@ -61,6 +61,13 @@
       "lost": 0,
       "winRate": 100,
       "multiplier": 1.04
+    },
+    "OVER_GOALS": {
+      "total": 9,
+      "won": 9,
+      "lost": 0,
+      "winRate": 100,
+      "multiplier": 1.14
     }
   },
   "minuteWindows": {
@@ -72,11 +79,11 @@
       "multiplier": 1
     },
     "31-45": {
-      "total": 27,
-      "won": 22,
+      "total": 36,
+      "won": 31,
       "lost": 5,
-      "winRate": 81.5,
-      "multiplier": 1.07
+      "winRate": 86.1,
+      "multiplier": 1.09
     },
     "46-60": {
       "total": 0,

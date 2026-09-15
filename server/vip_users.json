@@ -1,1 +1,9 @@
-{}
+{
+  "99999999": {
+    "chatId": "99999999",
+    "username": "User",
+    "plan": "NONE",
+    "status": "INACTIVE",
+    "lang": "en"
+  }
+}

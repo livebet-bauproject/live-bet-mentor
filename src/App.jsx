@@ -24,15 +24,28 @@ function App() {
         const parsed = JSON.parse(savedAdmin);
         if (parsed?.user?.email === 'karabulut.hamza@gmail.com') return parsed;
       }
+      const savedMember = localStorage.getItem('lbm_member_session');
+      if (savedMember) {
+        const parsed = JSON.parse(savedMember);
+        if (parsed?.user) return parsed;
+      }
     } catch (e) {}
     return null;
   });
-  const [loading, setLoading] = useState(() => !isLocal && !localStorage.getItem('lbm_admin_session'));
+  const [loading, setLoading] = useState(() => !isLocal && !localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session'));
   const [page, setPage] = useState(() => {
     if (isLocal) return 'dashboard';
     try {
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) return 'dashboard';
+      const savedMember = localStorage.getItem('lbm_member_session');
+      if (savedMember) {
+        const parsed = JSON.parse(savedMember);
+        const prof = parsed.memberProfile || parsed.user;
+        if (prof?.status === 'pending') return 'pending';
+        if (prof?.subscription_end && new Date(prof.subscription_end) < new Date()) return 'expired';
+        return 'dashboard';
+      }
     } catch (e) {}
     return 'landing';
   });
@@ -48,6 +61,19 @@ function App() {
           plan: 'admin',
           display_name: 'Hamza Karabulut (Admin)',
           subscription_end: '2099-12-31T23:59:59.000Z'
+        };
+      }
+      const savedMember = localStorage.getItem('lbm_member_session');
+      if (savedMember) {
+        const parsed = JSON.parse(savedMember);
+        const prof = parsed.memberProfile || parsed.user;
+        return {
+          id: parsed.user?.id,
+          email: parsed.user?.email,
+          status: prof?.status || 'approved',
+          plan: prof?.plan || 'trial',
+          display_name: parsed.user?.user_metadata?.display_name || prof?.full_name || parsed.user?.email?.split('@')[0],
+          subscription_end: prof?.subscription_end
         };
       }
     } catch (e) {}
@@ -73,6 +99,36 @@ function App() {
       }
 
       const isAdminEmail = user.email === 'karabulut.hamza@gmail.com';
+
+      // If user is a web member with a saved session, restore member profile without querying Supabase
+      const savedMember = localStorage.getItem('lbm_member_session');
+      if (savedMember) {
+        try {
+          const parsed = JSON.parse(savedMember);
+          if (parsed?.user?.email === user.email || parsed?.user?.id === user.id) {
+            const prof = parsed.memberProfile || parsed.user;
+            const isApproved = prof?.status === 'approved' || prof?.status === 'active';
+            const isExpired = prof?.subscription_end && new Date(prof.subscription_end) < new Date();
+            const memProfile = {
+              id: parsed.user.id,
+              email: parsed.user.email,
+              status: prof?.status || 'approved',
+              plan: prof?.plan || 'trial',
+              display_name: parsed.user.user_metadata?.display_name || prof?.full_name || parsed.user.email?.split('@')[0],
+              subscription_end: prof?.subscription_end
+            };
+            setUserProfile(memProfile);
+            if (!isApproved) {
+              setPage('pending');
+            } else if (isExpired) {
+              setPage('expired');
+            } else {
+              setPage('dashboard');
+            }
+            return memProfile;
+          }
+        } catch (e) {}
+      }
 
       try {
         const { data, error } = await supabase
@@ -185,9 +241,43 @@ function App() {
             email: 'karabulut.hamza@gmail.com',
             status: 'active',
             plan: 'admin',
-            display_name: 'Hamza Karabulut (Admin)'
+            display_name: 'Hamza Karabulut (Admin)',
+            subscription_end: '2099-12-31T23:59:59.000Z'
           });
           setPage('dashboard');
+          setLoading(false);
+          return;
+        }
+      } catch (e) {}
+    }
+
+    // Check if web member session exists
+    const savedMember = localStorage.getItem('lbm_member_session');
+    if (savedMember) {
+      try {
+        const parsed = JSON.parse(savedMember);
+        if (parsed?.user) {
+          const prof = parsed.memberProfile || parsed.user;
+          const isExpired = prof.subscription_end && new Date(prof.subscription_end) < new Date();
+          const isApproved = prof.status === 'approved' || prof.status === 'active';
+
+          setSession(parsed);
+          setUserProfile({
+            id: parsed.user.id,
+            email: parsed.user.email,
+            status: prof.status || 'approved',
+            plan: prof.plan || 'trial',
+            display_name: parsed.user.user_metadata?.display_name || prof.full_name || parsed.user.email?.split('@')[0],
+            subscription_end: prof.subscription_end
+          });
+
+          if (!isApproved) {
+            setPage('pending');
+          } else if (isExpired) {
+            setPage('expired');
+          } else {
+            setPage('dashboard');
+          }
           setLoading(false);
           return;
         }
@@ -200,7 +290,7 @@ function App() {
         setSession(session);
         checkUserStatus(session.user);
       } else {
-        if (!localStorage.getItem('lbm_admin_session')) {
+        if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session')) {
           setSession(null);
           setUserProfile(null);
           setPage('landing');
@@ -208,8 +298,8 @@ function App() {
       }
       setLoading(false);
     }).catch(err => {
-      console.error('Supabase getSession error:', err);
-      if (!localStorage.getItem('lbm_admin_session')) {
+      console.warn('Supabase getSession error (offline/bypassed):', err?.message || err);
+      if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session')) {
         setSession(null);
         setUserProfile(null);
         setPage('landing');
@@ -222,7 +312,7 @@ function App() {
       if (session) {
         setSession(session);
         checkUserStatus(session.user);
-      } else if (!localStorage.getItem('lbm_admin_session')) {
+      } else if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session')) {
         setSession(null);
         setUserProfile(null);
         setPage('landing');
@@ -256,6 +346,7 @@ function App() {
 
   const handleLogout = async () => {
     localStorage.removeItem('lbm_admin_session');
+    localStorage.removeItem('lbm_member_session');
     try {
       await supabase.auth.signOut();
     } catch (e) {}
@@ -277,6 +368,24 @@ function App() {
       };
       setUserProfile(adminProfile);
       setPage('dashboard');
+    } else if (sess?.access_token?.startsWith('member-token-') || sess?.memberProfile) {
+      const prof = sess.memberProfile || sess.user;
+      const memProfile = {
+        id: sess.user.id,
+        email: sess.user.email,
+        status: prof.status || 'approved',
+        plan: prof.plan || 'trial',
+        display_name: sess.user.user_metadata?.display_name || prof.full_name || sess.user.email?.split('@')[0],
+        subscription_end: prof.subscription_end
+      };
+      setUserProfile(memProfile);
+      if (prof.status === 'pending') {
+        setPage('pending');
+      } else if (prof.subscription_end && new Date(prof.subscription_end) < new Date()) {
+        setPage('expired');
+      } else {
+        setPage('dashboard');
+      }
     } else if (sess?.user) {
       checkUserStatus(sess.user);
     }

@@ -1,497 +1,443 @@
 {
   "dailyStats": {
-    "won": 22,
-    "lost": 5,
-    "pending": 0,
-    "total": 27,
+    "won": 9,
+    "lost": 0,
+    "pending": 7,
+    "total": 16,
     "signals": [
       {
-        "id": "sig_today_1",
-        "matchId": "16310951",
-        "homeTeam": "Lille",
-        "awayTeam": "Troyes",
-        "match": "Lille vs Troyes",
-        "level": "SICAK",
-        "time": "2026-09-13T13:03:14.088Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "WON",
-        "resultScore": "1-0",
-        "resolvedAt": "2026-09-13T20:42:44.665Z"
-      },
-      {
-        "id": "sig_today_2",
-        "matchId": "16361919",
-        "homeTeam": "Club Brugge KV",
-        "awayTeam": "Royal Antwerp FC",
-        "match": "Club Brugge KV vs Royal Antwerp FC",
-        "level": "SICAK",
-        "time": "2026-09-13T13:05:15.250Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "WON",
-        "resultScore": "3-1",
-        "resolvedAt": "2026-09-13T20:42:44.667Z"
-      },
-      {
-        "id": "sig_today_3",
-        "matchId": "16285014",
-        "homeTeam": "Lecce",
-        "awayTeam": "Monza",
-        "match": "Lecce vs Monza",
-        "level": "SICAK",
-        "time": "2026-09-13T13:08:00.163Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "WON",
-        "resultScore": "3-1",
-        "resolvedAt": "2026-09-13T20:42:44.667Z"
-      },
-      {
-        "id": "sig_today_4",
-        "matchId": "16416347",
-        "homeTeam": "Celta Vigo",
-        "awayTeam": "Málaga CF",
-        "match": "Celta Vigo vs Málaga CF",
-        "level": "SICAK",
-        "time": "2026-09-13T13:16:54.360Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "WON",
-        "resultScore": "1-1",
-        "resolvedAt": "2026-09-13T20:42:44.667Z"
-      },
-      {
-        "id": "sig_today_5",
-        "matchId": "16416347",
-        "homeTeam": "Celta Vigo",
-        "awayTeam": "Málaga CF",
-        "match": "Celta Vigo vs Málaga CF",
-        "level": "SICAK",
-        "time": "2026-09-13T13:27:04.246Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "WON",
-        "resultScore": "1-1",
-        "resolvedAt": "2026-09-13T20:42:44.668Z"
-      },
-      {
-        "id": "sig_today_6",
-        "matchId": "16416347",
-        "homeTeam": "Celta Vigo",
-        "awayTeam": "Málaga CF",
-        "match": "Celta Vigo vs Málaga CF",
-        "level": "SICAK",
-        "time": "2026-09-13T13:32:06.972Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "WON",
-        "resultScore": "1-1",
-        "resolvedAt": "2026-09-13T20:42:44.668Z"
-      },
-      {
-        "id": "sig_today_7",
-        "matchId": "16692876",
-        "homeTeam": "Birmingham City W.F.C.",
-        "awayTeam": "Brighton",
-        "match": "Birmingham City W.F.C. vs Brighton",
-        "level": "SICAK",
-        "time": "2026-09-13T13:39:34.225Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "WON",
-        "resultScore": "2-2",
-        "resolvedAt": "2026-09-13T20:42:44.668Z"
-      },
-      {
-        "id": "sig_today_8",
-        "matchId": "16363642",
-        "homeTeam": "Coventry City",
-        "awayTeam": "Brighton & Hove Albion",
-        "match": "Coventry City vs Brighton & Hove Albion",
-        "level": "SICAK",
-        "time": "2026-09-13T13:42:01.144Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_home",
-        "recommendation": {
-          "marketLabel": "market_next_goal_home"
-        },
-        "status": "LOST",
-        "resultScore": "0-5",
-        "resolvedAt": "2026-09-13T20:42:44.669Z"
-      },
-      {
-        "id": "sig_today_9",
-        "matchId": "16697455",
-        "homeTeam": "Nottingham Forest",
-        "awayTeam": "Watford FC Women",
-        "match": "Nottingham Forest vs Watford FC Women",
-        "level": "SICAK",
-        "time": "2026-09-13T13:44:08.801Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "market_next_goal_away",
-        "recommendation": {
-          "marketLabel": "market_next_goal_away"
-        },
-        "status": "WON",
-        "resultScore": "2-2",
-        "resolvedAt": "2026-09-13T20:42:44.669Z"
-      },
-      {
-        "id": "sig_today_10",
-        "matchId": "16692876",
-        "homeTeam": "Birmingham City W.F.C.",
-        "awayTeam": "Brighton",
-        "match": "Birmingham City W.F.C. vs Brighton",
-        "level": "SICAK",
-        "time": "2026-09-13T13:55:31.514Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "COMEBACK",
-        "recommendation": {
-          "marketLabel": "COMEBACK"
-        },
-        "status": "WON",
-        "resultScore": "2-2",
-        "resolvedAt": "2026-09-13T20:42:44.669Z"
-      },
-      {
-        "id": "sig_today_11",
-        "matchId": "16697455",
-        "homeTeam": "Nottingham Forest",
-        "awayTeam": "Watford FC Women",
-        "match": "Nottingham Forest vs Watford FC Women",
-        "level": "SICAK",
-        "time": "2026-09-13T13:56:09.168Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "PRESS",
-        "recommendation": {
-          "marketLabel": "PRESS"
-        },
-        "status": "WON",
-        "resultScore": "2-2",
-        "resolvedAt": "2026-09-13T20:42:44.669Z"
-      },
-      {
-        "id": "sig_today_12",
-        "matchId": "16363642",
-        "homeTeam": "Coventry City",
-        "awayTeam": "Brighton & Hove Albion",
-        "match": "Coventry City vs Brighton & Hove Albion",
-        "level": "SICAK",
-        "time": "2026-09-13T14:05:57.216Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Geri Dönüş: Sıradaki Golü Coventry City Atar (Oran: 1.8)",
-        "recommendation": {
-          "marketLabel": "Geri Dönüş: Sıradaki Golü Coventry City Atar (Oran: 1.8)"
-        },
-        "status": "LOST",
-        "resultScore": "0-5",
-        "resolvedAt": "2026-09-13T20:42:44.670Z"
-      },
-      {
-        "id": "sig_today_13",
-        "matchId": "16697587",
-        "homeTeam": "Southampton FC Women",
-        "awayTeam": "Ipswich Town Women",
-        "match": "Southampton FC Women vs Ipswich Town Women",
-        "level": "SICAK",
-        "time": "2026-09-13T14:06:47.650Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "STAT DOMİNASYONU (Oran: 1.8)",
-        "recommendation": {
-          "marketLabel": "STAT DOMİNASYONU (Oran: 1.8)"
-        },
-        "status": "LOST",
-        "resultScore": "0-0",
-        "resolvedAt": "2026-09-13T20:42:44.670Z"
-      },
-      {
-        "id": "sig_today_14",
-        "matchId": "16453827",
-        "homeTeam": "FC Zlín",
-        "awayTeam": "FC Hradec Králové",
-        "match": "FC Zlín vs FC Hradec Králové",
-        "level": "SICAK",
-        "time": "2026-09-13T14:07:25.231Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Karşılıklı Gol Var (KG Var) (Oran: 1.8)",
-        "recommendation": {
-          "marketLabel": "Karşılıklı Gol Var (KG Var) (Oran: 1.8)"
-        },
-        "status": "WON",
-        "resultScore": "1-2",
-        "resolvedAt": "2026-09-13T20:42:44.670Z"
-      },
-      {
-        "id": "sig_today_15",
-        "matchId": "16671435",
-        "homeTeam": "Milford FC",
-        "awayTeam": "Richards Bay FC",
-        "match": "Milford FC vs Richards Bay FC",
-        "level": "SICAK",
-        "time": "2026-09-13T14:11:35.719Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "STAT DOMİNASYONU (Oran: 1.8)",
-        "recommendation": {
-          "marketLabel": "STAT DOMİNASYONU (Oran: 1.8)"
-        },
-        "status": "WON",
-        "resultScore": "5-0",
-        "resolvedAt": "2026-09-13T20:42:44.670Z"
-      },
-      {
-        "id": "sig_today_16",
-        "matchId": "16692876",
-        "homeTeam": "Birmingham City W.F.C.",
-        "awayTeam": "Brighton",
-        "match": "Birmingham City W.F.C. vs Brighton",
+        "id": "sig_16364242_45",
+        "matchId": "16364242",
+        "homeTeam": "Hapoel Ironi Kiryat Shmona",
+        "awayTeam": "Maccabi Haifa",
+        "match": "Hapoel Ironi Kiryat Shmona vs Maccabi Haifa",
         "level": "ALEV",
-        "time": "2026-09-13T14:11:35.736Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Geri Dönüş: Sıradaki Golü Brighton Atar (Oran: 1.8)",
+        "time": "2026-09-14T17:48:38.055Z",
+        "scoreAtPrediction": "0-1",
+        "minute": 45,
+        "market": "Over 2.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
         "recommendation": {
-          "marketLabel": "Geri Dönüş: Sıradaki Golü Brighton Atar (Oran: 1.8)"
+          "predictionText": "Over 2.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 2.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 5 shots on target",
+            "Severe box penetration (17 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
         },
         "status": "WON",
-        "resultScore": "2-2",
-        "resolvedAt": "2026-09-13T20:42:44.671Z"
+        "resultScore": "0-3",
+        "resolvedAt": "2026-09-14T18:43:51.389Z"
       },
       {
-        "id": "sig_today_17",
-        "matchId": "16453830",
-        "homeTeam": "FC Viktoria Plzeň",
-        "awayTeam": "SK Sigma Olomouc",
-        "match": "FC Viktoria Plzeň vs SK Sigma Olomouc",
-        "level": "SICAK",
-        "time": "2026-09-13T14:13:16.214Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "STAT DOMİNASYONU (Oran: 1.8)",
+        "id": "sig_16326457_45",
+        "matchId": "16326457",
+        "homeTeam": "FK Zemun",
+        "awayTeam": "FK Radnik Surdulica",
+        "match": "FK Zemun vs FK Radnik Surdulica",
+        "level": "ALPHA",
+        "time": "2026-09-14T17:54:03.130Z",
+        "scoreAtPrediction": "1-0",
+        "minute": 45,
+        "market": "Next Goal: FK Radnik Surdulica (Odds: 1.82) (Odds: 1.82)",
         "recommendation": {
-          "marketLabel": "STAT DOMİNASYONU (Oran: 1.8)"
+          "predictionText": "Next Goal: FK Radnik Surdulica (Odds: 1.82)",
+          "marketKey": "market_next_goal_away",
+          "marketLabel": "Next Goal: FK Radnik Surdulica",
+          "odds": 1.82,
+          "confidence": 85,
+          "reasoning": [
+            "High away dominance by FK Radnik Surdulica (62% possession)",
+            "Continuous penalty area infiltration (23 touches in box)",
+            "Defensive breakdown forced (5 vs 0 on target)"
+          ]
         },
-        "status": "WON",
-        "resultScore": "2-3",
-        "resolvedAt": "2026-09-13T20:42:44.671Z"
+        "status": "PENDING",
+        "resultScore": null,
+        "resolvedAt": null
       },
       {
-        "id": "sig_today_18",
-        "matchId": "16697455",
-        "homeTeam": "Nottingham Forest",
-        "awayTeam": "Watford FC Women",
-        "match": "Nottingham Forest vs Watford FC Women",
-        "level": "SICAK",
-        "time": "2026-09-13T14:22:48.015Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü Nottingham Forest Atar (Oran: 1.8)",
+        "id": "sig_16317007_45",
+        "matchId": "16317007",
+        "homeTeam": "Radomiak Radom",
+        "awayTeam": "Piast Gliwice",
+        "match": "Radomiak Radom vs Piast Gliwice",
+        "level": "ALPHA",
+        "time": "2026-09-14T17:56:49.609Z",
+        "scoreAtPrediction": "0-1",
+        "minute": 45,
+        "market": "Over 2.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
         "recommendation": {
-          "marketLabel": "Sıradaki Golü Nottingham Forest Atar (Oran: 1.8)"
+          "predictionText": "Over 2.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 2.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 9 shots on target",
+            "Severe box penetration (36 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
         },
-        "status": "WON",
-        "resultScore": "2-2",
-        "resolvedAt": "2026-09-13T20:42:44.671Z"
+        "status": "PENDING",
+        "resultScore": null,
+        "resolvedAt": null
       },
       {
-        "id": "sig_today_19",
-        "matchId": "16285014",
-        "homeTeam": "Lecce",
-        "awayTeam": "Monza",
-        "match": "Lecce vs Monza",
-        "level": "SICAK",
-        "time": "2026-09-13T14:25:33.368Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü Monza Atar (Oran: 1.8)",
+        "id": "sig_15272526_45",
+        "matchId": "15272526",
+        "homeTeam": "IK Sirius",
+        "awayTeam": "Degerfors IF",
+        "match": "IK Sirius vs Degerfors IF",
+        "level": "ALPHA",
+        "time": "2026-09-14T18:09:59.818Z",
+        "scoreAtPrediction": "2-0",
+        "minute": 45,
+        "market": "Over 3.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
         "recommendation": {
-          "marketLabel": "Sıradaki Golü Monza Atar (Oran: 1.8)"
+          "predictionText": "Over 3.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 3.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 7 shots on target",
+            "Severe box penetration (26 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
         },
-        "status": "WON",
-        "resultScore": "3-1",
-        "resolvedAt": "2026-09-13T20:42:44.671Z"
+        "status": "PENDING",
+        "resultScore": null,
+        "resolvedAt": null
       },
       {
-        "id": "sig_today_20",
-        "matchId": "16416329",
-        "homeTeam": "Levante UD",
-        "awayTeam": "FC Barcelona",
-        "match": "Levante UD vs FC Barcelona",
-        "level": "SICAK",
-        "time": "2026-09-13T14:35:25.154Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü Levante UD Atar (Oran: 1.8)",
+        "id": "sig_15272526_45",
+        "matchId": "15272526",
+        "homeTeam": "IK Sirius",
+        "awayTeam": "Degerfors IF",
+        "match": "IK Sirius vs Degerfors IF",
+        "level": "ALPHA",
+        "time": "2026-09-14T18:43:26.135Z",
+        "scoreAtPrediction": "2-0",
+        "minute": 45,
+        "market": "Over 3.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
         "recommendation": {
-          "marketLabel": "Sıradaki Golü Levante UD Atar (Oran: 1.8)"
+          "predictionText": "Over 3.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 3.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 8 shots on target",
+            "Severe box penetration (27 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
         },
-        "status": "WON",
-        "resultScore": "1-3",
-        "resolvedAt": "2026-09-13T20:42:44.671Z"
+        "status": "PENDING",
+        "resultScore": null,
+        "resolvedAt": null
       },
       {
-        "id": "sig_today_21",
-        "matchId": "16692874",
-        "homeTeam": "Arsenal",
-        "awayTeam": "Crystal Palace",
-        "match": "Arsenal vs Crystal Palace",
-        "level": "SICAK",
-        "time": "2026-09-13T14:51:41.947Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü Arsenal Atar",
-        "recommendation": {
-          "marketLabel": "Sıradaki Golü Arsenal Atar"
-        },
-        "status": "LOST",
-        "resultScore": "0-0",
-        "resolvedAt": "2026-09-13T20:42:44.672Z"
-      },
-      {
-        "id": "sig_today_22",
-        "matchId": "16357093",
-        "homeTeam": "FC Lausanne-Sport",
-        "awayTeam": "Servette FC",
-        "match": "FC Lausanne-Sport vs Servette FC",
-        "level": "SICAK",
-        "time": "2026-09-13T14:52:10.524Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü FC Lausanne-Sport Atar",
-        "recommendation": {
-          "marketLabel": "Sıradaki Golü FC Lausanne-Sport Atar"
-        },
-        "status": "LOST",
-        "resultScore": "0-1",
-        "resolvedAt": "2026-09-13T20:42:44.672Z"
-      },
-      {
-        "id": "sig_today_23",
-        "matchId": "16434043",
-        "homeTeam": "RB Leipzig",
-        "awayTeam": "Hamburger SV",
-        "match": "RB Leipzig vs Hamburger SV",
-        "level": "SICAK",
-        "time": "2026-09-13T15:03:03.599Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "RB Leipzig Kazanmaya Yakın",
-        "recommendation": {
-          "marketLabel": "RB Leipzig Kazanmaya Yakın"
-        },
-        "status": "WON",
-        "resultScore": "5-0",
-        "resolvedAt": "2026-09-13T20:42:44.672Z"
-      },
-      {
-        "id": "sig_today_24",
-        "matchId": "16567715",
-        "homeTeam": "Eintracht Frankfurt",
-        "awayTeam": "TSG Hoffenheim",
-        "match": "Eintracht Frankfurt vs TSG Hoffenheim",
-        "level": "SICAK",
-        "time": "2026-09-13T15:09:00.430Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü Eintracht Frankfurt Atar",
-        "recommendation": {
-          "marketLabel": "Sıradaki Golü Eintracht Frankfurt Atar"
-        },
-        "status": "WON",
-        "resultScore": "1-1",
-        "resolvedAt": "2026-09-13T20:42:44.673Z"
-      },
-      {
-        "id": "sig_today_25",
-        "matchId": "16567715",
-        "homeTeam": "Eintracht Frankfurt",
-        "awayTeam": "TSG Hoffenheim",
-        "match": "Eintracht Frankfurt vs TSG Hoffenheim",
-        "level": "SICAK",
-        "time": "2026-09-13T15:21:02.965Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü Eintracht Frankfurt Atar",
-        "recommendation": {
-          "marketLabel": "Sıradaki Golü Eintracht Frankfurt Atar"
-        },
-        "status": "WON",
-        "resultScore": "1-1",
-        "resolvedAt": "2026-09-13T20:42:44.673Z"
-      },
-      {
-        "id": "sig_today_26",
-        "matchId": "16416329",
-        "homeTeam": "Levante UD",
-        "awayTeam": "FC Barcelona",
-        "match": "Levante UD vs FC Barcelona",
-        "level": "SICAK",
-        "time": "2026-09-13T15:39:31.792Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü FC Barcelona Atar",
-        "recommendation": {
-          "marketLabel": "Sıradaki Golü FC Barcelona Atar"
-        },
-        "status": "WON",
-        "resultScore": "1-3",
-        "resolvedAt": "2026-09-13T20:42:44.673Z"
-      },
-      {
-        "id": "sig_today_27",
-        "matchId": "16416329",
-        "homeTeam": "Levante UD",
-        "awayTeam": "FC Barcelona",
-        "match": "Levante UD vs FC Barcelona",
+        "id": "sig_16432062_45",
+        "matchId": "16432062",
+        "homeTeam": "Rio Ave",
+        "awayTeam": "CF Estrela Amadora",
+        "match": "Rio Ave vs CF Estrela Amadora",
         "level": "ALEV",
-        "time": "2026-09-13T16:02:39.281Z",
-        "scoreAtPrediction": "0-0",
-        "minute": 35,
-        "market": "Sıradaki Golü FC Barcelona Atar",
+        "time": "2026-09-14T18:48:41.234Z",
+        "scoreAtPrediction": "1-1",
+        "minute": 45,
+        "market": "Over 3.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
         "recommendation": {
-          "marketLabel": "Sıradaki Golü FC Barcelona Atar"
+          "predictionText": "Over 3.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 3.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 6 shots on target",
+            "Severe box penetration (20 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
         },
         "status": "WON",
-        "resultScore": "1-3",
-        "resolvedAt": "2026-09-13T20:42:44.673Z"
+        "resultScore": "2-2",
+        "resolvedAt": "2026-09-14T19:04:22.010Z"
+      },
+      {
+        "id": "sig_16317418_45",
+        "matchId": "16317418",
+        "homeTeam": "Jong PSV Eindhoven",
+        "awayTeam": "Jong AZ Alkmaar",
+        "match": "Jong PSV Eindhoven vs Jong AZ Alkmaar",
+        "level": "ALPHA",
+        "time": "2026-09-14T18:54:06.335Z",
+        "scoreAtPrediction": "1-0",
+        "minute": 45,
+        "market": "Over 2.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 2.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 2.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 8 shots on target",
+            "Severe box penetration (30 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "WON",
+        "resultScore": "3-0",
+        "resolvedAt": "2026-09-14T18:54:06.701Z"
+      },
+      {
+        "id": "sig_16403877_45",
+        "matchId": "16403877",
+        "homeTeam": "FCSB",
+        "awayTeam": "FC Petrolul Ploiești",
+        "match": "FCSB vs FC Petrolul Ploiești",
+        "level": "ALPHA",
+        "time": "2026-09-14T18:59:31.421Z",
+        "scoreAtPrediction": "2-1",
+        "minute": 45,
+        "market": "Over 4.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 4.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 4.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 7 shots on target",
+            "Severe box penetration (42 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "PENDING",
+        "resultScore": null,
+        "resolvedAt": null
+      },
+      {
+        "id": "sig_16876532_45",
+        "matchId": "16876532",
+        "homeTeam": "Dundalk FC",
+        "awayTeam": "St. Patrick's Athletic",
+        "match": "Dundalk FC vs St. Patrick's Athletic",
+        "level": "ALEV",
+        "time": "2026-09-14T19:31:37.045Z",
+        "scoreAtPrediction": "0-2",
+        "minute": 45,
+        "market": "Over 3.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 3.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 3.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 5 shots on target",
+            "Severe box penetration (16 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "WON",
+        "resultScore": "0-4",
+        "resolvedAt": "2026-09-14T20:21:24.407Z"
+      },
+      {
+        "id": "sig_16285009_45",
+        "matchId": "16285009",
+        "homeTeam": "Inter",
+        "awayTeam": "Udinese",
+        "match": "Inter vs Udinese",
+        "level": "ALPHA",
+        "time": "2026-09-14T19:37:02.156Z",
+        "scoreAtPrediction": "2-2",
+        "minute": 45,
+        "market": "Over 5.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 5.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 5.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 8 shots on target",
+            "Severe box penetration (28 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "WON",
+        "resultScore": "4-2",
+        "resolvedAt": "2026-09-14T20:11:09.080Z"
+      },
+      {
+        "id": "sig_16876570_45",
+        "matchId": "16876570",
+        "homeTeam": "Shelbourne",
+        "awayTeam": "Drogheda United",
+        "match": "Shelbourne vs Drogheda United",
+        "level": "ALEV",
+        "time": "2026-09-14T19:42:27.264Z",
+        "scoreAtPrediction": "1-1",
+        "minute": 45,
+        "market": "Over 3.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 3.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 3.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 5 shots on target",
+            "Severe box penetration (22 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "PENDING",
+        "resultScore": null,
+        "resolvedAt": null
+      },
+      {
+        "id": "sig_16416333_45",
+        "matchId": "16416333",
+        "homeTeam": "Villarreal",
+        "awayTeam": "Real Betis",
+        "match": "Villarreal vs Real Betis",
+        "level": "ALPHA",
+        "time": "2026-09-14T19:50:22.406Z",
+        "scoreAtPrediction": "1-2",
+        "minute": 45,
+        "market": "Over 4.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 4.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 4.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 11 shots on target",
+            "Severe box penetration (40 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "PENDING",
+        "resultScore": null,
+        "resolvedAt": null
+      },
+      {
+        "id": "sig_15421235_45",
+        "matchId": "15421235",
+        "homeTeam": "Portland Timbers II",
+        "awayTeam": "Saint Louis City SC 2",
+        "match": "Portland Timbers II vs Saint Louis City SC 2",
+        "level": "ALPHA",
+        "time": "2026-09-14T21:59:59.873Z",
+        "scoreAtPrediction": "1-1",
+        "minute": 45,
+        "market": "Over 3.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 3.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 3.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 7 shots on target",
+            "Severe box penetration (35 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "WON",
+        "resultScore": "2-2",
+        "resolvedAt": "2026-09-14T22:04:42.583Z"
+      },
+      {
+        "id": "sig_15421235_45",
+        "matchId": "15421235",
+        "homeTeam": "Portland Timbers II",
+        "awayTeam": "Saint Louis City SC 2",
+        "match": "Portland Timbers II vs Saint Louis City SC 2",
+        "level": "ALPHA",
+        "time": "2026-09-14T22:10:00.060Z",
+        "scoreAtPrediction": "6-5",
+        "minute": 45,
+        "market": "Over 12.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 12.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 12.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 7 shots on target",
+            "Severe box penetration (39 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "WON",
+        "resultScore": "7-6",
+        "resolvedAt": "2026-09-14T22:11:12.772Z"
+      },
+      {
+        "id": "sig_16671612_45",
+        "matchId": "16671612",
+        "homeTeam": "Deportivo Riestra",
+        "awayTeam": "CA Lanús",
+        "match": "Deportivo Riestra vs CA Lanús",
+        "level": "ALEV",
+        "time": "2026-09-14T22:47:05.808Z",
+        "scoreAtPrediction": "0-1",
+        "minute": 45,
+        "market": "Over 2.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 2.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 2.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 6 shots on target",
+            "Severe box penetration (25 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "WON",
+        "resultScore": "0-3",
+        "resolvedAt": "2026-09-14T23:31:00.366Z"
+      },
+      {
+        "id": "sig_15235475_45",
+        "matchId": "15235475",
+        "homeTeam": "Bahia",
+        "awayTeam": "Remo",
+        "match": "Bahia vs Remo",
+        "level": "ALEV",
+        "time": "2026-09-14T23:51:41.940Z",
+        "scoreAtPrediction": "1-0",
+        "minute": 45,
+        "market": "Over 2.5 Match Goals (Odds: 1.84) (Odds: 1.84)",
+        "recommendation": {
+          "predictionText": "Over 2.5 Match Goals (Odds: 1.84)",
+          "marketKey": "market_over_goals",
+          "marketLabel": "Over 2.5 Match Goals",
+          "odds": 1.84,
+          "confidence": 84,
+          "reasoning": [
+            "High in-play tempo with 5 shots on target",
+            "Severe box penetration (29 active touches in penalty box)",
+            "Algorithm xG velocity confirms breakthrough imminent"
+          ]
+        },
+        "status": "WON",
+        "resultScore": "2-1",
+        "resolvedAt": "2026-09-15T00:58:47.966Z"
       }
     ]
   },
-  "lastDate": "2026-09-13"
+  "lastDate": "2026-09-15"
 }

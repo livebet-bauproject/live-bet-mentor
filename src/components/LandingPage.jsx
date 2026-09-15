@@ -79,8 +79,10 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                 email: resData.user.email,
                                 user_metadata: { display_name: resData.user.full_name || resData.user.email.split('@')[0] }
                             },
+                            memberProfile: resData.user,
                             access_token: 'member-token-' + resData.user.id
                         };
+                        localStorage.setItem('lbm_member_session', JSON.stringify(userSession));
                         onLoginSuccess(userSession);
                         return;
                     } else if (resData.error) {
@@ -89,13 +91,19 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         return;
                     }
                 } catch (beErr) {
-                    console.warn('Backend login fallback to Supabase:', beErr);
+                    console.warn('Backend login connection issue:', beErr);
                 }
 
-                // Fallback Supabase
-                const { data, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-                if (authError) throw authError;
-                onLoginSuccess(data.session);
+                // Fallback Supabase (only if backend is unreachable)
+                try {
+                    const { data, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+                    if (authError) throw authError;
+                    onLoginSuccess(data.session);
+                } catch (sbErr) {
+                    setError(lang === 'tr' 
+                        ? 'Giriş yapılamadı: E-posta veya şifre hatalı, ya da sunucuya erişilemiyor.' 
+                        : 'Login failed: Invalid credentials or server unreachable.');
+                }
             } else {
                 // REGISTER
                 // 1. Submit to Backend Members API
