@@ -2501,7 +2501,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         fontSize: '0.5rem',
                                                         fontWeight: 900,
                                                         color: '#000'
-                                                    }}>💰 VALUE</span>
+                                                    }} title={lang === 'tr' ? 'Büronun açtığı oran, yapay zekanın hesapladığı gerçek olasılıktan daha karlı / değerli' : 'Implied odds value detected'}>
+                                                        {lang === 'tr' ? '💰 DEĞERLİ ORAN' : '💰 VALUE'}
+                                                    </span>
                                                 )}
                                                 {opp.smartMoney?.active && (
                                                     <span style={{
@@ -2512,7 +2514,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         fontWeight: 900,
                                                         color: '#fff',
                                                         marginLeft: '4px'
-                                                    }}>📉 SMART MONEY (-%{opp.smartMoney.dropPct.toFixed(0)})</span>
+                                                    }} title={lang === 'tr' ? `Profesyonel/yüklü bahis girişi sebebiyle oran %${opp.smartMoney.dropPct.toFixed(0)} düştü` : `Sharp money flow dropped odds by ${opp.smartMoney.dropPct.toFixed(0)}%`}>
+                                                        {lang === 'tr' ? `📉 BÜYÜK PARA GİRİŞİ (-%${opp.smartMoney.dropPct.toFixed(0)})` : `📉 SMART MONEY (-%${opp.smartMoney.dropPct.toFixed(0)})`}
+                                                    </span>
                                                 )}
                                                 {opp.isTrap && (
                                                     <span style={{
@@ -2524,7 +2528,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         fontWeight: 900,
                                                         color: '#ef4444',
                                                         marginLeft: '4px'
-                                                    }}>⚠️ TUZAK ORAN</span>
+                                                    }} title={lang === 'tr' ? 'Saha baskısına rağmen büro oranları şüpheli şekilde yükseliyor (tuzak riski)' : 'Odds drifting despite on-pitch pressure'}>
+                                                        {lang === 'tr' ? '⚠️ TUZAK ORAN' : '⚠️ TRAP ODDS'}
+                                                    </span>
                                                 )}
                                                 {opp.hasValueEV && opp.bestEV && (
                                                     <span style={{
@@ -2536,7 +2542,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         color: '#fff',
                                                         marginLeft: '4px',
                                                         boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)'
-                                                    }}>💎 +EV %{opp.bestEV.ev} ({opp.bestEV.label})</span>
+                                                    }} title={lang === 'tr' ? 'Matematiksel olarak pozitif beklenen değere (+EV) sahip oran' : 'Positive Expected Value (+EV)'}>
+                                                        {lang === 'tr' ? `💎 KAZANÇLI ORAN (+EV %${opp.bestEV.ev})` : `💎 +EV %${opp.bestEV.ev} (${opp.bestEV.label})`}
+                                                    </span>
                                                 )}
                                                 {opp.hasLatencyEdge && opp.latencyEdge && (
                                                     <span style={{
@@ -2548,7 +2556,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         color: '#000',
                                                         marginLeft: '4px',
                                                         boxShadow: '0 0 10px rgba(234, 179, 8, 0.6)'
-                                                    }}>⚡ GECİKME (+%{opp.latencyEdge.discrepancyPct})</span>
+                                                    }} title={lang === 'tr' ? 'Canlı radar verisi büro oranından önce gol/baskı sinyali yakaladı' : 'Latency arbitrage edge'}>
+                                                        {lang === 'tr' ? `⚡ RADAR HIZI (+%${opp.latencyEdge.discrepancyPct})` : `⚡ GECİKME (+%${opp.latencyEdge.discrepancyPct})`}
+                                                    </span>
                                                 )}
                                                 {opp.cashOutWarning && (
                                                     <span style={{
@@ -2561,7 +2571,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         marginLeft: '4px',
                                                         boxShadow: '0 0 10px rgba(239, 68, 68, 0.6)',
                                                         animation: 'pulse 1.5s infinite'
-                                                    }} title={opp.cashOutWarning.reason}>🛡️ CASHOUT ÖNERİSİ</span>
+                                                    }} title={opp.cashOutWarning.reason}>
+                                                        {lang === 'tr' ? '🛡️ BAHİS BOZDUR' : '🛡️ CASHOUT'}
+                                                    </span>
                                                 )}
                                                 {opp.isLowData && (
                                                     <span style={{
