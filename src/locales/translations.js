@@ -677,7 +677,9 @@ export const translations = {
         trending_guide_step2_title: "2. Yapay Zeka & Saha Röntgeni",
         trending_guide_step2_desc: "Kalabalığın %90'ı sadece takım ismine veya hırsına kapılarak oynar. Sistemimiz bu bahsi sahadaki gerçek şut, tehlikeli atak ve DQS veri kalitesiyle test eder.",
         trending_guide_step3_title: "3. Akıllı Para vs. Kasa Tuzağı",
-        trending_guide_step3_desc: "🟢 ONAYLI TREND: Kalabalık haklı, sahada fırtına kopuyor.\n🔴 TUZAK ALARMI: Sahada tempo yok, kalabalık tuzağa çekiliyor. Kasa kazanacak, siz oynamayın!"
+        trending_guide_step3_desc: "🟢 ONAYLI TREND: Kalabalık haklı, sahada fırtına kopuyor.\n🔴 TUZAK ALARMI: Sahada tempo yok, kalabalık tuzağa çekiliyor. Kasa kazanacak, siz oynamayın!",
+        trending_other_bets: "Bu Maçtaki Diğer Trend Bahisler",
+        trending_multiple_markets: "Trend Bahis"
     },
     en: {
         title: "LIVE BET MENTOR",
@@ -1343,6 +1345,8 @@ export const translations = {
         trending_guide_step2_title: "2. AI & Pitch Reality Scan",
         trending_guide_step2_desc: "Over 90% of bettors wager emotionally or on brand names. Our AI instantly cross-checks their bets against live shots, momentum, and DQS data quality.",
         trending_guide_step3_title: "3. Smart Money vs. Public Trap",
-        trending_guide_step3_desc: "🟢 CONFIRMED TREND: The crowd is right, pitch momentum validates the bet.\n🔴 TRAP ALERT: Pitch is dead, crowd is walking into a trap. The bookmaker wins, don't play!"
+        trending_guide_step3_desc: "🟢 CONFIRMED TREND: The crowd is right, pitch momentum validates the bet.\n🔴 TRAP ALERT: Pitch is dead, crowd is walking into a trap. The bookmaker wins, don't play!",
+        trending_other_bets: "Other Trending Bets in this Match",
+        trending_multiple_markets: "Trending Bets"
     }
 };

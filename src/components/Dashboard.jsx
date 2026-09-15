@@ -1537,25 +1537,55 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     }, [matches, lang, t]);
 
     const RenderTrending = () => {
-        const evaluatedBets = (trendingBets || []).map(bet => ({
-            ...bet,
-            evaluation: evaluateTrendingBet(bet)
-        }));
+        // Group trending bets by match (eventId or home_away)
+        const matchGroupsMap = new Map();
+        (trendingBets || []).forEach(bet => {
+            const matchKey = bet.eventId ? String(bet.eventId) : `${bet.home}_${bet.away}`;
+            if (!matchGroupsMap.has(matchKey)) {
+                matchGroupsMap.set(matchKey, {
+                    key: matchKey,
+                    eventId: bet.eventId,
+                    home: bet.home,
+                    away: bet.away,
+                    competition: bet.competition,
+                    score: bet.score,
+                    bets: []
+                });
+            }
+            matchGroupsMap.get(matchKey).bets.push(bet);
+        });
 
-        const approvedCount = evaluatedBets.filter(b => b.evaluation.status === 'APPROVED').length;
-        const trapCount = evaluatedBets.filter(b => b.evaluation.status === 'TRAP').length;
-        const marketCount = evaluatedBets.filter(b => b.evaluation.status === 'MARKET').length;
-        const cautionCount = evaluatedBets.filter(b => b.evaluation.status === 'CAUTION').length;
+        // For each group, sort bets by count descending (highest volume bet is primary)
+        const groupedMatches = Array.from(matchGroupsMap.values()).map(group => {
+            const sortedBets = [...group.bets].sort((a, b) => (b.count || 0) - (a.count || 0));
+            const primaryBet = sortedBets[0];
+            const otherBets = sortedBets.slice(1);
+            const totalCount = sortedBets.reduce((sum, b) => sum + (b.count || 0), 0);
+            const evaluation = evaluateTrendingBet(primaryBet);
+            return {
+                ...group,
+                primaryBet,
+                otherBets,
+                totalCount,
+                evaluation
+            };
+        });
 
-        const filteredBets = evaluatedBets.filter(b => {
-            if (trendingFilter === 'APPROVED' && b.evaluation.status !== 'APPROVED') return false;
-            if (trendingFilter === 'TRAP' && b.evaluation.status !== 'TRAP') return false;
-            if (trendingFilter === 'MARKET' && b.evaluation.status !== 'MARKET') return false;
-            if (trendingFilter === 'CAUTION' && b.evaluation.status !== 'CAUTION') return false;
+        const approvedCount = groupedMatches.filter(m => m.evaluation.status === 'APPROVED').length;
+        const trapCount = groupedMatches.filter(m => m.evaluation.status === 'TRAP').length;
+        const marketCount = groupedMatches.filter(m => m.evaluation.status === 'MARKET').length;
+        const cautionCount = groupedMatches.filter(m => m.evaluation.status === 'CAUTION').length;
+
+        const filteredMatches = groupedMatches.filter(m => {
+            if (trendingFilter === 'APPROVED' && m.evaluation.status !== 'APPROVED') return false;
+            if (trendingFilter === 'TRAP' && m.evaluation.status !== 'TRAP') return false;
+            if (trendingFilter === 'MARKET' && m.evaluation.status !== 'MARKET' && m.evaluation.status !== 'CAUTION') return false;
+            if (trendingFilter === 'CAUTION' && m.evaluation.status !== 'CAUTION') return false;
 
             if (trendingSearch) {
                 const q = trendingSearch.toLowerCase();
-                const matchStr = `${b.home} ${b.away} ${b.competition} ${b.market} ${b.outcome}`.toLowerCase();
+                const betsText = m.bets.map(b => `${b.market} ${b.outcome}`).join(' ');
+                const matchStr = `${m.home} ${m.away} ${m.competition} ${betsText}`.toLowerCase();
                 if (!matchStr.includes(q)) return false;
             }
             return true;
@@ -1739,10 +1769,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {t.trending_total_tracked || 'TOPLAM TREND'}
                         </div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#f8fafc' }}>
-                            {trendingBets.length}
+                            {groupedMatches.length} <span style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 600 }}>{lang === 'tr' ? 'Maç' : 'Matches'}</span>
                         </div>
                         <div style={{ fontSize: '0.7rem', opacity: 0.5, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Avrupa canlı bülteninde popüler' : 'Popular in live European books'}
+                            {trendingBets.length} {lang === 'tr' ? 'farklı trend pazarında' : 'trending market lines'}
                         </div>
                     </div>
 
@@ -1798,10 +1828,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 }}>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {[
-                            { id: 'ALL', label: `${t.trending_filter_all || 'TÜMÜ'} (${evaluatedBets.length})` },
+                            { id: 'ALL', label: `${t.trending_filter_all || 'TÜMÜ'} (${groupedMatches.length})` },
                             { id: 'APPROVED', label: `${t.trending_filter_approved || '🟢 ONAYLI'} (${approvedCount})`, color: '#10b981' },
                             { id: 'TRAP', label: `${t.trending_filter_trap || '🔴 TUZAKLAR'} (${trapCount})`, color: '#ef4444' },
-                            { id: 'MARKET', label: `${t.trending_filter_market || '📊 AKIŞ'} (${marketCount})`, color: '#38bdf8' }
+                            { id: 'MARKET', label: `${t.trending_filter_market || '📊 AKIŞ'} (${marketCount + cautionCount})`, color: '#38bdf8' }
                         ].map(f => (
                             <button
                                 key={f.id}
@@ -1865,11 +1895,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
 
                 {/* Bets Grid */}
-                {filteredBets.length === 0 ? (
+                {filteredMatches.length === 0 ? (
                     <div className="glass-panel" style={{ padding: '3.5rem 2rem', textAlign: 'center', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🔍</div>
                         <h4 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.5rem' }}>
-                            {trendingBets.length === 0 ? (t.trending_empty || 'Şu anda küresel bültende trend olan bahis bulunamadı.') : (t.trending_no_results || 'Seçili filtrelere uygun trend bahis bulunamadı.')}
+                            {groupedMatches.length === 0 ? (t.trending_empty || 'Şu anda küresel bültende trend olan bahis bulunamadı.') : (t.trending_no_results || 'Seçili filtrelere uygun trend bahis bulunamadı.')}
                         </h4>
                         <p style={{ opacity: 0.5, fontSize: '0.85rem' }}>
                             {lang === 'tr' ? 'Canlı piyasa bülteni 45 saniyede bir taranarak yeni trendler otomatik listelenir.' : 'Live market feed is scanned every 45s for trending public money.'}
@@ -1881,13 +1911,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
                         gap: '1.2rem'
                     }}>
-                        {filteredBets.map((b, idx) => {
-                            const evalInfo = b.evaluation;
-                            const heatPercent = Math.min(100, Math.round(((b.count || 1) / maxBetCount) * 100));
+                        {filteredMatches.map((m, idx) => {
+                            const evalInfo = m.evaluation;
+                            const heatPercent = Math.min(100, Math.round(((m.primaryBet.count || 1) / maxBetCount) * 100));
 
                             return (
                                 <div
-                                    key={`${b.eventId}-${b.marketId}-${b.outcomeId}-${idx}`}
+                                    key={m.key || `${m.eventId}-${idx}`}
                                     className="glass-panel"
                                     style={{
                                         padding: '1.3rem',
@@ -1914,23 +1944,38 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 >
                                     {/* Top League & Status Badges */}
                                     <div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', gap: '0.5rem' }}>
-                                            <span style={{
-                                                fontSize: '0.7rem',
-                                                fontWeight: 800,
-                                                letterSpacing: '0.5px',
-                                                textTransform: 'uppercase',
-                                                color: '#94a3b8',
-                                                background: 'rgba(255,255,255,0.05)',
-                                                padding: '0.2rem 0.5rem',
-                                                borderRadius: '6px',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                                whiteSpace: 'nowrap',
-                                                maxWidth: '180px'
-                                            }}>
-                                                🏆 {b.competition || 'Soccer'}
-                                            </span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', maxWidth: '65%' }}>
+                                                <span style={{
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.5px',
+                                                    textTransform: 'uppercase',
+                                                    color: '#94a3b8',
+                                                    background: 'rgba(255,255,255,0.05)',
+                                                    padding: '0.2rem 0.5rem',
+                                                    borderRadius: '6px',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    🏆 {m.competition || 'Soccer'}
+                                                </span>
+                                                {m.otherBets.length > 0 && (
+                                                    <span style={{
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: 800,
+                                                        background: 'rgba(245, 158, 11, 0.15)',
+                                                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                                                        color: '#fbbf24',
+                                                        padding: '0.15rem 0.45rem',
+                                                        borderRadius: '6px',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        🔥 {m.bets.length} {t.trending_multiple_markets || 'Trend Bahis'}
+                                                    </span>
+                                                )}
+                                            </div>
 
                                             <span style={{
                                                 fontSize: '0.65rem',
@@ -1951,12 +1996,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <div style={{ marginBottom: '0.8rem' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                                                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#f8fafc', lineHeight: 1.3 }}>
-                                                    {b.home} <span style={{ opacity: 0.3, fontWeight: 400 }}>vs</span> {b.away}
+                                                    {m.home} <span style={{ opacity: 0.3, fontWeight: 400 }}>vs</span> {m.away}
                                                 </div>
                                             </div>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                                {b.score && (
+                                                {m.score && (
                                                     <span style={{
                                                         padding: '0.15rem 0.5rem',
                                                         borderRadius: '4px',
@@ -1966,7 +2011,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         fontWeight: 900,
                                                         color: '#facc15'
                                                     }}>
-                                                        ⚽ {b.score}
+                                                        ⚽ {m.score}
                                                     </span>
                                                 )}
                                                 {evalInfo.liveMatch?.minute && (
@@ -1985,7 +2030,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
                                         </div>
 
-                                        {/* Bet Market & Odds Box */}
+                                        {/* Bet Market & Odds Box (Primary Bet) */}
                                         <div style={{
                                             padding: '0.8rem 1rem',
                                             borderRadius: '10px',
@@ -1998,10 +2043,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         }}>
                                             <div>
                                                 <div style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 700, textTransform: 'uppercase' }}>
-                                                    {b.market || 'Bahis Pazarı'}
+                                                    {m.primaryBet.market || 'Bahis Pazarı'}
                                                 </div>
                                                 <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', marginTop: '0.1rem' }}>
-                                                    🎯 {b.outcome}
+                                                    🎯 {m.primaryBet.outcome}
                                                 </div>
                                             </div>
 
@@ -2014,15 +2059,15 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 fontWeight: 900,
                                                 fontSize: '1.1rem'
                                             }}>
-                                                {typeof b.odds === 'number' ? b.odds.toFixed(2) : b.odds}
+                                                {typeof m.primaryBet.odds === 'number' ? m.primaryBet.odds.toFixed(2) : m.primaryBet.odds}
                                             </div>
                                         </div>
 
-                                        {/* Public Bet Count & Heat Bar */}
-                                        <div style={{ marginBottom: '0.8rem' }}>
+                                        {/* Public Bet Count & Heat Bar (Primary Bet) */}
+                                        <div style={{ marginBottom: m.otherBets.length > 0 ? '0.6rem' : '0.8rem' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', fontSize: '0.75rem' }}>
                                                 <span style={{ color: '#f87171', fontWeight: 800 }}>
-                                                    🔥 {b.count} {t.trending_bets_placed || 'kupon oynandı'}
+                                                    🔥 {m.primaryBet.count} {t.trending_bets_placed || 'kupon oynandı'}
                                                 </span>
                                                 <span style={{ opacity: 0.4, fontSize: '0.7rem' }}>
                                                     {t.trending_last_5m || 'Son 5 dk'}
@@ -2037,6 +2082,81 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 }} />
                                             </div>
                                         </div>
+
+                                        {/* Alternative Trending Bets in same match */}
+                                        {m.otherBets.length > 0 && (
+                                            <div style={{
+                                                marginBottom: '0.8rem',
+                                                padding: '0.65rem 0.8rem',
+                                                borderRadius: '10px',
+                                                background: 'rgba(255, 255, 255, 0.03)',
+                                                border: '1px solid rgba(255, 255, 255, 0.07)',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: '0.45rem'
+                                            }}>
+                                                <div style={{
+                                                    fontSize: '0.68rem',
+                                                    fontWeight: 800,
+                                                    textTransform: 'uppercase',
+                                                    color: '#94a3b8',
+                                                    letterSpacing: '0.5px',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between'
+                                                }}>
+                                                    <span>⚡ {t.trending_other_bets || 'Bu Maçtaki Diğer Trend Bahisler'}</span>
+                                                    <span style={{
+                                                        fontSize: '0.65rem',
+                                                        padding: '0.1rem 0.45rem',
+                                                        borderRadius: '999px',
+                                                        background: 'rgba(245, 158, 11, 0.15)',
+                                                        color: '#fbbf24',
+                                                        fontWeight: 900
+                                                    }}>
+                                                        +{m.otherBets.length}
+                                                    </span>
+                                                </div>
+                                                {m.otherBets.map((ob, obIdx) => (
+                                                    <div
+                                                        key={ob.outcomeId || `${ob.marketId}-${obIdx}`}
+                                                        style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            padding: '0.4rem 0.6rem',
+                                                            borderRadius: '6px',
+                                                            background: 'rgba(0, 0, 0, 0.25)',
+                                                            border: '1px solid rgba(255, 255, 255, 0.04)',
+                                                            fontSize: '0.78rem'
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                                                            <span style={{ color: '#38bdf8', fontWeight: 800 }}>🎯 {ob.outcome}</span>
+                                                            <span style={{ fontSize: '0.7rem', opacity: 0.5, whiteSpace: 'nowrap' }}>
+                                                                ({ob.marketShort || ob.market})
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                            <span style={{ fontSize: '0.7rem', color: '#f87171', fontWeight: 700 }}>
+                                                                🔥 {ob.count}
+                                                            </span>
+                                                            <span style={{
+                                                                padding: '0.15rem 0.45rem',
+                                                                borderRadius: '4px',
+                                                                background: 'rgba(251, 191, 36, 0.15)',
+                                                                border: '1px solid rgba(251, 191, 36, 0.3)',
+                                                                color: '#fbbf24',
+                                                                fontWeight: 900,
+                                                                fontSize: '0.75rem'
+                                                            }}>
+                                                                {typeof ob.odds === 'number' ? ob.odds.toFixed(2) : ob.odds}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Bottom AI Verification & Action */}
@@ -2312,7 +2432,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         border: view === 'TRENDING' ? 'none' : '1px solid rgba(239, 68, 68, 0.4)'
                                     }}
                                 >
-                                    {trendingBets.length}
+                                    {new Set((trendingBets || []).map(b => b.eventId ? String(b.eventId) : `${b.home}_${b.away}`)).size}
                                 </span>
                             )}
                         </button>
