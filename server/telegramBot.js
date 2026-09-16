@@ -62,6 +62,9 @@ class TelegramBot {
 
         // Level hierarchy for filtering
         this.levelHierarchy = { 'SICAK': 1, 'ALEV': 2, 'ALPHA': 3 };
+
+        // Compatibility self-reference
+        this.bot = this;
     }
 
     loadHistory() {

@@ -905,12 +905,20 @@ app.post('/api/members/register', async (req, res) => {
                     `📅 *Tarih:* ${dateStr}\n\n` +
                     `👉 _LiveBet Mentor Admin Paneli > 'ONAY BEKLİYOR' sekmesinden hemen onaylayabilirsiniz._`;
 
-        if (telegramBot && telegramBot.bot) {
+        if (telegramBot) {
             const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
             for (const adminId of adminIds) {
                 try {
-                    await telegramBot.bot.sendMessage(adminId, msg, { parse_mode: 'Markdown' });
-                } catch (tErr) {}
+                    const sendFn = typeof telegramBot.sendMessage === 'function'
+                        ? telegramBot.sendMessage.bind(telegramBot)
+                        : (telegramBot.bot && typeof telegramBot.bot.sendMessage === 'function' ? telegramBot.bot.sendMessage.bind(telegramBot.bot) : null);
+                    if (sendFn) {
+                        await sendFn(adminId, msg, { parse_mode: 'Markdown' });
+                        console.log(`[MEMBERS] Telegram alert sent to admin ${adminId} for ${cleanEmail}`);
+                    }
+                } catch (tErr) {
+                    console.error('[MEMBERS] Telegram alert error:', tErr.message);
+                }
             }
         }
 
