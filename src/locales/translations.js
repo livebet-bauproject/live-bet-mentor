@@ -190,12 +190,41 @@ export const translations = {
         plan_features_trial: "Trial Plan: 7 gün sınırlı erişim, temel analizler.",
 
         // Plan Comparison (Honest Set)
-        plan_trial_price: "Ücretsiz",
+        plan_trial_price: "7 Gün Ücretsiz",
+        plan_trial_subtext: "deneme erişimi",
         plan_pro_price: "{price} {curr}",
         plan_premium_price: "{price} {curr}",
-        plan_trial_features: ["Temel DQS Analiz Motoru", "En İyi 3 Konsensus Kaynağı", "Günlük 3 AI Uzman Raporu", "Günlük 5 Akıllı Alarm (Fire Mode)", "Sadece Ana Ligler (Tier 1)"],
-        plan_pro_features: ["Tam Kapsamlı Analiz Motoru", "Tüm Konsensus Kaynakları (IQ Bazlı)", "Günlük 15 AI Uzman Raporu", "Günlük 150 Akıllı Alarm (Full Pulse)", "Tüm Küresel Ligler (Tier 1/2/3)", "Gelişmiş Alarm Geçmişi"],
-        plan_premium_features: ["Tüm Pro Özellikleri", "Günlük 50 AI Uzman Raporu", "Sınırsız Akıllı Alarm", "Bayesian Olasılık Modeli", "xG & Big Chance Analytics", "Öncelikli Telegram Destek Hattı"],
+        per_month: "/ay",
+        billed_annually: "Yıllık faturalandırılır (2 Ay Hediye)",
+        billing_monthly: "Aylık",
+        billing_yearly: "Yıllık (%25 İndirim)",
+        annual_discount_badge: "%25 İNDİRİM / 2 AY HEDİYE",
+        plan_trial_features: [
+            "7 Gün Boyunca Tam Deneme Erişimi",
+            "Temel DQS Analiz Motoru",
+            "En İyi 3 Konsensus Kaynağı",
+            "Günlük 3 AI Uzman Raporu",
+            "Günlük 5 Akıllı Alarm (Fire Mode)",
+            "Sadece Ana Ligler (Tier 1)"
+        ],
+        plan_pro_features: [
+            "Tam Kapsamlı Analiz & DQS Motoru",
+            "Tüm Küresel Ligler (Tier 1 / 2 / 3 Tam Erişim)",
+            "Tüm Konsensus Kaynakları (IQ Ağırlıklı)",
+            "Günlük 15 AI Uzman Raporu",
+            "Günlük 150 Akıllı Alarm (Full Pulse)",
+            "Gelişmiş Alarm Geçmişi & Canlı Baskı Radarı"
+        ],
+        plan_premium_features: [
+            "Tüm Pro Özellikleri Dahil",
+            "📱 VIP Telegram Botu (Telefona Anında Canlı Sinyal)",
+            "Günlük 50 AI Derin Analiz Raporu",
+            "Sınırsız Akıllı Alarm (Sıfır Limit)",
+            "💰 Kasa Yönetimi & Otomatik Kelly Bahis Miktarı",
+            "💎 Erken Değer (Value Bet) & Arbitraj Radarı",
+            "Bayesian Olasılık & xG Derin Metrikleri",
+            "7/24 Öncelikli VIP Telegram Destek Hattı"
+        ],
 
         compare_plans: "Paketleri Karşılaştır",
         request_upgrade: "Yükseltme Talebi Gönder",
@@ -1424,12 +1453,41 @@ export const translations = {
         plan_features_trial: "Trial Plan: 7 days limited access, basic analysis.",
 
         // Plan Comparison (Honest Set)
-        plan_trial_price: "Free",
+        plan_trial_price: "7 Days Free",
+        plan_trial_subtext: "trial access",
         plan_pro_price: "{price} {curr}",
         plan_premium_price: "{price} {curr}",
-        plan_trial_features: ["Basic DQS Engine", "Top 3 Consensus Sources", "3 Daily AI Reports", "5 Daily Smart Alerts", "Core Leagues Only (Tier 1)"],
-        plan_pro_features: ["Full Stack Analytics", "9+ Consensus Sources (IQ Based)", "15 Daily AI Reports", "150 Daily Smart Alerts", "All Global Leagues (Tier 1/2/3)", "Advanced Alert History"],
-        plan_premium_features: ["All Pro Features", "50 Daily AI Reports", "Unlimited Smart Alerts", "Bayesian Probability Model", "xG & Big Chance Analytics", "Priority Support Line"],
+        per_month: "/mo",
+        billed_annually: "Billed annually (2 Months Free)",
+        billing_monthly: "Monthly",
+        billing_yearly: "Yearly (Save 25%)",
+        annual_discount_badge: "SAVE 25% / 2 MONTHS FREE",
+        plan_trial_features: [
+            "7 Days Full Trial Access",
+            "Basic DQS Analysis Engine",
+            "Top 3 Consensus Sources",
+            "3 Daily AI Expert Reports",
+            "5 Daily Smart Alerts (Fire Mode)",
+            "Core Leagues Only (Tier 1)"
+        ],
+        plan_pro_features: [
+            "Full Stack Analysis & DQS Engine",
+            "All Global Leagues (Tier 1 / 2 / 3 Full Access)",
+            "All Consensus Sources (IQ-Weighted)",
+            "15 Daily AI Expert Reports",
+            "150 Daily Smart Alerts (Full Pulse)",
+            "Advanced Alert History & Live Pressure Radar"
+        ],
+        plan_premium_features: [
+            "All Pro Features Included",
+            "📱 VIP Telegram Bot (Instant Push Signals to Phone)",
+            "50 Daily AI Deep Analysis Reports",
+            "Unlimited Smart Alerts (Zero Limit)",
+            "💰 Bankroll Management & Auto-Kelly Staking",
+            "💎 Early Value Bet & Arbitrage Radar",
+            "Bayesian Probability & Deep xG Analytics",
+            "24/7 Priority VIP Telegram Support Line"
+        ],
 
         compare_plans: "Compare Plans",
         request_upgrade: "Request Upgrade",

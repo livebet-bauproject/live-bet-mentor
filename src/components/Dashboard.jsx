@@ -182,6 +182,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     // Membership Request State
     const [pendingRequest, setPendingRequest] = useState(null);
     const [showPlanComparison, setShowPlanComparison] = useState(false);
+    const [billingCycle, setBillingCycle] = useState('monthly'); // 'monthly' | 'yearly'
     const [selectedPlanForUpgrade, setSelectedPlanForUpgrade] = useState(null);
     const [requestLoading, setRequestLoading] = useState(false);
 
@@ -682,10 +683,44 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const renderPlanComparison = () => {
         if (!showPlanComparison) return null;
 
+        const isYearly = billingCycle === 'yearly';
+        const curr = settings.price_currency || '€';
+        const proMonthlyBase = Number(settings.price_pro || 29);
+        const premiumMonthlyBase = Number(settings.price_premium || 79);
+
+        // 25% discount for yearly billing (2 months free):
+        const proPrice = isYearly ? Math.round(proMonthlyBase * 0.75) : proMonthlyBase;
+        const premiumPrice = isYearly ? Math.round(premiumMonthlyBase * 0.75) : premiumMonthlyBase;
+
         const plans = [
-            { id: 'trial', name: t.trial_badge, color: '#94a3b8', features: t.plan_trial_features, price: t.plan_trial_price || 'Free' },
-            { id: 'pro', name: t.pro_badge, color: '#38bdf8', features: t.plan_pro_features, price: (t.plan_pro_price || '$29/mo').replace('{price}', settings.price_pro || '29').replace('{curr}', settings.price_currency || '€') },
-            { id: 'premium', name: t.premium_badge, color: '#00f2fe', features: t.plan_premium_features, price: (t.plan_premium_price || '$79/mo').replace('{price}', settings.price_premium || '79').replace('{curr}', settings.price_currency || '€') }
+            {
+                id: 'trial',
+                name: t.trial_badge,
+                color: '#94a3b8',
+                features: t.plan_trial_features,
+                price: t.plan_trial_price || '7 Gün Ücretsiz',
+                subtext: t.plan_trial_subtext || (lang === 'tr' ? '7 gün deneme erişimi' : '7 days trial access'),
+                isFree: true
+            },
+            {
+                id: 'pro',
+                name: t.pro_badge,
+                color: '#38bdf8',
+                features: t.plan_pro_features,
+                price: `${proPrice} ${curr}`,
+                subtext: isYearly ? (t.billed_annually || (lang === 'tr' ? 'Yıllık faturalandırılır (2 Ay Hediye)' : 'Billed annually (2 months free)')) : null,
+                isFree: false
+            },
+            {
+                id: 'premium',
+                name: t.premium_badge,
+                color: '#00f2fe',
+                badge: lang === 'tr' ? 'EN POPÜLER' : 'MOST POPULAR',
+                features: t.plan_premium_features,
+                price: `${premiumPrice} ${curr}`,
+                subtext: isYearly ? (t.billed_annually || (lang === 'tr' ? 'Yıllık faturalandırılır (2 Ay Hediye)' : 'Billed annually (2 months free)')) : null,
+                isFree: false
+            }
         ];
 
         return (
@@ -697,8 +732,76 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     overflowY: 'auto'
                 }}>
                     <button className="close-btn" onClick={() => setShowPlanComparison(false)}>×</button>
-                    <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center', fontWeight: 900, background: 'linear-gradient(to right, #fff, var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t.compare_plans}</h2>
-                    <p style={{ textAlign: 'center', opacity: 0.6, marginBottom: '3rem', fontSize: '1rem' }}>{t.select_best_plan || 'Sizin için en uygun planı seçin ve profesyonel analizin keyfini çıkarın.'}</p>
+                    <h2 style={{ fontSize: '2.5rem', marginBottom: '0.6rem', textAlign: 'center', fontWeight: 900, background: 'linear-gradient(to right, #fff, var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t.compare_plans}</h2>
+                    <p style={{ textAlign: 'center', opacity: 0.6, marginBottom: '2rem', fontSize: '1rem' }}>{t.select_best_plan || 'Sizin için en uygun planı seçin ve profesyonel analizin keyfini çıkarın.'}</p>
+
+                    {/* Billing Cycle Toggle */}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '2.5rem'
+                    }}>
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            padding: '6px',
+                            borderRadius: '32px',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3)',
+                            gap: '4px'
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => setBillingCycle('monthly')}
+                                style={{
+                                    background: billingCycle === 'monthly' ? '#38bdf8' : 'transparent',
+                                    color: billingCycle === 'monthly' ? '#0f172a' : 'rgba(255,255,255,0.7)',
+                                    border: 'none',
+                                    padding: '8px 22px',
+                                    borderRadius: '24px',
+                                    fontWeight: 800,
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.25s ease'
+                                }}
+                            >
+                                {t.billing_monthly || 'Aylık'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setBillingCycle('yearly')}
+                                style={{
+                                    background: billingCycle === 'yearly' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'transparent',
+                                    color: billingCycle === 'yearly' ? '#ffffff' : 'rgba(255,255,255,0.7)',
+                                    border: 'none',
+                                    padding: '8px 20px',
+                                    borderRadius: '24px',
+                                    fontWeight: 800,
+                                    fontSize: '0.9rem',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.25s ease'
+                                }}
+                            >
+                                <span>{t.billing_yearly || 'Yıllık'}</span>
+                                <span style={{
+                                    background: billingCycle === 'yearly' ? 'rgba(0,0,0,0.25)' : 'rgba(16, 185, 129, 0.2)',
+                                    color: billingCycle === 'yearly' ? '#ffffff' : '#34d399',
+                                    padding: '2px 8px',
+                                    borderRadius: '10px',
+                                    fontSize: '0.68rem',
+                                    fontWeight: 900,
+                                    letterSpacing: '0.3px'
+                                }}>
+                                    {t.annual_discount_badge || '%25 İNDİRİM'}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
 
                     <div className="plans-grid" style={{
                         display: 'grid',
@@ -711,33 +814,61 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 padding: '2.5rem 2rem',
                                 background: 'rgba(15, 23, 42, 0.6)',
                                 borderRadius: '24px',
-                                border: `2px solid ${p.id === userProfile?.plan ? p.color : 'rgba(255,255,255,0.05)'}`,
+                                border: `2px solid ${p.id === userProfile?.plan ? p.color : (p.badge ? 'rgba(0, 242, 254, 0.3)' : 'rgba(255,255,255,0.05)')}`,
                                 position: 'relative',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                                boxShadow: p.id === userProfile?.plan ? `0 0 30px ${p.color}22` : 'none'
+                                boxShadow: p.id === userProfile?.plan ? `0 0 30px ${p.color}22` : (p.badge ? '0 0 20px rgba(0, 242, 254, 0.1)' : 'none')
                             }}
                                 className="plan-card"
                                 onMouseEnter={e => {
                                     e.currentTarget.style.transform = 'translateY(-10px)';
-                                    e.currentTarget.style.boxShadow = `0 20px 40px rgba(0,0,0,0.4), 0 0 20px ${p.color}11`;
+                                    e.currentTarget.style.boxShadow = `0 20px 40px rgba(0,0,0,0.4), 0 0 20px ${p.color}22`;
                                 }}
                                 onMouseLeave={e => {
                                     e.currentTarget.style.transform = 'none';
-                                    e.currentTarget.style.boxShadow = p.id === userProfile?.plan ? `0 0 30px ${p.color}22` : 'none';
+                                    e.currentTarget.style.boxShadow = p.id === userProfile?.plan ? `0 0 30px ${p.color}22` : (p.badge ? '0 0 20px rgba(0, 242, 254, 0.1)' : 'none');
                                 }}>
                                 {p.id === userProfile?.plan && (
                                     <div style={{
                                         position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)',
-                                        background: p.color, color: '#000', padding: '4px 12px', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 900,
-                                        boxShadow: `0 0 15px ${p.color}`
+                                        background: p.color, color: '#000', padding: '4px 14px', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 900,
+                                        boxShadow: `0 0 15px ${p.color}`, letterSpacing: '0.5px'
                                     }}>{t.current_plan_label || 'MEVCUT PLANINIZ'}</div>
                                 )}
+                                {p.badge && p.id !== userProfile?.plan && (
+                                    <div style={{
+                                        position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)',
+                                        background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)', color: '#000', padding: '4px 14px', borderRadius: '20px', fontSize: '0.65rem', fontWeight: 900,
+                                        boxShadow: '0 0 15px rgba(0, 242, 254, 0.4)', letterSpacing: '0.5px'
+                                    }}>{p.badge}</div>
+                                )}
                                 <h3 style={{ color: p.color, fontSize: '1.8rem', marginBottom: '0.5rem', fontWeight: 900 }}>{p.name}</h3>
-                                <div style={{ fontSize: '1.4rem', fontWeight: 900, marginBottom: '2rem', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                                    {p.price}
-                                    <span style={{ fontSize: '0.8rem', opacity: 0.4, fontWeight: 600 }}>/ay</span>
+
+                                <div style={{ minHeight: '65px', marginBottom: '1.8rem' }}>
+                                    {p.isFree ? (
+                                        <div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: p.color }}>
+                                                {p.price}
+                                            </div>
+                                            <div style={{ fontSize: '0.8rem', opacity: 0.5, marginTop: '4px', fontWeight: 600 }}>
+                                                {p.subtext}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 900, display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                                                {p.price}
+                                                <span style={{ fontSize: '0.85rem', opacity: 0.4, fontWeight: 600 }}>{t.per_month || '/ay'}</span>
+                                            </div>
+                                            {p.subtext && (
+                                                <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '4px', fontWeight: 700 }}>
+                                                    {p.subtext}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 2.5rem 0', flex: 1 }}>
@@ -811,7 +942,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         <button
                             onClick={() => {
                                 const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
-                                window.open(`https://t.me/${tgUser}`, '_blank');
+                                const cycleText = billingCycle === 'yearly' ? (lang === 'tr' ? 'Yıllık' : 'Yearly') : (lang === 'tr' ? 'Aylık' : 'Monthly');
+                                const msg = encodeURIComponent(lang === 'tr'
+                                    ? `Merhaba! LiveBet Mentor ${p.name} (${cycleText}) üyeliğine geçiş yapmak istiyorum.`
+                                    : `Hello! I would like to upgrade to LiveBet Mentor ${p.name} (${cycleText}) plan.`
+                                );
+                                window.open(`https://t.me/${tgUser}?text=${msg}`, '_blank');
                                 setSelectedPlanForUpgrade(null);
                             }}
                             className="btn btn-primary"
