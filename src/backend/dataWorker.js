@@ -79,14 +79,14 @@ class DataWorker {
         console.log('[DATA_WORKER] Match selected:', matchId);
     }
 
-    async triggerDeepAnalysis(matchId) {
+    async triggerDeepAnalysis(matchId, lang = 'tr') {
         const match = this.fixtures.find(f => f.id.toString() === matchId.toString());
         if (!match) return;
 
-        console.log('[DATA_WORKER] Manual Deep Analysis triggered for:', matchId);
-        match.aiSummary = "AI Analiz yapıyor...";
+        console.log('[DATA_WORKER] Manual Deep Analysis triggered for:', matchId, 'lang:', lang);
+        match.aiSummary = lang === 'tr' ? "AI Kuant Analizi hazırlanıyor..." : "Generating AI Quant Analysis...";
 
-        const summary = await aiAnalystService.getExpertSummary(match, match.consensusReport);
+        const summary = await aiAnalystService.getExpertSummary(match, match.consensusReport, lang);
         match.aiSummary = summary;
 
         return summary;

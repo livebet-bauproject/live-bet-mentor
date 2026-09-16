@@ -865,7 +865,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         setMatches([...dataWorker.fixtures]);
                                                     }
 
-                                                    const summary = await dataWorker.triggerDeepAnalysis(currentMatch.id);
+                                                    const summary = await dataWorker.triggerDeepAnalysis(currentMatch.id, lang);
                                                     aiUsageLimiter.recordAIUsage(user?.id, 'report');
 
                                                     if (matchIdx !== -1 && summary) {
