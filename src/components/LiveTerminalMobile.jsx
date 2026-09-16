@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { calculateMatchHeatScore } from '../logic/liveSortEngine';
+import { consensusAdapter } from '../backend/consensusAdapter';
 import { CONFIG } from '../config';
 
 export const LiveTerminalMobile = ({
     matches = [],
     signals = {},
+    trendingBets = [],
     t = {},
     lang = 'tr',
     selectedMatch = null,
@@ -86,6 +88,22 @@ export const LiveTerminalMobile = ({
                     const isBetReady = signal?.verdict === 'BET';
                     const isHot = heat >= 75;
 
+                    // European Market Flow / Trending Bets
+                    const matchTrendingBets = (trendingBets || []).filter(tb => 
+                        consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                        consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                    );
+                    const hasTrend = matchTrendingBets.length > 0;
+                    const primaryTrend = hasTrend 
+                        ? [...matchTrendingBets].sort((a, b) => (b.count || 0) - (a.count || 0))[0] 
+                        : null;
+                    const totalTrendCount = hasTrend
+                        ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
+                        : 0;
+                    const dqsVal = m.dqs !== undefined ? m.dqs : 0;
+                    const isTrendApproved = hasTrend && dqsVal >= 0.50;
+                    const isTrendTrap = hasTrend && dqsVal < 0.40;
+
                     return (
                         <div
                             key={m.id}
@@ -139,6 +157,18 @@ export const LiveTerminalMobile = ({
                                     <span style={{ fontWeight: 700, color: 'var(--tb-text-primary)' }}>{m.awayTeam}</span>
                                     {redAway > 0 && <span className="tb-card-badge tb-card-red">{redAway}</span>}
                                 </div>
+                                {hasTrend && (
+                                    <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center' }}>
+                                        <span
+                                            className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
+                                            style={{ fontSize: '0.62rem', padding: '1px 5px' }}
+                                        >
+                                            <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
+                                            <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA' : 'SMART MONEY') : isTrendTrap ? (lang === 'tr' ? 'TUZAK' : 'TRAP') : (lang === 'tr' ? 'PİYASA' : 'MARKET')}</span>
+                                            <span style={{ opacity: 0.85 }}>• {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Line 3: Compact Stats & Sinyal Badge */}
@@ -221,6 +251,35 @@ export const LiveTerminalMobile = ({
                                                     ))}
                                                 </div>
                                             )}
+                                        </div>
+                                    )}
+
+                                    {/* European Market Flow Detail */}
+                                    {hasTrend && (
+                                        <div className="tb-trend-box" style={{ padding: '8px', fontSize: '0.72rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                <span style={{ fontWeight: 800, color: '#38bdf8' }}>
+                                                    📈 {lang === 'tr' ? 'Avrupa Piyasa Akışı' : 'Market Flow'}
+                                                </span>
+                                                <span className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`} style={{ fontSize: '0.62rem' }}>
+                                                    {isTrendApproved 
+                                                        ? (lang === 'tr' ? '🟢 Akıllı Para' : '🟢 Smart Money') 
+                                                        : isTrendTrap 
+                                                        ? (lang === 'tr' ? '🔴 Tuzak Alarmı' : '🔴 Trap Alert') 
+                                                        : (lang === 'tr' ? '📊 Piyasa Akışı' : '📊 Market Flow')}
+                                                </span>
+                                            </div>
+                                            <div style={{ color: 'var(--tb-text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
+                                                <span><strong>{lang === 'tr' ? 'Oyun:' : 'Bet:'}</strong> {primaryTrend.market} {primaryTrend.outcome} (@{primaryTrend.odds})</span>
+                                                <span><strong>{lang === 'tr' ? 'Hacim:' : 'Vol:'}</strong> {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
+                                            </div>
+                                            <div style={{ fontSize: '0.68rem', color: 'var(--tb-text-muted)', lineHeight: 1.3 }}>
+                                                {isTrendApproved
+                                                    ? (lang === 'tr' ? `DQS (%${(dqsVal * 100).toFixed(0)}) halk akışını teyit ediyor.` : `DQS (${(dqsVal * 100).toFixed(0)}%) confirms crowd betting.`)
+                                                    : isTrendTrap
+                                                    ? (lang === 'tr' ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}%). Kalabalık tuzağa çekiliyor!` : `Low DQS (${(dqsVal * 100).toFixed(0)}%). Crowd may be walking into a trap!`)
+                                                    : (lang === 'tr' ? `Orta tempo (%${(dqsVal * 100).toFixed(0)}% DQS). Maçı canlı takip edin.` : `Moderate tempo (${(dqsVal * 100).toFixed(0)}% DQS). Keep observing.`)}
+                                            </div>
                                         </div>
                                     )}
 

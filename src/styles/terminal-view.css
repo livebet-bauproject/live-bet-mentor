@@ -387,6 +387,48 @@
   animation: tbPulse 2.5s infinite;
 }
 
+/* Market Trend Indicators (Piyasa Trendleri & Halk Akışı) */
+.tb-trend-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.tb-trend-pill.approved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.tb-trend-pill.trap {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.tb-trend-pill.influx {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.tb-trend-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--tb-border);
+  border-radius: 8px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* Accordion Expanded Detail Tray */
 .tb-expanded-row {
   background: #0d1424;

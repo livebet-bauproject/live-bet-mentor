@@ -3,8 +3,8 @@
  * Connects to Google Gemini API to provide expert summaries.
  * Integrated with aiUsageLimiter for tier-based rate limiting.
  */
-import { CONFIG } from '../config';
-import { aiUsageLimiter } from './aiUsageLimiter';
+import { CONFIG } from '../config.js';
+import { aiUsageLimiter } from './aiUsageLimiter.js';
 
 const RADAR_SOURCES = [
     { id: 'forebet', label: 'Forebet' },
@@ -65,12 +65,13 @@ export const aiAnalystService = {
         const bigChancesAway = stats?.bigChances?.away || 0;
         const scoreHome = score?.home || 0;
         const scoreAway = score?.away || 0;
-        const xgDiff = (xgHome - xgAway) - (scoreHome - scoreAway);
+        const xgDiff = xgHome - xgAway;
+        const scoreEfficiencyDiff = (xgHome - xgAway) - (scoreHome - scoreAway);
 
         const advancedMetrics = `
           xG (BEKLENEN GOL): EV: ${typeof xgHome === 'number' ? xgHome.toFixed(2) : xgHome} - DEP: ${typeof xgAway === 'number' ? xgAway.toFixed(2) : xgAway}
           BÜYÜK ŞANSLAR (Net Pozisyon): EV: ${bigChancesHome} - DEP: ${bigChancesAway}
-          xG vs SKOR FARKI: ${typeof xgDiff === 'number' ? xgDiff.toFixed(2) : 0} (+ = Ev şanssız, - = Deplasan şanssız)
+          xG FARKI (Ev - Dep): ${typeof xgDiff === 'number' ? xgDiff.toFixed(2) : 0} | SKOR VERİMLİLİK FARKI: ${typeof scoreEfficiencyDiff === 'number' ? scoreEfficiencyDiff.toFixed(2) : 0} (+ = Ev şanssız/verimsiz, - = Deplasman şanssız/verimsiz)
         `;
 
         const signals = consensusReport?.signals || [];
@@ -150,20 +151,24 @@ export const aiAnalystService = {
     getLocalExpertLogic(fixture, consensusReport, lang = 'tr') {
         if (!fixture) return lang === 'tr' ? "Analiz edilecek maç verisi bulunamadı." : "No match telemetry available.";
 
-        const homeTeam = fixture.homeTeam || fixture.home || 'Ev Sahibi';
-        const awayTeam = fixture.awayTeam || fixture.away || 'Deplasman';
+        const homeTeam = fixture.homeTeam || fixture.home || (lang === 'tr' ? 'Ev Sahibi' : 'Home');
+        const awayTeam = fixture.awayTeam || fixture.away || (lang === 'tr' ? 'Deplasman' : 'Away');
         const score = fixture.score || { home: 0, away: 0 };
-        const scoreHome = Number(score.home) || 0;
-        const scoreAway = Number(score.away) || 0;
-        const minute = parseInt(fixture.minute) || 0;
+        const scoreHome = Math.max(0, parseInt(score.home) || 0);
+        const scoreAway = Math.max(0, parseInt(score.away) || 0);
+        const totalGoals = scoreHome + scoreAway;
+        const scoreDiff = scoreHome - scoreAway; // +: Ev önde, -: Deplasman önde
+        const minute = Math.max(0, parseInt(fixture.minute) || 0);
         const stats = fixture.stats || {};
         const obs = fixture.observations || {};
 
         // 1. Telemetry Extraction
         const shotsHome = Number(stats.shotsOnGoal?.home ?? stats.shotsOnTarget?.home ?? 0);
         const shotsAway = Number(stats.shotsOnGoal?.away ?? stats.shotsOnTarget?.away ?? 0);
-        const totalShotsHome = Number(stats.totalShots?.home ?? shotsHome ?? 0);
-        const totalShotsAway = Number(stats.totalShots?.away ?? shotsAway ?? 0);
+        const totalShotsHome = Math.max(shotsHome, Number(stats.totalShots?.home ?? shotsHome));
+        const totalShotsAway = Math.max(shotsAway, Number(stats.totalShots?.away ?? shotsAway));
+        const offTargetHome = Math.max(0, totalShotsHome - shotsHome);
+        const offTargetAway = Math.max(0, totalShotsAway - shotsAway);
 
         const attacksHome = Number(stats.dangerousAttacks?.home ?? 0);
         const attacksAway = Number(stats.dangerousAttacks?.away ?? 0);
@@ -175,188 +180,304 @@ export const aiAnalystService = {
         const possHome = Number(stats.possession?.home ?? 50);
         const possAway = Number(stats.possession?.away ?? 50);
 
-        const redHome = Number(fixture.cards?.home?.red ?? stats.redCards?.home ?? stats.cards?.home?.red ?? 0);
-        const redAway = Number(fixture.cards?.away?.red ?? stats.redCards?.away ?? stats.cards?.away?.red ?? 0);
+        const redHome = Number(fixture.cards?.home?.red ?? stats.redCards?.home ?? 0);
+        const redAway = Number(fixture.cards?.away?.red ?? stats.redCards?.away ?? 0);
 
-        // xG and Big Chances
-        const xgHome = Number(stats.xg?.home ?? (shotsHome * 0.14 + (attacksHome > 25 ? 0.4 : 0.1)));
-        const xgAway = Number(stats.xg?.away ?? (shotsAway * 0.14 + (attacksAway > 25 ? 0.4 : 0.1)));
-        const xgDiff = Number((xgHome - xgAway) - (scoreHome - scoreAway));
-        const bigChancesHome = Number(stats.bigChances?.home ?? (shotsHome > 4 ? 2 : (shotsHome > 2 ? 1 : 0)));
-        const bigChancesAway = Number(stats.bigChances?.away ?? (shotsAway > 4 ? 2 : (shotsAway > 2 ? 1 : 0)));
+        const rawBigChancesHome = Number(stats.bigChances?.home ?? 0);
+        const rawBigChancesAway = Number(stats.bigChances?.away ?? 0);
+        const bigChancesHome = rawBigChancesHome > 0 ? rawBigChancesHome : (shotsHome >= 5 ? 2 : (shotsHome >= 2 ? 1 : 0));
+        const bigChancesAway = rawBigChancesAway > 0 ? rawBigChancesAway : (shotsAway >= 5 ? 2 : (shotsAway >= 2 ? 1 : 0));
 
+        // 2. Synthetic & Validated xG Engine
+        // When provider sends 0 xG or null, compute realistic Synthetic xG (Expected Threat)
+        const calcSyntheticXg = (shotsOn, shotsOff, bigCh, attacks, goals) => {
+            let xg = (shotsOn * 0.18) + (shotsOff * 0.04) + (bigCh * 0.35) + (attacks * 0.012) + (goals * 0.25);
+            return Math.max(goals * 0.40, Math.round(xg * 100) / 100);
+        };
+
+        const rawXgHome = Number(stats.xg?.home ?? 0);
+        const rawXgAway = Number(stats.xg?.away ?? 0);
+
+        const xgHome = (rawXgHome > 0.05) 
+            ? rawXgHome 
+            : calcSyntheticXg(shotsHome, offTargetHome, bigChancesHome, attacksHome, scoreHome);
+        const xgAway = (rawXgAway > 0.05) 
+            ? rawXgAway 
+            : calcSyntheticXg(shotsAway, offTargetAway, bigChancesAway, attacksAway, scoreAway);
+
+        const totalXg = Math.round((xgHome + xgAway) * 100) / 100;
+        const xgDelta = Math.round((xgHome - xgAway) * 100) / 100; // Positive: Home xG higher, Negative: Away higher
+
+        // Pressure & Momentum Telemetry
         const pressureTotal = Number(obs.pressure?.total ?? Math.min(95, Math.round(((attacksHome + attacksAway) / Math.max(minute, 1)) * 35)));
         const velocityTrend = obs.velocity?.trend || (pressureTotal > 65 ? 'HOT' : (pressureTotal > 45 ? 'ACCELERATING' : 'STABLE'));
 
-        // 2. Consensus Integration
+        // 3. Pre-Match Consensus Integration (Strict Agreement Threshold)
         const agreement = consensusReport?.agreement || {};
         const totalSources = Number(consensusReport?.totalSources || Object.values(agreement).reduce((a, b) => a + b, 0) || 0);
-        const topPredEntry = Object.entries(agreement).sort((a, b) => b[1] - a[1])[0];
+        const sortedPreds = Object.entries(agreement).sort((a, b) => b[1] - a[1]);
+        const topPredEntry = sortedPreds[0];
+        const secondPredEntry = sortedPreds[1];
+
+        // Strict consensus checking: Is there a tie or lack of majority?
+        const isConsensusTied = Boolean(topPredEntry && secondPredEntry && (topPredEntry[1] === secondPredEntry[1]));
         const topPred = topPredEntry ? topPredEntry[0] : null;
         const topPredCount = topPredEntry ? topPredEntry[1] : 0;
-        const consensusRatio = totalSources > 0 ? (topPredCount / totalSources) : 0.5;
+        const consensusRatio = totalSources > 0 ? (topPredCount / totalSources) : 0;
+        
+        // A team is ONLY considered pre-match favorite if consensus >= 50% and not tied
+        const hasClearPreMatchFav = !isConsensusTied && consensusRatio >= 0.50;
+        const preMatchFavSide = hasClearPreMatchFav 
+            ? (topPred?.includes('1') ? 'HOME' : (topPred?.includes('2') ? 'AWAY' : null)) 
+            : null;
 
-        // 3. Mathematical Probability Engine
-        let nextGoalSide = 'ANY';
-        let homePressureAdvantage = attacksHome - attacksAway;
-        let homeShotsAdvantage = shotsHome - shotsAway;
+        // 4. UNIFIED PITCH DOMINANCE ENGINE (-100 to +100)
+        // Positive = Home dominance, Negative = Away dominance, near 0 = Balanced
+        let dominanceIndex = 0;
+        dominanceIndex += (shotsHome - shotsAway) * 12;
+        dominanceIndex += (totalShotsHome - totalShotsAway) * 3;
+        dominanceIndex += (attacksHome - attacksAway) * 1.5;
+        dominanceIndex += (bigChancesHome - bigChancesAway) * 15;
+        dominanceIndex += xgDelta * 25;
+        dominanceIndex += (possHome - 50) * 0.5;
+        dominanceIndex += (redAway - redHome) * 35;
 
-        if (homePressureAdvantage > 10 || homeShotsAdvantage >= 2 || (redAway > redHome)) {
-            nextGoalSide = 'HOME';
-        } else if (homePressureAdvantage < -10 || homeShotsAdvantage <= -2 || (redHome > redAway)) {
-            nextGoalSide = 'AWAY';
+        dominanceIndex = Math.max(-100, Math.min(100, Math.round(dominanceIndex)));
+
+        let dominantSide = 'BALANCED';
+        let dominantTeam = homeTeam;
+        let dominantSideLabel = lang === 'tr' ? 'Karşılıklı / Dengeli' : 'Balanced';
+
+        if (dominanceIndex >= 18) {
+            dominantSide = 'HOME';
+            dominantTeam = homeTeam;
+            dominantSideLabel = lang === 'tr' ? 'Ev Sahibi' : 'Home';
+        } else if (dominanceIndex <= -18) {
+            dominantSide = 'AWAY';
+            dominantTeam = awayTeam;
+            dominantSideLabel = lang === 'tr' ? 'Deplasman' : 'Away';
         }
 
-        // Base Next Goal Probability
+        // 5. Probability Calculations (Institutional Math Model)
         let nextGoalProb = 50;
-        if (minute < 30) nextGoalProb = 48 + Math.round(pressureTotal * 0.25);
-        else if (minute < 70) nextGoalProb = 52 + Math.round(pressureTotal * 0.35);
-        else if (minute < 85) nextGoalProb = 55 + Math.round(pressureTotal * 0.38);
-        else nextGoalProb = pressureTotal > 65 ? 45 : 20; // 85+ fatigue/cutoff
+        if (minute < 30) {
+            nextGoalProb = 50 + Math.round(Math.abs(dominanceIndex) * 0.22);
+        } else if (minute < 70) {
+            nextGoalProb = 54 + Math.round(Math.abs(dominanceIndex) * 0.26);
+        } else if (minute < 85) {
+            nextGoalProb = 58 + Math.round(Math.abs(dominanceIndex) * 0.28);
+        } else {
+            // 85'+ Time Decay
+            nextGoalProb = pressureTotal > 65 ? 50 : 32;
+        }
 
-        if (velocityTrend === 'HOT') nextGoalProb += 10;
-        if (velocityTrend === 'COOLING') nextGoalProb -= 12;
-        if (redHome > 0 || redAway > 0) nextGoalProb += 8;
+        if (velocityTrend === 'HOT') nextGoalProb += 8;
+        if (velocityTrend === 'COOLING') nextGoalProb -= 10;
+        if (redHome > 0 || redAway > 0) nextGoalProb += 7;
+        nextGoalProb = Math.max(25, Math.min(88, nextGoalProb));
 
-        nextGoalProb = Math.max(15, Math.min(92, nextGoalProb));
+        // Over Goal Probability
+        const minsLeft = Math.max(5, 90 - minute);
+        const pace = totalAttacks / Math.max(minute, 1);
+        let overProb = Math.round(
+            (totalXg > totalGoals ? 45 : 30) +
+            (pace * 15) +
+            (shotsHome + shotsAway >= 6 ? 15 : 5) +
+            (minsLeft > 25 ? 10 : -10)
+        );
+        overProb = Math.max(20, Math.min(89, overProb));
 
-        // Over Goal Probabilities
-        const totalGoals = scoreHome + scoreAway;
-        let overProb = Math.min(94, Math.max(30, Math.round(nextGoalProb * 0.95 + (totalGoals === 0 ? 5 : 0))));
-        let dominantTeam = nextGoalSide === 'HOME' ? homeTeam : (nextGoalSide === 'AWAY' ? awayTeam : homeTeam);
-        let dominantSideLabel = nextGoalSide === 'HOME' ? (lang === 'tr' ? 'Ev Sahibi' : 'Home') : (nextGoalSide === 'AWAY' ? (lang === 'tr' ? 'Deplasman' : 'Away') : (lang === 'tr' ? 'Karşılıklı' : 'Either'));
+        // Double chance / undefeated probability
+        let doubleChanceProb = Math.min(94, Math.max(60, 65 + Math.round(Math.abs(dominanceIndex) * 0.28)));
 
-        // Confidence Score (55 - 94%)
-        let confidenceScore = Math.min(94, Math.max(55, Math.round(
-            (pressureTotal * 0.35) +
-            (consensusRatio * 30) +
-            (Math.abs(xgDiff) > 0.5 ? 15 : 5) +
-            (velocityTrend === 'HOT' ? 10 : 0) +
-            (fixture.dqs ? fixture.dqs * 15 : 5)
+        // Confidence Score (55% - 92%)
+        let confidenceScore = Math.min(92, Math.max(55, Math.round(
+            (Math.abs(dominanceIndex) * 0.35) +
+            (pressureTotal * 0.25) +
+            (consensusRatio >= 0.5 ? consensusRatio * 20 : 10) +
+            (fixture.dqs ? fixture.dqs * 15 : 8)
         )));
 
-        // 4. Tactical Scenario Identification
-        const isFavTrailing = topPred && (
-            (topPred.includes('1') && scoreHome < scoreAway) ||
-            (topPred.includes('2') && scoreAway < scoreHome)
-        );
-        const isDeadMatch = minute >= 75 && Math.abs(scoreHome - scoreAway) >= 2 && pressureTotal < 50;
-        const isLateSiege = minute >= 75 && Math.abs(scoreHome - scoreAway) <= 1 && pressureTotal >= 65;
+        // 6. SCENARIO IDENTIFICATION (HARMONIZED WITH DOMINANCE)
+        const isDeadMatch = minute >= 75 && Math.abs(scoreDiff) >= 2 && (pressureTotal < 50 || velocityTrend === 'COOLING');
         const hasRedCardAdvantage = (redHome > 0 && redAway === 0) || (redAway > 0 && redHome === 0);
+
+        // Pre-match favorite trailing check:
+        const isFavTrailing = preMatchFavSide && (
+            (preMatchFavSide === 'HOME' && scoreHome < scoreAway) ||
+            (preMatchFavSide === 'AWAY' && scoreAway < scoreHome)
+        );
+        const favTeam = preMatchFavSide === 'HOME' ? homeTeam : awayTeam;
+        const favIsDominating = (preMatchFavSide === 'HOME' && dominanceIndex > 15) || (preMatchFavSide === 'AWAY' && dominanceIndex < -15);
+        const favIsStruggling = (preMatchFavSide === 'HOME' && dominanceIndex < 0) || (preMatchFavSide === 'AWAY' && dominanceIndex > 0);
 
         let scenarioTitle = "";
         let scenarioDesc = "";
+        let riskLevel = isDeadMatch 
+            ? (lang === 'tr' ? 'YÜKSEK / KAÇIN' : 'HIGH / AVOID') 
+            : (confidenceScore >= 75 ? (lang === 'tr' ? 'DÜŞÜK - GÜVENLİ' : 'LOW - SAFE') : (lang === 'tr' ? 'ORTA - DENGELİ' : 'MEDIUM - BALANCED'));
+        let recommendedStake = isDeadMatch ? '0%' : (confidenceScore >= 80 ? '2.5% - 3.0%' : '1.5% - 2.0%');
 
         if (lang === 'tr') {
             if (isDeadMatch) {
                 scenarioTitle = "ÖLÜ MAÇ / RÖLANTİ KALKANI (DEAD MATCH)";
-                scenarioDesc = `Dakika ${minute}' ve fark ${Math.abs(scoreHome - scoreAway)}. Hücum ritmi düştü, takımlar skoru koruma psikolojisinde. Yeni gol riski yüksek, pozisyon kovalamak sakıncalı.`;
-            } else if (isFavTrailing) {
-                const favTeam = topPred.includes('1') ? homeTeam : awayTeam;
-                scenarioTitle = `GERİYE DÜŞEN FAVORİ (COMEBACK BASKISI: ${favTeam.toUpperCase()})`;
-                scenarioDesc = `Maç öncesi ${totalSources} kaynağın %${Math.round(consensusRatio * 100)}'si ${favTeam} galibiyetinde hemfikirdi. Takım şu an geride ancak sahada yoğun baskı ve xG birikimi mevcut. Reaksiyon golü potansiyeli tepe noktada.`;
-            } else if (isLateSiege) {
-                scenarioTitle = "SON DÜZLÜK ŞİDDETLİ KUŞATMA (LATE SIEGE)";
-                scenarioDesc = `Dakika ${minute}' itibarıyla tek fark veya beraberlik sürüyor. Baskı endeksi %${pressureTotal} seviyesinde. Risk alan takım hataya açık; kontratak veya duran top kaynaklı gol beklentisi tepeye ulaştı.`;
+                scenarioDesc = `Dakika ${minute}' ve fark ${Math.abs(scoreDiff)}. Oyun ritmi ve hücum temposu belirgin şekilde düştü (%${pressureTotal} baskı [${velocityTrend}]). İki takım da skoru kabullenmiş durumda; yeni gol kovalamak yüksek sermaye riski taşır.`;
             } else if (hasRedCardAdvantage) {
-                const penalizedTeam = redHome > redAway ? homeTeam : awayTeam;
-                const advantagedTeam = redHome > redAway ? awayTeam : homeTeam;
-                scenarioTitle = `KIRMIZI KART BOŞLUĞU (SAYISAL ÜSTÜNLÜK: ${advantagedTeam.toUpperCase()})`;
-                scenarioDesc = `${penalizedTeam} 10 kişi kaldı. ${advantagedTeam} genişleyen sahadaki koridorları kullanarak ceza sahası çevresinde ablukayı sıklaştırıyor.`;
-            } else if (pressureTotal >= 70) {
-                scenarioTitle = "YÜKSEK BASKI & RİTİM FIRTINASI (ALPHA ZONE)";
-                scenarioDesc = `${dominantTeam} son 10 dakikadır rakip sahaya yerleşti. Şut temposu ve kanat bindirmeleri kaleyi sürekli tehdit ediyor. Savunma direnci kırılma noktasında.`;
+                const redTeam = redHome > redAway ? homeTeam : awayTeam;
+                const advTeam = redHome > redAway ? awayTeam : homeTeam;
+                scenarioTitle = `KIRMIZI KART BOŞLUĞU (SAYISAL ÜSTÜNLÜK: ${advTeam.toUpperCase()})`;
+                scenarioDesc = `${redTeam} eksik kaldı. ${advTeam} genişleyen koridorları ve ceza sahası çevresindeki boşlukları değerlendirerek oyunu tek kaleye çevirdi.`;
+            } else if (isFavTrailing && favIsDominating) {
+                scenarioTitle = `GERİYE DÜŞEN FAVORİ (COMEBACK BASKISI: ${favTeam.toUpperCase()})`;
+                scenarioDesc = `Maç öncesi modellerin %${Math.round(consensusRatio * 100)}'sinin güvendiği ${favTeam} skorda geride ancak sahada yoğun abluka kurmuş durumda (${favTeam === homeTeam ? attacksHome : attacksAway} tehlikeli atak). Reaksiyon golü potansiyeli tepe noktadadır.`;
+            } else if (isFavTrailing && favIsStruggling) {
+                const underDogTeam = preMatchFavSide === 'HOME' ? awayTeam : homeTeam;
+                scenarioTitle = `ETKİSİZ FAVORİ TUZAĞI & ŞOK YENİLGİ RİSKİ (${favTeam.toUpperCase()})`;
+                scenarioDesc = `Maç öncesi favori gösterilen ${favTeam} geride olmasına rağmen sahada beklenen reaksiyonu veremiyor. ${underDogTeam} takımı hücum alanlarında (${underDogTeam === homeTeam ? attacksHome : attacksAway} tehlikeli atak) daha üretken ve kontralarla farkı açabilir. Ezbere favori kovalamaktan kaçının!`;
+            } else if (dominantSide !== 'BALANCED' && ((dominantSide === 'HOME' && scoreHome >= scoreAway) || (dominantSide === 'AWAY' && scoreAway >= scoreHome))) {
+                scenarioTitle = `MUTLAK KUŞATMA & FARKI AÇMA BASKISI (${dominantTeam.toUpperCase()})`;
+                scenarioDesc = `${dominantTeam} skorda avantajlı olmasına rağmen vites düşürmüyor. Saha Hakimiyet Endeksi (+%${Math.abs(dominanceIndex)}) ve ceza sahası etkinliği kaleyi sürekli tehdit altında tutuyor.`;
+            } else if (minute >= 75 && Math.abs(scoreDiff) <= 1 && pressureTotal >= 60) {
+                scenarioTitle = "SON DÜZLÜK ŞİDDETLİ KUŞATMA (LATE SIEGE)";
+                scenarioDesc = `Dakika ${minute}' itibarıyla maç tek fark veya beraberlikte. Baskı ivmesi %${pressureTotal} seviyesinde. Risk alan takımların savunma arkasında bıraktığı koridorlar belirleyici gol fırsatları doğuruyor.`;
+            } else if (pressureTotal >= 65 && totalShotsHome + totalShotsAway >= 12) {
+                scenarioTitle = "AÇIK FUTBOL & KARŞILIKLI HÜCUM DÜELLOSU";
+                scenarioDesc = "İki takım da orta alanı hızlı geçiyor. Karşılıklı pozisyon zenginliği ve ceza sahası aksiyonları maçın gollü geçme olasılığını kuvvetlendiriyor.";
             } else {
                 scenarioTitle = "DENGELİ VE KONTROLLÜ TAKTİKSEL MÜCADELE";
-                scenarioDesc = "İki takım da orta alanı kalabalık tutarak kontrollü geçiş oyununu tercih ediyor. Net gol fırsatı için savunma arkası koşuları veya duran top organizasyonları belirleyici olacak.";
+                scenarioDesc = "İki takım da kontrollü geçiş oyununu tercih ediyor. Net gol fırsatı için savunma arkası koşuları veya duran top organizasyonları belirleyici olacak.";
             }
         } else {
             if (isDeadMatch) {
                 scenarioTitle = "DEAD MATCH / LOW TEMPO SHIELD";
-                scenarioDesc = `Minute ${minute}' with a ${Math.abs(scoreHome - scoreAway)} goal cushion. Pace has decelerated, teams playing passively. Late goals highly improbable.`;
-            } else if (isFavTrailing) {
-                const favTeam = topPred.includes('1') ? homeTeam : awayTeam;
-                scenarioTitle = `TRAILING FAVORITE (COMEBACK SURGE: ${favTeam.toUpperCase()})`;
-                scenarioDesc = `Pre-match models showed ${Math.round(consensusRatio * 100)}% consensus for ${favTeam}. Despite trailing, high offensive pressure and xG buildup indicate an imminent reaction.`;
-            } else if (isLateSiege) {
-                scenarioTitle = "LATE-GAME PRESSURE SIEGE (CRUNCH TIME)";
-                scenarioDesc = `Minute ${minute}' with tightly contested scoreline. Pressure index at ${pressureTotal}%. Overcommitted attacks expose backlines for decisive strikes.`;
+                scenarioDesc = `Minute ${minute}' with a ${Math.abs(scoreDiff)} goal cushion. Pace and attacking momentum have significantly decelerated. Late goals carry high variance risk.`;
             } else if (hasRedCardAdvantage) {
-                scenarioTitle = "NUMERICAL ADVANTAGE (RED CARD EXPLOITATION)";
-                scenarioDesc = `Ten-man deficit creates defensive gaps. Advantaged side exploiting wide corridors for box penetration.`;
+                const redTeam = redHome > redAway ? homeTeam : awayTeam;
+                const advTeam = redHome > redAway ? awayTeam : homeTeam;
+                scenarioTitle = `NUMERICAL ADVANTAGE (RED CARD: ${advTeam.toUpperCase()})`;
+                scenarioDesc = `${redTeam} down to 10 men. ${advTeam} exploiting widened corridors and controlling the final third.`;
+            } else if (isFavTrailing && favIsDominating) {
+                scenarioTitle = `TRAILING FAVORITE (COMEBACK SURGE: ${favTeam.toUpperCase()})`;
+                scenarioDesc = `Pre-match models showed ${Math.round(consensusRatio * 100)}% consensus for ${favTeam}. Despite trailing, high offensive pressure and territorial dominance indicate an imminent reaction.`;
+            } else if (isFavTrailing && favIsStruggling) {
+                const underDogTeam = preMatchFavSide === 'HOME' ? awayTeam : homeTeam;
+                scenarioTitle = `INEFFECTIVE FAVORITE TRAP (${favTeam.toUpperCase()})`;
+                scenarioDesc = `Pre-match favorite ${favTeam} is trailing and failing to generate threatening xG. ${underDogTeam} is executing superior transition offense. Avoid blindly backing the favorite!`;
+            } else if (dominantSide !== 'BALANCED') {
+                scenarioTitle = `COMMANDING SIEGE (${dominantTeam.toUpperCase()})`;
+                scenarioDesc = `${dominantTeam} maintaining relentless pitch dominance (Dominance Index: ${Math.abs(dominanceIndex)}%). Counter pressure remains elevated.`;
             } else {
                 scenarioTitle = "BALANCED TACTICAL CONTEST";
-                scenarioDesc = "Both teams maintaining structured defensive blocks. Set pieces and fast counter transitions will be key catalysts.";
+                scenarioDesc = "Both teams maintaining structured defensive blocks. Set pieces and transition counters will decide the outcome.";
             }
         }
 
-        // 5. Staking & Risk Discipline Recommendation
-        let riskLevel = isDeadMatch ? (lang === 'tr' ? 'YÜKSEK / KAÇIN' : 'HIGH / AVOID') : (confidenceScore >= 75 ? (lang === 'tr' ? 'DÜŞÜK - GÜVENLİ' : 'LOW - SAFE') : (lang === 'tr' ? 'ORTA - DENGELİ' : 'MEDIUM - BALANCED'));
-        let recommendedStake = isDeadMatch ? '0%' : (confidenceScore >= 80 ? '2.5% - 3.0%' : '1.5% - 2.0%');
-
-        // Market recommendations
+        // 7. Market Recommendations
         let recommendedMarket = "";
         let marketProbability = nextGoalProb;
 
-        if (totalGoals === 0) {
-            recommendedMarket = lang === 'tr' ? `İlk Gol (${dominantSideLabel}) veya 0.5 Üst` : `First Goal (${dominantSideLabel}) or Over 0.5`;
+        if (isDeadMatch) {
+            recommendedMarket = lang === 'tr' ? "NO-BET / Pas Geç" : "NO-BET / Pass";
+            marketProbability = 85;
+        } else if (dominantSide !== 'BALANCED') {
+            recommendedMarket = lang === 'tr' ? `Sıradaki Gol (${dominantSideLabel})` : `Next Goal (${dominantSideLabel})`;
+        } else if (overProb >= 68) {
+            recommendedMarket = lang === 'tr' ? `${totalGoals + 0.5} Üst Gol` : `Over ${totalGoals + 0.5} Goals`;
+            marketProbability = overProb;
         } else {
-            recommendedMarket = nextGoalSide !== 'ANY' 
-                ? (lang === 'tr' ? `Sıradaki Gol (${dominantSideLabel})` : `Next Goal (${dominantSideLabel})`)
-                : (lang === 'tr' ? `${totalGoals + 0.5} Üst Gol` : `Over ${totalGoals + 0.5} Goals`);
+            recommendedMarket = lang === 'tr' ? `${dominantTeam} Çifte Şans (1X / X2)` : `${dominantTeam} Double Chance`;
+            marketProbability = doubleChanceProb;
         }
 
-        // 6. Build High-Grade Institutional Quant Report
+        // Consensus summary string
+        let consensusSummaryText = "";
+        if (totalSources > 0) {
+            if (isConsensusTied) {
+                consensusSummaryText = lang === 'tr' 
+                    ? `• Kolektif Akıl (8+ Model): ${totalSources} modelin tahminleri eşit dağılmış (Net favori yok).`
+                    : `• Global Consensus: ${totalSources} models split equally (No clear favorite).`;
+            } else if (hasClearPreMatchFav) {
+                consensusSummaryText = lang === 'tr'
+                    ? `• Kolektif Akıl (8+ Model): ${totalSources} kaynağın %${Math.round(consensusRatio * 100)}'si '${topPred}' yönünde uzlaşmıştı.`
+                    : `• Global Consensus: ${totalSources} models aligned at %${Math.round(consensusRatio * 100)} on '${topPred}'.`;
+            } else {
+                consensusSummaryText = lang === 'tr'
+                    ? `• Kolektif Akıl (8+ Model): ${totalSources} kaynakta parçalı dağılım (%${Math.round(consensusRatio * 100)} '${topPred}').`
+                    : `• Global Consensus: Fragmented consensus (%${Math.round(consensusRatio * 100)} on '${topPred}').`;
+            }
+        }
+
+        const marketRationaleTr = isDeadMatch
+            ? 'Skor farkı ve düşük tempo nedeniyle rölanti kalkanı aktiftir'
+            : (dominantSide !== 'BALANCED' ? `${dominantTeam} hücum baskısı ve telemetri üstünlüğü` : 'Saha dengesi ve toplam pozisyon hacmi destekliyor');
+
+        const marketRationaleEn = isDeadMatch
+            ? 'Cushioned scoreline and decelerating pace activate dead match shield'
+            : (dominantSide !== 'BALANCED' ? `Backed by ${dominantTeam} pitch telemetry` : 'Supported by total chance volume');
+
+        const quantSummaryTr = isDeadMatch
+            ? `Kuant motorumuz maçın rölanti evresine girdiğini (Ölü Maç) tespit etmiştir. Kasa koruması devrededir; son düdüğe kadar pozisyon almaktan kaçınılması (NO-BET) tavsiye edilir.`
+            : (dominantSide !== 'BALANCED' 
+                ? `${dominantTeam} takımının hücum organizasyonu ve saha içi üstünlüğü (${dominanceIndex >= 0 ? '+' : ''}${dominanceIndex} Hakimiyet Endeksi) pozitif beklenti (+EV) üretmektedir. Kuant motorumuz ${recommendedMarket} seçeneğini istatistiksel olarak desteklemektedir.`
+                : `İki takım arasında dengeli bir saha mücadelesi (Hakimiyet Endeksi: ${dominanceIndex}) gözlemlenmektedir. Kuant motorumuz kontrollü risk yönetimini ve ${recommendedMarket} seçeneğini önermektedir.`);
+
+        const quantSummaryEn = isDeadMatch
+            ? `Autonomous quant models classify this contest under the Dead Match Shield. Capital preservation is priority; avoid late-stage markets (NO-BET).`
+            : (dominantSide !== 'BALANCED' 
+                ? `${dominantTeam}'s territorial volume and expected goal production signal positive statistical expectation (+EV). Autonomous quant models favor ${recommendedMarket}.`
+                : `A balanced tactical contest is underway (Dominance Index: ${dominanceIndex}). Prudent bankroll discipline and ${recommendedMarket} are recommended.`);
+
+        // 8. Output High-Grade Institutional Quant Dossier
         if (lang === 'tr') {
             return `🧠 OTONOM KUANT MOTORU ANALİZİ (Güven Skoru: %${confidenceScore})
 ═══════════════════════════════════════════════
 
 🎯 1. MARKET TAHMİNİ & MATEMATİKSEL OLASILIKLAR:
-• ${recommendedMarket}: %${marketProbability} Olasılık (${dominantTeam} hücum baskısı ve şut ivmesi destekliyor)
-• ${totalGoals + 0.5} Üst Gol Beklentisi: %${overProb} (Sahada toplam xG: ${(xgHome + xgAway).toFixed(2)}, kaleyi bulan şut: ${shotsHome + shotsAway})
-• ${dominantTeam} Yenilmezlik (1X / X2): %${Math.min(95, confidenceScore + 10)} (Ceza sahası aksiyon üstünlüğü)
+• ${recommendedMarket}: %${marketProbability} Olasılık (${marketRationaleTr})
+• ${totalGoals + 0.5} Üst Gol Beklentisi: %${overProb} (Hesaplanan xG: ${totalXg.toFixed(2)}, kaleyi bulan şut: ${shotsHome + shotsAway})
+• ${dominantTeam} Yenilmezlik (1X / X2): %${doubleChanceProb} (${dominantSide !== 'BALANCED' ? `${dominantTeam} ceza sahası aksiyon üstünlüğü` : 'Taktiksel denge koruması'})
 
 📈 2. xG VE SAHA HÂKİMİYETİ TEŞHİSİ:
-• xG Tablosu: ${homeTeam} ${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)} ${awayTeam} (xG Farkı: ${xgDiff >= 0 ? '+' : ''}${xgDiff.toFixed(2)})
+• xG Tablosu: ${homeTeam} ${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)} ${awayTeam} (xG Farkı: ${xgDelta >= 0 ? '+' : ''}${xgDelta.toFixed(2)})
 • Şut Kalitesi: Ev Sahibi ${shotsHome}/${totalShotsHome} isabet | Deplasman ${shotsAway}/${totalShotsAway} isabet
 • Tehlikeli Akınlar: ${homeTeam} ${attacksHome} - ${attacksAway} ${awayTeam} (Baskı İvmesi: %${pressureTotal} [${velocityTrend}])
-• Net Gol Pozisyonu (Big Chance): ${bigChancesHome} - ${bigChancesAway}
+• Net Gol Pozisyonu (Big Chance): ${bigChancesHome} - ${bigChancesAway} | Hakimiyet İbresi: ${dominanceIndex >= 0 ? `+${dominanceIndex} (Ev)` : `${dominanceIndex} (Dep)`}
 
 ⚡ 3. TAKTİKSEL SENARYO: ${scenarioTitle}
 ${scenarioDesc}
-${totalSources > 0 ? `• Kolektif Akıl (8+ Model): ${totalSources} kaynağın %${Math.round(consensusRatio * 100)}'si '${topPred}' yönünde pozisyon almış durumda.` : ''}
+${consensusSummaryText}
 
 🛡️ 4. RİSK VE KASA DİSİPLİNİ:
 • Değerlendirme: ${riskLevel} | Önerilen Kasa Payı (Stake): ${recommendedStake}
 • Kritik Pencere: ${minute < 80 ? `Dakika ${minute}' - 80' arası aksiyon için en verimli aralıktır.` : `Dakika ${minute}' sonrası zaman daralmaktadır; risk kalkanı aktiftir.`}
 
 💡 KUANT ÖZETİ:
-${dominantTeam} takımının hücum organizasyonu ve xG üretim gücü sahadaki skora kıyasla pozitif beklenti (EV > 0) üretmektedir. Kuant motorumuz ${recommendedMarket} seçeneğini istatistiksel olarak önermektedir.`;
+${quantSummaryTr}`;
         } else {
             return `🧠 AUTONOMOUS QUANT ENGINE REPORT (Confidence: %${confidenceScore})
 ═══════════════════════════════════════════════
 
 🎯 1. MARKET PROJECTIONS & PROBABILITIES:
-• ${recommendedMarket}: %${marketProbability} Probability (Supported by ${dominantTeam} attacking momentum)
-• Over ${totalGoals + 0.5} Goals: %${overProb} (Combined xG: ${(xgHome + xgAway).toFixed(2)}, on-target shots: ${shotsHome + shotsAway})
-• ${dominantTeam} Double Chance: %${Math.min(95, confidenceScore + 10)} (Dominant box penetration)
+• ${recommendedMarket}: %${marketProbability} Probability (${marketRationaleEn})
+• Over ${totalGoals + 0.5} Goals: %${overProb} (Calculated xG: ${totalXg.toFixed(2)}, shots on target: ${shotsHome + shotsAway})
+• ${dominantTeam} Double Chance: %${doubleChanceProb} (Territorial control)
 
 📈 2. xG & PITCH METRICS:
-• xG Matrix: ${homeTeam} ${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)} ${awayTeam} (xG Delta: ${xgDiff >= 0 ? '+' : ''}${xgDiff.toFixed(2)})
+• xG Matrix: ${homeTeam} ${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)} ${awayTeam} (xG Delta: ${xgDelta >= 0 ? '+' : ''}${xgDelta.toFixed(2)})
 • Shot Accuracy: Home ${shotsHome}/${totalShotsHome} on target | Away ${shotsAway}/${totalShotsAway}
 • Dangerous Attacks: Home ${attacksHome} - ${attacksAway} Away (Pressure Wave: %${pressureTotal} [${velocityTrend}])
-• Big Chances Created: ${bigChancesHome} - ${bigChancesAway}
+• Big Chances Created: ${bigChancesHome} - ${bigChancesAway} | Dominance Index: ${dominanceIndex >= 0 ? `+${dominanceIndex}` : dominanceIndex}
 
 ⚡ 3. TACTICAL SCENARIO: ${scenarioTitle}
 ${scenarioDesc}
-${totalSources > 0 ? `• Global Consensus (8+ Models): ${Math.round(consensusRatio * 100)}% agreement on '${topPred}'.` : ''}
+${consensusSummaryText}
 
 🛡️ 4. RISK & STAKING DISCIPLINE:
 • Rating: ${riskLevel} | Recommended Kelly Stake: ${recommendedStake}
 • Action Window: ${minute < 80 ? `Minutes ${minute}' to 80' represent optimum statistical value.` : `Minute ${minute}'+ carries increased time decay risk.`}
 
 💡 QUANT VERDICT:
-${dominantTeam}'s territorial volume and expected goal production signal high-probability value (+EV). Autonomous models favor ${recommendedMarket}.`;
+${quantSummaryEn}`;
         }
     },
 
@@ -418,23 +539,36 @@ ${dominantTeam}'s territorial volume and expected goal production signal high-pr
             const home = m.home || m.homeTeam || 'Ev Sahibi';
             const away = m.away || m.awayTeam || 'Deplasman';
             const pressure = Number(m.observations?.pressure?.total ?? m.pressure ?? 0);
-            const xgHome = Number(m.stats?.xg?.home ?? 0);
-            const xgAway = Number(m.stats?.xg?.away ?? 0);
-            const totalXg = xgHome + xgAway;
-            const dqs = Number(m.dqs ?? 0.6);
-            const minute = parseInt(m.minute) || 0;
             const scoreHome = Number(m.score?.home ?? 0);
             const scoreAway = Number(m.score?.away ?? 0);
             const totalGoals = scoreHome + scoreAway;
+            const shotsHome = Number(m.stats?.shotsOnGoal?.home ?? m.stats?.shotsOnTarget?.home ?? 0);
+            const shotsAway = Number(m.stats?.shotsOnGoal?.away ?? m.stats?.shotsOnTarget?.away ?? 0);
+            const attacksHome = Number(m.stats?.dangerousAttacks?.home ?? 0);
+            const attacksAway = Number(m.stats?.dangerousAttacks?.away ?? 0);
+
+            const rawXgHome = Number(m.stats?.xg?.home ?? 0);
+            const rawXgAway = Number(m.stats?.xg?.away ?? 0);
+            const rawTotalXg = rawXgHome + rawXgAway;
+            const totalXg = rawTotalXg > 0.05 
+                ? rawTotalXg 
+                : Math.round(((shotsHome + shotsAway) * 0.18 + (attacksHome + attacksAway) * 0.012 + (totalGoals * 0.25)) * 100) / 100;
+
+            const dqs = Number(m.dqs ?? 0.6);
+            const minute = parseInt(m.minute) || 0;
 
             const agreement = m.consensusReport?.agreement || m.agreement || {};
             const totalSources = Number(m.totalSources || Object.values(agreement).reduce((a, b) => a + b, 0) || 0);
-            const topPredEntry = Object.entries(agreement).sort((a, b) => b[1] - a[1])[0];
+            const sortedPreds = Object.entries(agreement).sort((a, b) => b[1] - a[1]);
+            const topPredEntry = sortedPreds[0];
+            const secondPredEntry = sortedPreds[1];
+            const isTied = Boolean(topPredEntry && secondPredEntry && topPredEntry[1] === secondPredEntry[1]);
+
             const topPred = topPredEntry ? topPredEntry[0] : '1';
             const topPredRatio = totalSources > 0 ? (topPredEntry[1] / totalSources) : 0.5;
 
             // Compute composite quant attractiveness score (0 - 100)
-            let attractiveness = (pressure * 0.4) + (topPredRatio * 35) + (dqs * 25);
+            let attractiveness = (pressure * 0.4) + (isTied ? 15 : topPredRatio * 35) + (dqs * 25);
             if (minute >= 75 && Math.abs(scoreHome - scoreAway) >= 2) attractiveness -= 40; // Penalty for dead match
 
             return {
@@ -448,7 +582,7 @@ ${dominantTeam}'s territorial volume and expected goal production signal high-pr
                 pressure,
                 totalXg,
                 dqs,
-                topPred,
+                topPred: isTied ? 'Dengeli' : topPred,
                 topPredRatio,
                 attractiveness: Math.round(attractiveness),
                 isDeadMatch: minute >= 75 && Math.abs(scoreHome - scoreAway) >= 2 && pressure < 50

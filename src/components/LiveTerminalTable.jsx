@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { calculateMatchHeatScore } from '../logic/liveSortEngine';
+import { consensusAdapter } from '../backend/consensusAdapter';
 import { CONFIG } from '../config';
 
 export const LiveTerminalTable = ({
     matches = [],
     signals = {},
+    trendingBets = [],
     t = {},
     lang = 'tr',
     selectedMatch = null,
@@ -109,6 +111,22 @@ export const LiveTerminalTable = ({
                             const daAlertClass = daDiff >= 20 ? 'alert-red' : daDiff >= 12 ? 'alert-amber' : 'neutral';
                             const heatAlertClass = heat >= 75 ? 'alert-red' : heat >= 55 ? 'alert-amber' : 'neutral';
 
+                            // European Market Flow / Trending Bets
+                            const matchTrendingBets = (trendingBets || []).filter(tb => 
+                                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                            );
+                            const hasTrend = matchTrendingBets.length > 0;
+                            const primaryTrend = hasTrend 
+                                ? [...matchTrendingBets].sort((a, b) => (b.count || 0) - (a.count || 0))[0] 
+                                : null;
+                            const totalTrendCount = hasTrend
+                                ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
+                                : 0;
+                            const dqsVal = m.dqs !== undefined ? m.dqs : 0;
+                            const isTrendApproved = hasTrend && dqsVal >= 0.50;
+                            const isTrendTrap = hasTrend && dqsVal < 0.40;
+
                             return (
                                 <React.Fragment key={m.id}>
                                     <tr
@@ -168,6 +186,20 @@ export const LiveTerminalTable = ({
                                                     {m.awayTeam}
                                                 </span>
                                             </div>
+
+                                            {/* Market Trend Pill (European Volume Flow) */}
+                                            {hasTrend && (
+                                                <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                    <span
+                                                        className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
+                                                        title={`Avrupa Bahis Hacmi: ${totalTrendCount} Kupon • ${primaryTrend.market || ''} ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
+                                                    >
+                                                        <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
+                                                        <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA' : 'SMART MONEY') : isTrendTrap ? (lang === 'tr' ? 'TUZAK UYARISI' : 'TRAP ALERT') : (lang === 'tr' ? 'PİYASA AKIŞI' : 'MARKET FLOW')}</span>
+                                                        <span style={{ opacity: 0.85, fontWeight: 700 }}>• {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
+                                                    </span>
+                                                </div>
+                                            )}
                                         </td>
 
                                         {/* Score */}
@@ -303,6 +335,42 @@ export const LiveTerminalTable = ({
                                                                 </div>
                                                             )}
                                                         </div>
+
+                                                        {/* European Market Flow Detail */}
+                                                        {hasTrend && (
+                                                            <div className="tb-trend-box">
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                    <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8' }}>
+                                                                        📈 {lang === 'tr' ? 'AVRUPA PİYASA AKIŞI & HALK BAHİSLERİ' : 'EUROPEAN MARKET FLOW & PUBLIC BETS'}
+                                                                    </span>
+                                                                    <span className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}>
+                                                                        {isTrendApproved 
+                                                                            ? (lang === 'tr' ? '🟢 DQS ONAYLADI (AKILLI PARA)' : '🟢 DQS CONFIRMED (SMART MONEY)')
+                                                                            : isTrendTrap 
+                                                                            ? (lang === 'tr' ? '🔴 DİKKAT: TUZAK UYARISI' : '🔴 WARNING: TRAP ALERT')
+                                                                            : (lang === 'tr' ? '📊 YOĞUN HALK AKIŞI' : '📊 HIGH PUBLIC INFLUX')}
+                                                                    </span>
+                                                                </div>
+                                                                <div style={{ fontSize: '0.75rem', color: 'var(--tb-text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                                                                    <span><strong>{lang === 'tr' ? 'En Çok Oynanan:' : 'Top Market:'}</strong> {primaryTrend.market} {primaryTrend.outcome}</span>
+                                                                    <span><strong>{lang === 'tr' ? 'Oran:' : 'Odds:'}</strong> @{primaryTrend.odds}</span>
+                                                                    <span><strong>{lang === 'tr' ? 'Toplam Hacim:' : 'Total Volume:'}</strong> {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Coupons'}</span>
+                                                                </div>
+                                                                <div style={{ fontSize: '0.7rem', color: 'var(--tb-text-muted)', lineHeight: 1.4 }}>
+                                                                    {isTrendApproved
+                                                                        ? (lang === 'tr' 
+                                                                            ? `Yüksek DQS (%${(dqsVal * 100).toFixed(0)}) & saha verisi kalabalığın bahsini doğruluyor.` 
+                                                                            : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats validate the public volume.`)
+                                                                        : isTrendTrap
+                                                                        ? (lang === 'tr'
+                                                                            ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık tuzağa çekiliyor olabilir!`
+                                                                            : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The crowd may be walking into a bookmaker trap!`)
+                                                                        : (lang === 'tr'
+                                                                            ? `Orta seviye DQS (%${(dqsVal * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
+                                                                            : `Moderate DQS (${(dqsVal * 100).toFixed(0)}%). Monitor ongoing pitch dynamics.`)}
+                                                                </div>
+                                                            </div>
+                                                        )}
 
                                                         {signal?.verdict === 'BET' && bankrollManager && (
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="tb-action-ignore">

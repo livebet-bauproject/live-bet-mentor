@@ -1904,6 +1904,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             });
         } else if (terminalCategoryFilter === 'PINNED') {
             list = list.filter(m => pinnedMatchIds.has(m.id));
+        } else if (terminalCategoryFilter === 'TREND') {
+            list = list.filter(m => {
+                return (trendingBets || []).some(tb => 
+                    consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                    consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                );
+            });
         }
 
         // Sort matches dynamically
@@ -1912,7 +1919,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             terminalSortCriteria,
             signals,
             isSortLocked,
-            lockedOrderMapRef.current
+            lockedOrderMapRef.current,
+            trendingBets
         );
     }, [
         enforcedMatches,
@@ -1922,7 +1930,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         terminalSortCriteria,
         signals,
         isSortLocked,
-        pinnedMatchIds
+        pinnedMatchIds,
+        trendingBets
     ]);
 
     const handleGenerateGlobalReport = async (type) => {
@@ -4576,6 +4585,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         }}
                                     >
                                         <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı & Şut)' : 'Live Momentum'}</option>
+                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Trend Hacmi (Kupon)' : 'Market Betting Volume'}</option>
                                         <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Dakika (Son Dakikalar)' : 'Minute (Late Game)'}</option>
                                         <option value={SORT_CRITERIA.DQS}>🎯 {lang === 'tr' ? 'AI DQS / Güven' : 'AI DQS'}</option>
                                         <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig & Kademe' : 'League'}</option>
@@ -4636,6 +4646,22 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 </button>
                                 <button
                                     type="button"
+                                    className={`tb-chip ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
+                                    onClick={() => setTerminalCategoryFilter('TREND')}
+                                >
+                                    <span>📈</span>
+                                    <span>{lang === 'tr' ? 'Piyasa Trendleri' : 'Market Trends'}</span>
+                                    <span className="tb-chip-count">
+                                        {enforcedMatches.filter(filterByTier).filter(m => {
+                                            return (trendingBets || []).some(tb => 
+                                                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                                                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                                            );
+                                        }).length}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
                                     className={`tb-chip ${terminalCategoryFilter === 'BET' ? 'active' : ''}`}
                                     onClick={() => setTerminalCategoryFilter('BET')}
                                 >
@@ -4677,6 +4703,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             <LiveTerminalTable
                                 matches={processedTerminalMatches}
                                 signals={signals}
+                                trendingBets={trendingBets}
                                 t={t}
                                 lang={lang}
                                 selectedMatch={selectedMatch}
@@ -4692,6 +4719,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             <LiveTerminalMobile
                                 matches={processedTerminalMatches}
                                 signals={signals}
+                                trendingBets={trendingBets}
                                 t={t}
                                 lang={lang}
                                 selectedMatch={selectedMatch}

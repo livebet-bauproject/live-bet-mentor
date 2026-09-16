@@ -5,6 +5,7 @@
  */
 
 import { CONFIG } from '../config.js';
+import { consensusAdapter } from '../backend/consensusAdapter.js';
 
 export const SORT_CRITERIA = {
     MOMENTUM: 'MOMENTUM',       // Dynamic: High pressure, hot attacks, active momentum bubble to top
@@ -12,7 +13,8 @@ export const SORT_CRITERIA = {
     MINUTE_DESC: 'MINUTE_DESC', // Late game first (90' -> 1')
     MINUTE_ASC: 'MINUTE_ASC',   // Early game first (1' -> 90')
     LEAGUE: 'LEAGUE',           // Grouped by League / Tier
-    TOTAL_SHOTS: 'TOTAL_SHOTS'  // Matches with highest shot volume
+    TOTAL_SHOTS: 'TOTAL_SHOTS', // Matches with highest shot volume
+    TREND_VOLUME: 'TREND_VOLUME'// High European betting volume / crowd flow
 };
 
 /**
@@ -148,7 +150,7 @@ export const isMatchHot = (match, signal = null) => {
 /**
  * Sorts matches dynamically based on criteria and lock state
  */
-export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, signals = {}, isLocked = false, lockedOrderMap = null) => {
+export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, signals = {}, isLocked = false, lockedOrderMap = null, trendingBets = []) => {
     if (!Array.isArray(matches) || matches.length === 0) return [];
 
     // If user locked sorting, preserve previous position of existing matches
@@ -204,6 +206,19 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
                 const shotsA = (a.match.stats?.shotsOnGoal?.home || 0) + (a.match.stats?.shotsOnGoal?.away || 0);
                 const shotsB = (b.match.stats?.shotsOnGoal?.home || 0) + (b.match.stats?.shotsOnGoal?.away || 0);
                 return shotsB - shotsA;
+            });
+            break;
+
+        case SORT_CRITERIA.TREND_VOLUME:
+            list.sort((a, b) => {
+                const countA = (trendingBets || [])
+                    .filter(tb => consensusAdapter._isFuzzyMatch(tb.home, tb.away, a.match.homeTeam, a.match.awayTeam) || consensusAdapter._isFuzzyMatch(tb.away, tb.home, a.match.homeTeam, a.match.awayTeam))
+                    .reduce((sum, tb) => sum + (tb.count || 0), 0);
+                const countB = (trendingBets || [])
+                    .filter(tb => consensusAdapter._isFuzzyMatch(tb.home, tb.away, b.match.homeTeam, b.match.awayTeam) || consensusAdapter._isFuzzyMatch(tb.away, tb.home, b.match.homeTeam, b.match.awayTeam))
+                    .reduce((sum, tb) => sum + (tb.count || 0), 0);
+                if (countB !== countA) return countB - countA;
+                return b.heat - a.heat;
             });
             break;
 
