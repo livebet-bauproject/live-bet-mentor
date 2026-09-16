@@ -115,6 +115,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         ? 'Giriş yapılamadı: E-posta veya şifre hatalı, ya da sunucuya erişilemiyor.' 
                         : 'Login failed: Invalid credentials or server unreachable.');
                 }
+            } else {
                 if (password.length < 6) {
                     setError(lang === 'tr' 
                         ? 'Şifreniz en az 6 karakter olmalıdır.' 
