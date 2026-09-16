@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Dashboard } from './components/Dashboard'
-import { Login } from './components/Login'
 import { LandingPage } from './components/LandingPage'
-import { RegisterPage } from './components/RegisterPage'
 import { supabase } from './backend/supabaseClient'
 import { translations } from './locales/translations'
 import { CONFIG } from './config'
