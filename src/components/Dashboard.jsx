@@ -160,7 +160,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     // Radar Filters State
     const [radarFilters, setRadarFilters] = useState({
         sources: ['forebet', 'predictz', 'windrawwin', 'statarea', 'vitibet', 'zulubet', 'prosoccer', 'olbg', 'soccervista', 'superbet'],
-        minSources: 1,
+        minSources: 2,
         search: '',
         valueOnly: false,
         hideDivergent: false,
@@ -3482,7 +3482,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                     setRadarFilters({
                                         sources: allowedSources,
-                                        minSources: 1,
+                                        minSources: 2,
                                         search: '',
                                         valueOnly: false,
                                         hideDivergent: false,
@@ -3627,13 +3627,32 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         </div>
 
                                         <div style={{ marginBottom: '2rem' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                                                 <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>{t.global_consensus_report} ({s.totalSources}/{RADAR_SOURCES.length} {t.active_badges || 'Kaynak'})</div>
-                                                {agreementPercent < 60 && s.totalSources >= 2 && (
-                                                    <div style={{ fontSize: '0.6rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 800, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                                                        ⚠️ {t.divergence_flag || 'DIVERGENCE'}
-                                                    </div>
-                                                )}
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                    {agreementPercent >= 70 && s.totalSources >= 2 && (
+                                                        <div style={{
+                                                            fontSize: '0.65rem',
+                                                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(56, 189, 248, 0.2))',
+                                                            color: '#34d399',
+                                                            padding: '0.2rem 0.6rem',
+                                                            borderRadius: '6px',
+                                                            fontWeight: 900,
+                                                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                                                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.25)',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}>
+                                                            🔥 %{agreementPercent} {lang === 'tr' ? 'GÜÇLÜ KONSENSÜS' : 'STRONG CONSENSUS'}
+                                                        </div>
+                                                    )}
+                                                    {agreementPercent < 60 && s.totalSources >= 2 && (
+                                                        <div style={{ fontSize: '0.6rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger-color)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 800, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                                            ⚠️ {t.divergence_flag || 'DIVERGENCE'}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }}>
@@ -3676,7 +3695,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     )}
                                                                     {s.probabilities?.[site] && (
                                                                         <span style={{ fontSize: '0.65rem', color: color, opacity: 0.8, fontWeight: 700 }}>
-                                                                            (%{s.probabilities[site]})
+                                                                            ({Number(s.probabilities[site]) > 100 ? `${lang === 'tr' ? 'İndeks' : 'Index'}: ${s.probabilities[site]}` : `%${s.probabilities[site]}`})
                                                                         </span>
                                                                     )}
                                                                     {s.tipCounts?.[site] && (
