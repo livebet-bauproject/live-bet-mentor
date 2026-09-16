@@ -118,6 +118,7 @@ export const LiveTerminalMobile = ({
                     const oddsHome = m.odds?.home || m.liveOdds?.home || '-';
                     const oddsDraw = m.odds?.draw || m.liveOdds?.draw || '-';
                     const oddsAway = m.odds?.away || m.liveOdds?.away || '-';
+                    const hasOdds = oddsHome !== '-' || oddsDraw !== '-' || oddsAway !== '-';
                     const minStr = String(m?.minute || '').trim();
                     const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
                     const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
