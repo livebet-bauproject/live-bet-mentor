@@ -1235,26 +1235,52 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return (
             <div className="grid-col bayesian-grid-col">
                 <div className="stats-card bayesian-intel-card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '6px' }}>
-                        <h3 style={{ margin: 0, color: 'var(--accent-color)', fontSize: '0.9rem' }}>
-                            <span style={{ marginRight: '0.5rem' }}>🧠</span> {t.bayesian_intelligence || 'BAYESÇİ OLASILIK İNTELİJANSI'}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '6px' }}>
+                        <h3 style={{ margin: 0, color: 'var(--accent-color)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '1.1rem' }}>🧠</span>
+                            <span>{t.bayesian_intelligence || (lang === 'tr' ? 'CANLI GOL İHTİMALİ & YAPAY ZEKA RADARI' : 'LIVE GOAL PROBABILITY & AI RADAR')}</span>
                         </h3>
-                        <div style={{ background: 'var(--accent-color)', color: '#000', fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900 }}>
-                            {t.production_engine || 'CANLI ÜRETİM MOTORU'}
+                        <div style={{ background: 'var(--accent-color)', color: '#000', fontSize: '0.62rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900 }}>
+                            {t.production_engine || (lang === 'tr' ? 'CANLI ANALİZ' : 'LIVE ANALYTICS')}
                         </div>
+                    </div>
+
+                    {/* Bettor-Friendly Explainer Banner */}
+                    <div style={{
+                        background: 'rgba(56, 189, 248, 0.07)',
+                        border: '1px solid rgba(56, 189, 248, 0.18)',
+                        borderRadius: '8px',
+                        padding: '6px 10px',
+                        marginBottom: '1rem',
+                        fontSize: '0.72rem',
+                        color: 'var(--text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        lineHeight: '1.4'
+                    }}>
+                        <span style={{ color: 'var(--accent-color)', fontSize: '0.85rem' }}>💡</span>
+                        <span>
+                            {lang === 'tr'
+                                ? 'Sahadaki anlık şut, xG tehlikesi ve hücum baskısına göre sıradaki golün gelme ihtimalini hesaplar.'
+                                : 'Calculates the real-time probability of the next goal based on live shots, xG threat and attack pressure.'}
+                        </span>
                     </div>
 
                     <div className="bayesian-gauge-grid">
                         <div className="bayesian-stat-box" style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
-                                {t.prior_prob || (lang === 'tr' ? 'BAŞLANGIÇ (ÖNCÜL)' : 'PRIOR PROB')}
+                            <div style={{ fontSize: '0.65rem', opacity: 0.65, fontWeight: 800, marginBottom: '0.35rem' }}>
+                                {t.prior_prob || (lang === 'tr' ? 'MAÇ TEMPOSU' : 'MATCH BASE TEMPO')}
                             </div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>%{(data.prior * 100).toFixed(0)}</div>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 900 }}>%{(data.prior * 100).toFixed(0)}</div>
+                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginTop: '3px', fontWeight: 600 }}>
+                                {lang === 'tr' ? 'İlk genel beklenti' : 'Baseline expected'}
+                            </div>
                         </div>
 
                         <div className="bayesian-gauge-box" style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
-                                {t.posterior_refined || (lang === 'tr' ? 'GÜNCEL OLASILIK (SONCUL)' : 'POSTERIOR (REFINED)')}
+                            <div style={{ fontSize: '0.7rem', color: 'var(--accent-color)', fontWeight: 900, marginBottom: '0.4rem', letterSpacing: '0.3px' }}>
+                                {t.posterior_refined || (lang === 'tr' ? 'GÜNCEL GOL İHTİMALİ' : 'CURRENT GOAL PROBABILITY')}
                             </div>
                             <div style={{ position: 'relative', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <svg width="100" height="60" viewBox="0 0 100 60">
@@ -1265,27 +1291,39 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     %{(data.posterior * 100).toFixed(1)}
                                 </div>
                             </div>
+                            <div style={{ fontSize: '0.62rem', color: 'var(--accent-color)', opacity: 0.85, marginTop: '3px', fontWeight: 700 }}>
+                                {lang === 'tr' ? 'Canlı baskıyla revize edilen oran' : 'Refined with in-play pressure'}
+                            </div>
                         </div>
 
                         <div className="bayesian-stat-box" style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
-                                {t.impact || (lang === 'tr' ? 'DİNAMİK ETKİ' : 'IMPACT')}
+                            <div style={{ fontSize: '0.65rem', opacity: 0.65, fontWeight: 800, marginBottom: '0.35rem' }}>
+                                {t.impact || (lang === 'tr' ? 'CANLI BASKI ETKİSİ' : 'LIVE PRESSURE IMPACT')}
                             </div>
-                            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: data.impact > 0 ? 'var(--success-color)' : (data.impact < 0 ? 'var(--danger-color)' : '#fff') }}>
+                            <div style={{ fontSize: '1.3rem', fontWeight: 900, color: data.impact > 0 ? 'var(--success-color)' : (data.impact < 0 ? 'var(--danger-color)' : '#fff') }}>
                                 {data.impact > 0 ? `+${(data.impact * 100).toFixed(1)}%` : `${(data.impact * 100).toFixed(1)}%`}
+                            </div>
+                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginTop: '3px', fontWeight: 600 }}>
+                                {lang === 'tr' ? 'Son 10 dk hücum katkısı' : 'Recent momentum boost'}
                             </div>
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '1.2rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ marginTop: '1.2rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <span style={{ opacity: 0.6 }}>{t.confidence_label || (lang === 'tr' ? 'GÜVEN DERECESİ:' : 'CONFIDENCE:')}:</span>
-                            <span style={{ color: data.confidence === 'HIGH' ? 'var(--success-color)' : 'var(--warning-color)', fontWeight: 800 }}>
+                            <span style={{
+                                color: data.confidence === 'HIGH' ? 'var(--success-color)' : data.confidence === 'MEDIUM' ? 'var(--warning-color)' : 'var(--danger-color)',
+                                fontWeight: 900,
+                                background: 'rgba(255,255,255,0.06)',
+                                padding: '2px 8px',
+                                borderRadius: '4px'
+                            }}>
                                 {confidenceMap[data.confidence] || data.confidence}
                             </span>
                         </div>
                         <div style={{ opacity: 0.6, fontStyle: 'italic', fontSize: '0.65rem' }}>
-                            {t.evidence_update || (lang === 'tr' ? 'DQS, Saha Momentumu ve xG verileriyle dinamik olarak güncellenir.' : 'Evidence update based on DQS, Momentum & xG support.')}
+                            {t.evidence_update || (lang === 'tr' ? 'Canlı şutlar, xG gol tehlikesi ve saha baskısıyla anlık hesaplanır.' : 'Calculated dynamically using live shots, xG threat & attack momentum.')}
                         </div>
                     </div>
                 </div>
