@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { CONFIG } from '../config';
 import { dataWorker } from '../backend/dataWorker';
 import { bankrollManager } from '../logic/bankrollManager';
@@ -21,7 +21,11 @@ import { AttackMomentumGraph } from './AttackMomentumGraph';
 import { MatchIncidentsTimeline } from './MatchIncidentsTimeline';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
+import { LiveTerminalTable } from './LiveTerminalTable';
+import { LiveTerminalMobile } from './LiveTerminalMobile';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore } from '../logic/liveSortEngine';
 import '../styles/global.css';
+import '../styles/terminal-view.css';
 
 const RADAR_SOURCES = [
     { id: 'forebet', label: 'Forebet', color: '#34d399', iq: 'iq_forebet' },
@@ -122,6 +126,51 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [consensusData, setConsensusData] = useState({});
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [dismissTrialBanner, setDismissTrialBanner] = useState(false);
+
+    // BETBALLERS STYLE TERMINAL COCKPIT STATES
+    const [displayViewMode, setDisplayViewMode] = useState(() => {
+        try {
+            return localStorage.getItem('lbm_view_mode') || 'TERMINAL';
+        } catch {
+            return 'TERMINAL';
+        }
+    });
+    const [isSortLocked, setIsSortLocked] = useState(false);
+    const [terminalSortCriteria, setTerminalSortCriteria] = useState(SORT_CRITERIA.MOMENTUM);
+    const [terminalCategoryFilter, setTerminalCategoryFilter] = useState('ALL');
+    const [terminalSearchQuery, setTerminalSearchQuery] = useState('');
+    const [pinnedMatchIds, setPinnedMatchIds] = useState(() => {
+        try {
+            const saved = localStorage.getItem('lbm_pinned_matches');
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        } catch {
+            return new Set();
+        }
+    });
+    const lockedOrderMapRef = useRef(new Map());
+
+    const togglePinMatch = (matchId) => {
+        setPinnedMatchIds(prev => {
+            const next = new Set(prev);
+            if (next.has(matchId)) next.delete(matchId);
+            else next.add(matchId);
+            try {
+                localStorage.setItem('lbm_pinned_matches', JSON.stringify([...next]));
+            } catch (e) {
+                console.error('Failed to save pinned matches:', e);
+            }
+            return next;
+        });
+    };
+
+    const handleSwitchViewMode = (mode) => {
+        setDisplayViewMode(mode);
+        try {
+            localStorage.setItem('lbm_view_mode', mode);
+        } catch (e) {
+            console.error('Failed to persist view mode:', e);
+        }
+    };
 
     useEffect(() => {
         if (user) {
@@ -1742,6 +1791,102 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         .sort((a, b) => (b.dqs || 0) - (a.dqs || 0));
 
     const filterByTier = (m) => activeTierFilter === 'ALL' || m.tier === activeTierFilter;
+
+    const handleTerminalApproveBet = (match, signal) => {
+        if (!match || !signal) return;
+        const stake = bankrollManager.calculateRecommendedStake(match, signal);
+        if (bankrollManager.approveBet(match, signal, stake)) {
+            alert(t.bet_approved_alert || 'Bahis onaylandı ve kupon kaydedildi.');
+            setBankState(bankrollManager.getState());
+
+            // Record in Prediction Tracker
+            predictionTracker.recordPrediction({
+                matchId: match.id,
+                match: `${match.homeTeam} vs ${match.awayTeam}`,
+                homeTeam: match.homeTeam,
+                awayTeam: match.awayTeam,
+                minute: match.minute,
+                score: match.score,
+                market: signal.market || 'Match Result',
+                prediction: signal.prediction,
+                confidence: signal.confidence || 75,
+                source: 'LIVE_TERMINAL',
+                dqs: match.dqs,
+                xgHome: match.stats?.xg?.home || 0,
+                xgAway: match.stats?.xg?.away || 0,
+                consensusCount: match.consensusReport?.totalSources || 0
+            }).then(() => {
+                setTrackingStats(predictionTracker.getStats());
+            });
+        }
+    };
+
+    const handleToggleLockSort = () => {
+        setIsSortLocked(prev => {
+            const next = !prev;
+            if (next) {
+                // Freeze current list ordering
+                const map = new Map();
+                processedTerminalMatches.forEach((m, idx) => map.set(m.id, idx));
+                lockedOrderMapRef.current = map;
+            } else {
+                lockedOrderMapRef.current.clear();
+            }
+            return next;
+        });
+    };
+
+    const processedTerminalMatches = useMemo(() => {
+        let list = enforcedMatches.filter(filterByTier);
+
+        // Search filter
+        if (terminalSearchQuery.trim()) {
+            const q = terminalSearchQuery.toLowerCase();
+            list = list.filter(m => 
+                (m.homeTeam && m.homeTeam.toLowerCase().includes(q)) ||
+                (m.awayTeam && m.awayTeam.toLowerCase().includes(q)) ||
+                (m.league && m.league.toLowerCase().includes(q)) ||
+                (m.leagueName && m.leagueName.toLowerCase().includes(q))
+            );
+        }
+
+        // Category filter
+        if (terminalCategoryFilter === 'HOT') {
+            list = list.filter(m => {
+                const sig = signals[m.id];
+                const heat = calculateMatchHeatScore(m, sig);
+                return heat >= 65;
+            });
+        } else if (terminalCategoryFilter === 'BET') {
+            list = list.filter(m => signals[m.id]?.verdict === 'BET');
+        } else if (terminalCategoryFilter === 'SECOND_HALF') {
+            list = list.filter(m => {
+                const minStr = String(m.minute || '');
+                const min = parseInt(minStr, 10);
+                return min >= 45 || minStr.includes('2.Y') || minStr.includes('2H');
+            });
+        } else if (terminalCategoryFilter === 'PINNED') {
+            list = list.filter(m => pinnedMatchIds.has(m.id));
+        }
+
+        // Sort matches dynamically
+        return sortMatches(
+            list,
+            terminalSortCriteria,
+            signals,
+            isSortLocked,
+            lockedOrderMapRef.current
+        );
+    }, [
+        enforcedMatches,
+        activeTierFilter,
+        terminalSearchQuery,
+        terminalCategoryFilter,
+        terminalSortCriteria,
+        signals,
+        isSortLocked,
+        pinnedMatchIds
+    ]);
 
     const handleGenerateGlobalReport = async (type) => {
         // Enforce AI Usage Limits
@@ -6174,24 +6319,97 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{timeStr}</div>
                                                     </div>
 
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.5rem 0.8rem', borderRadius: '8px' }}>
-                                                        <div>
-                                                            <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.1rem' }}>
-                                                                ⏱️ {alert.minute}' • Skor: {typeof alert.score === 'object' ? `${alert.score?.home ?? 0}-${alert.score?.away ?? 0}` : (alert.score || '0-0')} anında
+                                                    {(() => {
+                                                        const initialScoreStr = typeof alert.score === 'object' 
+                                                            ? `${alert.score?.home ?? 0}-${alert.score?.away ?? 0}` 
+                                                            : (alert.score || '0-0');
+                                                        const initialMinute = alert.minute;
+
+                                                        const liveMatch = matches.find(m => String(m.id) === String(alert.matchId));
+                                                        let currentScoreStr = alert.finalScore || null;
+                                                        let currentMinuteStr = null;
+                                                        let isFinished = alert.status === 'WON' || alert.status === 'LOST';
+
+                                                        if (liveMatch) {
+                                                            if (typeof liveMatch.score === 'string' && liveMatch.score.trim()) {
+                                                                currentScoreStr = liveMatch.score.replace(/\s+/g, '');
+                                                            } else if (liveMatch.homeScore !== undefined && liveMatch.awayScore !== undefined) {
+                                                                currentScoreStr = `${liveMatch.homeScore}-${liveMatch.awayScore}`;
+                                                            }
+                                                            currentMinuteStr = renderMatchMinute(liveMatch.minute, t, false);
+                                                            if (liveMatch.isFinished || liveMatch.minute === 'MS' || liveMatch.minute === 'FT') {
+                                                                isFinished = true;
+                                                            }
+                                                        }
+
+                                                        return (
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '0.6rem 0.8rem', borderRadius: '8px' }}>
+                                                                <div style={{ flex: 1, marginRight: '0.8rem' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', fontSize: '0.75rem', marginBottom: '0.35rem' }}>
+                                                                        <span style={{
+                                                                            background: 'rgba(255,255,255,0.06)',
+                                                                            border: '1px solid rgba(255,255,255,0.1)',
+                                                                            padding: '2px 8px',
+                                                                            borderRadius: '6px',
+                                                                            color: '#94a3b8',
+                                                                            fontWeight: 600,
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px'
+                                                                        }}>
+                                                                            <span>⏱️ {initialMinute}'</span>
+                                                                            <span style={{ opacity: 0.4 }}>|</span>
+                                                                            <span>Skor: <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> anında</span>
+                                                                        </span>
+
+                                                                        <span style={{ color: 'var(--accent-color)', fontWeight: 900, fontSize: '0.75rem' }}>➔</span>
+
+                                                                        {currentScoreStr ? (
+                                                                            <span style={{
+                                                                                background: isFinished ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.18)',
+                                                                                border: `1px solid ${isFinished ? 'rgba(16, 185, 129, 0.35)' : 'rgba(56, 189, 248, 0.4)'}`,
+                                                                                padding: '2px 8px',
+                                                                                borderRadius: '6px',
+                                                                                color: isFinished ? '#10b981' : '#38bdf8',
+                                                                                fontWeight: 800,
+                                                                                display: 'inline-flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '5px'
+                                                                            }}>
+                                                                                <span style={{ fontSize: '0.65rem' }}>{isFinished ? '🏁 Bitiş:' : '🔴 Canlı Skor:'}</span>
+                                                                                <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
+                                                                                {!isFinished && currentMinuteStr && (
+                                                                                    <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
+                                                                                )}
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span style={{
+                                                                                background: 'rgba(255,255,255,0.04)',
+                                                                                padding: '2px 8px',
+                                                                                borderRadius: '6px',
+                                                                                color: 'rgba(255,255,255,0.5)',
+                                                                                fontSize: '0.7rem',
+                                                                                fontWeight: 700
+                                                                            }}>
+                                                                                🔴 Canlı: {initialScoreStr} ({initialMinute}')
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-color)' }}>
+                                                                        🎯 {betTitle}
+                                                                    </div>
+                                                                </div>
+                                                                <div style={{ textAlign: 'right' }}>
+                                                                    <div style={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
+                                                                        {rec.odds ? `Oran: ${Number(rec.odds).toFixed(2)}` : ''}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
+                                                                        %{rec.confidence || 75} Güven
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-color)' }}>
-                                                                🎯 {betTitle}
-                                                            </div>
-                                                        </div>
-                                                        <div style={{ textAlign: 'right' }}>
-                                                            <div style={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
-                                                                {rec.odds ? `Oran: ${Number(rec.odds).toFixed(2)}` : ''}
-                                                            </div>
-                                                            <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
-                                                                %{rec.confidence || 75} Güven
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                        );
+                                                    })()}
 
                                                     {/* Status & Actions */}
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
@@ -6337,48 +6555,131 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <div>
                                         <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>Son Tahminler</h4>
                                         <div style={{ maxHeight: '300px', overflow: 'auto' }}>
-                                            {predictionTracker.getRecent(20).map((pred, idx) => (
-                                                <div key={pred.id} style={{
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                    padding: '0.8rem',
-                                                    background: idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent',
-                                                    borderRadius: '8px',
-                                                    marginBottom: '0.3rem'
-                                                }}>
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{pred.match}</div>
-                                                        <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>
-                                                            {t[pred.market] || pred.market} • %{pred.confidence} {t.confidence_score}
-                                                            {pred.minute && <span style={{ marginLeft: '0.5rem', color: 'var(--text-primary)', opacity: 0.8 }}>@{renderMatchMinute(pred.minute, t, false)} ({(pred.scoreAtPrediction && typeof pred.scoreAtPrediction === 'object') ? `${pred.scoreAtPrediction.home ?? 0}-${pred.scoreAtPrediction.away ?? 0}` : (pred.scoreAtPrediction || '0-0')})</span>}
+                                            {predictionTracker.getRecent(20).map((pred, idx) => {
+                                                const initialScoreStr = (pred.scoreAtPrediction && typeof pred.scoreAtPrediction === 'object')
+                                                    ? `${pred.scoreAtPrediction.home ?? 0}-${pred.scoreAtPrediction.away ?? 0}`
+                                                    : (typeof pred.scoreAtPrediction === 'string' && pred.scoreAtPrediction.trim()
+                                                        ? pred.scoreAtPrediction.replace(/\s+/g, '')
+                                                        : '0-0');
+                                                const initialMinute = pred.minute;
+
+                                                const liveMatch = matches.find(m => String(m.id) === String(pred.matchId));
+                                                let currentScoreStr = null;
+                                                if (pred.finalScore) {
+                                                    currentScoreStr = typeof pred.finalScore === 'object'
+                                                        ? `${pred.finalScore.home ?? 0}-${pred.finalScore.away ?? 0}`
+                                                        : String(pred.finalScore).replace(/\s+/g, '');
+                                                }
+                                                let currentMinuteStr = null;
+                                                let isFinished = pred.status === 'WON' || pred.status === 'LOST';
+
+                                                if (liveMatch) {
+                                                    if (typeof liveMatch.score === 'string' && liveMatch.score.trim()) {
+                                                        currentScoreStr = liveMatch.score.replace(/\s+/g, '');
+                                                    } else if (liveMatch.homeScore !== undefined && liveMatch.awayScore !== undefined) {
+                                                        currentScoreStr = `${liveMatch.homeScore}-${liveMatch.awayScore}`;
+                                                    }
+                                                    currentMinuteStr = renderMatchMinute(liveMatch.minute, t, false);
+                                                    if (liveMatch.isFinished || liveMatch.minute === 'MS' || liveMatch.minute === 'FT') {
+                                                        isFinished = true;
+                                                    }
+                                                }
+
+                                                return (
+                                                    <div key={pred.id} style={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'center',
+                                                        padding: '0.75rem 0.9rem',
+                                                        background: idx % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.2)',
+                                                        borderRadius: '8px',
+                                                        marginBottom: '0.4rem',
+                                                        border: '1px solid rgba(255,255,255,0.06)'
+                                                    }}>
+                                                        <div style={{ flex: 1, marginRight: '0.8rem' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', fontSize: '0.75rem', marginBottom: '0.35rem' }}>
+                                                                <span style={{
+                                                                    background: 'rgba(255,255,255,0.06)',
+                                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: '6px',
+                                                                    color: '#94a3b8',
+                                                                    fontWeight: 600,
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px'
+                                                                }}>
+                                                                    {initialMinute && <span>⏱️ {initialMinute}'</span>}
+                                                                    {initialMinute && <span style={{ opacity: 0.4 }}>|</span>}
+                                                                    <span>Skor: <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> anında</span>
+                                                                </span>
+
+                                                                <span style={{ color: 'var(--accent-color)', fontWeight: 900, fontSize: '0.75rem' }}>➔</span>
+
+                                                                {currentScoreStr ? (
+                                                                    <span style={{
+                                                                        background: isFinished ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.18)',
+                                                                        border: `1px solid ${isFinished ? 'rgba(16, 185, 129, 0.35)' : 'rgba(56, 189, 248, 0.4)'}`,
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '6px',
+                                                                        color: isFinished ? '#10b981' : '#38bdf8',
+                                                                        fontWeight: 800,
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '5px'
+                                                                    }}>
+                                                                        <span style={{ fontSize: '0.65rem' }}>{isFinished ? '🏁 Bitiş:' : '🔴 Canlı Skor:'}</span>
+                                                                        <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
+                                                                        {!isFinished && currentMinuteStr && (
+                                                                            <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
+                                                                        )}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span style={{
+                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '6px',
+                                                                        color: 'rgba(255,255,255,0.5)',
+                                                                        fontSize: '0.7rem',
+                                                                        fontWeight: 700
+                                                                    }}>
+                                                                        🔴 Skor: {initialScoreStr}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+
+                                                            <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '2px' }}>{pred.match}</div>
+                                                            <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: 700 }}>
+                                                                🎯 {t[pred.market] || pred.market} • %{pred.confidence} {t.confidence_score}
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                                            {pred.status === 'PENDING' ? (
+                                                                <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                                                    <button onClick={() => {
+                                                                        predictionTracker.updateResult(pred.id, 'WON', {});
+                                                                        setTrackingStats(predictionTracker.getStats());
+                                                                    }} style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }} title="Kazandı">✓</button>
+                                                                    <button onClick={() => {
+                                                                        predictionTracker.updateResult(pred.id, 'LOST', {});
+                                                                        setTrackingStats(predictionTracker.getStats());
+                                                                    }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }} title="Kaybetti">✗</button>
+                                                                </div>
+                                                            ) : (
+                                                                <span style={{
+                                                                    padding: '0.3rem 0.6rem',
+                                                                    borderRadius: '6px',
+                                                                    fontSize: '0.7rem',
+                                                                    fontWeight: 800,
+                                                                    background: pred.status === 'WON' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                                                    border: `1px solid ${pred.status === 'WON' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                                                                    color: pred.status === 'WON' ? '#10b981' : '#ef4444'
+                                                                }}>{pred.status === 'WON' ? '✓ KAZANDI' : '✗ KAYBETTİ'}</span>
+                                                            )}
                                                         </div>
                                                     </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                                                        {pred.status === 'PENDING' ? (
-                                                            <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                                                <button onClick={() => {
-                                                                    predictionTracker.updateResult(pred.id, 'WON', {});
-                                                                    setTrackingStats(predictionTracker.getStats());
-                                                                }} style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }}>✓</button>
-                                                                <button onClick={() => {
-                                                                    predictionTracker.updateResult(pred.id, 'LOST', {});
-                                                                    setTrackingStats(predictionTracker.getStats());
-                                                                }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }}>✗</button>
-                                                            </div>
-                                                        ) : (
-                                                            <span style={{
-                                                                padding: '0.3rem 0.6rem',
-                                                                borderRadius: '4px',
-                                                                fontSize: '0.7rem',
-                                                                fontWeight: 800,
-                                                                background: pred.status === 'WON' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                                color: pred.status === 'WON' ? '#10b981' : '#ef4444'
-                                                            }}>{pred.status === 'WON' ? 'KAZANDI' : 'KAYBETTİ'}</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                             {predictionTracker.getRecent(20).length === 0 && (
                                                 <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
                                                     Henüz kayıtlı tahmin yok
