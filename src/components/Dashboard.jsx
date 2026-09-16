@@ -3928,36 +3928,31 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </div>
 
                     {/* Tier Filter Bar */}
-                    <div className="tier-filter-bar" style={{ display: 'flex', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+                    <div className="tier-filter-bar">
                         {['ALL', 1, 2, 3].map(tier => {
                             const count = tier === 'ALL' ? matches.length : matches.filter(m => m.tier === tier).length;
+                            const isAll = tier === 'ALL';
+                            const tierSub = tier === 1 ? 'CORE' : tier === 2 ? 'STABLE' : tier === 3 ? 'DISCOVERY' : '';
+
                             return (
                                 <button
                                     key={tier}
+                                    type="button"
                                     onClick={() => setActiveTierFilter(tier)}
-                                    style={{
-                                        background: activeTierFilter === tier ? 'var(--accent-color)' : 'rgba(255,255,255,0.03)',
-                                        color: activeTierFilter === tier ? '#000' : 'var(--text-secondary)',
-                                        border: '1px solid ' + (activeTierFilter === tier ? 'var(--accent-color)' : 'rgba(255,255,255,0.1)'),
-                                        borderRadius: '10px',
-                                        padding: '0.5rem 1rem',
-                                        fontSize: '0.75rem',
-                                        fontWeight: 800,
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s ease',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.4rem',
-                                        boxShadow: activeTierFilter === tier ? '0 0 15px var(--accent-glow)' : 'none',
-                                    }}
+                                    className={`tier-btn ${activeTierFilter === tier ? 'active' : ''}`}
                                 >
-                                    <span>{tier === 'ALL' ? (t.tier_filter_all || 'TÜM LİGLER') : (t[`tier_${tier}_label`] || `TIER ${tier}`)}</span>
-                                    <span style={{
-                                        background: activeTierFilter === tier ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.1)',
-                                        padding: '1px 6px',
-                                        borderRadius: '6px',
-                                        fontSize: '0.65rem'
-                                    }}>
+                                    <div className="tier-btn-text">
+                                        <span className="tier-btn-main">
+                                            {isAll ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `TIER ${tier}`}
+                                        </span>
+                                        <span className="tier-btn-desktop-full">
+                                            {isAll ? (t.tier_filter_all || 'TÜM LİGLER') : (t[`tier_${tier}_label`] || `TIER ${tier}`)}
+                                        </span>
+                                        {tierSub && (
+                                            <span className="tier-btn-sub">{tierSub}</span>
+                                        )}
+                                    </div>
+                                    <span className="tier-btn-count">
                                         {count}
                                     </span>
                                 </button>
