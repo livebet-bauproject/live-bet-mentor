@@ -158,6 +158,7 @@ ${leagueLine}
 ⚡ *Oran:* *${oddsVal}* | *Güven:* %${conf} | *Kasa:* %${stake}
 📊 *Analiz:* ${reasonText}${extraLine}
 
+📲 *Canlı Baskı Grafiği:* https://live-bet-mentor-brown.vercel.app
 💎 *Live Bet Mentor VIP*`;
     }
 
@@ -168,6 +169,7 @@ ${leagueLine}
 ⚡ *Odds:* *${oddsVal}* | *Confidence:* ${conf}% | *Stake:* ${stake}%
 📊 *Analysis:* ${reasonText}${extraLine}
 
+📲 *Live Wave Chart:* https://live-bet-mentor-brown.vercel.app
 💎 *Live Bet Mentor VIP*`;
 }
 
@@ -186,7 +188,8 @@ ${leagueLine}
 ⚡ *Yüksek Gol Baskısı & Algoritmik Değer Tespit Edildi!*
 🔒 _Tam tahmin, adil oran ve kasa yönetimi VIP grubumuzda paylaşıldı._
 
-👉 *VIP Giriş & Bilgi:* @Livebetmentorbot`;
+📊 *Canlı Terminali İncele:* https://live-bet-mentor-brown.vercel.app
+👉 *VIP Bilgi & Aktivasyon:* @Livebetmentorbot`;
     }
 
     return `📡 *LIVE IN-PLAY RADAR ALERT*
@@ -196,6 +199,7 @@ ${leagueLine}
 ⚡ *High In-Play Pressure & Value Edge Detected!*
 🔒 _Full prediction, fair odds & stake sizing dispatched to VIP Syndicate._
 
+📊 *Inspect Live Terminal:* https://live-bet-mentor-brown.vercel.app
 👉 *Unlock VIP Access:* @Livebetmentorbot`;
 }
 
@@ -285,6 +289,7 @@ export function formatRadarTeaser(match, lang = 'tr') {
 ⚡ *10 Küresel Analiz Modeli %${agreePercent} Konsensüse Ulaştı!*
 🔒 _Ortak tahmin, skor analizi ve kasa miktarı VIP grupta paylaşıldı._
 
+📊 *Canlı Konsensüs Radarı:* https://live-bet-mentor-brown.vercel.app
 👉 *3 Günlük Ücretsiz VIP Deneme:* /deneme
 💎 *Live Bet Mentor*`;
     }
@@ -296,6 +301,7 @@ export function formatRadarTeaser(match, lang = 'tr') {
 ⚡ *10 Predictive Models Reached ${agreePercent}% Consensus!*
 🔒 _Full pick, score forecast & bankroll stake released in VIP._
 
+📊 *Live Consensus Radar:* https://live-bet-mentor-brown.vercel.app
 👉 *Claim 3-Day Free VIP:* /trial
 💎 *Live Bet Mentor*`;
 }

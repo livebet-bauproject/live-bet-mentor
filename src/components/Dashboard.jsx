@@ -1719,9 +1719,91 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         return (
             <div className="portfolio-view" style={{ animation: 'fadeIn 0.5s ease', paddingBottom: '5rem' }}>
-                <div className="section-header" style={{ marginBottom: '2.5rem' }}>
+                <div className="section-header" style={{ marginBottom: '1.5rem' }}>
                     <h2 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px' }}>📈 {t.portfolio_title}</h2>
                     <p style={{ opacity: 0.5, fontSize: '0.9rem', fontWeight: 600 }}>{t.subtitle} — v2.0 Algorithm Tracking</p>
+                </div>
+
+                {/* Bankroll Discipline & Capital Protection Showcase */}
+                <div className="glass-panel" style={{
+                    padding: '1.2rem 1.5rem',
+                    marginBottom: '1.8rem',
+                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.7))',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    borderRadius: '16px'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.8rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <span style={{ fontSize: '1.3rem' }}>🛡️</span>
+                            <div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.3px' }}>
+                                    {lang === 'tr' ? 'Algoritmik Sermaye Koruma Protokolü' : 'Algorithmic Capital Protection Protocol'}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                                    {lang === 'tr' ? 'Hırsı ve kasa sıfırlanmasını (tilt) önleyen otomatik risk kuralları' : 'Automated risk rules preventing drawdown and emotional tilt'}
+                                </div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => { setFaqMode('staking'); setShowFAQ(true); }}
+                            style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                color: '#38bdf8',
+                                padding: '0.35rem 0.8rem',
+                                borderRadius: '8px',
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                transition: 'all 0.2s'
+                            }}
+                        >
+                            <span>❓</span>
+                            <span>{lang === 'tr' ? 'Disiplin Rehberi' : 'Discipline Guide'}</span>
+                        </button>
+                    </div>
+
+                    <div className="bankroll-rules-grid" style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: '0.8rem'
+                    }}>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span>🔒</span> {lang === 'tr' ? 'GÜNLÜK %5 KÂR KİLİDİ' : 'DAILY 5% TARGET LOCK'}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
+                                {lang === 'tr' ? 'Günde %5 kâra ulaşıldığında kazancı korumak için sistem kilitlenir.' : 'System stops trading upon hitting 5% daily gain to lock in profits.'}
+                            </div>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span>🛑</span> {lang === 'tr' ? 'GÜNLÜK %3 STOP-LOSS' : 'DAILY 3% STOP-LOSS'}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
+                                {lang === 'tr' ? 'Maksimum %3 kayıpta hırsı engellemek için işlem alımı durdurulur.' : 'Trading halts at 3% daily drawdown to avoid emotional tilt.'}
+                            </div>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span>🛡️</span> {lang === 'tr' ? 'TEMKİNLİ MOD (%50 KISMA)' : 'CAUTION MODE (-50%)'}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
+                                {lang === 'tr' ? 'Üst üste 2 kayıpta bahis miktarı risk güvenliği için yarıya indirilir.' : 'Consecutive 2 losses automatically halves stake size for capital safety.'}
+                            </div>
+                        </div>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                <span>📈</span> {lang === 'tr' ? 'BİLEŞİK KELLY MOTORU' : 'FRACTIONAL KELLY'}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
+                                {lang === 'tr' ? 'Kasa büyüdükçe kâr katlanır, bakiye gerilediğinde risk otomatik küçülür.' : 'Stake scales with bankroll growth; risks decrease during drawdown.'}
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="portfolio-grid">
@@ -1791,6 +1873,65 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 );
                             })}
                         </svg>
+                    </div>
+                </div>
+
+                {/* Algorithmic Strategy Scorecard (Transparency & Confidence) */}
+                <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', borderRadius: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+                        <div>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span>📊</span> {lang === 'tr' ? 'Algoritmik Strateji Karnesi' : 'Algorithmic Strategy Scorecard'}
+                            </h3>
+                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                                {lang === 'tr' ? 'Sistem motorlarının geçmiş performans ve getiri (ROI) karnesi' : 'Historical performance and ROI grading of predictive engines'}
+                            </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 800 }}>A+ (Elit: %70+ Başarı)</span>
+                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }}>A (Pozitif Getiri)</span>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.8rem' }}>
+                        {bankrollManager.getStrategyAnalytics().map(st => (
+                            <div key={st.id} style={{
+                                background: 'rgba(255, 255, 255, 0.02)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                borderRadius: '12px',
+                                padding: '0.85rem 1rem',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
+                                <div>
+                                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <span>{st.icon}</span>
+                                        <span>{st.label}</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '3px' }}>
+                                        {st.totalBets} {lang === 'tr' ? 'İşlem' : 'Bets'} • {st.wins}W - {st.losses}L
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{
+                                        display: 'inline-block',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 900,
+                                        padding: '0.15rem 0.45rem',
+                                        borderRadius: '4px',
+                                        background: st.badge === 'A+' ? 'rgba(16, 185, 129, 0.2)' : st.badge === 'A' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)',
+                                        color: st.badge === 'A+' ? '#10b981' : st.badge === 'A' ? '#38bdf8' : '#94a3b8',
+                                        border: `1px solid ${st.badge === 'A+' ? 'rgba(16, 185, 129, 0.4)' : st.badge === 'A' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.1)'}`
+                                    }}>
+                                        {st.badge}
+                                    </div>
+                                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: st.roi >= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
+                                        %{st.winRate} {lang === 'tr' ? 'İsabet' : 'Win'}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
