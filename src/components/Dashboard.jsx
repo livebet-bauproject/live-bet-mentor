@@ -617,7 +617,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <h2 style={{ fontSize: '2.5rem', marginBottom: '1rem', textAlign: 'center', fontWeight: 900, background: 'linear-gradient(to right, #fff, var(--accent-color))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{t.compare_plans}</h2>
                     <p style={{ textAlign: 'center', opacity: 0.6, marginBottom: '3rem', fontSize: '1rem' }}>{t.select_best_plan || 'Sizin için en uygun planı seçin ve profesyonel analizin keyfini çıkarın.'}</p>
 
-                    <div style={{
+                    <div className="plans-grid" style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
                         gap: '1.5rem',
@@ -2297,7 +2297,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
 
                 {/* Filters & Search Toolbar */}
-                <div style={{
+                <div className="trending-filter-bar" style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -2309,7 +2309,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     borderRadius: '12px',
                     border: '1px solid rgba(255,255,255,0.06)'
                 }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <div className="trending-filter-chips" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {[
                             { id: 'ALL', label: `${t.trending_filter_all || 'TÜMÜ'} (${groupedMatches.length})` },
                             { id: 'APPROVED', label: `${t.trending_filter_approved || '🟢 ONAYLI'} (${approvedCount})`, color: '#10b981' },
@@ -2336,7 +2336,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         ))}
                     </div>
 
-                    <div style={{ position: 'relative', minWidth: '260px', flex: '1', maxWidth: '400px' }}>
+                    <div className="trending-search-box" style={{ position: 'relative', flex: '1', maxWidth: '400px' }}>
                         <input
                             type="text"
                             placeholder={t.trending_search_placeholder || 'Takım, lig veya bahis tipi ara...'}
@@ -2389,7 +2389,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </p>
                     </div>
                 ) : (
-                    <div style={{
+                    <div className="trending-matches-grid" style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
                         gap: '1.2rem'
@@ -3031,7 +3031,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             </div>
 
                             {/* Market Selector Tabs */}
-                            <div className="market-tabs" style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                            <div className="market-tabs radar-market-chips" style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
                                 {[
                                     { id: '1X2', label: '1X2', icon: '🎯' },
                                     { id: 'OU25', label: t.market_ou25 || 'Over/Under 2.5', icon: '📊' },
@@ -3103,7 +3103,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
 
                         {/* Radar Filter Bar */}
-                        <div className="glass-panel" style={{
+                        <div className="glass-panel radar-filter-panel" style={{
                             padding: '1.2rem 2rem',
                             background: 'rgba(255,255,255,0.02)',
                             borderRadius: '16px',
@@ -3115,7 +3115,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                                 <span style={{ fontSize: '0.65rem', fontWeight: 900, opacity: 0.5, letterSpacing: '1px' }}>{t.source_selection}</span>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <div className="radar-source-chips" style={{ display: 'flex', gap: '0.5rem' }}>
                                     {RADAR_SOURCES.filter(s => {
                                         if (userProfile?.plan === 'trial') {
                                             return ['forebet', 'predictz', 'statarea'].includes(s.id);
@@ -3316,7 +3316,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     {renderGlobalAISection('PRE-MATCH')}
 
-                    <div className="radar-grid" style={{
+                    <div className="radar-grid radar-cards-grid" style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))',
                         gap: '2rem'
@@ -4486,7 +4486,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
 
                                             {/* 2 Picks Grid */}
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.9rem' }}>
+                                            <div className="golden-combo-picks" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.9rem' }}>
                                                 {goldenCombo.picks.map((pick, pIdx) => (
                                                     <div key={pIdx} style={{
                                                         background: 'rgba(0,0,0,0.35)',
@@ -4587,7 +4587,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 </span>
                                             </div>
 
-                                            <div style={{
+                                            <div className="pending-opps-grid" style={{
                                                 display: 'grid',
                                                 gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
                                                 gap: '0.8rem',
@@ -5637,7 +5637,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {trackingActiveTab === 'ALERTS' && (
                                 <div>
                                     {/* Alert Stats Summary */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
+                                    <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
                                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
                                             <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>TOPLAM SİNYAL</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--accent-color)' }}>{alertHistoryList.length}</div>
@@ -5898,7 +5898,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {trackingActiveTab === 'BETS' && (
                                 <div>
                                     {/* Summary Stats */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
+                                    <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
                                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
                                             <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>TOPLAM</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-color)' }}>{trackingStats.total}</div>
@@ -6122,6 +6122,57 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 onClose={() => setIsLegalModalOpen(false)}
                 lang={lang}
             />
+
+            {/* Mobile Bottom Navigation Bar (Sticky app-like navigation on screens <= 768px) */}
+            <nav className="mobile-bottom-nav" aria-label="Mobil Navigasyon">
+                <button
+                    className={`mobile-nav-item ${view === 'DASHBOARD' ? 'active' : ''}`}
+                    onClick={() => { setView('DASHBOARD'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    type="button"
+                >
+                    <span className="mobile-nav-icon">⚡</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Canlı' : 'Live'}</span>
+                    {matches.length > 0 && <span className="mobile-nav-badge">{matches.length}</span>}
+                </button>
+                <button
+                    className={`mobile-nav-item trending ${view === 'TRENDING' ? 'active' : ''}`}
+                    onClick={() => { setView('TRENDING'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    type="button"
+                >
+                    <span className="mobile-nav-icon">🔥</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Trendler' : 'Trends'}</span>
+                    {(() => {
+                        const count = new Set((trendingBets || []).map(b => b.eventId ? String(b.eventId) : `${b.home}_${b.away}`)).size;
+                        return count > 0 ? <span className="mobile-nav-badge trending">{count}</span> : null;
+                    })()}
+                </button>
+                <button
+                    className={`mobile-nav-item ${view === 'RADAR' ? 'active' : ''}`}
+                    onClick={() => { setView('RADAR'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    type="button"
+                >
+                    <span className="mobile-nav-icon">🎯</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Günlük' : 'Daily'}</span>
+                </button>
+                <button
+                    className={`mobile-nav-item ${view === 'PORTFOLIO' ? 'active' : ''}`}
+                    onClick={() => { setView('PORTFOLIO'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    type="button"
+                >
+                    <span className="mobile-nav-icon">📈</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Portföy' : 'Portfolio'}</span>
+                </button>
+                {(isAdmin || userProfile?.plan === 'admin') && (
+                    <button
+                        className={`mobile-nav-item admin ${view === 'ADMIN' ? 'active' : ''}`}
+                        onClick={() => { setView('ADMIN'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                        type="button"
+                    >
+                        <span className="mobile-nav-icon">🛡️</span>
+                        <span className="mobile-nav-label">Admin</span>
+                    </button>
+                )}
+            </nav>
         </div >
     );
 };

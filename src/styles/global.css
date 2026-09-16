@@ -2268,41 +2268,365 @@ body {
   z-index: 900 !important;
 }
 
-/* Media Query Adjustments for Mobile (< 768px) */
+/* ==========================================================================
+   MOBILE BOTTOM NAVIGATION & APP-LIKE MOBILE EXPERIENCE
+   ========================================================================== */
+
+/* Hidden by default on desktop/large screens */
+.mobile-bottom-nav {
+  display: none !important;
+}
+
+/* Base Viewport & Body Overflow Guard */
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+#root {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* ==========================================================================
+   MOBILE BREAKPOINT (< 768px) - Complete App-Like Overhaul
+   ========================================================================== */
 @media (max-width: 768px) {
+  /* Zero Horizontal Overflow on Container */
   .dashboard-container {
-    padding: 0.75rem !important;
+    padding: 0.65rem 0.65rem calc(75px + env(safe-area-inset-bottom, 0px)) 0.65rem !important;
+    max-width: 100vw !important;
+    overflow-x: clip !important;
+    width: 100% !important;
   }
 
+  /* Sticky App-Like Bottom Navigation Bar */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    height: calc(58px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    background: rgba(10, 15, 29, 0.95) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border-top: 1px solid rgba(56, 189, 248, 0.25) !important;
+    box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.6), 0 -1px 10px rgba(56, 189, 248, 0.1) !important;
+    z-index: 8000 !important;
+    align-items: center !important;
+    justify-content: space-around !important;
+  }
+
+  .mobile-nav-item {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 1 !important;
+    height: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    color: #94a3b8 !important;
+    font-size: 0.65rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    position: relative !important;
+    transition: all 0.2s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+    padding: 4px 0 !important;
+  }
+
+  .mobile-nav-item:active {
+    transform: scale(0.92) !important;
+  }
+
+  .mobile-nav-item.active {
+    color: #38bdf8 !important;
+    font-weight: 800 !important;
+  }
+
+  .mobile-nav-item.active .mobile-nav-icon {
+    transform: translateY(-2px) !important;
+    filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.7)) !important;
+  }
+
+  .mobile-nav-item.trending.active {
+    color: #f97316 !important;
+  }
+
+  .mobile-nav-item.trending.active .mobile-nav-icon {
+    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.7)) !important;
+  }
+
+  .mobile-nav-item.admin.active {
+    color: #f59e0b !important;
+  }
+
+  .mobile-nav-icon {
+    font-size: 1.25rem !important;
+    line-height: 1 !important;
+    margin-bottom: 2px !important;
+    transition: transform 0.2s !important;
+  }
+
+  .mobile-nav-label {
+    font-size: 0.65rem !important;
+    letter-spacing: 0.3px !important;
+  }
+
+  .mobile-nav-badge {
+    position: absolute !important;
+    top: 4px !important;
+    right: calc(50% - 18px) !important;
+    background: #38bdf8 !important;
+    color: #030712 !important;
+    font-size: 0.58rem !important;
+    font-weight: 900 !important;
+    min-width: 16px !important;
+    height: 16px !important;
+    border-radius: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 4px !important;
+    box-shadow: 0 0 6px rgba(56, 189, 248, 0.5) !important;
+  }
+
+  .mobile-nav-badge.trending {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6) !important;
+  }
+
+  /* Top Terminal Header - Sleek & Compact */
   .terminal-header {
-    padding: 1rem !important;
-    gap: 0.75rem !important;
-    margin-bottom: 1.25rem !important;
+    padding: 0.85rem 1rem !important;
+    gap: 0.6rem !important;
+    margin-bottom: 0.85rem !important;
+    border-radius: 14px !important;
+  }
+
+  .terminal-header-top {
+    gap: 0.5rem !important;
+  }
+
+  .brand-logo-badge {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 1rem !important;
   }
 
   .brand-title {
-    font-size: 1.05rem;
+    font-size: 1.05rem !important;
   }
 
   .brand-subtitle {
-    display: none; /* Hide subtitle on mobile for cleaner top bar */
+    display: none !important; /* Hide subtitle to keep header clean */
   }
 
   .icon-ctrl-btn .ctrl-label {
-    display: none; /* Hide button text labels on mobile, show icons only */
+    display: none !important; /* Icons only on top bar */
   }
 
   .icon-ctrl-btn {
-    padding: 0.4rem 0.55rem;
+    padding: 0.35rem 0.5rem !important;
+    border-radius: 8px !important;
   }
 
-  .unified-tab-btn {
-    padding: 0.5rem 0.6rem;
-    font-size: 0.72rem;
+  /* Top Nav Row Hidden - Replaced by Thumb-Friendly Bottom Nav */
+  .terminal-nav-row {
+    display: none !important;
+  }
+
+  /* Micro KPI Strip - Horizontal Scrollable Chips */
+  .terminal-kpi-strip {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    gap: 0.4rem !important;
+    padding-top: 0.4rem !important;
+    width: 100% !important;
+  }
+
+  .terminal-kpi-strip::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .kpi-pill {
+    flex: 0 0 auto !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.68rem !important;
+  }
+
+  .kpi-faq-btn {
+    flex: 0 0 auto !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.68rem !important;
+    margin-left: 0 !important;
   }
 
   .kpi-faq-text {
-    display: none;
+    display: none !important;
+  }
+
+  /* Slim Membership Banner on Mobile */
+  .slim-membership-banner {
+    padding: 0.65rem 0.85rem !important;
+    margin-bottom: 1rem !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+  }
+
+  .banner-right {
+    justify-content: flex-end !important;
+  }
+
+  /* ==========================================
+     VIEW: TRENDING (PİYASA TRENDLERİ) MOBILE
+     ========================================== */
+  .trending-matches-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+  }
+
+  .trending-filter-bar {
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .trending-filter-chips {
+    display: flex !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 2px !important;
+    width: 100% !important;
+    gap: 0.4rem !important;
+  }
+
+  .trending-filter-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .trending-filter-chips button {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.72rem !important;
+  }
+
+  .trending-search-box {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* ==========================================
+     VIEW: RADAR (GÜNLÜK RADAR) MOBILE
+     ========================================== */
+  .radar-view > div:first-child {
+    margin-bottom: 1.25rem !important;
+    gap: 0.85rem !important;
+  }
+
+  .radar-view h3 {
+    font-size: 1.35rem !important;
+  }
+
+  .radar-market-chips {
+    display: flex !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 4px !important;
+    width: 100% !important;
+    gap: 0.4rem !important;
+    margin-top: 0.85rem !important;
+  }
+
+  .radar-market-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .radar-market-chips button {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    padding: 0.45rem 0.8rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  .radar-filter-panel {
+    padding: 0.85rem !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    border-radius: 14px !important;
+  }
+
+  .radar-source-chips {
+    display: flex !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 4px !important;
+    width: 100% !important;
+    gap: 0.4rem !important;
+  }
+
+  .radar-source-chips::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .radar-source-chips button {
+    flex: 0 0 auto !important;
+    padding: 0.35rem 0.65rem !important;
+  }
+
+  .radar-cards-grid,
+  .radar-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    width: 100% !important;
+  }
+
+  .radar-card {
+    padding: 1.1rem !important;
+    border-radius: 14px !important;
+  }
+
+  /* ==========================================
+     VIEW: DASHBOARD (CANLI RADAR) MOBILE
+     ========================================== */
+  .golden-combo-picks {
+    grid-template-columns: 1fr !important;
+    gap: 0.6rem !important;
+  }
+
+  .pending-opps-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.7rem !important;
+  }
+
+  .matches-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
   }
 
   .desktop-matches-view {
@@ -2311,20 +2635,157 @@ body {
 
   .mobile-matches-view {
     display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
   }
 
-  /* Intelligence Modal on mobile */
+  /* Mobile Match Card Polish */
+  .mobile-match-card {
+    padding: 0.9rem !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    background: rgba(15, 23, 42, 0.75) !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  .mobile-match-card:active {
+    transform: scale(0.98) !important;
+    border-color: rgba(56, 189, 248, 0.4) !important;
+  }
+
+  /* ==========================================
+     VIEW: PORTFOLIO MOBILE
+     ========================================== */
+  .portfolio-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.65rem !important;
+  }
+
+  .portfolio-card {
+    padding: 0.85rem !important;
+  }
+
+  .portfolio-card .value {
+    font-size: 1.2rem !important;
+  }
+
+  .portfolio-row {
+    grid-template-columns: 1.4fr 1fr 1fr !important;
+    padding: 0.75rem 0.85rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .portfolio-row > span:nth-child(4),
+  .portfolio-row > span:nth-child(5) {
+    display: none !important;
+  }
+
+  /* ==========================================
+     MODALS: BOTTOM-SHEET EXPERIENCE ON MOBILE
+     ========================================== */
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+    background: rgba(3, 7, 18, 0.88) !important;
+    backdrop-filter: blur(15px) !important;
+    -webkit-backdrop-filter: blur(15px) !important;
+  }
+
   .modal-content {
-    width: 96% !important;
-    padding: 1.25rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh !important;
+    padding: 1.25rem 1rem !important;
+    margin: 0 !important;
+    border-bottom: none !important;
+    animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
-  .modal-content div[style*="gridTemplateColumns: '1.2fr 1fr'"],
-  .modal-content div[style*="grid-template-columns: 1.2fr 1fr"] {
+  @keyframes slideUpSheet {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .modal-content .close-btn,
+  .close-btn-enhanced {
+    top: 0.85rem !important;
+    right: 0.85rem !important;
+    width: 2.2rem !important;
+    height: 2.2rem !important;
+    font-size: 1.3rem !important;
+  }
+
+  .modal-grid {
     grid-template-columns: 1fr !important;
+    gap: 1.2rem !important;
+  }
+
+  .intelligence-modal-content > div[style*="gridTemplateColumns"],
+  .modal-content div[style*="gridTemplateColumns"],
+  .modal-content div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .faq-modal-content,
+  .modal-content.settings {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 92vh !important;
+    padding: 1.25rem 1rem !important;
+    margin: 0 !important;
+  }
+
+  .plans-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .tracking-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.5rem !important;
+  }
+
+  .match-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem !important;
+    margin-bottom: 1.5rem !important;
   }
 
   .floating-kpi-fab {
-    display: none !important; /* Hide FAB on mobile since Sinyaller is in header */
+    display: none !important;
+  }
+}
+
+/* Extra small devices (<= 480px) */
+@media (max-width: 480px) {
+  .dashboard-container {
+    padding: 0.5rem 0.5rem calc(70px + env(safe-area-inset-bottom, 0px)) 0.5rem !important;
+  }
+
+  .brand-title {
+    font-size: 0.95rem !important;
+  }
+
+  .mobile-nav-label {
+    font-size: 0.6rem !important;
+  }
+
+  .mobile-nav-icon {
+    font-size: 1.15rem !important;
+  }
+
+  .portfolio-grid {
+    grid-template-columns: 1fr !important;
   }
 }
