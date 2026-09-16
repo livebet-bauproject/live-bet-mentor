@@ -228,3 +228,58 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
 
     return list.map(item => item.match);
 };
+
+/**
+ * Formats a Tipico trending bet into a clean, human-readable prediction string
+ * e.g., "Benfica", "2.5 Üst", "Sıradaki Gol: Milan", "KG Var"
+ */
+export const formatTipicoPrediction = (bet, lang = 'tr') => {
+    if (!bet) return '';
+    const outcome = (bet.outcome || '').trim();
+    const market = (bet.market || '').trim().toLowerCase();
+    const marketShort = (bet.marketShort || '').trim().toLowerCase();
+
+    // 1. Next Goal / Sıradaki Gol
+    if (marketShort === 'next-point' || market.includes('next') || market.includes('nächste') || market.includes('sıradaki')) {
+        return lang === 'tr' ? `Sıradaki Gol: ${outcome}` : `Next Goal: ${outcome}`;
+    }
+
+    // 2. Rest of Match Over/Under
+    const isRest = market.includes('restzeit') || market.includes('rest of the game') || market.includes('rest of game') || market.includes('kalan süre');
+
+    // 3. Over / Über
+    const matchOver = outcome.match(/^(?:über|over)\s*(\d+[,.]?\d*)/i);
+    if (matchOver) {
+        const num = matchOver[1].replace(',', '.');
+        if (isRest) return lang === 'tr' ? `Kalan ${num} Üst` : `Rest ${num} Over`;
+        return `${num} ${lang === 'tr' ? 'Üst' : 'Over'}`;
+    }
+
+    // 4. Under / Unter
+    const matchUnder = outcome.match(/^(?:unter|under)\s*(\d+[,.]?\d*)/i);
+    if (matchUnder) {
+        const num = matchUnder[1].replace(',', '.');
+        if (isRest) return lang === 'tr' ? `Kalan ${num} Alt` : `Rest ${num} Under`;
+        return `${num} ${lang === 'tr' ? 'Alt' : 'Under'}`;
+    }
+
+    // 5. 1X2 & Match Result terms
+    const oLower = outcome.toLowerCase();
+    if (oLower === 'unentschieden' || oLower === 'draw' || oLower === 'tie' || oLower === 'x') {
+        return lang === 'tr' ? 'Beraberlik (X)' : 'Draw (X)';
+    }
+    if (oLower === 'heimsieg' || oLower === 'home') {
+        return lang === 'tr' ? 'Ev Sahibi (1)' : 'Home (1)';
+    }
+    if (oLower === 'auswärtssieg' || oLower === 'away') {
+        return lang === 'tr' ? 'Deplasman (2)' : 'Away (2)';
+    }
+    if (oLower === 'ja' || oLower === 'yes') {
+        return lang === 'tr' ? 'KG Var' : 'BTTS Yes';
+    }
+    if (oLower === 'nein' || oLower === 'no') {
+        return lang === 'tr' ? 'KG Yok' : 'BTTS No';
+    }
+
+    return outcome;
+};

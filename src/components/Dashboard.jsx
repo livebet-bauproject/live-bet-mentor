@@ -23,7 +23,7 @@ import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot } from '../logic/liveSortEngine';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, formatTipicoPrediction } from '../logic/liveSortEngine';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -1933,6 +1933,22 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         pinnedMatchIds,
         trendingBets
     ]);
+
+    const terminalOpportunitiesMap = useMemo(() => {
+        const oppMatches = enforcedMatches.filter(filterByTier).filter(m => {
+            const minStr = String(m.minute || '').toLowerCase();
+            const code = m.status?.code;
+            const desc = String(m.status?.description || '').toLowerCase();
+            const isPen = code === 120 || code === 110 || minStr === 'pen.' || minStr.includes('pen') || desc.includes('penalt');
+            return !isPen;
+        });
+        const opps = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
+        const map = new Map();
+        opps.forEach(o => {
+            if (o && o.matchId) map.set(o.matchId, o);
+        });
+        return map;
+    }, [enforcedMatches, activeTierFilter, signals, momentumWindow]);
 
     const handleGenerateGlobalReport = async (type) => {
         // Enforce AI Usage Limits
@@ -4704,6 +4720,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 matches={processedTerminalMatches}
                                 signals={signals}
                                 trendingBets={trendingBets}
+                                opportunitiesMap={terminalOpportunitiesMap}
                                 t={t}
                                 lang={lang}
                                 selectedMatch={selectedMatch}
@@ -4720,6 +4737,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 matches={processedTerminalMatches}
                                 signals={signals}
                                 trendingBets={trendingBets}
+                                opportunitiesMap={terminalOpportunitiesMap}
                                 t={t}
                                 lang={lang}
                                 selectedMatch={selectedMatch}
@@ -5454,6 +5472,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     );
                                     const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
                                     const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
+                                    const tipicoPrediction = trendingBet ? formatTipicoPrediction(trendingBet, lang) : '';
 
                                     return (
                                         <div
@@ -5480,7 +5499,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             }}
                                                         >
                                                             <span>🔥</span>
-                                                            <span>{isTrendApproved ? (lang === 'tr' ? 'Akıllı Para' : 'Smart Money') : isTrendTrap ? (lang === 'tr' ? 'Tuzak Alarmı' : 'Trap Alert') : (lang === 'tr' ? `${trendingBet.count} Kupon` : `${trendingBet.count} Bets`)}</span>
+                                                            <span>Tipico: {tipicoPrediction}{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
+                                                            <span style={{ opacity: 0.8 }}>• {trendingBet.count} K</span>
                                                         </span>
                                                     )}
                                                 </div>
@@ -5552,19 +5572,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             );
                                             const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
                                             const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
+                                            const tipicoPrediction = trendingBet ? formatTipicoPrediction(trendingBet, lang) : '';
 
                                             return (
                                                 <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
                                                     <td style={{ padding: '1.25rem 2rem' }}>
                                                         <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                            <span>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</span>
-                                                            {trendingBet && (
+                                                             <span>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</span>
+                                                             {trendingBet && (
                                                                 <span
                                                                     title={isTrendApproved 
-                                                                        ? (lang === 'tr' ? 'Akıllı Para: Yüksek halk hacmi saha baskısıyla doğrulanıyor.' : 'Smart Money: High public volume verified by pitch pressure.')
+                                                                        ? (lang === 'tr' ? `Akıllı Para: Tipico tercihi (${tipicoPrediction}) saha baskısıyla doğrulanıyor.` : `Smart Money: Tipico pick (${tipicoPrediction}) verified by pitch pressure.`)
                                                                         : isTrendTrap
-                                                                        ? (lang === 'tr' ? 'Tuzak Uyarısı: Kalabalık bu maça para basıyor ancak saha verisi yetersiz!' : 'Trap Alert: Public is betting heavily, but pitch stats do not support it!')
-                                                                        : (lang === 'tr' ? 'Piyasa Akışı: Son 5 dakikada yoğun kupon hacmi.' : 'Market Influx: Heavy betting volume in last 5m.')}
+                                                                        ? (lang === 'tr' ? `Tuzak Uyarısı: Kalabalık Tipico'da (${tipicoPrediction}) oynuyor ancak saha verisi yetersiz!` : `Trap Alert: Crowd is betting (${tipicoPrediction}) on Tipico, but pitch stats do not support it!`)
+                                                                        : (lang === 'tr' ? `Tipico Piyasası: ${tipicoPrediction} - Son 5 dakikada ${trendingBet.count} kupon.` : `Tipico Market: ${tipicoPrediction} - ${trendingBet.count} bets in last 5m.`)}
                                                                     style={{
                                                                         fontSize: '0.62rem',
                                                                         padding: '0.15rem 0.5rem',
@@ -5575,15 +5596,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         fontWeight: 800,
                                                                         display: 'inline-flex',
                                                                         alignItems: 'center',
-                                                                        gap: '0.25rem'
+                                                                        gap: '0.35rem'
                                                                     }}
                                                                 >
                                                                     <span>🔥</span>
+                                                                    <span>TİPİCO: <strong style={{ color: '#fff' }}>{tipicoPrediction}</strong>{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
+                                                                    <span>•</span>
                                                                     <span>{trendingBet.count} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
                                                                     <span>•</span>
                                                                     <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA' : 'SMART MONEY') : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI' : 'TRAP ALERT') : (lang === 'tr' ? 'PİYASA AKIŞI' : 'INFLUX')}</span>
                                                                 </span>
-                                                            )}
+                                                             )}
                                                         </div>
                                                         <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{(m.score && typeof m.score === 'object') ? `${m.score.home ?? 0} : ${m.score.away ?? 0}` : (m.score || '0 : 0')}</div>
                                                     </td>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { calculateMatchHeatScore } from '../logic/liveSortEngine';
+import { calculateMatchHeatScore, formatTipicoPrediction } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { CONFIG } from '../config';
 
@@ -7,6 +7,7 @@ export const LiveTerminalTable = ({
     matches = [],
     signals = {},
     trendingBets = [],
+    opportunitiesMap = null,
     t = {},
     lang = 'tr',
     selectedMatch = null,
@@ -66,6 +67,7 @@ export const LiveTerminalTable = ({
                         <th style={{ width: '110px' }}>{t?.league_label || 'LİG'}</th>
                         <th>{t?.match_label || 'MAÇ'}</th>
                         <th style={{ width: '65px', textAlign: 'center' }}>{t?.score_label || 'SKOR'}</th>
+                        <th style={{ width: '90px', textAlign: 'center' }}>{lang === 'tr' ? 'ISI / DURUM' : 'HEAT'}</th>
                         <th style={{ width: '85px', textAlign: 'center' }}>1X2 CANLI</th>
                         <th style={{ width: '75px', textAlign: 'center' }}>BASKI / IVME</th>
                         <th style={{ width: '70px', textAlign: 'center' }}>ŞUT (ISB)</th>
@@ -78,7 +80,7 @@ export const LiveTerminalTable = ({
                 <tbody>
                     {matches.length === 0 ? (
                         <tr>
-                            <td colSpan={12} style={{ textAlign: 'center', padding: '3rem', color: 'var(--tb-text-muted)' }}>
+                            <td colSpan={13} style={{ textAlign: 'center', padding: '3rem', color: 'var(--tb-text-muted)' }}>
                                 {lang === 'tr' ? 'Seçili kriterlere uygun canlı maç bulunamadı.' : 'No live matches matching current criteria.'}
                             </td>
                         </tr>
@@ -88,6 +90,10 @@ export const LiveTerminalTable = ({
                             const signal = signals[m.id];
                             const isPinned = pinnedMatchIds.has(m.id);
                             const heat = calculateMatchHeatScore(m, signal);
+                            const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
+                            const heatScore = opp?.score !== undefined ? opp.score : heat;
+                            const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
+                            const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
 
                             const sogHome = m.stats?.shotsOnGoal?.home || 0;
                             const sogAway = m.stats?.shotsOnGoal?.away || 0;
@@ -126,6 +132,7 @@ export const LiveTerminalTable = ({
                             const dqsVal = m.dqs !== undefined ? m.dqs : 0;
                             const isTrendApproved = hasTrend && dqsVal >= 0.50;
                             const isTrendTrap = hasTrend && dqsVal < 0.40;
+                            const tipicoPrediction = hasTrend ? formatTipicoPrediction(primaryTrend, lang) : '';
 
                             return (
                                 <React.Fragment key={m.id}>
@@ -187,16 +194,26 @@ export const LiveTerminalTable = ({
                                                 </span>
                                             </div>
 
-                                            {/* Market Trend Pill (European Volume Flow) */}
+                                            {/* Tipico Market Trend Pill (Shows Tipico's exact pick & volume) */}
                                             {hasTrend && (
-                                                <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <span
                                                         className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
-                                                        title={`Avrupa Bahis Hacmi: ${totalTrendCount} Kupon • ${primaryTrend.market || ''} ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
+                                                        title={`Tipico Bahis Hacmi: ${totalTrendCount} Kupon • Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
                                                     >
                                                         <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
-                                                        <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA' : 'SMART MONEY') : isTrendTrap ? (lang === 'tr' ? 'TUZAK UYARISI' : 'TRAP ALERT') : (lang === 'tr' ? 'PİYASA AKIŞI' : 'MARKET FLOW')}</span>
-                                                        <span style={{ opacity: 0.85, fontWeight: 700 }}>• {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
+                                                        <span style={{ fontWeight: 900 }}>
+                                                            {isTrendApproved ? (lang === 'tr' ? 'TİPİCO AKILLI PARA:' : 'TIPICO SMART MONEY:') : isTrendTrap ? (lang === 'tr' ? 'TİPİCO TUZAK:' : 'TIPICO TRAP:') : (lang === 'tr' ? 'TİPİCO PİYASA:' : 'TIPICO FLOW:')}
+                                                        </span>
+                                                        <span className="tb-trend-pred">
+                                                            {tipicoPrediction}
+                                                        </span>
+                                                        {primaryTrend.odds && (
+                                                            <span className="tb-trend-odds">
+                                                                @{typeof primaryTrend.odds === 'number' ? primaryTrend.odds.toFixed(2) : primaryTrend.odds}
+                                                            </span>
+                                                        )}
+                                                        <span style={{ opacity: 0.8, fontSize: '0.62rem' }}>• {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
                                                     </span>
                                                 </div>
                                             )}
@@ -205,6 +222,16 @@ export const LiveTerminalTable = ({
                                         {/* Score */}
                                         <td className="tb-col-score">
                                             {formatScore(m.score)}
+                                        </td>
+
+                                        {/* Heat Level & Score Badge */}
+                                        <td style={{ textAlign: 'center' }}>
+                                            <span
+                                                className={`tb-heat-badge tb-heat-${(heatLevel || 'soguk').toLowerCase()}`}
+                                                title={`Isı Skoru: ${heatScore} • Seviye: ${heatLevel}${opp?.trend ? ` • Trend: ${opp.trend}` : ''}`}
+                                            >
+                                                {heatIcon} {heatScore} {heatLevel}
+                                            </span>
                                         </td>
 
                                         {/* 1X2 Odds */}
@@ -281,7 +308,7 @@ export const LiveTerminalTable = ({
                                     {/* Inline Accordion Detail Tray */}
                                     {isExpanded && (
                                         <tr className="tb-expanded-row">
-                                            <td colSpan={12}>
+                                            <td colSpan={13}>
                                                 <div className="tb-expanded-content">
                                                     {/* Left: Momentum Graph & Timeline */}
                                                     <div>
@@ -336,12 +363,12 @@ export const LiveTerminalTable = ({
                                                             )}
                                                         </div>
 
-                                                        {/* European Market Flow Detail */}
+                                                        {/* Tipico European Market Flow Detail */}
                                                         {hasTrend && (
                                                             <div className="tb-trend-box">
                                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                                                     <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8' }}>
-                                                                        📈 {lang === 'tr' ? 'AVRUPA PİYASA AKIŞI & HALK BAHİSLERİ' : 'EUROPEAN MARKET FLOW & PUBLIC BETS'}
+                                                                        📈 {lang === 'tr' ? 'TİPİCO AVRUPA PİYASA AKIŞI & HALK BAHİSİ' : 'TIPICO EUROPEAN MARKET FLOW & PUBLIC BET'}
                                                                     </span>
                                                                     <span className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}>
                                                                         {isTrendApproved 
@@ -352,19 +379,20 @@ export const LiveTerminalTable = ({
                                                                     </span>
                                                                 </div>
                                                                 <div style={{ fontSize: '0.75rem', color: 'var(--tb-text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-                                                                    <span><strong>{lang === 'tr' ? 'En Çok Oynanan:' : 'Top Market:'}</strong> {primaryTrend.market} {primaryTrend.outcome}</span>
-                                                                    <span><strong>{lang === 'tr' ? 'Oran:' : 'Odds:'}</strong> @{primaryTrend.odds}</span>
-                                                                    <span><strong>{lang === 'tr' ? 'Toplam Hacim:' : 'Total Volume:'}</strong> {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Coupons'}</span>
+                                                                    <span><strong>{lang === 'tr' ? 'Tipico Tercihi / Tahmini:' : 'Tipico Prediction:'}</strong> <span style={{ color: '#fff', fontWeight: 900 }}>{tipicoPrediction}</span></span>
+                                                                    <span><strong>{lang === 'tr' ? 'Pazar:' : 'Market:'}</strong> {primaryTrend.market}</span>
+                                                                    <span><strong>{lang === 'tr' ? 'Oran:' : 'Odds:'}</strong> <span style={{ color: '#fbbf24', fontWeight: 800 }}>@{primaryTrend.odds}</span></span>
+                                                                    <span><strong>{lang === 'tr' ? 'Son 5 Dk Hacim:' : 'Last 5m Volume:'}</strong> <span style={{ color: '#f87171', fontWeight: 800 }}>{totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Coupons'}</span></span>
                                                                 </div>
                                                                 <div style={{ fontSize: '0.7rem', color: 'var(--tb-text-muted)', lineHeight: 1.4 }}>
                                                                     {isTrendApproved
                                                                         ? (lang === 'tr' 
-                                                                            ? `Yüksek DQS (%${(dqsVal * 100).toFixed(0)}) & saha verisi kalabalığın bahsini doğruluyor.` 
-                                                                            : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats validate the public volume.`)
+                                                                            ? `Yüksek DQS (%${(dqsVal * 100).toFixed(0)}) & saha verisi Tipico'daki kalabalığın bahsini (${tipicoPrediction}) doğruluyor.` 
+                                                                            : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats confirm the Tipico crowd bet (${tipicoPrediction}).`)
                                                                         : isTrendTrap
                                                                         ? (lang === 'tr'
-                                                                            ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık tuzağa çekiliyor olabilir!`
-                                                                            : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The crowd may be walking into a bookmaker trap!`)
+                                                                            ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık Tipico'da (${tipicoPrediction}) tercihine tuzağa çekiliyor olabilir!`
+                                                                            : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The Tipico crowd betting on (${tipicoPrediction}) may be in a trap!`)
                                                                         : (lang === 'tr'
                                                                             ? `Orta seviye DQS (%${(dqsVal * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
                                                                             : `Moderate DQS (${(dqsVal * 100).toFixed(0)}%). Monitor ongoing pitch dynamics.`)}

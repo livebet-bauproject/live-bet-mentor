@@ -387,15 +387,56 @@
   animation: tbPulse 2.5s infinite;
 }
 
+/* Live Terminal Heat Level Badges (ALEV, SICAK, ALPHA, SOGUK) */
+.tb-heat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+
+.tb-heat-badge.tb-heat-alev {
+  background: rgba(239, 68, 68, 0.16);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+}
+
+.tb-heat-badge.tb-heat-sicak {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+.tb-heat-badge.tb-heat-alpha {
+  background: rgba(56, 189, 248, 0.18);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+}
+
+.tb-heat-badge.tb-heat-soguk {
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
 /* Market Trend Indicators (Piyasa Trendleri & Halk Akışı) */
 .tb-trend-pill {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
+  gap: 5px;
+  padding: 2px 7px;
   border-radius: 4px;
-  font-size: 0.65rem;
-  font-weight: 800;
+  font-size: 0.66rem;
+  font-weight: 700;
   letter-spacing: 0.2px;
   white-space: nowrap;
   line-height: 1.25;
@@ -417,6 +458,22 @@
   background: rgba(56, 189, 248, 0.15);
   color: #38bdf8;
   border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.tb-trend-pred {
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 900;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  letter-spacing: 0.3px;
+}
+
+.tb-trend-odds {
+  color: #fbbf24;
+  font-weight: 800;
+  font-size: 0.65rem;
 }
 
 .tb-trend-box {
