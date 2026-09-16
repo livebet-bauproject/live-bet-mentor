@@ -4172,4 +4172,19 @@ html, body {
   .opp-pred-body {
     font-size: 0.85rem !important;
   }
+}
+
+/* Pricing Plans Grid Layout - Enforce 3 columns side-by-side on desktop */
+.plans-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 1.25rem !important;
+  align-items: stretch !important;
+}
+
+@media (max-width: 860px) {
+  .plans-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1.25rem !important;
+  }
 }

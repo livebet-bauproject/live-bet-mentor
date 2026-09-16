@@ -685,12 +685,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         const isYearly = billingCycle === 'yearly';
         const curr = settings.price_currency || '€';
-        const proMonthlyBase = Number(settings.price_pro || 29);
-        const premiumMonthlyBase = Number(settings.price_premium || 79);
+        const proMonthlyBase = (settings.price_pro !== undefined && settings.price_pro !== '') ? Number(settings.price_pro) : 14.90;
+        const premiumMonthlyBase = (settings.price_premium !== undefined && settings.price_premium !== '') ? Number(settings.price_premium) : 34.90;
 
-        // 25% discount for yearly billing (2 months free):
-        const proPrice = isYearly ? Math.round(proMonthlyBase * 0.75) : proMonthlyBase;
-        const premiumPrice = isYearly ? Math.round(premiumMonthlyBase * 0.75) : premiumMonthlyBase;
+        const formatPrice = (n) => (n % 1 === 0 ? n.toString() : n.toFixed(2));
+
+        const proPriceVal = isYearly ? (proMonthlyBase === 14.90 ? 9.90 : Math.round(proMonthlyBase * 0.7)) : proMonthlyBase;
+        const premiumPriceVal = isYearly ? (premiumMonthlyBase === 34.90 ? 24.90 : Math.round(premiumMonthlyBase * 0.7)) : premiumMonthlyBase;
+
+        const proPrice = `${formatPrice(proPriceVal)} ${curr}`;
+        const premiumPrice = `${formatPrice(premiumPriceVal)} ${curr}`;
 
         const plans = [
             {
@@ -707,7 +711,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 name: t.pro_badge,
                 color: '#38bdf8',
                 features: t.plan_pro_features,
-                price: `${proPrice} ${curr}`,
+                price: proPrice,
                 subtext: isYearly ? (t.billed_annually || (lang === 'tr' ? 'Yıllık faturalandırılır (2 Ay Hediye)' : 'Billed annually (2 months free)')) : null,
                 isFree: false
             },
@@ -717,7 +721,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 color: '#00f2fe',
                 badge: lang === 'tr' ? 'EN POPÜLER' : 'MOST POPULAR',
                 features: t.plan_premium_features,
-                price: `${premiumPrice} ${curr}`,
+                price: premiumPrice,
                 subtext: isYearly ? (t.billed_annually || (lang === 'tr' ? 'Yıllık faturalandırılır (2 Ay Hediye)' : 'Billed annually (2 months free)')) : null,
                 isFree: false
             }
@@ -726,9 +730,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return (
             <div className="modal-overlay" onClick={() => setShowPlanComparison(false)} style={{ zIndex: 10001 }}>
                 <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{
-                    maxWidth: '1000px',
-                    padding: '3rem',
-                    maxHeight: '90vh',
+                    maxWidth: '1120px',
+                    width: '95vw',
+                    padding: '2.5rem 1.8rem',
+                    maxHeight: '92vh',
                     overflowY: 'auto'
                 }}>
                     <button className="close-btn" onClick={() => setShowPlanComparison(false)}>×</button>
@@ -803,15 +808,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
                     </div>
 
-                    <div className="plans-grid" style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                        gap: '1.5rem',
-                        alignItems: 'stretch'
-                    }}>
+                    <div className="plans-grid">
                         {plans.map(p => (
                             <div key={p.id} style={{
-                                padding: '2.5rem 2rem',
+                                padding: '2.2rem 1.4rem',
                                 background: 'rgba(15, 23, 42, 0.6)',
                                 borderRadius: '24px',
                                 border: `2px solid ${p.id === userProfile?.plan ? p.color : (p.badge ? 'rgba(0, 242, 254, 0.3)' : 'rgba(255,255,255,0.05)')}`,
