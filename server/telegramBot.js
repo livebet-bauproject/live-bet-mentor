@@ -386,20 +386,27 @@ class TelegramBot {
     }
 
     /**
-     * Schedule daily consensus broadcast (default 12:00 noon)
+     * Schedule daily consensus broadcast (default 12:00 TSİ Turkey Time)
      */
-    scheduleDailyConsensusBroadcast(hour = 12, minute = 0) {
+    scheduleDailyConsensusBroadcast(targetHourTRT = 12, targetMinuteTRT = 0) {
         const scheduleNext = () => {
             const now = new Date();
-            const target = new Date();
-            target.setHours(hour, minute, 0, 0);
-
-            if (target <= now) {
-                target.setDate(target.getDate() + 1);
+            const targetUtcHour = (targetHourTRT - 3 + 24) % 24;
+            const targetUtc = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+                targetUtcHour,
+                targetMinuteTRT,
+                0,
+                0
+            ));
+            if (targetUtc.getTime() <= now.getTime()) {
+                targetUtc.setUTCDate(targetUtc.getUTCDate() + 1);
             }
 
-            const delay = target.getTime() - now.getTime();
-            console.log(`[TELEGRAM] 🎯 Next daily consensus broadcast scheduled in ${Math.round(delay / 60000)} minutes (${target.toLocaleTimeString()})`);
+            const delay = targetUtc.getTime() - now.getTime();
+            console.log(`[TELEGRAM] 🎯 Next daily consensus broadcast (12:00 TSİ) scheduled in ${Math.round(delay / 60000)} minutes (${targetUtc.toISOString()})`);
 
             setTimeout(async () => {
                 console.log('[TELEGRAM] ⏰ Triggering scheduled daily consensus broadcast...');
@@ -1142,20 +1149,27 @@ _Average activation time: 2–5 minutes._
     }
 
     /**
-     * Schedule daily report (call this once at startup)
+     * Schedule daily report (call this once at startup, default 23:00 TSİ)
      */
-    scheduleDailyReport(hour = 23, minute = 0) {
+    scheduleDailyReport(targetHourTRT = 23, targetMinuteTRT = 0) {
         const scheduleNext = () => {
             const now = new Date();
-            const target = new Date();
-            target.setHours(hour, minute, 0, 0);
-
-            if (target <= now) {
-                target.setDate(target.getDate() + 1);
+            const targetUtcHour = (targetHourTRT - 3 + 24) % 24;
+            const targetUtc = new Date(Date.UTC(
+                now.getUTCFullYear(),
+                now.getUTCMonth(),
+                now.getUTCDate(),
+                targetUtcHour,
+                targetMinuteTRT,
+                0,
+                0
+            ));
+            if (targetUtc.getTime() <= now.getTime()) {
+                targetUtc.setUTCDate(targetUtc.getUTCDate() + 1);
             }
 
-            const delay = target.getTime() - now.getTime();
-            console.log(`[TELEGRAM] 📅 Next daily report scheduled in ${Math.round(delay / 60000)} minutes`);
+            const delay = targetUtc.getTime() - now.getTime();
+            console.log(`[TELEGRAM] 📅 Next daily report (23:00 TSİ) scheduled in ${Math.round(delay / 60000)} minutes (${targetUtc.toISOString()})`);
 
             setTimeout(async () => {
                 await this.sendDailyReport();

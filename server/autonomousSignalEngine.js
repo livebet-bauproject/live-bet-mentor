@@ -66,16 +66,47 @@ export class AutonomousSignalEngine {
 
     parseMinute(ev) {
         if (!ev) return null;
-        if (typeof ev.minute === 'number') return ev.minute;
-        const desc = (ev.status?.description || '').trim();
-        const mMatch = desc.match(/(\d+)/);
-        if (mMatch) return parseInt(mMatch[1]);
+        if (typeof ev.minute === 'number' && ev.minute > 0) return ev.minute;
+
+        const desc = (ev.status?.description || '').toLowerCase().trim();
+        if (desc.includes('halftime') || desc.includes('iy') || desc.includes('break')) return null;
+
+        // 1. Calculate from SofaScore period timestamp (most accurate for live matches)
         if (ev.time?.currentPeriodStartTimestamp) {
-            const elapsed = Math.floor((Date.now() / 1000 - ev.time.currentPeriodStartTimestamp) / 60);
-            if (desc.includes('2nd') || desc.includes('2.')) return Math.min(90, 45 + elapsed);
-            return Math.min(45, elapsed);
+            const nowSec = Math.floor(Date.now() / 1000);
+            const elapsed = Math.floor((nowSec - ev.time.currentPeriodStartTimestamp) / 60);
+            if (elapsed >= 0) {
+                if (desc.includes('2nd') || desc.includes('2.') || desc.includes('second')) {
+                    return Math.min(90, 45 + elapsed);
+                }
+                return Math.min(45, Math.max(1, elapsed));
+            }
         }
+
+        // 2. Check for explicit minute (e.g. "65'", "72 min") - strictly avoid "1st" / "2nd"
+        const mExplicit = desc.match(/\b([1-9]\d?|90)\s*['’]/) || desc.match(/\b([2-8]\d)\b/);
+        if (mExplicit) {
+            const parsed = parseInt(mExplicit[1], 10);
+            if (parsed >= 1 && parsed <= 95) return parsed;
+        }
+
         return null;
+    }
+
+    requestStats(id) {
+        if (!id) return;
+        try {
+            const REQUEST_QUEUE = path.join(__dirname, 'stats_request.json');
+            let queue = { ids: [] };
+            if (fs.existsSync(REQUEST_QUEUE)) {
+                try { queue = JSON.parse(fs.readFileSync(REQUEST_QUEUE, 'utf8')); } catch(e) {}
+            }
+            const strId = String(id);
+            if (!queue.ids.includes(strId)) {
+                queue.ids.push(strId);
+                fs.writeFileSync(REQUEST_QUEUE, JSON.stringify(queue), 'utf8');
+            }
+        } catch(e) {}
     }
 
     evaluateEvent(ev) {
@@ -108,7 +139,10 @@ export class AutonomousSignalEngine {
 
         // Check stats file
         const statsPath = path.join(STATS_DIR, `${ev.id}_stats.json`);
-        if (!fs.existsSync(statsPath)) return null;
+        if (!fs.existsSync(statsPath)) {
+            this.requestStats(ev.id);
+            return null;
+        }
 
         let parsedStats = null;
         try {
