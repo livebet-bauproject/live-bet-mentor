@@ -209,7 +209,7 @@ export const translations = {
         ],
         plan_pro_features: [
             "Tam Kapsamlı Analiz & DQS Motoru",
-            "Tüm Küresel Ligler (Tier 1 / 2 / 3 Tam Erişim)",
+            "Gelişmiş Küresel Ligler (Tier 1 & Tier 2 Tam Erişim)",
             "Tüm Konsensus Kaynakları (IQ Ağırlıklı)",
             "Günlük 15 AI Uzman Raporu",
             "Günlük 150 Akıllı Alarm (Full Pulse)",
@@ -1472,7 +1472,7 @@ export const translations = {
         ],
         plan_pro_features: [
             "Full Stack Analysis & DQS Engine",
-            "All Global Leagues (Tier 1 / 2 / 3 Full Access)",
+            "Major & Secondary Leagues (Tier 1 & Tier 2 Full Access)",
             "All Consensus Sources (IQ-Weighted)",
             "15 Daily AI Expert Reports",
             "150 Daily Smart Alerts (Full Pulse)",
