@@ -29,7 +29,7 @@ export const MatchIncidentsTimeline = ({
                 marginTop: '1rem'
             }}>
                 <span style={{ animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>🌀</span>
-                <span>{lang === 'tr' ? 'SofaScore maç olayları yükleniyor...' : 'Loading SofaScore match events...'}</span>
+                <span>{lang === 'tr' ? 'Canlı maç olayları yükleniyor...' : 'Loading live match events...'}</span>
             </div>
         );
     }
@@ -147,7 +147,7 @@ export const MatchIncidentsTimeline = ({
                         color: 'var(--accent-color)',
                         textTransform: 'uppercase'
                     }}>
-                        {lang === 'tr' ? 'MAÇ OLAYLARI (SOFASCORE TIMELINE)' : 'MATCH INCIDENTS (SOFASCORE TIMELINE)'}
+                        {lang === 'tr' ? 'MAÇ OLAYLARI & ZAMAN ÇİZELGESİ' : 'MATCH TIMELINE & KEY EVENTS'}
                     </span>
                     <span style={{
                         fontSize: '0.6rem',

@@ -34,7 +34,7 @@ export const AttackMomentumGraph = ({
                 gap: '8px'
             }}>
                 <span style={{ animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>🌀</span>
-                <span>{lang === 'tr' ? 'SofaScore Attack Momentum verisi çekiliyor...' : 'Fetching SofaScore wave data...'}</span>
+                <span>{lang === 'tr' ? 'Canlı Baskı Radarı verisi çekiliyor...' : 'Fetching Live Pressure Radar data...'}</span>
             </div>
         );
     }
@@ -53,7 +53,7 @@ export const AttackMomentumGraph = ({
                 <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>{noGraph ? 'ℹ️' : '📈'}</div>
                 <div>
                     {noGraph
-                        ? (lang === 'tr' ? 'Bu lig/kupa maçı için SofaScore canlı dalga radarı bulunmuyor' : 'No live wave radar provided by SofaScore for this event')
+                        ? (lang === 'tr' ? 'Bu lig/kupa maçı için canlı baskı radarı bulunmuyor' : 'Live pressure wave radar not available for this event')
                         : (lang === 'tr' ? 'Canlı Attack Momentum dalga verisi bekleniyor...' : 'Awaiting live Attack Momentum wave data...')
                     }
                 </div>
@@ -87,9 +87,10 @@ export const AttackMomentumGraph = ({
     const liveX = currentMinute > 0 && currentMinute <= totalMinutes ? ((currentMinute - 1) / totalMinutes) * svgWidth : null;
 
     const renderTeamBadge = (isHome) => {
+        const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
         const logoUrl = isHome
-            ? (homeTeamLogo || (homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null))
-            : (awayTeamLogo || (awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null));
+            ? (homeTeamLogo || (homeTeamId ? `${apiBase}/api/team/${homeTeamId}/image` : null))
+            : (awayTeamLogo || (awayTeamId ? `${apiBase}/api/team/${awayTeamId}/image` : null));
         const name = isHome ? homeTeam : awayTeam;
         const color = isHome ? '#22c55e' : '#3b82f6';
         const initial = (name || '?').charAt(0).toUpperCase();

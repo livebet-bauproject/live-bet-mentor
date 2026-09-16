@@ -783,7 +783,7 @@ app.get('/api/sofascore/event/:id/incidents', async (req, res) => {
 });
 
 // 4d. Team Crest / Logo Proxy with 24-hour cache
-app.get('/api/sofascore/team/:id/image', async (req, res) => {
+app.get(['/api/team/:id/image', '/api/sofascore/team/:id/image'], async (req, res) => {
     const id = req.params.id;
     try {
         const upstreamUrl = `https://img.sofascore.com/api/v1/team/${id}/image`;

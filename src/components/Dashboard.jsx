@@ -1073,7 +1073,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                                     {(currentMatch.homeTeamLogo || currentMatch.homeTeamId) && (
                                         <img
-                                            src={currentMatch.homeTeamLogo || `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image`}
+                                            src={currentMatch.homeTeamLogo || `https://live-bet-mentor.onrender.com/api/team/${currentMatch.homeTeamId}/image`}
                                             alt=""
                                             style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(34, 197, 94, 0.4)' }}
                                             onError={e => e.target.style.display = 'none'}
@@ -1088,7 +1088,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <span style={{ opacity: 0.35, margin: '0 4px' }}>vs</span>
                                     {(currentMatch.awayTeamLogo || currentMatch.awayTeamId) && (
                                         <img
-                                            src={currentMatch.awayTeamLogo || `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image`}
+                                            src={currentMatch.awayTeamLogo || `https://live-bet-mentor.onrender.com/api/team/${currentMatch.awayTeamId}/image`}
                                             alt=""
                                             style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(59, 130, 246, 0.4)' }}
                                             onError={e => e.target.style.display = 'none'}
@@ -1142,8 +1142,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 points={matchGraphPoints}
                                 homeTeam={currentMatch.homeTeam}
                                 awayTeam={currentMatch.awayTeam}
-                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image` : null)}
-                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image` : null)}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.awayTeamId}/image` : null)}
                                 homeTeamId={currentMatch.homeTeamId}
                                 awayTeamId={currentMatch.awayTeamId}
                                 currentMinute={parseInt(currentMatch.minute) || 90}
@@ -1155,13 +1155,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 noGraph={graphNoData}
                             />
 
-                            {/* SofaScore-style Match Incidents Timeline */}
+                            {/* Match Incidents Timeline */}
                             <MatchIncidentsTimeline
                                 incidents={matchIncidents}
                                 homeTeam={currentMatch.homeTeam}
                                 awayTeam={currentMatch.awayTeam}
-                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image` : null)}
-                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image` : null)}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.awayTeamId}/image` : null)}
                                 currentScore={currentMatch.score}
                                 lang={lang}
                                 loading={incidentsLoading}
@@ -4075,7 +4075,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <option value={CONFIG.DECISION.MODES.FULL_STACK}>{t.mode_full_label}</option>
                                 </select>
                                 <div style={{ textAlign: 'right', fontSize: '0.7rem', paddingRight: '0.5rem' }}>
-                                    <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{dataWorker.dataSource}</span>
+                                    <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{lang === 'tr' ? 'CANLI RADAR' : 'LIVE RADAR'}</span>
                                     <span style={{ opacity: 0.4, marginLeft: '0.5rem' }}>{t.settings_frozen}</span>
                                 </div>
                             </div>
