@@ -41,24 +41,28 @@ export const calculateMatchHeatScore = (match, signal = null, oppData = null) =>
     if (!match) return 0;
 
     // Direct opportunity score from liveOpportunityScorer if available
-    const directOppScore = Number(
-        oppData?.score ||
-        match.opportunityData?.score ||
-        0
-    );
+    const rawDirectOpp = oppData?.score ?? match.opportunityData?.score;
+    const directOppScore = (typeof rawDirectOpp === 'number' && !isNaN(rawDirectOpp)) ? rawDirectOpp : 0;
 
     // 1. Direct Pressure / Momentum Score (Max 40 pts)
-    const rawPressure = Number(
-        match.observations?.pressure?.total ||
-        match.observations?.pressure ||
-        oppData?.pressure ||
-        match.opportunityData?.pressure ||
-        match.pressureIndex ||
-        match.stats?.pressure?.current ||
-        (match.momentum && typeof match.momentum === 'object' ? match.momentum.current : 0) ||
-        0
-    );
-    let pressureContribution = Math.min(40, (rawPressure / 100) * 40);
+    let rawPressure = 0;
+    if (typeof match.observations?.pressure?.total === 'number' && !isNaN(match.observations.pressure.total)) {
+        rawPressure = match.observations.pressure.total;
+    } else if (typeof match.observations?.pressure === 'number' && !isNaN(match.observations.pressure)) {
+        rawPressure = match.observations.pressure;
+    } else if (typeof oppData?.pressure === 'number' && !isNaN(oppData.pressure)) {
+        rawPressure = oppData.pressure;
+    } else if (typeof match.opportunityData?.pressure === 'number' && !isNaN(match.opportunityData.pressure)) {
+        rawPressure = match.opportunityData.pressure;
+    } else if (typeof match.pressureIndex === 'number' && !isNaN(match.pressureIndex)) {
+        rawPressure = match.pressureIndex;
+    } else if (typeof match.stats?.pressure?.current === 'number' && !isNaN(match.stats.pressure.current)) {
+        rawPressure = match.stats.pressure.current;
+    } else if (match.momentum && typeof match.momentum.current === 'number' && !isNaN(match.momentum.current)) {
+        rawPressure = match.momentum.current;
+    }
+    const safePressure = Math.max(0, Math.min(100, rawPressure));
+    let pressureContribution = Math.min(40, (safePressure / 100) * 40);
 
     // 2. Dangerous Attacks & Shots Dominance (Max 25 pts)
     const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
@@ -111,11 +115,18 @@ export const calculateMatchHeatScore = (match, signal = null, oppData = null) =>
         redBonus = 5;
     }
 
-    const calculated = Math.min(100, Math.round(pressureContribution + attackContribution + minuteBonus + aiContribution + redBonus));
+    const sum = (isNaN(pressureContribution) ? 0 : pressureContribution) +
+        (isNaN(attackContribution) ? 0 : attackContribution) +
+        (isNaN(minuteBonus) ? 0 : minuteBonus) +
+        (isNaN(aiContribution) ? 0 : aiContribution) +
+        (isNaN(redBonus) ? 0 : redBonus);
+
+    const calculated = Math.min(100, Math.max(0, Math.round(sum)));
+    if (isNaN(calculated) || !isFinite(calculated)) return 0;
 
     // If liveOpportunityScorer produced a valid score, blend or take the maximum
-    if (directOppScore > 0) {
-        return Math.min(100, Math.round(Math.max(directOppScore, calculated)));
+    if (directOppScore > 0 && !isNaN(directOppScore)) {
+        return Math.min(100, Math.max(0, Math.round(Math.max(directOppScore, calculated))));
     }
 
     return calculated;
@@ -230,17 +241,23 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
 };
 
 /**
- * Formats a Tipico trending bet into a clean, human-readable prediction string
- * e.g., "Benfica", "2.5 Üst", "Sıradaki Gol: Milan", "KG Var"
+ * Formats a trending market bet into a clean, human-readable prediction string
+ * e.g., "Benfica", "2.5 Üst", "Sıradaki Gol: Milan", "Sıradaki Gol: Yok", "KG Var"
  */
-export const formatTipicoPrediction = (bet, lang = 'tr') => {
+export const formatMarketPrediction = (bet, lang = 'tr') => {
     if (!bet) return '';
     const outcome = (bet.outcome || '').trim();
     const market = (bet.market || '').trim().toLowerCase();
     const marketShort = (bet.marketShort || '').trim().toLowerCase();
+    const oLower = outcome.toLowerCase();
 
     // 1. Next Goal / Sıradaki Gol
-    if (marketShort === 'next-point' || market.includes('next') || market.includes('nächste') || market.includes('sıradaki')) {
+    const isNextGoal = marketShort === 'next-point' || market.includes('next') || market.includes('nächste') || market.includes('sıradaki');
+    if (isNextGoal) {
+        const isNoGoal = oLower === 'draw' || oLower === 'unentschieden' || oLower === 'kein tor' || oLower === 'kein' || oLower === 'none' || oLower === 'x' || oLower === 'no goal' || oLower.includes('kein tor');
+        if (isNoGoal) {
+            return lang === 'tr' ? 'Sıradaki Gol: Yok' : 'Next Goal: None';
+        }
         return lang === 'tr' ? `Sıradaki Gol: ${outcome}` : `Next Goal: ${outcome}`;
     }
 
@@ -264,7 +281,6 @@ export const formatTipicoPrediction = (bet, lang = 'tr') => {
     }
 
     // 5. 1X2 & Match Result terms
-    const oLower = outcome.toLowerCase();
     if (oLower === 'unentschieden' || oLower === 'draw' || oLower === 'tie' || oLower === 'x') {
         return lang === 'tr' ? 'Beraberlik (X)' : 'Draw (X)';
     }
@@ -283,3 +299,6 @@ export const formatTipicoPrediction = (bet, lang = 'tr') => {
 
     return outcome;
 };
+
+// Backwards compatibility alias
+export const formatTipicoPrediction = formatMarketPrediction;

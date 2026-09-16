@@ -23,7 +23,7 @@ import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, formatTipicoPrediction } from '../logic/liveSortEngine';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, formatMarketPrediction } from '../logic/liveSortEngine';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -5472,7 +5472,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     );
                                     const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
                                     const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
-                                    const tipicoPrediction = trendingBet ? formatTipicoPrediction(trendingBet, lang) : '';
+                                    const marketPrediction = trendingBet ? formatMarketPrediction(trendingBet, lang) : '';
 
                                     return (
                                         <div
@@ -5499,7 +5499,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             }}
                                                         >
                                                             <span>🔥</span>
-                                                            <span>Tipico: {tipicoPrediction}{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
+                                                            <span>{isTrendApproved ? (lang === 'tr' ? 'Akıllı Para:' : 'Smart Money:') : isTrendTrap ? (lang === 'tr' ? 'Tuzak:' : 'Trap:') : (lang === 'tr' ? 'Piyasa:' : 'Market:')} {marketPrediction}{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
                                                             <span style={{ opacity: 0.8 }}>• {trendingBet.count} K</span>
                                                         </span>
                                                     )}
@@ -5572,7 +5572,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             );
                                             const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
                                             const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
-                                            const tipicoPrediction = trendingBet ? formatTipicoPrediction(trendingBet, lang) : '';
+                                            const marketPrediction = trendingBet ? formatMarketPrediction(trendingBet, lang) : '';
 
                                             return (
                                                 <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
@@ -5582,10 +5582,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                              {trendingBet && (
                                                                 <span
                                                                     title={isTrendApproved 
-                                                                        ? (lang === 'tr' ? `Akıllı Para: Tipico tercihi (${tipicoPrediction}) saha baskısıyla doğrulanıyor.` : `Smart Money: Tipico pick (${tipicoPrediction}) verified by pitch pressure.`)
+                                                                        ? (lang === 'tr' ? `Akıllı Para: Piyasa tercihi (${marketPrediction}) saha baskısıyla doğrulanıyor.` : `Smart Money: Market pick (${marketPrediction}) verified by pitch pressure.`)
                                                                         : isTrendTrap
-                                                                        ? (lang === 'tr' ? `Tuzak Uyarısı: Kalabalık Tipico'da (${tipicoPrediction}) oynuyor ancak saha verisi yetersiz!` : `Trap Alert: Crowd is betting (${tipicoPrediction}) on Tipico, but pitch stats do not support it!`)
-                                                                        : (lang === 'tr' ? `Tipico Piyasası: ${tipicoPrediction} - Son 5 dakikada ${trendingBet.count} kupon.` : `Tipico Market: ${tipicoPrediction} - ${trendingBet.count} bets in last 5m.`)}
+                                                                        ? (lang === 'tr' ? `Tuzak Uyarısı: Kalabalık piyasada (${marketPrediction}) oynuyor ancak saha verisi yetersiz!` : `Trap Alert: Crowd is betting (${marketPrediction}), but pitch stats do not support it!`)
+                                                                        : (lang === 'tr' ? `Piyasa Akışı: ${marketPrediction} - Son 5 dakikada ${trendingBet.count} kupon.` : `Market Influx: ${marketPrediction} - ${trendingBet.count} bets in last 5m.`)}
                                                                     style={{
                                                                         fontSize: '0.62rem',
                                                                         padding: '0.15rem 0.5rem',
@@ -5600,11 +5600,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     }}
                                                                 >
                                                                     <span>🔥</span>
-                                                                    <span>TİPİCO: <strong style={{ color: '#fff' }}>{tipicoPrediction}</strong>{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
+                                                                    <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : 'SMART MONEY:') : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : 'TRAP ALERT:') : (lang === 'tr' ? 'PİYASA AKIŞI:' : 'INFLUX:')} <strong style={{ color: '#fff' }}>{marketPrediction}</strong>{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
                                                                     <span>•</span>
                                                                     <span>{trendingBet.count} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
-                                                                    <span>•</span>
-                                                                    <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA' : 'SMART MONEY') : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI' : 'TRAP ALERT') : (lang === 'tr' ? 'PİYASA AKIŞI' : 'INFLUX')}</span>
                                                                 </span>
                                                              )}
                                                         </div>

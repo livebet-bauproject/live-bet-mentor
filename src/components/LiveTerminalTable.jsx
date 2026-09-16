@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { calculateMatchHeatScore, formatTipicoPrediction } from '../logic/liveSortEngine';
+import React, { useState, useMemo } from 'react';
+import { calculateMatchHeatScore, formatMarketPrediction } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { CONFIG } from '../config';
 
@@ -89,9 +89,11 @@ export const LiveTerminalTable = ({
                             const isExpanded = expandedMatchId === m.id;
                             const signal = signals[m.id];
                             const isPinned = pinnedMatchIds.has(m.id);
-                            const heat = calculateMatchHeatScore(m, signal);
+                            const rawHeat = calculateMatchHeatScore(m, signal);
+                            const heat = (typeof rawHeat === 'number' && !isNaN(rawHeat)) ? rawHeat : 0;
                             const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
-                            const heatScore = opp?.score !== undefined ? opp.score : heat;
+                            const rawScore = (opp?.score !== undefined && typeof opp.score === 'number' && !isNaN(opp.score)) ? opp.score : heat;
+                            const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
                             const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
                             const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
 
@@ -132,7 +134,7 @@ export const LiveTerminalTable = ({
                             const dqsVal = m.dqs !== undefined ? m.dqs : 0;
                             const isTrendApproved = hasTrend && dqsVal >= 0.50;
                             const isTrendTrap = hasTrend && dqsVal < 0.40;
-                            const tipicoPrediction = hasTrend ? formatTipicoPrediction(primaryTrend, lang) : '';
+                            const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
 
                             return (
                                 <React.Fragment key={m.id}>
@@ -194,19 +196,19 @@ export const LiveTerminalTable = ({
                                                 </span>
                                             </div>
 
-                                            {/* Tipico Market Trend Pill (Shows Tipico's exact pick & volume) */}
+                                            {/* Market Trend Pill (Shows exact market pick & volume) */}
                                             {hasTrend && (
                                                 <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <span
                                                         className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
-                                                        title={`Tipico Bahis Hacmi: ${totalTrendCount} Kupon • Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
+                                                        title={`Piyasa Bahis Hacmi: ${totalTrendCount} Kupon • Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
                                                     >
                                                         <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
                                                         <span style={{ fontWeight: 900 }}>
-                                                            {isTrendApproved ? (lang === 'tr' ? 'TİPİCO AKILLI PARA:' : 'TIPICO SMART MONEY:') : isTrendTrap ? (lang === 'tr' ? 'TİPİCO TUZAK:' : 'TIPICO TRAP:') : (lang === 'tr' ? 'TİPİCO PİYASA:' : 'TIPICO FLOW:')}
+                                                            {isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : 'SMART MONEY:') : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : 'TRAP ALERT:') : (lang === 'tr' ? 'PİYASA AKIŞI:' : 'MARKET INFLUX:')}
                                                         </span>
                                                         <span className="tb-trend-pred">
-                                                            {tipicoPrediction}
+                                                            {marketPrediction}
                                                         </span>
                                                         {primaryTrend.odds && (
                                                             <span className="tb-trend-odds">
@@ -363,12 +365,12 @@ export const LiveTerminalTable = ({
                                                             )}
                                                         </div>
 
-                                                        {/* Tipico European Market Flow Detail */}
+                                                        {/* European Market Flow Detail */}
                                                         {hasTrend && (
                                                             <div className="tb-trend-box">
                                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                                                     <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8' }}>
-                                                                        📈 {lang === 'tr' ? 'TİPİCO AVRUPA PİYASA AKIŞI & HALK BAHİSİ' : 'TIPICO EUROPEAN MARKET FLOW & PUBLIC BET'}
+                                                                        📈 {lang === 'tr' ? 'AVRUPA PİYASA AKIŞI & HALK BAHİSİ' : 'EUROPEAN MARKET FLOW & PUBLIC BET'}
                                                                     </span>
                                                                     <span className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}>
                                                                         {isTrendApproved 
@@ -379,7 +381,7 @@ export const LiveTerminalTable = ({
                                                                     </span>
                                                                 </div>
                                                                 <div style={{ fontSize: '0.75rem', color: 'var(--tb-text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-                                                                    <span><strong>{lang === 'tr' ? 'Tipico Tercihi / Tahmini:' : 'Tipico Prediction:'}</strong> <span style={{ color: '#fff', fontWeight: 900 }}>{tipicoPrediction}</span></span>
+                                                                    <span><strong>{lang === 'tr' ? 'Piyasa Tercihi / Tahmini:' : 'Market Prediction:'}</strong> <span style={{ color: '#fff', fontWeight: 900 }}>{marketPrediction}</span></span>
                                                                     <span><strong>{lang === 'tr' ? 'Pazar:' : 'Market:'}</strong> {primaryTrend.market}</span>
                                                                     <span><strong>{lang === 'tr' ? 'Oran:' : 'Odds:'}</strong> <span style={{ color: '#fbbf24', fontWeight: 800 }}>@{primaryTrend.odds}</span></span>
                                                                     <span><strong>{lang === 'tr' ? 'Son 5 Dk Hacim:' : 'Last 5m Volume:'}</strong> <span style={{ color: '#f87171', fontWeight: 800 }}>{totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Coupons'}</span></span>
@@ -387,12 +389,12 @@ export const LiveTerminalTable = ({
                                                                 <div style={{ fontSize: '0.7rem', color: 'var(--tb-text-muted)', lineHeight: 1.4 }}>
                                                                     {isTrendApproved
                                                                         ? (lang === 'tr' 
-                                                                            ? `Yüksek DQS (%${(dqsVal * 100).toFixed(0)}) & saha verisi Tipico'daki kalabalığın bahsini (${tipicoPrediction}) doğruluyor.` 
-                                                                            : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats confirm the Tipico crowd bet (${tipicoPrediction}).`)
+                                                                            ? `Yüksek DQS (%${(dqsVal * 100).toFixed(0)}) & saha verisi piyasadaki kalabalığın bahsini (${marketPrediction}) doğruluyor.` 
+                                                                            : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats confirm the public bet (${marketPrediction}).`)
                                                                         : isTrendTrap
                                                                         ? (lang === 'tr'
-                                                                            ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık Tipico'da (${tipicoPrediction}) tercihine tuzağa çekiliyor olabilir!`
-                                                                            : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The Tipico crowd betting on (${tipicoPrediction}) may be in a trap!`)
+                                                                            ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık piyasada (${marketPrediction}) tercihine tuzağa çekiliyor olabilir!`
+                                                                            : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The crowd betting on (${marketPrediction}) may be in a trap!`)
                                                                         : (lang === 'tr'
                                                                             ? `Orta seviye DQS (%${(dqsVal * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
                                                                             : `Moderate DQS (${(dqsVal * 100).toFixed(0)}%). Monitor ongoing pitch dynamics.`)}
