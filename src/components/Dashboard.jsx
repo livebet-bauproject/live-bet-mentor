@@ -162,6 +162,73 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
     });
     const lockedOrderMapRef = useRef(new Map());
+    const filterStripRef = useRef(null);
+
+    // Smooth drag-to-scroll for horizontal filter strip
+    useEffect(() => {
+        const el = filterStripRef.current;
+        if (!el) return;
+
+        let isDown = false;
+        let startX = 0;
+        let scrollLeft = 0;
+        let hasDragged = false;
+
+        const onMouseDown = (e) => {
+            isDown = true;
+            hasDragged = false;
+            startX = e.pageX - el.offsetLeft;
+            scrollLeft = el.scrollLeft;
+        };
+
+        const onMouseLeave = () => {
+            if (isDown) {
+                isDown = false;
+                el.classList.remove('grabbing');
+            }
+        };
+
+        const onMouseUp = () => {
+            if (isDown) {
+                isDown = false;
+                el.classList.remove('grabbing');
+            }
+        };
+
+        const onMouseMove = (e) => {
+            if (!isDown) return;
+            const x = e.pageX - el.offsetLeft;
+            const walk = x - startX;
+            if (Math.abs(walk) > 4) {
+                hasDragged = true;
+                el.classList.add('grabbing');
+                e.preventDefault();
+                el.scrollLeft = scrollLeft - walk;
+            }
+        };
+
+        const onClickCapture = (e) => {
+            if (hasDragged) {
+                e.stopPropagation();
+                e.preventDefault();
+                hasDragged = false;
+            }
+        };
+
+        el.addEventListener('mousedown', onMouseDown);
+        el.addEventListener('mouseleave', onMouseLeave);
+        el.addEventListener('mouseup', onMouseUp);
+        el.addEventListener('mousemove', onMouseMove);
+        el.addEventListener('click', onClickCapture, true);
+
+        return () => {
+            el.removeEventListener('mousedown', onMouseDown);
+            el.removeEventListener('mouseleave', onMouseLeave);
+            el.removeEventListener('mouseup', onMouseUp);
+            el.removeEventListener('mousemove', onMouseMove);
+            el.removeEventListener('click', onClickCapture, true);
+        };
+    }, [displayViewMode]);
 
     const togglePinMatch = (matchId) => {
         setPinnedMatchIds(prev => {
@@ -4680,81 +4747,83 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     {displayViewMode === 'TERMINAL' ? (
                         <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
                             {/* Quick Category Filter Strip */}
-                            <div className="tb-filter-strip">
-                                <button
-                                    type="button"
-                                    className={`tb-chip ${terminalCategoryFilter === 'ALL' ? 'active' : ''}`}
-                                    onClick={() => setTerminalCategoryFilter('ALL')}
-                                >
-                                    <span>⚡</span>
-                                    <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
-                                    <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`tb-chip ${terminalCategoryFilter === 'HOT' ? 'active' : ''}`}
-                                    onClick={() => setTerminalCategoryFilter('HOT')}
-                                >
-                                    <span>🔥</span>
-                                    <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
-                                    <span className="tb-chip-count">
-                                        {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`tb-chip ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
-                                    onClick={() => setTerminalCategoryFilter('TREND')}
-                                    title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
-                                >
-                                    <span>📈</span>
-                                    <span>{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
-                                    <span className="tb-chip-count">
-                                        {enforcedMatches.filter(filterByTier).filter(m => {
-                                            return (trendingBets || []).some(tb => 
-                                                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                                                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                                            );
-                                        }).length}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`tb-chip ${terminalCategoryFilter === 'BET' ? 'active' : ''}`}
-                                    onClick={() => setTerminalCategoryFilter('BET')}
-                                >
-                                    <span>✓</span>
-                                    <span>{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
-                                    <span className="tb-chip-count">
-                                        {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`tb-chip ${terminalCategoryFilter === 'SECOND_HALF' ? 'active' : ''}`}
-                                    onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
-                                >
-                                    <span>⏱️</span>
-                                    <span>{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
-                                    <span className="tb-chip-count">
-                                        {enforcedMatches.filter(filterByTier).filter(m => {
-                                            const minStr = String(m.minute || '');
-                                            const min = parseInt(minStr, 10);
-                                            return min >= 45 || minStr.includes('2.Y') || minStr.includes('2H');
-                                        }).length}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`tb-chip ${terminalCategoryFilter === 'PINNED' ? 'active' : ''}`}
-                                    onClick={() => setTerminalCategoryFilter('PINNED')}
-                                >
-                                    <span>★</span>
-                                    <span>{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
-                                    <span className="tb-chip-count">
-                                        {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
-                                    </span>
-                                </button>
+                            <div className="tb-filter-strip-wrapper">
+                                <div className="tb-filter-strip" ref={filterStripRef}>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip ${terminalCategoryFilter === 'ALL' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('ALL')}
+                                    >
+                                        <span>⚡</span>
+                                        <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                        <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-hot ${terminalCategoryFilter === 'HOT' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('HOT')}
+                                    >
+                                        <span>🔥</span>
+                                        <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-trend ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('TREND')}
+                                        title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
+                                    >
+                                        <span>📈</span>
+                                        <span>{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => {
+                                                return (trendingBets || []).some(tb => 
+                                                    consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                                                    consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                                                );
+                                            }).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-bet ${terminalCategoryFilter === 'BET' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('BET')}
+                                    >
+                                        <span>✓</span>
+                                        <span>{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-second-half ${terminalCategoryFilter === 'SECOND_HALF' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
+                                    >
+                                        <span>⏱️</span>
+                                        <span>{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => {
+                                                const minStr = String(m.minute || '');
+                                                const min = parseInt(minStr, 10);
+                                                return min >= 45 || minStr.includes('2.Y') || minStr.includes('2H');
+                                            }).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-pinned ${terminalCategoryFilter === 'PINNED' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('PINNED')}
+                                    >
+                                        <span>★</span>
+                                        <span>{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Live Terminal Views (Desktop Table & Mobile Stream) */}

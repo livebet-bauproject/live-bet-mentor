@@ -116,58 +116,146 @@
   50% { opacity: 0.4; transform: scale(0.85); }
 }
 
-/* Quick Filter Pills Strip */
+/* Quick Filter Pills Strip Wrapper & Container */
+.tb-filter-strip-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 0.85rem;
+}
+
+/* Subtle edge fade to indicate horizontal swipeability */
+.tb-filter-strip-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 6px;
+  width: 32px;
+  background: linear-gradient(to right, transparent, rgba(15, 23, 42, 0.92));
+  pointer-events: none;
+  border-radius: 0 8px 8px 0;
+  opacity: 1;
+}
+
 .tb-filter-strip {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   overflow-x: auto;
-  padding-bottom: 4px;
-  margin-bottom: 1rem;
-  scrollbar-width: thin;
+  overflow-y: hidden;
+  padding: 4px 1.5rem 6px 2px;
+  margin: 0;
+  
+  /* HIDE SCROLLBAR COMPLETELY */
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE and Edge */
+  
+  /* Mobile Smooth Touch & Pan */
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  cursor: grab;
+  user-select: none;
 }
 
-.tb-filter-strip::-webkit-scrollbar {
-  height: 4px;
+.tb-filter-strip.grabbing {
+  cursor: grabbing;
+  scroll-behavior: auto;
 }
-.tb-filter-strip::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
+
+/* Hide scrollbar for Chrome, Safari, Edge, Android, iOS */
+.tb-filter-strip::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
 }
 
 .tb-chip {
-  background: var(--tb-surface);
-  border: 1px solid var(--tb-border);
+  flex: 0 0 auto;
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   color: var(--tb-text-secondary);
-  padding: 6px 12px;
-  font-size: 0.75rem;
+  padding: 6px 13px;
+  font-size: 0.74rem;
   font-weight: 700;
-  border-radius: 20px;
+  border-radius: 9999px;
   cursor: pointer;
   white-space: nowrap;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.15s ease;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .tb-chip:hover {
-  background: var(--tb-surface-elevated);
-  color: var(--tb-text-primary);
-  border-color: var(--tb-border-hover);
+  background: rgba(51, 65, 85, 0.75);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
 }
 
+.tb-chip:active {
+  transform: scale(0.95);
+}
+
+/* Active State with Glowing Highlights */
 .tb-chip.active {
-  background: #1e293b;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(14, 165, 233, 0.12) 100%);
   color: #38bdf8;
   border-color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+}
+
+.tb-chip.chip-hot.active {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(249, 115, 22, 0.15) 100%);
+  color: #fb923c;
+  border-color: #f97316;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.3);
+}
+
+.tb-chip.chip-trend.active {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(147, 51, 234, 0.15) 100%);
+  color: #c084fc;
+  border-color: #a855f7;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+}
+
+.tb-chip.chip-bet.active {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.15) 100%);
+  color: #34d399;
+  border-color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+}
+
+.tb-chip.chip-second-half.active {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(2, 132, 199, 0.15) 100%);
+  color: #38bdf8;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.3);
+}
+
+.tb-chip.chip-pinned.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(217, 119, 6, 0.15) 100%);
+  color: #fbbf24;
+  border-color: #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
 }
 
 .tb-chip-count {
-  background: rgba(0, 0, 0, 0.35);
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 0.7rem;
+  background: rgba(0, 0, 0, 0.4);
+  color: inherit;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-left: 2px;
 }
 
 /* Search input */
