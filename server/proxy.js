@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import { spawn, spawnSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
@@ -16,6 +17,30 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
+
+// Ultra-fast gzip compression middleware (Shrinks /api/sofascore/live from 540KB to ~45KB)
+app.use((req, res, next) => {
+    const acceptEncoding = req.headers['accept-encoding'] || '';
+    if (!acceptEncoding.includes('gzip')) return next();
+
+    const originalJson = res.json;
+    res.json = function(data) {
+        try {
+            const body = JSON.stringify(data);
+            if (body.length > 1500) {
+                res.setHeader('Content-Type', 'application/json');
+                res.setHeader('Content-Encoding', 'gzip');
+                const compressed = zlib.gzipSync(Buffer.from(body, 'utf8'), { level: 6 });
+                return res.send(compressed);
+            }
+            return originalJson.call(this, data);
+        } catch (err) {
+            return originalJson.call(this, data);
+        }
+    };
+    next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
@@ -543,39 +568,53 @@ const SOFASCORE_HEADERS = {
 // 4b. Match Attack Momentum Graph (Minute-by-minute pressure wave)
 const memoryGraphCache = {};
 
+function getActiveProxy() {
+    try {
+        const statusFile = path.join(__dirname, 'cloud_fetcher_status.json');
+        if (fs.existsSync(statusFile)) {
+            const content = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+            if (content && content.active_proxy) return content.active_proxy;
+        }
+    } catch (e) {}
+    return null;
+}
+
 function fetchGraphViaCurlCffi(eventId) {
     const pyCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
+    const proxy = getActiveProxy();
     return new Promise((resolve) => {
-        const pyScript = `import site, sys
+        const pyScript = `import site, sys, json
 sys.path.insert(0, site.getusersitepackages())
 try:
     from curl_cffi import requests
-    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/graph', impersonate='chrome120', timeout=6)
+    proxy = ${proxy ? JSON.stringify(proxy) : 'None'}
+    proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
+    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/graph', impersonate='chrome120', proxies=proxies, timeout=3.0)
     if r.status_code == 200:
         print(r.text)
     elif r.status_code == 404:
         print('{"graphPoints":[],"noGraph":true}')
     else:
-        print('{"graphPoints":[]}')
-except Exception:
-    print('{"graphPoints":[]}')
+        print(json.dumps({"error": f"HTTP {r.status_code}"}))
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
 `;
         const child = spawn(pyCmd, ['-c', pyScript]);
         let out = '';
         child.stdout.on('data', d => { out += d.toString(); });
-        child.on('close', (code) => {
+        child.on('close', () => {
             try {
                 const parsed = JSON.parse(out.trim());
                 resolve(parsed);
             } catch (e) {
-                resolve({ graphPoints: [] });
+                resolve({ error: true });
             }
         });
-        child.on('error', () => resolve({ graphPoints: [] }));
+        child.on('error', () => resolve({ error: true }));
         setTimeout(() => {
             try { child.kill(); } catch (e) {}
-            resolve({ graphPoints: [] });
-        }, 7000);
+            resolve({ error: true });
+        }, 3500);
     });
 }
 
@@ -593,7 +632,7 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
             const stats = fs.statSync(graphFilePath);
             const ageInSeconds = (now - stats.mtimeMs) / 1000;
             const data = JSON.parse(fs.readFileSync(graphFilePath, 'utf8'));
-            if (data && ((data.graphPoints && data.graphPoints.length > 0) || (data.graphPointsV2 && data.graphPointsV2.length > 0) || data.noGraph)) {
+            if (data && !data.error && ((data.graphPoints && data.graphPoints.length > 0) || (data.graphPointsV2 && data.graphPointsV2.length > 0) || data.noGraph)) {
                 memoryGraphCache[id] = { time: now, data };
                 if (ageInSeconds >= 45) queueRequest(id);
                 return res.json(data);
@@ -603,10 +642,10 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
 
     queueRequest(id);
 
-    // Fast on-demand fetch using curl_cffi (works if direct connection or proxy available)
+    // Fast on-demand fetch using curl_cffi with active proxy
     try {
         const cffiData = await fetchGraphViaCurlCffi(id);
-        if (cffiData && ((cffiData.graphPoints && cffiData.graphPoints.length > 0) || (cffiData.graphPointsV2 && cffiData.graphPointsV2.length > 0) || cffiData.noGraph)) {
+        if (cffiData && !cffiData.error && ((cffiData.graphPoints && cffiData.graphPoints.length > 0) || (cffiData.graphPointsV2 && cffiData.graphPointsV2.length > 0) || cffiData.noGraph)) {
             memoryGraphCache[id] = { time: now, data: cffiData };
             try { fs.writeFileSync(graphFilePath, JSON.stringify(cffiData), 'utf8'); } catch(e) {}
             return res.json(cffiData);
@@ -615,26 +654,28 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
         console.warn(`[PROXY] curl_cffi graph fetch error for ${id}:`, err.message);
     }
 
-    // Fallback: Node fetch with SOFASCORE_HEADERS
-    try {
-        const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/graph`, {
-            headers: SOFASCORE_HEADERS,
-            signal: AbortSignal.timeout(4000)
-        });
-        if (fetchRes.ok) {
-            const data = await fetchRes.json();
-            memoryGraphCache[id] = { time: now, data };
-            try { fs.writeFileSync(graphFilePath, JSON.stringify(data), 'utf8'); } catch(e) {}
-            return res.json(data);
-        } else if (fetchRes.status === 404) {
-            const notFoundData = { graphPoints: [], noGraph: true };
-            memoryGraphCache[id] = { time: now, data: notFoundData };
-            try { fs.writeFileSync(graphFilePath, JSON.stringify(notFoundData), 'utf8'); } catch(e) {}
-            return res.json(notFoundData);
-        }
-    } catch (err) {
-        if (memoryGraphCache[id]) return res.json(memoryGraphCache[id].data);
+    // Direct node fetch fallback only if local dev (Render is blocked)
+    if (process.platform === 'win32' || !process.env.RENDER) {
+        try {
+            const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/graph`, {
+                headers: SOFASCORE_HEADERS,
+                signal: AbortSignal.timeout(2500)
+            });
+            if (fetchRes.ok) {
+                const data = await fetchRes.json();
+                memoryGraphCache[id] = { time: now, data };
+                try { fs.writeFileSync(graphFilePath, JSON.stringify(data), 'utf8'); } catch(e) {}
+                return res.json(data);
+            } else if (fetchRes.status === 404) {
+                const notFoundData = { graphPoints: [], noGraph: true };
+                memoryGraphCache[id] = { time: now, data: notFoundData };
+                try { fs.writeFileSync(graphFilePath, JSON.stringify(notFoundData), 'utf8'); } catch(e) {}
+                return res.json(notFoundData);
+            }
+        } catch (err) {}
     }
+
+    if (memoryGraphCache[id]) return res.json(memoryGraphCache[id].data);
     res.status(202).json({ graphPoints: [], status: 'queued', message: 'Graph queued' });
 });
 
@@ -643,20 +684,23 @@ const memoryIncidentsCache = {};
 
 function fetchIncidentsViaCurlCffi(eventId) {
     const pyCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
+    const proxy = getActiveProxy();
     return new Promise((resolve) => {
-        const pyScript = `import site, sys
+        const pyScript = `import site, sys, json
 sys.path.insert(0, site.getusersitepackages())
 try:
     from curl_cffi import requests
-    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/incidents', impersonate='chrome120', timeout=6)
+    proxy = ${proxy ? JSON.stringify(proxy) : 'None'}
+    proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
+    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/incidents', impersonate='chrome120', proxies=proxies, timeout=3.0)
     if r.status_code == 200:
         print(r.text)
     elif r.status_code == 404:
         print('{"incidents":[],"noIncidents":true}')
     else:
-        print('{"incidents":[]}')
-except Exception:
-    print('{"incidents":[]}')
+        print(json.dumps({"error": f"HTTP {r.status_code}"}))
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
 `;
         const child = spawn(pyCmd, ['-c', pyScript]);
         let out = '';
@@ -666,14 +710,14 @@ except Exception:
                 const parsed = JSON.parse(out.trim());
                 resolve(parsed);
             } catch (e) {
-                resolve({ incidents: [] });
+                resolve({ error: true });
             }
         });
-        child.on('error', () => resolve({ incidents: [] }));
+        child.on('error', () => resolve({ error: true }));
         setTimeout(() => {
             try { child.kill(); } catch (e) {}
-            resolve({ incidents: [] });
-        }, 7000);
+            resolve({ error: true });
+        }, 3500);
     });
 }
 
@@ -690,7 +734,8 @@ app.get('/api/sofascore/event/:id/incidents', async (req, res) => {
             const stats = fs.statSync(incidentsFilePath);
             const ageInSeconds = (now - stats.mtimeMs) / 1000;
             const data = JSON.parse(fs.readFileSync(incidentsFilePath, 'utf8'));
-            if (data && (Array.isArray(data.incidents) || data.noIncidents)) {
+            // Only accept valid data: non-empty incidents array, OR explicit noIncidents flag
+            if (data && !data.error && ((Array.isArray(data.incidents) && data.incidents.length > 0) || data.noIncidents)) {
                 memoryIncidentsCache[id] = { time: now, data };
                 if (ageInSeconds >= 30) queueRequest(id);
                 return res.json(data);
@@ -702,7 +747,8 @@ app.get('/api/sofascore/event/:id/incidents', async (req, res) => {
 
     try {
         const cffiData = await fetchIncidentsViaCurlCffi(id);
-        if (cffiData && (Array.isArray(cffiData.incidents) || cffiData.noIncidents)) {
+        // Only accept if not error AND has incidents or explicit noIncidents
+        if (cffiData && !cffiData.error && ((Array.isArray(cffiData.incidents) && cffiData.incidents.length > 0) || cffiData.noIncidents)) {
             memoryIncidentsCache[id] = { time: now, data: cffiData };
             try { fs.writeFileSync(incidentsFilePath, JSON.stringify(cffiData), 'utf8'); } catch(e) {}
             return res.json(cffiData);
@@ -711,26 +757,28 @@ app.get('/api/sofascore/event/:id/incidents', async (req, res) => {
         console.warn(`[PROXY] curl_cffi incidents fetch error for ${id}:`, err.message);
     }
 
-    try {
-        const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/incidents`, {
-            headers: SOFASCORE_HEADERS,
-            signal: AbortSignal.timeout(4000)
-        });
-        if (fetchRes.ok) {
-            const data = await fetchRes.json();
-            memoryIncidentsCache[id] = { time: now, data };
-            try { fs.writeFileSync(incidentsFilePath, JSON.stringify(data), 'utf8'); } catch(e) {}
-            return res.json(data);
-        } else if (fetchRes.status === 404) {
-            const notFoundData = { incidents: [], noIncidents: true };
-            memoryIncidentsCache[id] = { time: now, data: notFoundData };
-            try { fs.writeFileSync(incidentsFilePath, JSON.stringify(notFoundData), 'utf8'); } catch(e) {}
-            return res.json(notFoundData);
-        }
-    } catch (err) {
-        if (memoryIncidentsCache[id]) return res.json(memoryIncidentsCache[id].data);
+    // Direct node fetch fallback only if local dev (Render is blocked)
+    if (process.platform === 'win32' || !process.env.RENDER) {
+        try {
+            const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/incidents`, {
+                headers: SOFASCORE_HEADERS,
+                signal: AbortSignal.timeout(2500)
+            });
+            if (fetchRes.ok) {
+                const data = await fetchRes.json();
+                memoryIncidentsCache[id] = { time: now, data };
+                try { fs.writeFileSync(incidentsFilePath, JSON.stringify(data), 'utf8'); } catch(e) {}
+                return res.json(data);
+            } else if (fetchRes.status === 404) {
+                const notFoundData = { incidents: [], noIncidents: true };
+                memoryIncidentsCache[id] = { time: now, data: notFoundData };
+                try { fs.writeFileSync(incidentsFilePath, JSON.stringify(notFoundData), 'utf8'); } catch(e) {}
+                return res.json(notFoundData);
+            }
+        } catch (err) {}
     }
 
+    if (memoryIncidentsCache[id]) return res.json(memoryIncidentsCache[id].data);
     res.status(202).json({ incidents: [], status: 'queued', message: 'Incidents queued' });
 });
 

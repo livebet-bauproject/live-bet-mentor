@@ -207,16 +207,19 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [alertHistoryList, setAlertHistoryList] = useState(() => smartAlertService.getHistory(50));
     const [isScanningResults, setIsScanningResults] = useState(false);
 
-    // Live Attack Momentum Graph & Match Incidents State
+    // Live Attack Momentum Graph & Match Incidents State with Client-Side Memory Caching
     const [matchGraphPoints, setMatchGraphPoints] = useState([]);
     const [graphLoading, setGraphLoading] = useState(false);
     const [graphNoData, setGraphNoData] = useState(false);
     const [matchIncidents, setMatchIncidents] = useState([]);
     const [incidentsLoading, setIncidentsLoading] = useState(false);
     const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
+    const clientGraphCache = useRef(new Map());
+    const clientIncidentsCache = useRef(new Map());
 
     useEffect(() => {
-        if (!selectedMatch?.id) {
+        const matchId = selectedMatch?.id;
+        if (!matchId) {
             setMatchGraphPoints([]);
             setGraphNoData(false);
             setGraphLoading(false);
@@ -224,42 +227,86 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             setIncidentsLoading(false);
             return;
         }
+
         let isCancelled = false;
-        setGraphLoading(true);
-        setGraphNoData(false);
-        setIncidentsLoading(true);
+        const now = Date.now();
 
-        // 1. Fetch Incidents (Goals, Cards, Subs, Half Time markers)
-        sofaScoreAdapter.fetchEventIncidents(selectedMatch.id).then(incs => {
-            if (!isCancelled) {
-                setMatchIncidents(Array.isArray(incs) ? incs : []);
-                setIncidentsLoading(false);
-            }
-        }).catch(() => {
-            if (!isCancelled) {
-                setMatchIncidents([]);
-                setIncidentsLoading(false);
-            }
-        });
+        // 1. Instant cache check (0ms UI render!)
+        const cachedGraph = clientGraphCache.current.get(matchId);
+        const hasCachedGraph = cachedGraph && (now - cachedGraph.time < 90000);
+        if (hasCachedGraph) {
+            setMatchGraphPoints(cachedGraph.points || []);
+            setGraphNoData(Boolean(cachedGraph.noGraph));
+            setGraphLoading(false);
+        } else {
+            setGraphLoading(true);
+            setGraphNoData(false);
+        }
 
-        // 2. Fetch Attack Momentum Graph (Minute-by-minute wave)
+        const cachedIncidents = clientIncidentsCache.current.get(matchId);
+        const hasCachedIncidents = cachedIncidents && (now - cachedIncidents.time < 60000);
+        if (hasCachedIncidents) {
+            setMatchIncidents(cachedIncidents.incidents || []);
+            setIncidentsLoading(false);
+        } else {
+            setIncidentsLoading(true);
+        }
+
+        // 2. Fetch Incidents (Goals, Cards, Subs, Half Time markers) with fast retry
+        const fetchIncidents = (retries = 0) => {
+            sofaScoreAdapter.fetchEventIncidents(matchId).then(incs => {
+                if (isCancelled) return;
+                const list = Array.isArray(incs) ? incs : [];
+                const isQueued = Boolean(incs?.isQueued);
+                const noIncidents = Boolean(incs?.noIncidents);
+
+                if (list.length > 0 || noIncidents) {
+                    setMatchIncidents(list);
+                    setIncidentsLoading(false);
+                    clientIncidentsCache.current.set(matchId, { time: Date.now(), incidents: list });
+                } else if ((isQueued || list.length === 0) && retries < 5) {
+                    // Retry every 1.5s while cloud proxy worker fetches and saves incidents
+                    setTimeout(() => {
+                        if (!isCancelled) fetchIncidents(retries + 1);
+                    }, 1500);
+                } else {
+                    setMatchIncidents(list);
+                    setIncidentsLoading(false);
+                    clientIncidentsCache.current.set(matchId, { time: Date.now(), incidents: list });
+                }
+            }).catch(() => {
+                if (!isCancelled) {
+                    if (retries < 4) {
+                        setTimeout(() => {
+                            if (!isCancelled) fetchIncidents(retries + 1);
+                        }, 1500);
+                    } else {
+                        setIncidentsLoading(false);
+                    }
+                }
+            });
+        };
+
+        // 3. Fetch Attack Momentum Graph (Minute-by-minute wave) with fast retry
         const fetchGraph = (retries = 0) => {
-            sofaScoreAdapter.fetchEventGraph(selectedMatch.id).then(res => {
+            sofaScoreAdapter.fetchEventGraph(matchId).then(res => {
                 if (isCancelled) return;
                 const pts = res?.graphPoints || (Array.isArray(res) ? res : []);
                 if (pts.length > 0) {
                     setMatchGraphPoints(pts);
                     setGraphNoData(false);
                     setGraphLoading(false);
+                    clientGraphCache.current.set(matchId, { time: Date.now(), points: pts, noGraph: false });
                 } else if (res?.noGraph) {
                     setMatchGraphPoints([]);
                     setGraphNoData(true);
                     setGraphLoading(false);
-                } else if (retries < 7) {
-                    // Poll every 2.2s for up to 15 seconds while cloud proxy worker fetches and saves graph
+                    clientGraphCache.current.set(matchId, { time: Date.now(), points: [], noGraph: true });
+                } else if (retries < 6) {
+                    // Poll every 1.5s while cloud proxy worker fetches and saves graph
                     setTimeout(() => {
                         if (!isCancelled) fetchGraph(retries + 1);
-                    }, 2200);
+                    }, 1500);
                 } else {
                     setMatchGraphPoints([]);
                     setGraphNoData(true);
@@ -267,10 +314,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 }
             }).catch(() => {
                 if (!isCancelled) {
-                    if (retries < 7) {
+                    if (retries < 5) {
                         setTimeout(() => {
                             if (!isCancelled) fetchGraph(retries + 1);
-                        }, 2200);
+                        }, 1500);
                     } else {
                         setMatchGraphPoints([]);
                         setGraphLoading(false);
@@ -279,6 +326,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             });
         };
 
+        fetchIncidents(0);
         fetchGraph(0);
         return () => { isCancelled = true; };
     }, [selectedMatch?.id]);

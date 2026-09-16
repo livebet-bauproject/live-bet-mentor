@@ -44,6 +44,7 @@ class DataWorker {
             this.tier3Performance = {};
         }
         this.selectedMatchId = null;
+        this.matchLastStatsFetch = new Map();
         this.dataSource = CONFIG.DATA.DATA_SOURCE;
         this.consensusData = {};
         this.consensusTimer = 0;
@@ -168,62 +169,76 @@ class DataWorker {
                 }
 
                 if (rawMatches && Array.isArray(rawMatches)) {
-                    // SELECTION PRIORITY & LOAD BALANCING (v2.3)
-                    // We only fetch full details for matches that are:
-                    // 1. High priority (DQS > threshold or Tier 1/2)
-                    // 2. Currently selected in the UI
-                    // 3. Staggered updates for others (limit 10 per cycle)
-                    
-                    const priorityIds = new Set();
-                    const candidates = this.fixtures.filter(f => f.dqs >= CONFIG.DECISION.DQS_THRESHOLD || f.tier <= 2 || f.id.toString() === this.selectedMatchId);
-                    candidates.forEach(c => priorityIds.add(c.id));
-
-                    // Prioritize all Tier 1 & Tier 2 leagues directly from rawMatches (so major leagues get full stats from poll #1)
-                    for (const rm of rawMatches) {
-                        const leagueName = rm.leagueName || rm.tournament?.name || '';
-                        if (leagueProfileModule.getTier(leagueName) <= 2) {
-                            priorityIds.add(rm.id);
+                    // 1. Fetch central live odds in 1 single HTTP request (prevents 40 separate HTTP calls!)
+                    try {
+                        const centralOdds = await sofaScoreAdapter.fetchCentralOdds();
+                        if (centralOdds && typeof centralOdds === 'object' && Object.keys(centralOdds).length > 0) {
+                            Object.assign(this.odds, centralOdds);
                         }
-                    }
+                    } catch (e) {}
 
-                    // Always ensure selected match has top priority
+                    // 2. SELECTION PRIORITY & LOAD BALANCING (v2.4)
+                    // Fetch full details only for:
+                    // - Currently selected match in the UI (always top priority)
+                    // - Matches missing stats (staggered, up to 2 per cycle)
+                    // - Stale high-priority matches not refreshed in > 60s (staggered, up to 2 per cycle)
+                    const priorityIds = new Set();
+                    const now = Date.now();
+
+                    // Top Priority: Selected Match in UI
                     if (this.selectedMatchId) {
                         priorityIds.add(this.selectedMatchId);
                         priorityIds.add(Number(this.selectedMatchId));
+                        priorityIds.add(String(this.selectedMatchId));
                     }
 
-                    // Sort others by DQS to get the best of the rest
-                    const others = rawMatches
-                        .filter(m => !priorityIds.has(m.id))
-                        .sort((a, b) => {
-                            const dqsA = this.fixtures.find(f => f.id === a.id)?.dqs || 0;
-                            const dqsB = this.fixtures.find(f => f.id === b.id)?.dqs || 0;
-                            return dqsB - dqsA;
-                        });
-                    
-                    // Add a staggered slice of 'others' (e.g. 5 matches)
-                    const staggeredUpdateSize = 5;
-                    const staggeredOthers = others.slice(0, staggeredUpdateSize);
-                    staggeredOthers.forEach(o => priorityIds.add(o.id));
+                    // Matches missing stats: initialize up to 2 per cycle
+                    const missingStats = rawMatches.filter(rm => {
+                        const ex = this.fixtures.find(f => f.id === rm.id);
+                        return !ex || !ex.stats || ex.isPartial;
+                    });
+                    for (const rm of missingStats.slice(0, 2)) {
+                        priorityIds.add(rm.id);
+                    }
 
-                    console.log(`[DATA_WORKER] Priority Polling: ${candidates.length} candidates, ${staggeredUpdateSize} staggered. Total priority: ${priorityIds.size}/${rawMatches.length}`);
+                    // Major Tier 1 & 2 matches that haven't refreshed in > 60s: up to 2 per cycle
+                    const staleHighPriority = rawMatches.filter(rm => {
+                        if (priorityIds.has(rm.id)) return false;
+                        const leagueName = rm.leagueName || rm.tournament?.name || '';
+                        const isMajor = leagueProfileModule.getTier(leagueName) <= 2;
+                        const lastFetch = this.matchLastStatsFetch.get(rm.id) || 0;
+                        return isMajor && (now - lastFetch > 60000);
+                    });
+                    for (const rm of staleHighPriority.slice(0, 2)) {
+                        priorityIds.add(rm.id);
+                    }
+
+                    console.log(`[DATA_WORKER] Optimized Load-Balanced Polling: ${priorityIds.size} priority detailed match(es) out of ${rawMatches.length} live matches.`);
 
                     const detailedMatches = await Promise.all(
                         rawMatches.map(async (match) => {
                             const eventId = match.id;
                             if (!eventId) return match;
 
-                            // Skip details for low-priority matches to save bandwidth/proxy load
+                            // Skip details for low-priority matches to keep network/Render completely unchoked
                             if (!priorityIds.has(eventId)) {
                                 const existing = this.fixtures.find(f => f.id === eventId);
-                                if (existing) return { ...match, stats: existing.stats, isPartial: true };
+                                if (existing) {
+                                    return {
+                                        ...existing,
+                                        score: (match.score && (match.score.home !== undefined || match.score.away !== undefined)) ? match.score : existing.score,
+                                        minute: match.minute || existing.minute,
+                                        status: match.status || existing.status
+                                    };
+                                }
                                 return match;
                             }
 
-                            // Parallel fetch for stats and odds (Speed!)
+                            // Fetch details + odds only if not already in central cache
+                            const needOddsFetch = !this.odds[eventId] || String(eventId) === String(this.selectedMatchId);
                             const [fullDetail, liveOdds] = await Promise.all([
                                 sofaScoreAdapter.fetchEventDetails(eventId),
-                                sofaScoreAdapter.fetchEventOdds(eventId)
+                                needOddsFetch ? sofaScoreAdapter.fetchEventOdds(eventId) : Promise.resolve(this.odds[eventId])
                             ]);
 
                             // Update global odds cache with fresh data
@@ -232,6 +247,7 @@ class DataWorker {
                             }
 
                             if (fullDetail) {
+                                this.matchLastStatsFetch.set(eventId, Date.now());
                                 return {
                                     ...fullDetail,
                                     // Always prioritize fresh real-time score, minute, and status from rawMatches (sofascore_live.json)

@@ -6,6 +6,31 @@
 import { CONFIG } from '../config.js';
 import { database, ref, get } from '../firebase/config.js';
 
+// Central live odds in-memory cache to prevent redundant HTTP requests
+let centralOddsCache = null;
+let centralOddsCacheTime = 0;
+
+async function getLiveOddsMap() {
+    const now = Date.now();
+    if (centralOddsCache && (now - centralOddsCacheTime < 25000)) {
+        return centralOddsCache;
+    }
+    try {
+        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const apiBase = isLocalDev
+            ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+        const res = await fetch(`${apiBase}/api/odds/live`, { signal: AbortSignal.timeout(3500) });
+        if (res.ok) {
+            const data = await res.json();
+            centralOddsCache = data;
+            centralOddsCacheTime = now;
+            return data;
+        }
+    } catch (e) {}
+    return centralOddsCache || {};
+}
+
 export const sofaScoreAdapter = {
     /**
      * Fetches the match list for the current day.
@@ -257,7 +282,7 @@ export const sofaScoreAdapter = {
      * Fetches minute-by-minute attack momentum graph for a match.
      */
     async fetchEventGraph(eventId) {
-        if (!eventId) return { graphPoints: [], noGraph: false };
+        if (!eventId) return { graphPoints: [], noGraph: false, isQueued: false };
         try {
             const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const apiBase = isLocalDev
@@ -265,20 +290,21 @@ export const sofaScoreAdapter = {
                 : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
             const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/graph`, {
-                signal: AbortSignal.timeout(8000)
+                signal: AbortSignal.timeout(5000)
             });
             if (res.ok) {
                 const data = await res.json();
                 const points = data?.graphPoints || data?.graphPointsV2 || [];
                 return {
                     graphPoints: Array.isArray(points) ? points : [],
-                    noGraph: Boolean(data?.noGraph)
+                    noGraph: Boolean(data?.noGraph),
+                    isQueued: data?.status === 'queued'
                 };
             }
         } catch (e) {
             console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
         }
-        return { graphPoints: [], noGraph: false };
+        return { graphPoints: [], noGraph: false, isQueued: false };
     },
 
     /**
@@ -293,16 +319,47 @@ export const sofaScoreAdapter = {
                 : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
             const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/incidents`, {
-                signal: AbortSignal.timeout(8000)
+                signal: AbortSignal.timeout(5000)
             });
             if (res.ok) {
                 const data = await res.json();
-                return Array.isArray(data?.incidents) ? data.incidents : [];
+                const incidents = Array.isArray(data?.incidents) ? data.incidents : [];
+                incidents.isQueued = data?.status === 'queued';
+                incidents.noIncidents = Boolean(data?.noIncidents);
+                return incidents;
             }
         } catch (e) {
             console.warn(`[SOFASCORE_ADAPTER] Incidents fetch failed for ${eventId}:`, e.message);
         }
-        return [];
+        const empty = [];
+        empty.isQueued = false;
+        empty.noIncidents = false;
+        return empty;
+    },
+
+    /**
+     * Fetches central live odds for all active matches in 1 single network call.
+     */
+    async fetchCentralOdds() {
+        try {
+            const data = await getLiveOddsMap();
+            const formatted = {};
+            if (data && typeof data === 'object') {
+                for (const [key, val] of Object.entries(data)) {
+                    if (val && (val.home !== undefined || val.away !== undefined)) {
+                        formatted[key] = {
+                            home: parseFloat(val.home) || 0,
+                            draw: parseFloat(val.draw) || 0,
+                            away: parseFloat(val.away) || 0,
+                            source: val.source || 'LIVE_ODDS'
+                        };
+                    }
+                }
+            }
+            return formatted;
+        } catch (e) {
+            return {};
+        }
     },
 
     /**
@@ -310,20 +367,33 @@ export const sofaScoreAdapter = {
      */
     async fetchEventOdds(eventId) {
         try {
+            // 1. Instant check from central live odds map (prevents 40 redundant HTTP requests)
+            const central = await getLiveOddsMap();
+            const strId = String(eventId);
+            const numId = Number(eventId);
+            const matchOdds = central[strId] || central[numId] || (central.matches && central.matches.find(m => String(m.id || m.eventId) === strId)?.odds);
+            if (matchOdds && (matchOdds.home !== undefined || matchOdds.away !== undefined)) {
+                return {
+                    home: parseFloat(matchOdds.home) || 0,
+                    draw: parseFloat(matchOdds.draw) || 0,
+                    away: parseFloat(matchOdds.away) || 0,
+                    source: matchOdds.source || 'CENTRAL_ODDS'
+                };
+            }
+
             const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const isProduction = !isLocalDev;
             let data = null;
 
             if (isLocalDev) {
                 // LOCAL: Use proxy for odds (much faster)
                 const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
-                const res = await fetch(`${proxyBase}/api/sofascore/event/${eventId}/odds/1/all`);
+                const res = await fetch(`${proxyBase}/api/sofascore/event/${eventId}/odds/1/all`, { signal: AbortSignal.timeout(3000) });
                 if (res.ok) data = await res.json();
             } else {
                 // PRODUCTION: Use Render backend proxy, Firebase as fallback
                 const renderBase = import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com';
                 try {
-                    const res = await fetch(`${renderBase}/api/sofascore/event/${eventId}/odds/1/all`);
+                    const res = await fetch(`${renderBase}/api/sofascore/event/${eventId}/odds/1/all`, { signal: AbortSignal.timeout(3000) });
                     if (res.ok) data = await res.json();
                 } catch {
                     try {
