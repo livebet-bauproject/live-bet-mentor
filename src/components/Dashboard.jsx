@@ -407,6 +407,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
     const handleSendToTelegram = async (e, match, opp) => {
         if (e) e.stopPropagation();
+        if (!isAdmin) {
+            console.warn('[SECURITY] Non-admin user attempted to send signal to Telegram.');
+            return;
+        }
         
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
@@ -415,7 +419,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-signal`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-admin-sender': user?.email || 'admin@livebetmentor.com'
+                },
                 body: JSON.stringify({
                     matchId: match.id,
                     homeTeam: match.homeTeam,
@@ -455,6 +462,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
     const handleSendRadarToTelegram = async (e, s, consensusPred, agreementPercent) => {
         if (e) e.stopPropagation();
+        if (!isAdmin) {
+            console.warn('[SECURITY] Non-admin user attempted to send radar to Telegram.');
+            return;
+        }
 
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
@@ -463,7 +474,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-radar`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-admin-sender': user?.email || 'admin@livebetmentor.com'
+                },
                 body: JSON.stringify({
                     home: s.home,
                     away: s.away,
@@ -757,7 +771,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
     const renderBayesianIntelligence = (match) => {
         const data = match?.observations?.bayesian;
-        if (!data || userProfile?.plan !== 'premium' || !advancedSettings.BAYESIAN_PRICING) return null;
+        if (!data || (!isAdmin && userProfile?.plan !== 'premium') || !advancedSettings.BAYESIAN_PRICING) return null;
 
         return (
             <div className="grid-col" style={{ gridColumn: 'span 3', marginTop: '1.5rem' }}>
@@ -3743,37 +3757,39 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <span style={{ marginLeft: '0.5rem', fontWeight: 900, fontSize: '1.2rem', color: 'var(--accent-color)' }}>{consensusPred}</span>
                                             </div>
 
-                                            <button
-                                                onClick={(e) => handleSendRadarToTelegram(e, s, consensusPred, agreementPercent)}
-                                                style={{
-                                                    width: '100%',
-                                                    marginTop: '0.9rem',
-                                                    padding: '0.65rem 1rem',
-                                                    background: 'linear-gradient(135deg, #229ED9 0%, #1778F2 100%)',
-                                                    border: '1px solid rgba(255,255,255,0.15)',
-                                                    borderRadius: '10px',
-                                                    color: '#fff',
-                                                    fontWeight: 800,
-                                                    fontSize: '0.78rem',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    gap: '0.5rem',
-                                                    boxShadow: '0 4px 12px rgba(34, 158, 217, 0.25)',
-                                                    transition: 'all 0.2s ease'
-                                                }}
-                                                onMouseEnter={(e) => {
-                                                    e.currentTarget.style.transform = 'translateY(-1px)';
-                                                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(34, 158, 217, 0.4)';
-                                                }}
-                                                onMouseLeave={(e) => {
-                                                    e.currentTarget.style.transform = 'translateY(0)';
-                                                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 158, 217, 0.25)';
-                                                }}
-                                            >
-                                                <span>✈️</span> {lang === 'tr' ? "Telegram VIP'ye Gönder" : "Broadcast to Telegram VIP"}
-                                            </button>
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={(e) => handleSendRadarToTelegram(e, s, consensusPred, agreementPercent)}
+                                                    style={{
+                                                        width: '100%',
+                                                        marginTop: '0.9rem',
+                                                        padding: '0.65rem 1rem',
+                                                        background: 'linear-gradient(135deg, #229ED9 0%, #1778F2 100%)',
+                                                        border: '1px solid rgba(255,255,255,0.15)',
+                                                        borderRadius: '10px',
+                                                        color: '#fff',
+                                                        fontWeight: 800,
+                                                        fontSize: '0.78rem',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '0.5rem',
+                                                        boxShadow: '0 4px 12px rgba(34, 158, 217, 0.25)',
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    onMouseEnter={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(34, 158, 217, 0.4)';
+                                                    }}
+                                                    onMouseLeave={(e) => {
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 158, 217, 0.25)';
+                                                    }}
+                                                >
+                                                    <span>✈️</span> {lang === 'tr' ? "Telegram VIP'ye Gönder" : "Broadcast to Telegram VIP"}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 );
@@ -4118,14 +4134,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <span>{opp.score}</span>
                                                 <span style={{ fontSize: '0.58rem', opacity: 0.8 }}>{opp.heatLevel}</span>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={(e) => handleSendToTelegram(e, match, opp)}
-                                                className="opp-telegram-btn"
-                                                title="VIP Gruba Gönder"
-                                            >
-                                                ✈️
-                                            </button>
+                                            {isAdmin && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleSendToTelegram(e, match, opp)}
+                                                    className="opp-telegram-btn"
+                                                    title="VIP Gruba Gönder"
+                                                >
+                                                    ✈️
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
 
@@ -4530,29 +4548,34 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 ))}
                                             </div>
 
-                                            {/* Golden Combo Action Bar */}
-                                            <div className="golden-combo-actions">
-                                                <button
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        try {
-                                                            const renderBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-                                                            await fetch(`${renderBase}/api/telegram/send-combo`, {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ combo: goldenCombo })
-                                                            });
-                                                            alert(lang === 'tr' ? 'Altın İkili Telegram VIP kanalına iletildi!' : 'Golden Double sent to Telegram VIP!');
-                                                        } catch (err) {
-                                                            console.error(err);
-                                                        }
-                                                    }}
-                                                    className="golden-combo-vip-btn"
-                                                >
-                                                    <span>✈️</span>
-                                                    <span>{lang === 'tr' ? 'VIP Gruba İlet' : 'Share to VIP'}</span>
-                                                </button>
-                                            </div>
+                                            {/* Golden Combo Action Bar (Admin Only) */}
+                                            {isAdmin && (
+                                                <div className="golden-combo-actions">
+                                                    <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const renderBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                                                                await fetch(`${renderBase}/api/telegram/send-combo`, {
+                                                                    method: 'POST',
+                                                                    headers: { 
+                                                                        'Content-Type': 'application/json',
+                                                                        'x-admin-sender': user?.email || 'admin@livebetmentor.com'
+                                                                    },
+                                                                    body: JSON.stringify({ combo: goldenCombo })
+                                                                });
+                                                                alert(lang === 'tr' ? 'Altın İkili Telegram VIP kanalına iletildi!' : 'Golden Double sent to Telegram VIP!');
+                                                            } catch (err) {
+                                                                console.error(err);
+                                                            }
+                                                        }}
+                                                        className="golden-combo-vip-btn"
+                                                    >
+                                                        <span>✈️</span>
+                                                        <span>{lang === 'tr' ? 'VIP Gruba İlet' : 'Share to VIP'}</span>
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
@@ -5258,7 +5281,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     { id: 'BAYESIAN_PRICING', label: t.toggle_bayesian, premium: true },
                                     { id: 'LEAGUE_PROFILES', label: t.toggle_league_profiles, premium: false }
                                 ].map(setting => {
-                                    const isLocked = false; // Bypassed for local Admin access
+                                    const isLocked = setting.premium && (!isAdmin && userProfile?.plan !== 'premium');
                                     return (
                                         <div key={setting.id} className={`setting-item ${isLocked ? 'locked' : ''}`}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -5284,27 +5307,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 })}
                             </div>
 
-                            <div className="league-management">
-                                <h4>{t.league_tier_management}</h4>
-                                {['tier1', 'tier2'].map(tierKey => (
-                                    <div key={tierKey} className="tier-group">
-                                        <label>{tierKey === 'tier1' ? t.tier_1_label : t.tier_2_label}</label>
-                                        <div className="leagues">
-                                            {leagueTierMap[tierKey].map(league => (
-                                                <span key={league} className="league-chip" onClick={() => {
-                                                    const otherTier = tierKey === 'tier1' ? 'tier2' : 'tier1';
-                                                    const newMap = { ...leagueTierMap };
-                                                    newMap[tierKey] = newMap[tierKey].filter(l => l !== league);
-                                                    newMap[otherTier].push(league);
-                                                    setLeagueTierMap(newMap);
-                                                    CONFIG.MODULAR_SYSTEM.LEAGUE_TIERS.TIER_1 = newMap.tier1;
-                                                    CONFIG.MODULAR_SYSTEM.LEAGUE_TIERS.TIER_2 = newMap.tier2;
-                                                }}>{league} ⇄</span>
-                                            ))}
+                            {/* League Tier Management - Admin Only */}
+                            {isAdmin && (
+                                <div className="league-management">
+                                    <h4>{t.league_tier_management}</h4>
+                                    {['tier1', 'tier2'].map(tierKey => (
+                                        <div key={tierKey} className="tier-group">
+                                            <label>{tierKey === 'tier1' ? t.tier_1_label : t.tier_2_label}</label>
+                                            <div className="leagues">
+                                                {leagueTierMap[tierKey].map(league => (
+                                                    <span key={league} className="league-chip" onClick={() => {
+                                                        const otherTier = tierKey === 'tier1' ? 'tier2' : 'tier1';
+                                                        const newMap = { ...leagueTierMap };
+                                                        newMap[tierKey] = newMap[tierKey].filter(l => l !== league);
+                                                        newMap[otherTier].push(league);
+                                                        setLeagueTierMap(newMap);
+                                                        CONFIG.MODULAR_SYSTEM.LEAGUE_TIERS.TIER_1 = newMap.tier1;
+                                                        CONFIG.MODULAR_SYSTEM.LEAGUE_TIERS.TIER_2 = newMap.tier2;
+                                                    }}>{league} ⇄</span>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )

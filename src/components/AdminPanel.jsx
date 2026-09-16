@@ -277,10 +277,18 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         ? 'http://localhost:3001'
         : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
+    const getAdminHeaders = () => ({
+        'Content-Type': 'application/json',
+        'x-admin-sender': 'admin@livebetmentor.com',
+        'x-admin-token': 'master-admin-token'
+    });
+
     const fetchTelegramStatus = async () => {
         try {
             const proxyBase = getProxyBase();
-            const res = await fetch(`${proxyBase}/api/telegram/status`);
+            const res = await fetch(`${proxyBase}/api/telegram/status`, {
+                headers: { 'x-admin-sender': 'admin@livebetmentor.com' }
+            });
             const data = await res.json();
             setTelegramStatus(data);
         } catch (e) {
@@ -292,7 +300,10 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         setTelegramLoading(true);
         try {
             const proxyBase = getProxyBase();
-            const res = await fetch(`${proxyBase}/api/telegram/send-report`, { method: 'POST' });
+            const res = await fetch(`${proxyBase}/api/telegram/send-report`, { 
+                method: 'POST',
+                headers: getAdminHeaders()
+            });
             if (res.ok) {
                 setStatus({ type: 'success', message: 'Rapor başarıyla gönderildi!' });
                 fetchTelegramStatus();
@@ -308,7 +319,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             const proxyBase = getProxyBase();
             const res = await fetch(`${proxyBase}/api/telegram/config`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify({ lang: newLang })
             });
             const data = await res.json();
@@ -480,7 +491,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         try {
             const res = await fetch(`${proxyBase}/api/members/create`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify({ email, password, plan: selectedPlan, days: subscriptionDays })
             });
             if (res.ok) {
@@ -534,7 +545,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         try {
             const res = await fetch(`${proxyBase}/api/members/approve`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify({ id: profile.id, email: profile.email, days, plan })
             });
             if (res.ok) {
@@ -576,7 +587,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         try {
             const res = await fetch(`${proxyBase}/api/members/reject`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify({ id, email })
             });
             if (res.ok) {
@@ -621,7 +632,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         try {
             const res = await fetch(`${proxyBase}/api/members/delete`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify({ id, email })
             });
             if (res.ok) {
@@ -649,7 +660,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         try {
             const res = await fetch(`${proxyBase}/api/members/extend`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders(),
                 body: JSON.stringify({ id: profileId, days })
             });
             if (res.ok) {

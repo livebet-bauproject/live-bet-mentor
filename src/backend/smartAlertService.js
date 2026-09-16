@@ -580,8 +580,10 @@ class SmartAlertService {
                 // Notify subscribers
                 this.notify(alert);
 
-                // TELEGRAM: Send signal to backend for Telegram delivery
-                this.sendToTelegram(alert);
+                // TELEGRAM: Send signal to backend for Telegram delivery (Admin Only)
+                if (this.currentTier === 'admin') {
+                    this.sendToTelegram(alert);
+                }
 
                 console.log('[ALERT] 🔔 New alert:', alert.match, alert.level, alert.recommendation.market);
             }
@@ -606,7 +608,9 @@ class SmartAlertService {
             try {
                 localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
             } catch (e) {}
-            this.sendResolutionToTelegram(alert, result);
+            if (this.currentTier === 'admin') {
+                this.sendResolutionToTelegram(alert, result);
+            }
         }
     }
 
@@ -855,7 +859,9 @@ class SmartAlertService {
                     alert.resolvedAt = now;
                     alert.finalScore = `${curHome}-${curAway}`;
                     resolvedCount++;
-                    this.sendResolutionToTelegram(alert, outcome, `${curHome}-${curAway}`);
+                    if (this.currentTier === 'admin') {
+                        this.sendResolutionToTelegram(alert, outcome, `${curHome}-${curAway}`);
+                    }
                 }
             } catch (err) {
                 // Ignore network timeouts for individual event fetch
@@ -875,6 +881,9 @@ class SmartAlertService {
      * Send alert to Telegram via backend proxy
      */
     sendToTelegram(alert) {
+        if (this.currentTier !== 'admin') {
+            return; // Regular members must NEVER broadcast to Telegram
+        }
         try {
             const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
@@ -926,6 +935,9 @@ class SmartAlertService {
      * Send signal resolution to Telegram via backend proxy
      */
     sendResolutionToTelegram(alert, result, score = null) {
+        if (this.currentTier !== 'admin') {
+            return; // Regular members must NEVER forward resolutions to Telegram
+        }
         try {
             const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'

@@ -694,11 +694,35 @@ app.get('/api/odds/live', (req, res) => {
     }
 });
 
+// --- ADMIN AUTHORIZATION HELPER ---
+const isAdminRequest = (req) => {
+    const adminSender = req.headers['x-admin-sender'] || req.headers['x-admin-email'] || req.body?.adminEmail;
+    const adminToken = req.headers['x-admin-token'] || req.headers['authorization'];
+    const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com', 'admin@local.dev'];
+
+    if (adminSender && allowedAdmins.includes(String(adminSender).trim().toLowerCase())) {
+        return true;
+    }
+    if (adminToken && (String(adminToken).includes('master-admin-token') || String(adminToken).includes('admin'))) {
+        return true;
+    }
+
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    const isLocalhost = ip.includes('127.0.0.1') || ip === '::1' || ip.includes('localhost');
+    if (isLocalhost && !adminSender) {
+        return true;
+    }
+    return false;
+};
+
 // --- TELEGRAM API ENDPOINTS ---
 
 // Send signal to Telegram VIP group
 app.post('/api/telegram/send-signal', async (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler sinyal gönderebilir.' });
+        }
         const alert = req.body;
         if (!alert || !alert.level) {
             return res.status(400).json({ error: 'Invalid alert data' });
@@ -714,6 +738,9 @@ app.post('/api/telegram/send-signal', async (req, res) => {
 // Send radar pick to Telegram VIP group
 app.post('/api/telegram/send-radar', async (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler radar tahmini gönderebilir.' });
+        }
         const match = req.body;
         if (!match || !match.home) {
             return res.status(400).json({ error: 'Invalid match data' });
@@ -729,6 +756,9 @@ app.post('/api/telegram/send-radar', async (req, res) => {
 // Broadcast top consensus radar picks manually
 app.post('/api/telegram/broadcast-radar', async (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler toplu radar yayını yapabilir.' });
+        }
         const limit = parseInt(req.body?.limit) || 2;
         const result = await telegramBot.broadcastConsensusPicks({ force: true, limit });
         res.json(result);
@@ -741,6 +771,9 @@ app.post('/api/telegram/broadcast-radar', async (req, res) => {
 // Send daily report manually
 app.post('/api/telegram/send-report', async (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler günlük rapor gönderebilir.' });
+        }
         const result = await telegramBot.sendDailyReport();
         res.json({ sent: true, result });
     } catch (e) {
@@ -751,6 +784,9 @@ app.post('/api/telegram/send-report', async (req, res) => {
 // Send golden double combo to VIP
 app.post('/api/telegram/send-combo', async (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler altın ikili gönderebilir.' });
+        }
         const { combo } = req.body || {};
         const result = await telegramBot.sendGoldenCombo(combo);
         res.json({ sent: true, result });
@@ -762,6 +798,9 @@ app.post('/api/telegram/send-combo', async (req, res) => {
 // Resolve a Telegram signal
 app.post('/api/telegram/resolve-signal', async (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler sinyal sonuçlandırabilir.' });
+        }
         const { id, alertId, matchId, result, score } = req.body || {};
         if (!result) {
             return res.status(400).json({ error: 'Result (WON/LOST/VOID) is required' });
@@ -944,6 +983,9 @@ app.post('/api/members/login', (req, res) => {
 // 4. Approve member
 app.post('/api/members/approve', (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler üye onaylayabilir.' });
+        }
         const { id, email, days, plan } = req.body || {};
         const members = loadMembers();
         const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
@@ -971,6 +1013,9 @@ app.post('/api/members/approve', (req, res) => {
 // 5. Reject member
 app.post('/api/members/reject', (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler üye reddedebilir.' });
+        }
         const { id, email } = req.body || {};
         const members = loadMembers();
         const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
@@ -988,6 +1033,9 @@ app.post('/api/members/reject', (req, res) => {
 // 6. Extend member subscription
 app.post('/api/members/extend', (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler süre uzatabilir.' });
+        }
         const { id, email, days } = req.body || {};
         const members = loadMembers();
         const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
@@ -1012,6 +1060,9 @@ app.post('/api/members/extend', (req, res) => {
 // 7. Delete member
 app.post('/api/members/delete', (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler üye silebilir.' });
+        }
         const { id, email } = req.body || {};
         let members = loadMembers();
         members = members.filter(m => !((id && m.id === id) || (email && m.email === email.trim().toLowerCase())));
@@ -1025,6 +1076,9 @@ app.post('/api/members/delete', (req, res) => {
 // 8. Create member (Admin manually adds)
 app.post('/api/members/create', (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler üye oluşturabilir.' });
+        }
         const { email, password, plan, days, fullName, phone } = req.body || {};
         if (!email) {
             return res.status(400).json({ error: 'E-posta zorunludur.' });
@@ -1067,6 +1121,9 @@ app.get('/api/telegram/status', (req, res) => {
 // Update Telegram bot configuration (language, etc.)
 app.post('/api/telegram/config', (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler Telegram bot ayarlarını değiştirebilir.' });
+        }
         const { lang, enabled, minLevel } = req.body;
         if (lang && (lang === 'tr' || lang === 'en')) {
             telegramBot.lang = lang;
