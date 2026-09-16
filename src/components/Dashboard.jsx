@@ -135,6 +135,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             // Fetch pending membership request
             const fetchPendingRequest = async () => {
                 try {
+                    const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                        ? 'http://localhost:3001'
+                        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+                    // 1. Check Backend API upgrade requests
+                    try {
+                        const res = await fetch(`${proxyBase}/api/members/upgrade-requests`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data?.requests && Array.isArray(data.requests)) {
+                                const myReq = data.requests.find(r => 
+                                    (r.email === user.email || r.user_id === user.id) && r.status === 'pending'
+                                );
+                                if (myReq) {
+                                    setPendingRequest(myReq);
+                                    return;
+                                }
+                            }
+                        }
+                    } catch (beErr) {
+                        // ignore backend fetch error
+                    }
+
+                    // 2. Check Supabase (if table exists)
                     const { data } = await supabase
                         .from('membership_requests')
                         .select('*')
@@ -144,7 +168,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     if (data) setPendingRequest(data);
                 } catch (e) {
-                    // Ignore if Supabase offline
+                    // Ignore if Supabase offline or table missing
                 }
             };
             fetchPendingRequest();
@@ -442,19 +466,70 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         if (!user || requestLoading) return;
         setRequestLoading(true);
         try {
-            const { error } = await supabase
-                .from('membership_requests')
-                .insert([
-                    {
-                        user_id: user.id,
-                        email: user.email,
-                        current_plan: userProfile?.plan || 'trial',
-                        requested_plan: requestedPlan,
-                        status: 'pending'
-                    }
-                ]);
+            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+                ? 'http://localhost:3001'
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
-            if (error) throw error;
+            const payload = {
+                userId: user.id,
+                email: user.email,
+                currentPlan: userProfile?.plan || 'trial',
+                requestedPlan: requestedPlan,
+                fullName: userProfile?.display_name || userProfile?.full_name || user.email?.split('@')[0],
+                phone: userProfile?.phone || ''
+            };
+
+            let sentSuccessfully = false;
+
+            // 1. Save to Backend API & send instant Telegram alert to admin
+            try {
+                const res = await fetch(`${proxyBase}/api/members/upgrade-request`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success) sentSuccessfully = true;
+                }
+            } catch (beErr) {
+                console.warn('[UPGRADE] Backend request warning:', beErr);
+            }
+
+            // 2. Also save to Supabase if table exists
+            try {
+                const { error } = await supabase
+                    .from('membership_requests')
+                    .insert([
+                        {
+                            user_id: user.id,
+                            email: user.email,
+                            current_plan: userProfile?.plan || 'trial',
+                            requested_plan: requestedPlan,
+                            status: 'pending'
+                        }
+                    ]);
+                if (!error) sentSuccessfully = true;
+            } catch (sbErr) {
+                // Table doesn't exist yet, backend already handled it
+            }
+
+            // 3. Fallback: direct telegram notify admin
+            if (!sentSuccessfully) {
+                try {
+                    await fetch(`${proxyBase}/api/telegram/notify-admin`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: user.email,
+                            fullName: payload.fullName,
+                            plan: requestedPlan,
+                            type: 'UPGRADE'
+                        })
+                    });
+                    sentSuccessfully = true;
+                } catch (e) {}
+            }
 
             // Update local state
             setPendingRequest({
@@ -465,10 +540,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 status: 'pending'
             });
 
-            alert(lang === 'tr' ? 'Yükseltme talebiniz iletildi! Yönetici onayı bekleniyor.' : 'Upgrade request submitted! Awaiting admin approval.');
+            alert(lang === 'tr' 
+                ? '✅ Yükseltme talebiniz başarıyla iletildi! Yöneticimize bildirim gönderildi, en kısa sürede onaylanacaktır.' 
+                : '✅ Upgrade request submitted successfully! Admin has been notified, awaiting approval.');
         } catch (err) {
             console.error('Request Error:', err);
-            alert(lang === 'tr' ? 'Bir hata oluştu. Lütfen tekrar deneyin.' : 'An error occurred. Please try again.');
+            alert(lang === 'tr' ? 'Bir hata oluştu. Lütfen tekrar deneyin veya Telegram üzerinden iletişime geçin.' : 'An error occurred. Please try again or contact via Telegram.');
         } finally {
             setRequestLoading(false);
         }

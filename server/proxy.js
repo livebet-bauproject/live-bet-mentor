@@ -82,6 +82,28 @@ const STATS_DIR = path.join(__dirname, 'stats');
 const REQUEST_QUEUE = path.join(__dirname, 'stats_request.json');
 const ODDS_FILE = path.join(__dirname, 'live_odds.json');
 const MEMBERS_FILE = path.join(__dirname, 'web_members.json');
+const UPGRADE_REQUESTS_FILE = path.join(__dirname, 'upgrade_requests.json');
+
+function loadUpgradeRequests() {
+    try {
+        if (fs.existsSync(UPGRADE_REQUESTS_FILE)) {
+            return JSON.parse(fs.readFileSync(UPGRADE_REQUESTS_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('[UPGRADE] Error reading upgrade_requests.json:', e.message);
+    }
+    return [];
+}
+
+function saveUpgradeRequests(reqs) {
+    try {
+        fs.writeFileSync(UPGRADE_REQUESTS_FILE, JSON.stringify(reqs, null, 2), 'utf8');
+        return true;
+    } catch (e) {
+        console.error('[UPGRADE] Error saving upgrade_requests.json:', e.message);
+        return false;
+    }
+}
 
 function loadMembers() {
     try {
@@ -1291,6 +1313,123 @@ app.post('/api/members/create', (req, res) => {
         saveMembers(members);
 
         res.json({ success: true, member: newMember, members });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 9. Member Upgrade Request (from Dashboard Modal)
+app.post('/api/members/upgrade-request', async (req, res) => {
+    try {
+        const { userId, email, currentPlan, requestedPlan, fullName, phone } = req.body || {};
+        if (!email && !userId) {
+            return res.status(400).json({ error: 'E-posta veya kullanıcı ID zorunludur.' });
+        }
+        const cleanEmail = (email || '').trim().toLowerCase();
+        const requests = loadUpgradeRequests();
+
+        const newReq = {
+            id: `req_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            user_id: userId || cleanEmail,
+            email: cleanEmail,
+            full_name: fullName || '',
+            phone: phone || '',
+            current_plan: currentPlan || 'trial',
+            requested_plan: requestedPlan || 'pro',
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+
+        // Keep only latest pending request per email
+        const filtered = requests.filter(r => !(r.email === cleanEmail && r.status === 'pending'));
+        filtered.unshift(newReq);
+        saveUpgradeRequests(filtered);
+
+        // Also update member profile in web_members.json if present
+        try {
+            const members = loadMembers();
+            const member = members.find(m => m.email === cleanEmail || m.id === userId);
+            if (member) {
+                member.requested_plan = requestedPlan;
+                saveMembers(members);
+            }
+        } catch (mErr) {
+            console.warn('[UPGRADE] Could not update member requested_plan:', mErr);
+        }
+
+        // Instant Telegram alert to Admin (Hamza)
+        const dateStr = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+        const planBadge = (requestedPlan || '').toUpperCase();
+        const msg = `💎 *YENİ VIP ÜYELİK YÜKSELTME TALEBİ!*\n\n` +
+                    `📧 *E-posta:* \`${cleanEmail}\`\n` +
+                    (fullName ? `👤 *Kullanıcı:* ${fullName}\n` : '') +
+                    (phone ? `📞 *Telefon:* ${phone}\n` : '') +
+                    `⭐ *Mevcut Paket:* ${(currentPlan || 'trial').toUpperCase()}\n` +
+                    `🚀 *İstenen Paket:* *${planBadge}*\n` +
+                    `📅 *Tarih:* ${dateStr}\n\n` +
+                    `👉 _LiveBet Mentor Admin Panelinden onaylayabilir veya kullanıcıyla Telegram üzerinden iletişime geçebilirsiniz._`;
+
+        if (telegramBot && telegramBot.bot) {
+            const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
+            for (const adminId of adminIds) {
+                try {
+                    await telegramBot.bot.sendMessage(adminId, msg, { parse_mode: 'Markdown' });
+                } catch (err) {
+                    console.error(`[PROXY] Failed to notify admin ${adminId}:`, err.message);
+                }
+            }
+        }
+
+        res.json({ success: true, request: newReq });
+    } catch (e) {
+        console.error('[UPGRADE] Error in upgrade-request:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 10. Get all upgrade requests (Admin Panel)
+app.get('/api/members/upgrade-requests', (req, res) => {
+    try {
+        const requests = loadUpgradeRequests();
+        res.json({ success: true, requests });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 11. Approve or Reject Upgrade (Admin Panel)
+app.post('/api/members/resolve-upgrade', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler onaylayabilir.' });
+        }
+        const { id, action } = req.body || {}; // action: 'approved' | 'rejected'
+        const requests = loadUpgradeRequests();
+        const reqItem = requests.find(r => r.id === id);
+        if (!reqItem) {
+            return res.status(404).json({ error: 'Talep bulunamadı.' });
+        }
+        reqItem.status = action === 'approved' ? 'approved' : 'rejected';
+        reqItem.resolved_at = new Date().toISOString();
+        saveUpgradeRequests(requests);
+
+        // If approved, update member plan and grant 30 days
+        if (action === 'approved') {
+            const members = loadMembers();
+            const mem = members.find(m => m.email === reqItem.email || m.id === reqItem.user_id);
+            if (mem) {
+                mem.plan = reqItem.requested_plan;
+                mem.status = 'approved';
+                const now = new Date();
+                const end = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+                mem.subscription_start = now.toISOString();
+                mem.subscription_end = end.toISOString();
+                delete mem.requested_plan;
+                saveMembers(members);
+            }
+        }
+
+        res.json({ success: true, request: reqItem });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }

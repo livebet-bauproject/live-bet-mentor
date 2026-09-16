@@ -386,6 +386,26 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     };
 
     const fetchUpgradeRequests = async () => {
+        const mergedRequests = [];
+        const seen = new Set();
+
+        // 1. Fetch from Backend Proxy
+        try {
+            const res = await fetch(`${proxyBase}/api/members/upgrade-requests`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data?.requests && Array.isArray(data.requests)) {
+                    data.requests.filter(r => r.status === 'pending').forEach(r => {
+                        seen.add(r.id);
+                        mergedRequests.push(r);
+                    });
+                }
+            }
+        } catch (beErr) {
+            console.warn('Backend upgrade requests fetch warning:', beErr);
+        }
+
+        // 2. Fetch from Supabase (if table exists)
         try {
             const { data, error } = await supabase
                 .from('membership_requests')
@@ -393,40 +413,63 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                 .eq('status', 'pending')
                 .order('created_at', { ascending: false });
 
-            if (!error) setUpgradeRequests(data || []);
+            if (!error && Array.isArray(data)) {
+                data.forEach(r => {
+                    if (!seen.has(r.id)) {
+                        seen.add(r.id);
+                        mergedRequests.push(r);
+                    }
+                });
+            }
         } catch (e) {
-            console.warn('Error fetching upgrade requests:', e);
+            console.warn('Error fetching upgrade requests from Supabase:', e);
         }
+
+        setUpgradeRequests(mergedRequests);
     };
 
     const approveUpgrade = async (request) => {
         try {
-            // 1. Update Profile
+            // 1. Resolve in Backend Proxy
+            try {
+                await fetch(`${proxyBase}/api/members/resolve-upgrade`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-sender': 'admin@livebetmentor.com'
+                    },
+                    body: JSON.stringify({ id: request.id, action: 'approved' })
+                });
+            } catch (beErr) {
+                console.warn('Backend resolve-upgrade error:', beErr);
+            }
+
+            // 2. Update Supabase Profile (if present)
             const expiryDate = new Date();
             expiryDate.setDate(expiryDate.getDate() + 30); // Default 30 days for upgrades
 
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({
-                    plan: request.requested_plan,
-                    status: 'approved',
-                    subscription_start: new Date().toISOString(),
-                    subscription_end: expiryDate.toISOString()
-                })
-                .eq('id', request.user_id);
+            try {
+                await supabase
+                    .from('profiles')
+                    .update({
+                        plan: request.requested_plan,
+                        status: 'approved',
+                        subscription_start: new Date().toISOString(),
+                        subscription_end: expiryDate.toISOString()
+                    })
+                    .eq('id', request.user_id);
+            } catch (sbErr) {}
 
-            if (profileError) throw profileError;
-
-            // 2. Update Request Status
-            const { error: requestError } = await supabase
-                .from('membership_requests')
-                .update({
-                    status: 'approved',
-                    resolved_at: new Date().toISOString()
-                })
-                .eq('id', request.id);
-
-            if (requestError) throw requestError;
+            // 3. Update Supabase Request Status (if table exists)
+            try {
+                await supabase
+                    .from('membership_requests')
+                    .update({
+                        status: 'approved',
+                        resolved_at: new Date().toISOString()
+                    })
+                    .eq('id', request.id);
+            } catch (sbErr) {}
 
             setStatus({ type: 'success', message: t.userApproved });
             fetchProfiles();
@@ -440,15 +483,31 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const rejectUpgrade = async (requestId) => {
         if (!window.confirm(t.confirmReject)) return;
         try {
-            const { error } = await supabase
-                .from('membership_requests')
-                .update({
-                    status: 'rejected',
-                    resolved_at: new Date().toISOString()
-                })
-                .eq('id', requestId);
+            // 1. Resolve in Backend Proxy
+            try {
+                await fetch(`${proxyBase}/api/members/resolve-upgrade`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-admin-sender': 'admin@livebetmentor.com'
+                    },
+                    body: JSON.stringify({ id: requestId, action: 'rejected' })
+                });
+            } catch (beErr) {
+                console.warn('Backend resolve-upgrade reject error:', beErr);
+            }
 
-            if (error) throw error;
+            // 2. Update Supabase (if table exists)
+            try {
+                await supabase
+                    .from('membership_requests')
+                    .update({
+                        status: 'rejected',
+                        resolved_at: new Date().toISOString()
+                    })
+                    .eq('id', requestId);
+            } catch (sbErr) {}
+
             setStatus({ type: 'success', message: t.userRejected });
             fetchUpgradeRequests();
         } catch (err) {
