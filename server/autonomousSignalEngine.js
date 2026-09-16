@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AUTONOMOUS IN-PLAY SIGNAL ENGINE (v1.0)
  * 24/7 Server-side match evaluation and automated signal dispatch
  */
@@ -143,26 +143,26 @@ export class AutonomousSignalEngine {
             selectedSetup = {
                 level: 'ALPHA',
                 marketKey: 'market_next_goal_home',
-                marketLabel: `Next Goal: ${homeTeam}`,
+                marketLabel: `Sıradaki Gol: ${homeTeam}`,
                 odds: 1.78,
                 confidence: 86,
                 reasoning: [
-                    `Relentless pitch siege by ${homeTeam} (${hPoss}% possession)`,
-                    `Major penalty box infiltration (${hBox} touches in box)`,
-                    `Unanswered shot supremacy (${hSOT} vs ${aSOT} on target)`
+                    `${homeTeam} yoğun hücum baskısı ve ceza sahası hakimiyeti (%${hPoss} topla oynama)`,
+                    `Ceza sahasında yüksek topla buluşma (${hBox} temas)`,
+                    `Baskılı şut üstünlüğü (${hSOT} - ${aSOT} isabetli şut)`
                 ]
             };
         } else if (aPoss >= 62 && aSOT >= (hSOT + 3) && aBox >= 12 && curAway <= curHome) {
             selectedSetup = {
                 level: 'ALPHA',
                 marketKey: 'market_next_goal_away',
-                marketLabel: `Next Goal: ${awayTeam}`,
+                marketLabel: `Sıradaki Gol: ${awayTeam}`,
                 odds: 1.82,
                 confidence: 85,
                 reasoning: [
-                    `High away dominance by ${awayTeam} (${aPoss}% possession)`,
-                    `Continuous penalty area infiltration (${aBox} touches in box)`,
-                    `Defensive breakdown forced (${aSOT} vs ${hSOT} on target)`
+                    `${awayTeam} deplasmanda yoğun baskı kurdu (%${aPoss} topla oynama)`,
+                    `Sürekli ceza sahası penetrasyonu (${aBox} temas)`,
+                    `Savunma hattı zorlanıyor (${aSOT} - ${hSOT} isabetli şut)`
                 ]
             };
         }
@@ -172,13 +172,13 @@ export class AutonomousSignalEngine {
             selectedSetup = {
                 level: totalSOT >= 7 ? 'ALPHA' : 'ALEV',
                 marketKey: 'market_over_goals',
-                marketLabel: `Over ${targetLine} Match Goals`,
+                marketLabel: `Maçta ${targetLine} Üst Gol`,
                 odds: 1.84,
                 confidence: 84,
                 reasoning: [
-                    `High in-play tempo with ${totalSOT} shots on target`,
-                    `Severe box penetration (${totalBox} active touches in penalty box)`,
-                    `Algorithm xG velocity confirms breakthrough imminent`
+                    `Yüksek maç temposu ve ${totalSOT} isabetli şut`,
+                    `Yoğun ceza sahası aksiyonu (${totalBox} temas)`,
+                    `xG gol ivmesi yakın bir golü doğruluyor`
                 ]
             };
         }
@@ -187,13 +187,13 @@ export class AutonomousSignalEngine {
             selectedSetup = {
                 level: 'ALEV',
                 marketKey: 'market_btts',
-                marketLabel: 'Both Teams To Score (BTTS: Yes)',
+                marketLabel: 'Karşılıklı Gol Var (KG Var)',
                 odds: 1.88,
                 confidence: 82,
                 reasoning: [
-                    `Both sides demonstrating dangerous vertical penetration`,
-                    `High two-way offensive volume (${hSOT} & ${aSOT} shots on target)`,
-                    `Open transitions and high-value xG generation`
+                    `İki takım da karşılıklı tehlikeli ataklar geliştiriyor`,
+                    `Yüksek çift taraflı hücum hacmi (${hSOT} & ${aSOT} isabetli şut)`,
+                    `Açık alan geçişleri ve yüksek gol tehlikesi`
                 ]
             };
         }
@@ -210,7 +210,7 @@ export class AutonomousSignalEngine {
             minute,
             level: selectedSetup.level,
             recommendation: {
-                predictionText: `${selectedSetup.marketLabel} (Odds: ${selectedSetup.odds})`,
+                predictionText: `${selectedSetup.marketLabel} (Oran: ${selectedSetup.odds})`,
                 marketKey: selectedSetup.marketKey,
                 marketLabel: selectedSetup.marketLabel,
                 odds: selectedSetup.odds,
@@ -218,7 +218,7 @@ export class AutonomousSignalEngine {
                 reasoning: selectedSetup.reasoning
             },
             activeStrategies: [
-                { icon: selectedSetup.level === 'ALPHA' ? '💎' : '🔥', label: 'Quant Momentum Radar', verdict: selectedSetup.reasoning[0] }
+                { icon: selectedSetup.level === 'ALPHA' ? '💎' : '🔥', label: 'Canlı İvme Radarı', verdict: selectedSetup.reasoning[0] }
             ],
             maxEV: 0.12,
             bestEV: {
