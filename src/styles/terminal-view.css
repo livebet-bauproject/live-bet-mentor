@@ -37,12 +37,51 @@
   margin-bottom: 1.25rem;
 }
 
-.tb-toolbar-left,
-.tb-toolbar-right {
+.tb-toolbar-row-top,
+.tb-toolbar-row-bottom {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.tb-btn-label-short,
+.tb-status-short {
+  display: none;
+}
+
+.tb-btn-label-full,
+.tb-status-full {
+  display: inline;
+}
+
+.tb-sort-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tb-sort-label {
+  font-size: 0.72rem;
+  color: var(--tb-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tb-sort-select {
+  background: var(--tb-surface-elevated);
+  color: var(--tb-text-primary);
+  border: 1px solid var(--tb-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.tb-sort-select:hover {
+  border-color: var(--tb-border-hover);
 }
 
 /* View Mode Segment Switcher */
@@ -903,10 +942,124 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-/* Responsive View Switcher */
+/* Responsive View Switcher & Mobile Cockpit Toolbar */
 @media (max-width: 768px) {
+  .tb-btn-label-full,
+  .tb-status-full {
+    display: none !important;
+  }
+
+  .tb-btn-label-short,
+  .tb-status-short {
+    display: inline !important;
+  }
+
+  .tb-cockpit-toolbar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.35rem !important;
+    padding: 0.4rem 0.5rem !important;
+    margin-bottom: 0.45rem !important;
+    border-radius: 9px !important;
+  }
+
+  .tb-toolbar-row-top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 0.25rem !important;
+  }
+
+  .tb-mode-switcher {
+    padding: 2px !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .tb-mode-btn {
+    padding: 4px 6px !important;
+    font-size: 0.68rem !important;
+    gap: 3px !important;
+    border-radius: 5px !important;
+  }
+
+  .tb-stream-status {
+    padding: 4px 6px !important;
+    font-size: 0.68rem !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    border-radius: 5px !important;
+  }
+
   .tb-mobile-view-toggle {
     display: inline-flex !important;
+    padding: 2px !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .tb-sub-btn {
+    padding: 4px 6px !important;
+    font-size: 0.68rem !important;
+    gap: 3px !important;
+    border-radius: 5px !important;
+  }
+
+  .tb-toolbar-row-bottom {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    gap: 0.35rem !important;
+  }
+
+  .tb-search-box {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    padding: 3px 8px !important;
+    height: 30px !important;
+    box-sizing: border-box !important;
+    background: rgba(0, 0, 0, 0.35) !important;
+    border-radius: 6px !important;
+    gap: 4px !important;
+  }
+
+  .tb-search-box input {
+    width: 100% !important;
+    min-width: 0 !important;
+    font-size: 0.72rem !important;
+  }
+
+  .tb-sort-wrapper {
+    flex: 0 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .tb-sort-label {
+    display: none !important;
+  }
+
+  .tb-sort-select {
+    height: 30px !important;
+    font-size: 0.7rem !important;
+    padding: 2px 5px !important;
+    max-width: 130px !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    background: rgba(22, 32, 50, 0.9) !important;
+  }
+
+  .tb-filter-strip-wrapper {
+    margin-bottom: 0.45rem !important;
+  }
+
+  .tb-chip {
+    padding: 4px 9px !important;
+    font-size: 0.68rem !important;
+    gap: 4px !important;
   }
   
   .tb-terminal-wrapper {
@@ -930,10 +1083,5 @@
 
   .tb-mobile-stream.hide-in-table-mode {
     display: none !important;
-  }
-
-  .tb-cockpit-toolbar {
-    padding: 0.65rem 0.85rem;
-    gap: 0.5rem;
   }
 }

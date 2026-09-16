@@ -3938,6 +3938,14 @@ html, body {
   display: inline;
 }
 
+.tier-label-short {
+  display: none;
+}
+
+.tier-label-full {
+  display: inline;
+}
+
 .tier-btn-sub {
   display: none;
 }
@@ -3969,6 +3977,9 @@ html, body {
   }
   .mobile-bankroll-glance {
     display: flex !important;
+    padding: 0.35rem 0.75rem !important;
+    margin-bottom: 0.45rem !important;
+    border-radius: 8px !important;
   }
   .mobile-quick-chips {
     display: flex !important;
@@ -3979,71 +3990,76 @@ html, body {
     display: none !important;
   }
 
-  /* Tier Filter Bar Mobile - 4 Equal Balanced Columns (Fits 100% of Screen) */
+  /* Tier Filter Bar Mobile - Sleek Compact Segmented Bar (30px Height) */
   .tier-filter-bar {
     display: grid !important;
     grid-template-columns: repeat(4, 1fr) !important;
-    gap: 0.35rem !important;
+    gap: 0.25rem !important;
     width: 100% !important;
-    margin-bottom: 1.1rem !important;
+    margin-bottom: 0.45rem !important;
     padding: 0 !important;
     overflow: visible !important;
   }
 
   .tier-btn {
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: row !important;
     align-items: center !important;
     justify-content: center !important;
     text-align: center !important;
-    padding: 0.42rem 0.15rem !important;
-    border-radius: 10px !important;
+    height: 30px !important;
+    padding: 0 4px !important;
+    border-radius: 7px !important;
     min-width: 0 !important;
     width: 100% !important;
-    gap: 0.15rem !important;
+    gap: 3px !important;
     box-sizing: border-box !important;
   }
 
   .tier-btn:active {
-    transform: scale(0.93) !important;
+    transform: scale(0.95) !important;
   }
 
   .tier-btn-desktop-full {
     display: none !important;
   }
 
+  .tier-btn-sub {
+    display: none !important;
+  }
+
+  .tier-label-short {
+    display: inline !important;
+  }
+
+  .tier-label-full {
+    display: none !important;
+  }
+
   .tier-btn-text {
-    display: flex !important;
-    flex-direction: column !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
     align-items: center !important;
-    gap: 1px !important;
-    width: 100% !important;
+    gap: 0 !important;
+    width: auto !important;
   }
 
   .tier-btn-main {
-    display: block !important;
+    display: inline !important;
     font-size: 0.68rem !important;
-    font-weight: 900 !important;
-    line-height: 1.1 !important;
+    font-weight: 800 !important;
+    line-height: 1 !important;
     white-space: nowrap !important;
     letter-spacing: -0.2px !important;
   }
 
-  .tier-btn-sub {
-    display: block !important;
-    font-size: 0.52rem !important;
-    font-weight: 800 !important;
-    opacity: 0.75 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.3px !important;
-    white-space: nowrap !important;
-  }
-
   .tier-btn-count {
-    margin-top: 2px !important;
+    margin-top: 0 !important;
     font-size: 0.62rem !important;
-    padding: 1px 5px !important;
+    font-weight: 800 !important;
+    padding: 1px 4px !important;
     border-radius: 999px !important;
+    line-height: 1.2 !important;
   }
 
   .live-opportunities-section {

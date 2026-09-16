@@ -4602,7 +4602,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 >
                                     <div className="tier-btn-text">
                                         <span className="tier-btn-main">
-                                            {isAll ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `TIER ${tier}`}
+                                            <span className="tier-label-short">{isAll ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `T${tier}`}</span>
+                                            <span className="tier-label-full">{isAll ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `TIER ${tier}`}</span>
                                         </span>
                                         <span className="tier-btn-desktop-full">
                                             {isAll ? (t.tier_filter_all || 'TÜM LİGLER') : (t[`tier_${tier}_label`] || `TIER ${tier}`)}
@@ -4623,7 +4624,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     {/* ==================== BETBALLERS STYLE COCKPIT TOOLBAR ==================== */}
                     <div className="tb-cockpit-toolbar">
-                        <div className="tb-toolbar-left">
+                        {/* Top row on mobile, left block on desktop */}
+                        <div className="tb-toolbar-row-top">
                             {/* View Mode Switcher */}
                             <div className="tb-mode-switcher">
                                 <button
@@ -4633,7 +4635,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     title={lang === 'tr' ? 'BetBallers Stili Dinamik ve Kompakt Canlı Tablo' : 'BetBallers Style Live Terminal'}
                                 >
                                     <span>📊</span>
-                                    <span>{lang === 'tr' ? 'Canlı Terminal' : 'Live Terminal'}</span>
+                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Terminal' : 'Live Terminal'}</span>
+                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Terminal' : 'Terminal'}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -4642,7 +4645,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     title={lang === 'tr' ? 'Klasik Kart Görünümü' : 'Classic Cards View'}
                                 >
                                     <span>🎴</span>
-                                    <span>{lang === 'tr' ? 'Klasik Kartlar' : 'Classic Cards'}</span>
+                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Klasik Kartlar' : 'Classic Cards'}</span>
+                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Klasik' : 'Classic'}</span>
                                 </button>
                             </div>
 
@@ -4655,46 +4659,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     title={isSortLocked ? (lang === 'tr' ? 'Sıralama kilitli. Canlı akışı başlatmak için tıklayın.' : 'Sort locked. Click to resume live stream.') : (lang === 'tr' ? 'Canlı sıralama devrede. Sıralamayı sabitlemek için tıklayın.' : 'Live sorting active. Click to lock order.')}
                                 >
                                     <span className="tb-pulse-dot" />
-                                    <span>
+                                    <span className="tb-status-full">
                                         {isSortLocked
                                             ? (lang === 'tr' ? '🔒 Sıralama Kilitli' : '🔒 Sort Locked')
                                             : (lang === 'tr' ? '🟢 Canlı Akış (Momentum)' : '🟢 Live Stream (Momentum)')}
                                     </span>
+                                    <span className="tb-status-short">
+                                        {isSortLocked
+                                            ? (lang === 'tr' ? '🔒 Sabit' : '🔒 Locked')
+                                            : (lang === 'tr' ? '🟢 Canlı' : '🟢 Live')}
+                                    </span>
                                 </button>
                             )}
 
-                            {/* Sort criteria selector */}
-                            {displayViewMode === 'TERMINAL' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <span style={{ fontSize: '0.72rem', color: 'var(--tb-text-muted)', fontWeight: 600 }}>
-                                        {lang === 'tr' ? 'Sırala:' : 'Sort:'}
-                                    </span>
-                                    <select
-                                        value={terminalSortCriteria}
-                                        onChange={(e) => setTerminalSortCriteria(e.target.value)}
-                                        style={{
-                                            background: 'var(--tb-surface-elevated)',
-                                            color: 'var(--tb-text-primary)',
-                                            border: '1px solid var(--tb-border)',
-                                            borderRadius: '6px',
-                                            padding: '4px 8px',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            outline: 'none'
-                                        }}
-                                    >
-                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı & Şut)' : 'Live Momentum'}</option>
-                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Trend Hacmi (Kupon)' : 'Market Betting Volume'}</option>
-                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Dakika (Son Dakikalar)' : 'Minute (Late Game)'}</option>
-                                        <option value={SORT_CRITERIA.DQS}>🎯 {lang === 'tr' ? 'AI DQS / Güven' : 'AI DQS'}</option>
-                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig & Kademe' : 'League'}</option>
-                                        <option value={SORT_CRITERIA.TOTAL_SHOTS}>💥 {lang === 'tr' ? 'Toplam Şut Hacmi' : 'Total Shots'}</option>
-                                    </select>
-                                </div>
-                            )}
-
-                            {/* Mobile Sub-View Switcher: [ 📱 Kartlar | 📋 Tablo ] */}
+                            {/* Mobile Sub-View Switcher: [ 📱 Kart | 📋 Tablo ] */}
                             {displayViewMode === 'TERMINAL' && (
                                 <div className="tb-mobile-view-toggle">
                                     <button
@@ -4704,7 +4682,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         title={lang === 'tr' ? 'Mobil Net Kart Görünümü' : 'Mobile Cards View'}
                                     >
                                         <span>📱</span>
-                                        <span>{lang === 'tr' ? 'Kartlar' : 'Cards'}</span>
+                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Kartlar' : 'Cards'}</span>
+                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Kart' : 'Cards'}</span>
                                     </button>
                                     <button
                                         type="button"
@@ -4719,9 +4698,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             )}
                         </div>
 
-                        {/* Search Box */}
+                        {/* Bottom row on mobile, right block on desktop */}
                         {displayViewMode === 'TERMINAL' && (
-                            <div className="tb-toolbar-right">
+                            <div className="tb-toolbar-row-bottom">
+                                {/* Search Box */}
                                 <div className="tb-search-box">
                                     <span>🔍</span>
                                     <input
@@ -4734,11 +4714,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <button
                                             type="button"
                                             onClick={() => setTerminalSearchQuery('')}
-                                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem' }}
+                                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', padding: '0 2px' }}
                                         >
                                             ✕
                                         </button>
                                     )}
+                                </div>
+
+                                {/* Sort criteria selector */}
+                                <div className="tb-sort-wrapper">
+                                    <span className="tb-sort-label">
+                                        {lang === 'tr' ? 'Sırala:' : 'Sort:'}
+                                    </span>
+                                    <select
+                                        className="tb-sort-select"
+                                        value={terminalSortCriteria}
+                                        onChange={(e) => setTerminalSortCriteria(e.target.value)}
+                                    >
+                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme' : 'Live Momentum'}</option>
+                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Kupon Hacmi' : 'Market Volume'}</option>
+                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Dakika' : 'Minute'}</option>
+                                        <option value={SORT_CRITERIA.DQS}>🎯 {lang === 'tr' ? 'AI DQS' : 'AI DQS'}</option>
+                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig' : 'League'}</option>
+                                        <option value={SORT_CRITERIA.TOTAL_SHOTS}>💥 {lang === 'tr' ? 'Toplam Şut' : 'Total Shots'}</option>
+                                    </select>
                                 </div>
                             </div>
                         )}
