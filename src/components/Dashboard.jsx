@@ -4337,248 +4337,197 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                         return (
                             <section className="live-opportunities-section" style={{ marginBottom: '4rem' }}>
-                                <div className="glass-panel" style={{
-                                    padding: '2rem',
+                                <div className="glass-panel live-opportunities-panel" style={{
                                     background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.03) 0%, rgba(15, 23, 42, 0.4) 100%)',
                                     border: '1px solid rgba(239, 68, 68, 0.15)',
                                     borderRadius: '20px'
                                 }}>
-                                    {/* Mobile Quick Chips: Horizontal Thumb Scroller */}
-                                    <div className="mobile-quick-chips">
-                                        <button
-                                            type="button"
-                                            className={`mobile-quick-chip hot ${mobileQuickFilter === 'HOT' ? 'active' : ''}`}
-                                            onClick={() => setMobileQuickFilter(mobileQuickFilter === 'HOT' ? 'ALL' : 'HOT')}
-                                        >
-                                            <span>🔥</span>
-                                            <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
-                                            <span className="chip-count">{allOpportunities.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA').length}</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={`mobile-quick-chip second-half ${mobileQuickFilter === 'SECOND_HALF' ? 'active' : ''}`}
-                                            onClick={() => setMobileQuickFilter(mobileQuickFilter === 'SECOND_HALF' ? 'ALL' : 'SECOND_HALF')}
-                                        >
-                                            <span>☕</span>
-                                            <span>{lang === 'tr' ? '2. Yarı Değeri' : '2nd Half'}</span>
-                                            <span className="chip-count">{allOpportunities.filter(o => o.isHalftime || o.isSecondHalfPressure).length}</span>
-                                        </button>
-                                        {goldenCombo && (
-                                            <button
-                                                type="button"
-                                                className={`mobile-quick-chip combo ${mobileQuickFilter === 'COMBO' ? 'active' : ''}`}
-                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'COMBO' ? 'ALL' : 'COMBO')}
-                                            >
-                                                <span>🎟️</span>
-                                                <span>{lang === 'tr' ? 'Altın İkili' : 'Golden Combo'}</span>
-                                                <span className="chip-count">{goldenCombo.totalOdds}</span>
-                                            </button>
-                                        )}
-                                        <button
-                                            type="button"
-                                            className={`mobile-quick-chip ready ${mobileQuickFilter === 'READY' ? 'active' : ''}`}
-                                            onClick={() => setMobileQuickFilter(mobileQuickFilter === 'READY' ? 'ALL' : 'READY')}
-                                        >
-                                            <span>🟢</span>
-                                            <span>{lang === 'tr' ? 'Hazır' : 'Ready'}</span>
-                                            <span className="chip-count">{readyOpportunities.length}</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className={`mobile-quick-chip all ${mobileQuickFilter === 'ALL' ? 'active' : ''}`}
-                                            onClick={() => setMobileQuickFilter('ALL')}
-                                        >
-                                            <span>⚡</span>
-                                            <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
-                                            <span className="chip-count">{allOpportunities.length}</span>
-                                        </button>
-                                    </div>
-
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <h3 style={{
-                                                fontSize: '1.3rem',
-                                                fontWeight: 900,
-                                                letterSpacing: '-0.5px',
-                                                background: 'linear-gradient(to right, #ef4444, #fbbf24)',
-                                                WebkitBackgroundClip: 'text',
-                                                WebkitTextFillColor: 'transparent',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.8rem'
-                                            }}>
-                                                🔥 {lang === 'tr' ? 'SICAK FIRSATLAR & CANLI RADAR' : 'HOT OPPORTUNITIES & LIVE RADAR'}
-                                            </h3>
-                                            
-                                            {/* Momentum Window Selector */}
-                                            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '2px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                {[5, 10, 20].map(m => (
-                                                    <button
-                                                        key={m}
-                                                        onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
-                                                        style={{
-                                                            background: momentumWindow === m ? 'rgba(251, 191, 36, 0.2)' : 'transparent',
-                                                            color: momentumWindow === m ? '#fbbf24' : 'rgba(255,255,255,0.4)',
-                                                            border: 'none',
-                                                            padding: '0.4rem 0.8rem',
-                                                            borderRadius: '8px',
-                                                            fontSize: '0.65rem',
-                                                            fontWeight: 900,
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.2s',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            minWidth: '50px'
-                                                        }}
-                                                    >
-                                                        {m}D
-                                                        <span style={{ fontSize: '0.5rem', opacity: momentumWindow === m ? 0.7 : 0.3 }}>{lang === 'tr' ? 'İVME' : 'TREND'}</span>
-                                                    </button>
-                                                ))}
+                                    {/* Streamlined Live Radar Header & Smart Controls */}
+                                    <div className="opps-header-container">
+                                        {/* Row 1: Brand Title & Live Status Indicator */}
+                                        <div className="opps-header-main">
+                                            <div className="opps-title-cluster">
+                                                <h3 className="opps-title">
+                                                    <span className="opps-icon">🔥</span>
+                                                    <span className="opps-text-primary">{lang === 'tr' ? 'SICAK FIRSATLAR' : 'HOT OPPORTUNITIES'}</span>
+                                                    <span className="opps-text-secondary">{lang === 'tr' ? '& CANLI RADAR' : '& LIVE RADAR'}</span>
+                                                </h3>
+                                                <div className="opps-live-indicator">
+                                                    <span className="opps-pulse-dot" />
+                                                    <span className="opps-live-txt">LIVE</span>
+                                                </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                {[5, 10, 'ALL'].map(limit => (
-                                                    <button
-                                                        key={limit}
-                                                        onClick={(e) => { e.stopPropagation(); setLiveOpportunitiesLimit(limit); }}
-                                                        style={{
-                                                            background: liveOpportunitiesLimit === limit ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255,255,255,0.05)',
-                                                            padding: '0.3rem 0.8rem',
-                                                            borderRadius: '20px',
-                                                            fontSize: '0.65rem',
-                                                            fontWeight: 800,
-                                                            color: liveOpportunitiesLimit === limit ? '#ef4444' : 'var(--text-secondary)',
-                                                            border: `1px solid ${liveOpportunitiesLimit === limit ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)'}`,
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.2s'
-                                                        }}>
-                                                        {limit === 'ALL' ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `TOP ${limit}`}
-                                                    </button>
-                                                ))}
-                                                {/* Sadece Hazır Toggle */}
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); setHidePendingOpportunities(!hidePendingOpportunities); }}
-                                                    style={{
-                                                        background: hidePendingOpportunities ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.05)',
-                                                        padding: '0.3rem 0.8rem',
-                                                        borderRadius: '20px',
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: 800,
-                                                        color: hidePendingOpportunities ? '#10b981' : 'var(--text-secondary)',
-                                                        border: `1px solid ${hidePendingOpportunities ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255,255,255,0.1)'}`,
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s',
-                                                        marginLeft: '0.5rem'
-                                                    }}>
-                                                    {lang === 'tr' ? '✓ HAZIR' : '✓ READY'}
-                                                </button>
+                                            <div className="opps-stat-pills">
+                                                <div className="opps-stat-pill ready">
+                                                    <span className="opps-pill-dot ready" />
+                                                    <span className="opps-pill-val">{readyOpportunities.length}</span>
+                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Hazır' : 'Ready'}</span>
+                                                </div>
+                                                <div className="opps-stat-pill total">
+                                                    <span className="opps-pill-val">{allOpportunities.length}</span>
+                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Canlı' : 'Live'}</span>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                                {allOpportunities.length} {lang === 'tr' ? 'fırsat' : 'opportunities'}
+
+                                        {/* Row 2: Category Quick Filters (Scrollable Thumb Strip) */}
+                                        <div className="mobile-quick-chips">
+                                            <button
+                                                type="button"
+                                                className={`mobile-quick-chip all ${mobileQuickFilter === 'ALL' ? 'active' : ''}`}
+                                                onClick={() => setMobileQuickFilter('ALL')}
+                                            >
+                                                <span>⚡</span>
+                                                <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                                <span className="chip-count">{allOpportunities.length}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`mobile-quick-chip hot ${mobileQuickFilter === 'HOT' ? 'active' : ''}`}
+                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'HOT' ? 'ALL' : 'HOT')}
+                                            >
+                                                <span>🔥</span>
+                                                <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                                <span className="chip-count">{allOpportunities.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA').length}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`mobile-quick-chip ready ${mobileQuickFilter === 'READY' ? 'active' : ''}`}
+                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'READY' ? 'ALL' : 'READY')}
+                                            >
+                                                <span>🟢</span>
+                                                <span>{lang === 'tr' ? 'Hazır' : 'Ready'}</span>
+                                                <span className="chip-count">{readyOpportunities.length}</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className={`mobile-quick-chip second-half ${mobileQuickFilter === 'SECOND_HALF' ? 'active' : ''}`}
+                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'SECOND_HALF' ? 'ALL' : 'SECOND_HALF')}
+                                            >
+                                                <span>☕</span>
+                                                <span>{lang === 'tr' ? '2. Yarı' : '2nd Half'}</span>
+                                                <span className="chip-count">{allOpportunities.filter(o => o.isHalftime || o.isSecondHalfPressure).length}</span>
+                                            </button>
+                                            {goldenCombo && (
+                                                <button
+                                                    type="button"
+                                                    className={`mobile-quick-chip combo ${mobileQuickFilter === 'COMBO' ? 'active' : ''}`}
+                                                    onClick={() => setMobileQuickFilter(mobileQuickFilter === 'COMBO' ? 'ALL' : 'COMBO')}
+                                                >
+                                                    <span>🎟️</span>
+                                                    <span>{lang === 'tr' ? 'Altın İkili' : 'Golden Combo'}</span>
+                                                    <span className="chip-count">{goldenCombo.totalOdds}</span>
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Row 3: Secondary Precision Toolbar (Momentum Window & Limits) */}
+                                        <div className="opps-sub-toolbar">
+                                            {/* Momentum Window Selector */}
+                                            <div className="opps-ctrl-group">
+                                                <span className="opps-ctrl-title">
+                                                    <span>⏱️</span>
+                                                    <span>{lang === 'tr' ? 'İvme:' : 'Momentum:'}</span>
+                                                </span>
+                                                <div className="opps-segmented-bar">
+                                                    {[5, 10, 20].map(m => (
+                                                        <button
+                                                            key={m}
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
+                                                            className={`opps-segment-btn ${momentumWindow === m ? 'active' : ''}`}
+                                                        >
+                                                            {m}D
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '0.6rem', opacity: 0.5 }}>
-                                                🟢 {readyOpportunities.length} {lang === 'tr' ? 'hazır' : 'ready'} • ⏳ {pendingOpportunities.length} {lang === 'tr' ? 'bekliyor' : 'pending'}
+
+                                            {/* Limit Filter Selector */}
+                                            <div className="opps-ctrl-group">
+                                                <span className="opps-ctrl-title">
+                                                    <span>🎯</span>
+                                                    <span>{lang === 'tr' ? 'Limit:' : 'Limit:'}</span>
+                                                </span>
+                                                <div className="opps-segmented-bar">
+                                                    {[5, 10, 'ALL'].map(limit => (
+                                                        <button
+                                                            key={limit}
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); setLiveOpportunitiesLimit(limit); }}
+                                                            className={`opps-segment-btn ${liveOpportunitiesLimit === limit ? 'active' : ''}`}
+                                                        >
+                                                            {limit === 'ALL' ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `TOP ${limit}`}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* GOLDEN DOUBLE COMBO WIDGET (CANLI KUPON SİHİRBAZI) */}
                                     {goldenCombo && (
-                                        <div className="golden-combo-ticket">
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                                                    <span style={{ fontSize: '1.8rem' }}>🎟️</span>
-                                                    <div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                                            <span style={{ fontWeight: 900, fontSize: '1rem', color: '#fbbf24', letterSpacing: '0.5px' }}>
+                                        <div className={`golden-combo-ticket ${mobileQuickFilter === 'COMBO' ? 'highlighted' : ''}`}>
+                                            <div className="golden-combo-header">
+                                                <div className="golden-combo-hero-left">
+                                                    <span className="golden-combo-icon">🎟️</span>
+                                                    <div className="golden-combo-text-block">
+                                                        <div className="golden-combo-title-row">
+                                                            <span className="golden-combo-main-title">
                                                                 {lang === 'tr' ? 'GÜNÜN CANLI ALTIN İKİLİSİ' : 'LIVE GOLDEN DOUBLE'}
                                                             </span>
-                                                            <span style={{
-                                                                background: 'rgba(234, 179, 8, 0.2)',
-                                                                color: '#fbbf24',
-                                                                border: '1px solid rgba(234, 179, 8, 0.4)',
-                                                                borderRadius: '6px',
-                                                                padding: '2px 8px',
-                                                                fontSize: '0.65rem',
-                                                                fontWeight: 900
-                                                            }}>{lang === 'tr' ? 'KUPON SİHİRBAZI v4.0' : 'COMBO WIZARD v4.0'}</span>
+                                                            <span className="golden-combo-vtag">
+                                                                {lang === 'tr' ? 'KUPON SİHİRBAZI v4.0' : 'COMBO WIZARD v4.0'}
+                                                            </span>
                                                         </div>
-                                                        <div style={{ fontSize: '0.72rem', opacity: 0.7, marginTop: '2px' }}>
+                                                        <div className="golden-combo-desc">
                                                             {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : 'Algorithmic 2-leg combo combining the highest conviction opportunities'}
                                                         </div>
-                                                        <div style={{ fontSize: '0.62rem', opacity: 0.5, marginTop: '3px', color: '#94a3b8' }}>
+                                                        <div className="golden-combo-disclaimer">
                                                             ℹ️ {lang === 'tr' ? 'Olasılık bazlı algoritmik analiz modelidir. Kesin kazanç garantisi içermez, yatırım tavsiyesi değildir.' : 'Algorithmic probability model. Does not guarantee winnings.'}
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
-                                                    <div style={{ textAlign: 'right' }}>
-                                                        <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', fontWeight: 800 }}>
+                                                <div className="golden-combo-hero-right">
+                                                    <div className="golden-combo-conf-box">
+                                                        <div className="golden-combo-conf-lbl">
                                                             {lang === 'tr' ? 'SİSTEM GÜVENİ' : 'CONVICTION'}
                                                         </div>
-                                                        <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#10b981' }}>
+                                                        <div className="golden-combo-conf-val">
                                                             %{goldenCombo.averageConfidence}
                                                         </div>
                                                     </div>
-                                                    <div style={{
-                                                        background: 'linear-gradient(135deg, #eab308, #f97316)',
-                                                        color: '#000',
-                                                        padding: '0.6rem 1.2rem',
-                                                        borderRadius: '12px',
-                                                        fontWeight: 900,
-                                                        fontSize: '1.3rem',
-                                                        boxShadow: '0 4px 15px rgba(234, 179, 8, 0.4)',
-                                                        textAlign: 'center'
-                                                    }}>
-                                                        <span style={{ fontSize: '0.65rem', display: 'block', textTransform: 'uppercase', opacity: 0.85, fontWeight: 900 }}>
+                                                    <div className="golden-combo-odds-badge">
+                                                        <span className="golden-combo-odds-lbl">
                                                             {lang === 'tr' ? 'TOPLAM ORAN' : 'TOTAL ODDS'}
                                                         </span>
-                                                        {goldenCombo.totalOdds}
+                                                        <span className="golden-combo-odds-val">{goldenCombo.totalOdds}</span>
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* 2 Picks Grid */}
-                                            <div className="golden-combo-picks" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.9rem' }}>
+                                            <div className="golden-combo-picks">
                                                 {goldenCombo.picks.map((pick, pIdx) => (
-                                                    <div key={pIdx} style={{
-                                                        background: 'rgba(0,0,0,0.35)',
-                                                        border: '1px solid rgba(255,255,255,0.08)',
-                                                        borderRadius: '12px',
-                                                        padding: '1rem 1.2rem',
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center'
-                                                    }}>
-                                                        <div>
-                                                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
+                                                    <div key={pIdx} className="golden-pick-card">
+                                                        <div className="golden-pick-info">
+                                                            <div className="golden-pick-match">
                                                                 {pick.matchTitle}
                                                             </div>
-                                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginTop: '2px' }}>
+                                                            <div className="golden-pick-meta">
                                                                 {renderMatchMinute(pick.minute, t, false)} • {lang === 'tr' ? 'Skor' : 'Score'}: {pick.score} • {pick.league}
                                                             </div>
-                                                            <div style={{ marginTop: '6px', fontSize: '0.85rem', fontWeight: 800, color: '#fbbf24' }}>
+                                                            <div className="golden-pick-market">
                                                                 🎯 {pick.market}
                                                             </div>
                                                         </div>
-                                                        <div style={{ textAlign: 'right' }}>
-                                                            <div style={{
-                                                                background: 'rgba(56, 189, 248, 0.15)',
-                                                                border: '1px solid rgba(56, 189, 248, 0.3)',
-                                                                padding: '6px 12px',
-                                                                borderRadius: '8px',
-                                                                fontSize: '1rem',
-                                                                fontWeight: 900,
-                                                                color: '#38bdf8'
-                                                            }}>
+                                                        <div className="golden-pick-odds-wrap">
+                                                            <div className="golden-pick-odds">
                                                                 {pick.odds}
                                                             </div>
-                                                            <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700, marginTop: '4px' }}>
+                                                            <div className="golden-pick-conf">
                                                                 %{pick.confidence} {lang === 'tr' ? 'Güven' : 'Conviction'}
                                                             </div>
                                                         </div>
@@ -4587,7 +4536,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
 
                                             {/* Golden Combo Action Bar */}
-                                            <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                                            <div className="golden-combo-actions">
                                                 <button
                                                     type="button"
                                                     onClick={async () => {
@@ -4603,23 +4552,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             console.error(err);
                                                         }
                                                     }}
-                                                    style={{
-                                                        flex: 1,
-                                                        minWidth: '150px',
-                                                        padding: '0.6rem 1rem',
-                                                        background: 'linear-gradient(135deg, #229ED9 0%, #1778F2 100%)',
-                                                        border: 'none',
-                                                        borderRadius: '10px',
-                                                        color: '#fff',
-                                                        fontWeight: 800,
-                                                        fontSize: '0.75rem',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '0.4rem',
-                                                        boxShadow: '0 4px 15px rgba(34, 158, 217, 0.3)'
-                                                    }}
+                                                    className="golden-combo-vip-btn"
                                                 >
                                                     <span>✈️</span>
                                                     <span>{lang === 'tr' ? 'VIP Gruba İlet' : 'Share to VIP'}</span>
@@ -4630,17 +4563,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                     {/* Compute Displayed Opportunities Based on Quick Filter */}
                                     {(() => {
+                                        const comboMatchIds = goldenCombo ? goldenCombo.picks.map(p => p.matchId) : [];
                                         const displayedReady = mobileQuickFilter === 'HOT'
                                             ? topReady.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA')
                                             : mobileQuickFilter === 'SECOND_HALF'
                                             ? topReady.filter(o => o.isHalftime || o.isSecondHalfPressure)
+                                            : mobileQuickFilter === 'COMBO'
+                                            ? topReady.filter(o => comboMatchIds.includes(o.matchId))
                                             : topReady;
 
                                         const displayedPending = mobileQuickFilter === 'HOT'
                                             ? topPending.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA')
                                             : mobileQuickFilter === 'SECOND_HALF'
                                             ? topPending.filter(o => o.isHalftime || o.isSecondHalfPressure)
-                                            : mobileQuickFilter === 'READY'
+                                            : (mobileQuickFilter === 'READY' || mobileQuickFilter === 'COMBO')
                                             ? []
                                             : topPending;
 
@@ -4648,21 +4584,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <>
                                                 {/* SECTION 1: READY OPPORTUNITIES */}
                                                 <div style={{ marginBottom: '2.5rem' }}>
-                                                    <div style={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.6rem',
-                                                        marginBottom: '1rem',
-                                                        padding: '0.4rem 0.8rem',
-                                                        background: 'rgba(16, 185, 129, 0.1)',
-                                                        borderRadius: '8px',
-                                                        width: 'fit-content',
-                                                        border: '1px solid rgba(16, 185, 129, 0.2)'
-                                                    }}>
-                                                        <span style={{ fontSize: '0.8rem' }}>🟢</span>
-                                                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#10b981', letterSpacing: '0.5px' }}>
-                                                            {lang === 'tr' ? 'CANLI ANALİZ HAZIR' : 'LIVE ANALYSIS READY'} ({displayedReady.length})
+                                                    <div className="opps-section-badge ready">
+                                                        <span className="opps-badge-dot" />
+                                                        <span className="opps-badge-title">
+                                                            {lang === 'tr' ? 'CANLI ANALİZ HAZIR' : 'LIVE ANALYSIS READY'}
                                                         </span>
+                                                        <span className="opps-badge-count">{displayedReady.length}</span>
                                                     </div>
 
                                                     {displayedReady.length > 0 ? (
@@ -4686,21 +4613,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 {/* SECTION 2: PENDING STATS */}
                                                 {displayedPending.length > 0 && !hidePendingOpportunities && (
                                                     <div>
-                                                        <div style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.6rem',
-                                                            marginBottom: '1rem',
-                                                            padding: '0.4rem 0.8rem',
-                                                            background: 'rgba(148, 163, 184, 0.1)',
-                                                            borderRadius: '8px',
-                                                            width: 'fit-content',
-                                                            border: '1px solid rgba(148, 163, 184, 0.2)'
-                                                        }}>
-                                                            <span style={{ fontSize: '0.8rem' }}>⏳</span>
-                                                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', letterSpacing: '0.5px' }}>
-                                                                {lang === 'tr' ? 'CANLI VERİ BEKLENİYOR (RADAR AKTİF)' : 'WAITING FOR LIVE DATA (RADAR ACTIVE)'} ({displayedPending.length})
+                                                        <div className="opps-section-badge pending">
+                                                            <span className="opps-badge-icon">⏳</span>
+                                                            <span className="opps-badge-title">
+                                                                {lang === 'tr' ? 'CANLI VERİ BEKLENİYOR (RADAR AKTİF)' : 'WAITING FOR LIVE DATA (RADAR ACTIVE)'}
                                                             </span>
+                                                            <span className="opps-badge-count">{displayedPending.length}</span>
                                                         </div>
 
                                                         <div className="pending-opps-grid" style={{

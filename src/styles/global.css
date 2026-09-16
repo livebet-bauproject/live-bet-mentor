@@ -3367,16 +3367,223 @@ html, body {
   background: rgba(255, 255, 255, 0.15);
 }
 
-/* 4. Golden Combo Ticket */
+/* ==========================================================================
+   4. STREAMLINED LIVE RADAR HEADER & TOOLBAR
+   ========================================================================== */
+.live-opportunities-panel {
+  padding: 1.5rem;
+}
+
+.opps-header-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Row 1: Brand Title & Live Status */
+.opps-header-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.opps-title-cluster {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.opps-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.opps-title .opps-icon {
+  font-size: 1.25rem;
+  display: inline-block;
+  filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.7));
+}
+
+.opps-text-primary {
+  background: linear-gradient(135deg, #ef4444, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.opps-text-secondary {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  opacity: 0.85;
+}
+
+.opps-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  font-size: 0.62rem;
+  font-weight: 900;
+  color: #10b981;
+  letter-spacing: 0.5px;
+}
+
+.opps-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: pulse 1.5s infinite;
+}
+
+.opps-stat-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.opps-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+}
+
+.opps-stat-pill.ready {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.opps-pill-dot.ready {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 5px #10b981;
+}
+
+.opps-pill-val {
+  font-weight: 900;
+  color: #fff;
+}
+
+.opps-pill-lbl {
+  font-size: 0.62rem;
+  opacity: 0.8;
+}
+
+/* Row 3: Secondary Precision Toolbar */
+.opps-sub-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-wrap: wrap;
+}
+
+.opps-ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.opps-ctrl-title {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  letter-spacing: 0.3px;
+}
+
+.opps-segmented-bar {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 2px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 2px;
+}
+
+.opps-segment-btn {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  white-space: nowrap;
+}
+
+.opps-segment-btn:active {
+  transform: scale(0.95);
+}
+
+.opps-segment-btn.active {
+  background: rgba(239, 68, 68, 0.22);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
+}
+
+.opps-ctrl-group:first-child .opps-segment-btn.active {
+  background: rgba(251, 191, 36, 0.22);
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.4);
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.25);
+}
+
+/* ==========================================================================
+   5. GOLDEN DOUBLE COMBO TICKET WIDGET
+   ========================================================================== */
 .golden-combo-ticket {
   border-radius: 16px;
   border: 1.5px solid rgba(245, 158, 11, 0.4);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.95) 100%);
-  padding: 1.1rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(15, 23, 42, 0.95) 100%);
+  padding: 1.15rem;
   margin-bottom: 1.5rem;
   box-shadow: 0 8px 30px rgba(245, 158, 11, 0.15);
   position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.golden-combo-ticket.highlighted {
+  border-color: #fbbf24;
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.45);
 }
 
 .golden-combo-ticket::before {
@@ -3387,6 +3594,250 @@ html, body {
   right: 0;
   height: 3px;
   background: linear-gradient(90deg, #f59e0b, #fbbf24, #ef4444);
+}
+
+.golden-combo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.golden-combo-hero-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.golden-combo-icon {
+  font-size: 1.7rem;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.5));
+}
+
+.golden-combo-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.golden-combo-main-title {
+  font-weight: 900;
+  font-size: 1rem;
+  color: #fbbf24;
+  letter-spacing: 0.5px;
+}
+
+.golden-combo-vtag {
+  background: rgba(234, 179, 8, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.golden-combo-desc {
+  font-size: 0.72rem;
+  opacity: 0.7;
+  margin-top: 3px;
+  color: #cbd5e1;
+}
+
+.golden-combo-disclaimer {
+  font-size: 0.62rem;
+  opacity: 0.5;
+  margin-top: 3px;
+  color: #94a3b8;
+}
+
+.golden-combo-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.golden-combo-conf-box {
+  text-align: right;
+}
+
+.golden-combo-conf-lbl {
+  font-size: 0.62rem;
+  opacity: 0.6;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.golden-combo-conf-val {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #10b981;
+}
+
+.golden-combo-odds-badge {
+  background: linear-gradient(135deg, #eab308, #f97316);
+  color: #000;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  font-weight: 900;
+  font-size: 1.25rem;
+  box-shadow: 0 4px 15px rgba(234, 179, 8, 0.4);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 75px;
+}
+
+.golden-combo-odds-lbl {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  opacity: 0.85;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+.golden-combo-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+
+.golden-pick-card {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.golden-pick-info {
+  min-width: 0;
+}
+
+.golden-pick-match {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #f8fafc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.golden-pick-meta {
+  font-size: 0.68rem;
+  opacity: 0.6;
+  margin-top: 2px;
+  color: #94a3b8;
+}
+
+.golden-pick-market {
+  margin-top: 5px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.golden-pick-odds-wrap {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.golden-pick-odds {
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 900;
+  color: #38bdf8;
+}
+
+.golden-pick-conf {
+  font-size: 0.62rem;
+  color: #10b981;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.golden-combo-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+}
+
+.golden-combo-vip-btn {
+  flex: 1;
+  padding: 0.55rem 1rem;
+  background: linear-gradient(135deg, #229ED9 0%, #1778F2 100%);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  box-shadow: 0 4px 15px rgba(34, 158, 217, 0.3);
+  transition: all 0.2s ease;
+}
+
+.golden-combo-vip-btn:active {
+  transform: scale(0.98);
+}
+
+/* ==========================================================================
+   6. SECTION BADGES (READY & PENDING)
+   ========================================================================== */
+.opps-section-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.9rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+}
+
+.opps-section-badge.ready {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #10b981;
+}
+
+.opps-section-badge.pending {
+  background: rgba(148, 163, 184, 0.1);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #94a3b8;
+}
+
+.opps-badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 5px #10b981;
+  animation: pulse 1.5s infinite;
+}
+
+.opps-badge-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #fff;
 }
 
 @media (max-width: 768px) {
@@ -3415,12 +3866,110 @@ html, body {
     margin-bottom: 2rem !important;
   }
   .live-opportunities-section > .glass-panel {
-    padding: 1rem 0.85rem !important;
+    padding: 0.9rem 0.75rem !important;
     border-radius: 16px !important;
+  }
+
+  /* Live Radar Header Mobile Polishing */
+  .opps-header-container {
+    gap: 0.75rem !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .opps-header-main {
+    flex-wrap: nowrap !important;
+    justify-content: space-between !important;
+  }
+
+  .opps-title {
+    font-size: 1.05rem !important;
+  }
+
+  .opps-text-secondary {
+    display: none !important; /* Hide secondary phrase to prevent multi-line wrap on mobile! */
+  }
+
+  .opps-sub-toolbar {
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    padding: 0.35rem 0.5rem !important;
+    gap: 0.4rem !important;
+  }
+
+  .opps-segment-btn {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.62rem !important;
+  }
+
+  /* Golden Combo Ticket Mobile Refinement */
+  .golden-combo-ticket {
+    padding: 0.9rem !important;
+    border-radius: 14px !important;
+    margin-bottom: 1.1rem !important;
+  }
+
+  .golden-combo-header {
+    flex-wrap: nowrap !important;
+    gap: 0.5rem !important;
+    align-items: center !important;
+    margin-bottom: 0.75rem !important;
+  }
+
+  .golden-combo-desc,
+  .golden-combo-disclaimer {
+    display: none !important; /* Eliminate long clutter text on phone screens */
+  }
+
+  .golden-combo-main-title {
+    font-size: 0.85rem !important;
+  }
+
+  .golden-combo-hero-right {
+    gap: 0.5rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .golden-combo-conf-box {
+    display: none !important; /* Keep odds badge only to maximize space */
+  }
+
+  .golden-combo-odds-badge {
+    padding: 0.35rem 0.65rem !important;
+    font-size: 1.05rem !important;
+    min-width: 55px !important;
+    border-radius: 9px !important;
+  }
+
+  .golden-combo-picks {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  .golden-pick-card {
+    padding: 0.7rem 0.85rem !important;
+  }
+
+  .golden-pick-match {
+    font-size: 0.82rem !important;
+  }
+
+  .golden-pick-odds {
+    font-size: 0.85rem !important;
+    padding: 3px 8px !important;
   }
 }
 
 @media (max-width: 480px) {
+  .opps-title {
+    font-size: 0.98rem !important;
+  }
+  .opps-ctrl-title span:last-child {
+    display: none !important; /* Show icon only for 'İvme' / 'Limit' on tiny screens */
+  }
+  .opps-stat-pill {
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.65rem !important;
+  }
   .opp-card-container {
     padding: 0.85rem !important;
     gap: 0.6rem !important;
@@ -3439,4 +3988,4 @@ html, body {
   .opp-pred-body {
     font-size: 0.85rem !important;
   }
-}
+}
