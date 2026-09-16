@@ -336,40 +336,53 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const fetchProfiles = async () => {
         setLoading(true);
         const proxyBase = getProxyBase();
-        try {
-            const res = await fetch(`${proxyBase}/api/members`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data && Array.isArray(data.members)) {
-                    setProfiles(data.members);
-                    setSupabaseOffline(false);
-                    setLoading(false);
-                    return;
-                }
-            }
-        } catch (beErr) {
-            console.warn('Backend members fetch failed:', beErr);
-        }
+        const merged = [];
+        const seen = new Set();
 
+        // 1. Fetch from Supabase
         try {
             const { data, error } = await supabase
                 .from('profiles')
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            if (error) {
-                console.warn('Error fetching profiles:', error.message || error);
-                setSupabaseOffline(true);
-            } else {
-                setProfiles(data || []);
+            if (!error && Array.isArray(data)) {
+                data.forEach(p => {
+                    const normEmail = (p.email || '').toLowerCase().trim();
+                    if (normEmail && !seen.has(normEmail)) {
+                        seen.add(normEmail);
+                        merged.push(p);
+                    }
+                });
                 setSupabaseOffline(false);
+            } else if (error) {
+                console.warn('Supabase profiles warning:', error.message);
             }
-        } catch (e) {
-            console.warn('Supabase connection error:', e);
-            setSupabaseOffline(true);
-        } finally {
-            setLoading(false);
+        } catch (sbErr) {
+            console.warn('Supabase connection warning:', sbErr);
         }
+
+        // 2. Fetch from Backend proxy and merge any missing
+        try {
+            const res = await fetch(`${proxyBase}/api/members`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && Array.isArray(data.members)) {
+                    data.members.forEach(m => {
+                        const normEmail = (m.email || '').toLowerCase().trim();
+                        if (normEmail && !seen.has(normEmail)) {
+                            seen.add(normEmail);
+                            merged.push(m);
+                        }
+                    });
+                }
+            }
+        } catch (beErr) {
+            console.warn('Backend members fetch failed:', beErr);
+        }
+
+        setProfiles(merged);
+        setLoading(false);
     };
 
     const fetchUpgradeRequests = async () => {
@@ -488,39 +501,32 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         setStatus({ type: 'info', message: lang === 'tr' ? 'Kullanıcı oluşturuluyor...' : 'Creating user...' });
         const proxyBase = getProxyBase();
 
+        // 1. Create in Backend API
         try {
-            const res = await fetch(`${proxyBase}/api/members/create`, {
+            await fetch(`${proxyBase}/api/members/create`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({ email, password, plan: selectedPlan, days: subscriptionDays })
             });
-            if (res.ok) {
-                setStatus({ type: 'success', message: t.userCreated });
-                setEmail('');
-                setPassword('');
-                fetchProfiles();
-                return;
-            }
         } catch (e) {}
 
         const startDate = new Date();
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + subscriptionDays);
 
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
-                    role: 'user'
+        // 2. Also create in Supabase Auth & Profiles
+        try {
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        role: 'user'
+                    }
                 }
-            }
-        });
+            });
 
-        if (error) {
-            setStatus({ type: 'error', message: error.message });
-        } else {
-            if (data.user) {
+            if (data?.user) {
                 await supabase
                     .from('profiles')
                     .update({
@@ -532,50 +538,56 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                     })
                     .eq('id', data.user.id);
             }
-
-            setStatus({ type: 'success', message: t.userCreated });
-            setEmail('');
-            setPassword('');
-            fetchProfiles();
+        } catch (sbErr) {
+            console.warn('Supabase create user error:', sbErr);
         }
+
+        setStatus({ type: 'success', message: t.userCreated });
+        setEmail('');
+        setPassword('');
+        fetchProfiles();
     };
 
     const approveUser = async (profile, days = subscriptionDays, plan = selectedPlan) => {
         const proxyBase = getProxyBase();
+        
+        // 1. Update backend proxy
         try {
-            const res = await fetch(`${proxyBase}/api/members/approve`, {
+            await fetch(`${proxyBase}/api/members/approve`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({ id: profile.id, email: profile.email, days, plan })
             });
-            if (res.ok) {
-                setStatus({ type: 'success', message: t.userApproved });
-                fetchProfiles();
-                return;
-            }
         } catch (e) {}
 
+        // 2. Update Supabase profiles
         const startDate = new Date();
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + days);
 
-        const { error } = await supabase
-            .from('profiles')
-            .update({
+        try {
+            const updates = {
                 status: 'approved',
                 subscription_start: startDate.toISOString(),
                 subscription_end: endDate.toISOString(),
                 approved_at: new Date().toISOString(),
                 plan: plan
-            })
-            .eq('id', profile.id);
-
-        if (error) {
-            setStatus({ type: 'error', message: error.message });
-        } else {
-            setStatus({ type: 'success', message: t.userApproved });
-            fetchProfiles();
+            };
+            let query = supabase.from('profiles').update(updates);
+            if (profile.id && profile.email) {
+                query = query.or(`id.eq.${profile.id},email.eq.${profile.email}`);
+            } else if (profile.id) {
+                query = query.eq('id', profile.id);
+            } else if (profile.email) {
+                query = query.eq('email', profile.email);
+            }
+            await query;
+        } catch (sbErr) {
+            console.warn('Supabase approve error:', sbErr);
         }
+
+        setStatus({ type: 'success', message: t.userApproved });
+        fetchProfiles();
     };
 
     const rejectUser = async (profileOrId) => {
@@ -584,30 +596,32 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         const email = typeof profileOrId === 'object' ? profileOrId.email : null;
         const proxyBase = getProxyBase();
 
+        // 1. Update backend proxy
         try {
-            const res = await fetch(`${proxyBase}/api/members/reject`, {
+            await fetch(`${proxyBase}/api/members/reject`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({ id, email })
             });
-            if (res.ok) {
-                setStatus({ type: 'success', message: t.userRejected });
-                fetchProfiles();
-                return;
-            }
         } catch (e) {}
 
-        const { error } = await supabase
-            .from('profiles')
-            .update({ status: 'rejected' })
-            .eq('id', id);
-
-        if (error) {
-            setStatus({ type: 'error', message: error.message });
-        } else {
-            setStatus({ type: 'success', message: t.userRejected });
-            fetchProfiles();
+        // 2. Update Supabase
+        try {
+            let query = supabase.from('profiles').update({ status: 'rejected' });
+            if (id && email) {
+                query = query.or(`id.eq.${id},email.eq.${email}`);
+            } else if (id) {
+                query = query.eq('id', id);
+            } else if (email) {
+                query = query.eq('email', email);
+            }
+            await query;
+        } catch (sbErr) {
+            console.warn('Supabase reject error:', sbErr);
         }
+
+        setStatus({ type: 'success', message: t.userRejected });
+        fetchProfiles();
     };
 
     const toggleBan = async (id, isBanned) => {
@@ -629,47 +643,47 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         const email = typeof profileOrId === 'object' ? profileOrId.email : null;
         const proxyBase = getProxyBase();
 
+        // 1. Delete from backend proxy
         try {
-            const res = await fetch(`${proxyBase}/api/members/delete`, {
+            await fetch(`${proxyBase}/api/members/delete`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({ id, email })
             });
-            if (res.ok) {
-                setStatus({ type: 'success', message: t.userDeleted });
-                fetchProfiles();
-                return;
-            }
         } catch (e) {}
 
-        const { error } = await supabase
-            .from('profiles')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            setStatus({ type: 'error', message: error.message });
-        } else {
-            setStatus({ type: 'success', message: t.userDeleted });
-            fetchProfiles();
+        // 2. Delete from Supabase
+        try {
+            let query = supabase.from('profiles').delete();
+            if (id && email) {
+                query = query.or(`id.eq.${id},email.eq.${email}`);
+            } else if (id) {
+                query = query.eq('id', id);
+            } else if (email) {
+                query = query.eq('email', email);
+            }
+            await query;
+        } catch (sbErr) {
+            console.warn('Supabase delete error:', sbErr);
         }
+
+        setStatus({ type: 'success', message: t.userDeleted });
+        fetchProfiles();
     };
 
-    const updateSubscription = async (profileId, days, plan) => {
+    const updateSubscription = async (profileId, days, plan, userEmail = null) => {
         const proxyBase = getProxyBase();
+        
+        // 1. Update backend proxy
         try {
-            const res = await fetch(`${proxyBase}/api/members/extend`, {
+            await fetch(`${proxyBase}/api/members/extend`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({ id: profileId, days })
             });
-            if (res.ok) {
-                setStatus({ type: 'success', message: t.subscriptionUpdated });
-                fetchProfiles();
-                return;
-            }
         } catch (e) {}
 
+        // 2. Update Supabase
         const updates = {};
         if (days) {
             const endDate = new Date();
@@ -681,18 +695,23 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         }
         updates.status = 'approved';
 
-        const { error } = await supabase
-            .from('profiles')
-            .update(updates)
-            .eq('id', profileId);
-
-        if (error) {
-            setStatus({ type: 'error', message: error.message });
-        } else {
-            setStatus({ type: 'success', message: t.subscriptionUpdated });
-            setEditingUser(null);
-            fetchProfiles();
+        try {
+            let query = supabase.from('profiles').update(updates);
+            if (profileId && userEmail) {
+                query = query.or(`id.eq.${profileId},email.eq.${userEmail}`);
+            } else if (profileId) {
+                query = query.eq('id', profileId);
+            } else if (userEmail) {
+                query = query.eq('email', userEmail);
+            }
+            await query;
+        } catch (sbErr) {
+            console.warn('Supabase update subscription error:', sbErr);
         }
+
+        setStatus({ type: 'success', message: t.subscriptionUpdated });
+        setEditingUser(null);
+        fetchProfiles();
     };
 
     const getStatusInfo = (profile) => {

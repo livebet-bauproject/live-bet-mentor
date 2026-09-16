@@ -115,7 +115,14 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         ? 'Giriş yapılamadı: E-posta veya şifre hatalı, ya da sunucuya erişilemiyor.' 
                         : 'Login failed: Invalid credentials or server unreachable.');
                 }
-            } else {
+                if (password.length < 6) {
+                    setError(lang === 'tr' 
+                        ? 'Şifreniz en az 6 karakter olmalıdır.' 
+                        : 'Password must be at least 6 characters.');
+                    setLoading(false);
+                    return;
+                }
+
                 // REGISTER
                 // 1. Submit to Backend Members API
                 try {
@@ -130,8 +137,13 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
 
                 // 2. Also attempt Supabase if available
                 try {
-                    await supabase.auth.signUp({ email: cleanEmail, password });
-                } catch (supErr) {}
+                    const { error: sbSignUpErr } = await supabase.auth.signUp({ email: cleanEmail, password });
+                    if (sbSignUpErr) {
+                        console.warn('Supabase auth notice:', sbSignUpErr.message);
+                    }
+                } catch (supErr) {
+                    console.warn('Supabase signup error:', supErr);
+                }
 
                 setError(lang === 'tr' 
                     ? '✅ Kayıt başvurunuz alındı! Yönetici onayı sonrası hesabınız aktifleşecektir. Lütfen Telegram üzerinden iletişime geçin.' 
