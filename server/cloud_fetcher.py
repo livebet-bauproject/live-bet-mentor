@@ -432,6 +432,19 @@ def fetch_match_details_and_stats(match_id):
     except Exception as e:
         logger.debug(f"Graph fetch notice for {match_id}: {e}")
 
+    # 5. Match Incidents & Events Timeline
+    try:
+        url = f"https://api.sofascore.com/api/v1/event/{match_id}/incidents?_={int(time.time())}"
+        resp = session.get(url, headers=HEADERS, timeout=4)
+        if resp.status_code == 200:
+            incidents_data = resp.json()
+            if 'incidents' in incidents_data:
+                atomic_write_json(os.path.join(STATS_DIR, f"{match_id}_incidents.json"), incidents_data)
+        elif resp.status_code == 404:
+            atomic_write_json(os.path.join(STATS_DIR, f"{match_id}_incidents.json"), {"incidents": [], "noIncidents": True})
+    except Exception as e:
+        logger.debug(f"Incidents fetch notice for {match_id}: {e}")
+
     return detail_saved or stats_saved
 
 def process_queue():

@@ -153,9 +153,11 @@ def fetch_stats_via_js(driver, match_id):
         Promise.all([
             fetch('https://www.sofascore.com/api/v1/event/{match_id}/statistics').then(r => r.json()).catch(() => ({{}})),
             fetch('https://www.sofascore.com/api/v1/event/{match_id}').then(r => r.json()).catch(() => ({{}})),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/odds/1/all').then(r => r.json()).catch(() => ({{}}))
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/odds/1/all').then(r => r.json()).catch(() => ({{}})),
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/graph').then(r => r.json()).catch(() => ({{}})),
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/incidents').then(r => r.json()).catch(() => ({{}}))
         ])
-        .then(([stats, detail, odds]) => done({{status: 'success', stats: stats, detail: detail, odds: odds}}))
+        .then(([stats, detail, odds, graph, incidents]) => done({{status: 'success', stats: stats, detail: detail, odds: odds, graph: graph, incidents: incidents}}))
         .catch(err => done({{status: 'error', message: err.toString()}}));
         """
         
@@ -212,6 +214,28 @@ def fetch_stats_via_js(driver, match_id):
                     logger.warning(f"Could not save {odds_path}: {oe}")
                 update_central_odds(match_id, odds_data)
                 captured_something = True
+
+            # 4. Save Attack Momentum Graph
+            graph_data = result.get('graph')
+            if graph_data and ('graphPoints' in graph_data or 'graphPointsV2' in graph_data):
+                graph_path = os.path.join(STATS_DIR, f"{match_id}_graph.json")
+                try:
+                    with open(graph_path, 'w', encoding='utf-8') as f:
+                        json.dump(graph_data, f)
+                    captured_something = True
+                except Exception as ge:
+                    logger.warning(f"Could not save {graph_path}: {ge}")
+
+            # 5. Save Match Incidents
+            incidents_data = result.get('incidents')
+            if incidents_data and ('incidents' in incidents_data or 'noIncidents' in incidents_data):
+                incidents_path = os.path.join(STATS_DIR, f"{match_id}_incidents.json")
+                try:
+                    with open(incidents_path, 'w', encoding='utf-8') as f:
+                        json.dump(incidents_data, f)
+                    captured_something = True
+                except Exception as ie:
+                    logger.warning(f"Could not save {incidents_path}: {ie}")
             
             if captured_something:
                 logger.info(f"[JS-FETCH] Captured data for {match_id} (Stats: {'statistics' in (stats_data or {})})")

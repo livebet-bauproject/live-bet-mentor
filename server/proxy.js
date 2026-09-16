@@ -532,6 +532,14 @@ app.get('/api/sofascore/event/:id/statistics', (req, res) => {
     res.status(202).json({ status: 'queued', message: 'Stats missing' });
 });
 
+const SOFASCORE_HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'application/json',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Referer': 'https://www.sofascore.com/',
+    'Origin': 'https://www.sofascore.com'
+};
+
 // 4b. Match Attack Momentum Graph (Minute-by-minute pressure wave)
 const memoryGraphCache = {};
 
@@ -628,6 +636,125 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
         if (memoryGraphCache[id]) return res.json(memoryGraphCache[id].data);
     }
     res.status(202).json({ graphPoints: [], status: 'queued', message: 'Graph queued' });
+});
+
+// 4c. Match Incidents & Events Timeline
+const memoryIncidentsCache = {};
+
+function fetchIncidentsViaCurlCffi(eventId) {
+    const pyCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
+    return new Promise((resolve) => {
+        const pyScript = `import site, sys
+sys.path.insert(0, site.getusersitepackages())
+try:
+    from curl_cffi import requests
+    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/incidents', impersonate='chrome120', timeout=6)
+    if r.status_code == 200:
+        print(r.text)
+    elif r.status_code == 404:
+        print('{"incidents":[],"noIncidents":true}')
+    else:
+        print('{"incidents":[]}')
+except Exception:
+    print('{"incidents":[]}')
+`;
+        const child = spawn(pyCmd, ['-c', pyScript]);
+        let out = '';
+        child.stdout.on('data', d => { out += d.toString(); });
+        child.on('close', () => {
+            try {
+                const parsed = JSON.parse(out.trim());
+                resolve(parsed);
+            } catch (e) {
+                resolve({ incidents: [] });
+            }
+        });
+        child.on('error', () => resolve({ incidents: [] }));
+        setTimeout(() => {
+            try { child.kill(); } catch (e) {}
+            resolve({ incidents: [] });
+        }, 7000);
+    });
+}
+
+app.get('/api/sofascore/event/:id/incidents', async (req, res) => {
+    const id = req.params.id;
+    const now = Date.now();
+    if (memoryIncidentsCache[id] && (now - memoryIncidentsCache[id].time) < 30000) {
+        return res.json(memoryIncidentsCache[id].data);
+    }
+
+    const incidentsFilePath = path.join(STATS_DIR, `${id}_incidents.json`);
+    if (fs.existsSync(incidentsFilePath)) {
+        try {
+            const stats = fs.statSync(incidentsFilePath);
+            const ageInSeconds = (now - stats.mtimeMs) / 1000;
+            const data = JSON.parse(fs.readFileSync(incidentsFilePath, 'utf8'));
+            if (data && (Array.isArray(data.incidents) || data.noIncidents)) {
+                memoryIncidentsCache[id] = { time: now, data };
+                if (ageInSeconds >= 30) queueRequest(id);
+                return res.json(data);
+            }
+        } catch(e) {}
+    }
+
+    queueRequest(id);
+
+    try {
+        const cffiData = await fetchIncidentsViaCurlCffi(id);
+        if (cffiData && (Array.isArray(cffiData.incidents) || cffiData.noIncidents)) {
+            memoryIncidentsCache[id] = { time: now, data: cffiData };
+            try { fs.writeFileSync(incidentsFilePath, JSON.stringify(cffiData), 'utf8'); } catch(e) {}
+            return res.json(cffiData);
+        }
+    } catch (err) {
+        console.warn(`[PROXY] curl_cffi incidents fetch error for ${id}:`, err.message);
+    }
+
+    try {
+        const fetchRes = await fetch(`https://api.sofascore.com/api/v1/event/${id}/incidents`, {
+            headers: SOFASCORE_HEADERS,
+            signal: AbortSignal.timeout(4000)
+        });
+        if (fetchRes.ok) {
+            const data = await fetchRes.json();
+            memoryIncidentsCache[id] = { time: now, data };
+            try { fs.writeFileSync(incidentsFilePath, JSON.stringify(data), 'utf8'); } catch(e) {}
+            return res.json(data);
+        } else if (fetchRes.status === 404) {
+            const notFoundData = { incidents: [], noIncidents: true };
+            memoryIncidentsCache[id] = { time: now, data: notFoundData };
+            try { fs.writeFileSync(incidentsFilePath, JSON.stringify(notFoundData), 'utf8'); } catch(e) {}
+            return res.json(notFoundData);
+        }
+    } catch (err) {
+        if (memoryIncidentsCache[id]) return res.json(memoryIncidentsCache[id].data);
+    }
+
+    res.status(202).json({ incidents: [], status: 'queued', message: 'Incidents queued' });
+});
+
+// 4d. Team Crest / Logo Proxy with 24-hour cache
+app.get('/api/sofascore/team/:id/image', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const upstreamUrl = `https://img.sofascore.com/api/v1/team/${id}/image`;
+        const resp = await fetch(upstreamUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                'Referer': 'https://www.sofascore.com/'
+            },
+            signal: AbortSignal.timeout(5000)
+        });
+        if (resp.ok) {
+            const contentType = resp.headers.get('content-type') || 'image/webp';
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+            const arrayBuffer = await resp.arrayBuffer();
+            return res.send(Buffer.from(arrayBuffer));
+        }
+    } catch (e) {}
+    return res.status(404).send('Not found');
 });
 
 // 5. Match Odds API (Supports both SofaScore market structure and direct 1X2 odds)
@@ -1197,14 +1324,6 @@ function queueRequest(id) {
 
 let cachedLiveData = null;
 let cachedStatsData = {};
-
-const SOFASCORE_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'application/json',
-    'Accept-Language': 'en-US,en;q=0.9',
-    'Referer': 'https://www.sofascore.com/',
-    'Origin': 'https://www.sofascore.com'
-};
 
 async function fetchSofaScoreLiveNode() {
     try {

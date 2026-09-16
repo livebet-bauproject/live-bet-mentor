@@ -18,6 +18,7 @@ import { predictionTracker } from '../backend/predictionTracker';
 import { database, ref, get } from '../firebase/config';
 import { supabase } from '../backend/supabaseClient';
 import { AttackMomentumGraph } from './AttackMomentumGraph';
+import { MatchIncidentsTimeline } from './MatchIncidentsTimeline';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
 import '../styles/global.css';
@@ -206,10 +207,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [alertHistoryList, setAlertHistoryList] = useState(() => smartAlertService.getHistory(50));
     const [isScanningResults, setIsScanningResults] = useState(false);
 
-    // Live Attack Momentum Graph State
+    // Live Attack Momentum Graph & Match Incidents State
     const [matchGraphPoints, setMatchGraphPoints] = useState([]);
     const [graphLoading, setGraphLoading] = useState(false);
     const [graphNoData, setGraphNoData] = useState(false);
+    const [matchIncidents, setMatchIncidents] = useState([]);
+    const [incidentsLoading, setIncidentsLoading] = useState(false);
     const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
 
     useEffect(() => {
@@ -217,12 +220,29 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             setMatchGraphPoints([]);
             setGraphNoData(false);
             setGraphLoading(false);
+            setMatchIncidents([]);
+            setIncidentsLoading(false);
             return;
         }
         let isCancelled = false;
         setGraphLoading(true);
         setGraphNoData(false);
+        setIncidentsLoading(true);
 
+        // 1. Fetch Incidents (Goals, Cards, Subs, Half Time markers)
+        sofaScoreAdapter.fetchEventIncidents(selectedMatch.id).then(incs => {
+            if (!isCancelled) {
+                setMatchIncidents(Array.isArray(incs) ? incs : []);
+                setIncidentsLoading(false);
+            }
+        }).catch(() => {
+            if (!isCancelled) {
+                setMatchIncidents([]);
+                setIncidentsLoading(false);
+            }
+        });
+
+        // 2. Fetch Attack Momentum Graph (Minute-by-minute wave)
         const fetchGraph = (retries = 0) => {
             sofaScoreAdapter.fetchEventGraph(selectedMatch.id).then(res => {
                 if (isCancelled) return;
@@ -1002,7 +1022,15 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                         <div className="modal-header">
                             <div className="header-top">
-                                <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                                <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                                    {(currentMatch.homeTeamLogo || currentMatch.homeTeamId) && (
+                                        <img
+                                            src={currentMatch.homeTeamLogo || `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image`}
+                                            alt=""
+                                            style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(34, 197, 94, 0.4)' }}
+                                            onError={e => e.target.style.display = 'none'}
+                                        />
+                                    )}
                                     <span>{currentMatch.homeTeam}</span>
                                     {((currentMatch.cards?.home?.red || 0) > 0 || (currentMatch.stats?.cards?.home?.red || 0) > 0) && (
                                         <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
@@ -1010,6 +1038,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         </span>
                                     )}
                                     <span style={{ opacity: 0.35, margin: '0 4px' }}>vs</span>
+                                    {(currentMatch.awayTeamLogo || currentMatch.awayTeamId) && (
+                                        <img
+                                            src={currentMatch.awayTeamLogo || `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image`}
+                                            alt=""
+                                            style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(59, 130, 246, 0.4)' }}
+                                            onError={e => e.target.style.display = 'none'}
+                                        />
+                                    )}
                                     <span>{currentMatch.awayTeam}</span>
                                     {((currentMatch.cards?.away?.red || 0) > 0 || (currentMatch.stats?.cards?.away?.red || 0) > 0) && (
                                         <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900, verticalAlign: 'middle' }}>
@@ -1025,7 +1061,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             </div>
                         </div>
 
-                        {/* Live Attack Momentum Wave Graph */}
+                        {/* Live Attack Momentum Wave Graph & Incidents Section */}
                         <div style={{
                             marginBottom: '1.5rem',
                             padding: '1rem',
@@ -1058,11 +1094,29 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 points={matchGraphPoints}
                                 homeTeam={currentMatch.homeTeam}
                                 awayTeam={currentMatch.awayTeam}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image` : null)}
+                                homeTeamId={currentMatch.homeTeamId}
+                                awayTeamId={currentMatch.awayTeamId}
                                 currentMinute={parseInt(currentMatch.minute) || 90}
-                                height={100}
+                                status={currentMatch.status}
+                                incidents={matchIncidents}
+                                height={130}
                                 lang={lang}
                                 loading={graphLoading}
                                 noGraph={graphNoData}
+                            />
+
+                            {/* SofaScore-style Match Incidents Timeline */}
+                            <MatchIncidentsTimeline
+                                incidents={matchIncidents}
+                                homeTeam={currentMatch.homeTeam}
+                                awayTeam={currentMatch.awayTeam}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image` : null)}
+                                currentScore={currentMatch.score}
+                                lang={lang}
+                                loading={incidentsLoading}
                             />
                         </div>
 

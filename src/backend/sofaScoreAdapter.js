@@ -114,10 +114,19 @@ export const sofaScoreAdapter = {
         if (!isLiveInProgress && isActuallyFinished) return null;
         if (statusType === 'notstarted' && !statusDesc.includes('live')) return null;
 
+        const homeTeamId = event.homeTeam?.id;
+        const awayTeamId = event.awayTeam?.id;
+
         return {
             id: event.id,
             homeTeam: event.homeTeam?.name || 'Home',
             awayTeam: event.awayTeam?.name || 'Away',
+            homeTeamId,
+            awayTeamId,
+            homeTeamLogo: homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null,
+            awayTeamLogo: awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null,
+            homeColors: event.homeTeam?.teamColors,
+            awayColors: event.awayTeam?.teamColors,
             leagueName: event.tournament?.name || 'Unknown League',
             score: {
                 home: event.homeScore?.current ?? 0,
@@ -270,6 +279,30 @@ export const sofaScoreAdapter = {
             console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
         }
         return { graphPoints: [], noGraph: false };
+    },
+
+    /**
+     * Fetches match incidents (goals, cards, substitutions, periods) for timeline.
+     */
+    async fetchEventIncidents(eventId) {
+        if (!eventId) return [];
+        try {
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const apiBase = isLocalDev
+                ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+            const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/incidents`, {
+                signal: AbortSignal.timeout(8000)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data?.incidents) ? data.incidents : [];
+            }
+        } catch (e) {
+            console.warn(`[SOFASCORE_ADAPTER] Incidents fetch failed for ${eventId}:`, e.message);
+        }
+        return [];
     },
 
     /**
@@ -505,10 +538,19 @@ export const sofaScoreAdapter = {
             dataQuality = 'EMPTY';
         }
 
+        const homeTeamId = event?.homeTeam?.id;
+        const awayTeamId = event?.awayTeam?.id;
+
         return {
             id: event.id,
             homeTeam: event.homeTeam?.name || 'Home',
             awayTeam: event.awayTeam?.name || 'Away',
+            homeTeamId,
+            awayTeamId,
+            homeTeamLogo: homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null,
+            awayTeamLogo: awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null,
+            homeColors: event.homeTeam?.teamColors,
+            awayColors: event.awayTeam?.teamColors,
             league: event.tournament?.name || 'Unknown',
             leagueName: event.tournament?.name || 'Unknown',
             leagueId: event.tournament?.id,
