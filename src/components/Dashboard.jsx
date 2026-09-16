@@ -4475,8 +4475,206 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
 
 
-                    {/* Live Opportunities Panel - Sıcak Fırsatlar & Canlı Radar */}
-                    {(() => {
+                    {/* ==================== BETBALLERS STYLE COCKPIT TOOLBAR ==================== */}
+                    <div className="tb-cockpit-toolbar">
+                        <div className="tb-toolbar-left">
+                            {/* View Mode Switcher */}
+                            <div className="tb-mode-switcher">
+                                <button
+                                    type="button"
+                                    className={`tb-mode-btn ${displayViewMode === 'TERMINAL' ? 'active' : ''}`}
+                                    onClick={() => handleSwitchViewMode('TERMINAL')}
+                                    title={lang === 'tr' ? 'BetBallers Stili Dinamik ve Kompakt Canlı Tablo' : 'BetBallers Style Live Terminal'}
+                                >
+                                    <span>📊</span>
+                                    <span>{lang === 'tr' ? 'Canlı Terminal' : 'Live Terminal'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`tb-mode-btn ${displayViewMode === 'CLASSIC' ? 'active' : ''}`}
+                                    onClick={() => handleSwitchViewMode('CLASSIC')}
+                                    title={lang === 'tr' ? 'Klasik Kart Görünümü' : 'Classic Cards View'}
+                                >
+                                    <span>🎴</span>
+                                    <span>{lang === 'tr' ? 'Klasik Kartlar' : 'Classic Cards'}</span>
+                                </button>
+                            </div>
+
+                            {/* Dynamic Re-order Lock / Stream Status */}
+                            {displayViewMode === 'TERMINAL' && (
+                                <button
+                                    type="button"
+                                    onClick={handleToggleLockSort}
+                                    className={`tb-stream-status ${isSortLocked ? 'locked' : 'live'}`}
+                                    title={isSortLocked ? (lang === 'tr' ? 'Sıralama kilitli. Canlı akışı başlatmak için tıklayın.' : 'Sort locked. Click to resume live stream.') : (lang === 'tr' ? 'Canlı sıralama devrede. Sıralamayı sabitlemek için tıklayın.' : 'Live sorting active. Click to lock order.')}
+                                >
+                                    <span className="tb-pulse-dot" />
+                                    <span>
+                                        {isSortLocked
+                                            ? (lang === 'tr' ? '🔒 Sıralama Kilitli' : '🔒 Sort Locked')
+                                            : (lang === 'tr' ? '🟢 Canlı Akış (Momentum)' : '🟢 Live Stream (Momentum)')}
+                                    </span>
+                                </button>
+                            )}
+
+                            {/* Sort criteria selector */}
+                            {displayViewMode === 'TERMINAL' && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--tb-text-muted)', fontWeight: 600 }}>
+                                        {lang === 'tr' ? 'Sırala:' : 'Sort:'}
+                                    </span>
+                                    <select
+                                        value={terminalSortCriteria}
+                                        onChange={(e) => setTerminalSortCriteria(e.target.value)}
+                                        style={{
+                                            background: 'var(--tb-surface-elevated)',
+                                            color: 'var(--tb-text-primary)',
+                                            border: '1px solid var(--tb-border)',
+                                            borderRadius: '6px',
+                                            padding: '4px 8px',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            outline: 'none'
+                                        }}
+                                    >
+                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı & Şut)' : 'Live Momentum'}</option>
+                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Dakika (Son Dakikalar)' : 'Minute (Late Game)'}</option>
+                                        <option value={SORT_CRITERIA.DQS}>🎯 {lang === 'tr' ? 'AI DQS / Güven' : 'AI DQS'}</option>
+                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig & Kademe' : 'League'}</option>
+                                        <option value={SORT_CRITERIA.TOTAL_SHOTS}>💥 {lang === 'tr' ? 'Toplam Şut Hacmi' : 'Total Shots'}</option>
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Search Box */}
+                        {displayViewMode === 'TERMINAL' && (
+                            <div className="tb-toolbar-right">
+                                <div className="tb-search-box">
+                                    <span>🔍</span>
+                                    <input
+                                        type="text"
+                                        placeholder={lang === 'tr' ? 'Takım veya lig ara...' : 'Filter team or league...'}
+                                        value={terminalSearchQuery}
+                                        onChange={(e) => setTerminalSearchQuery(e.target.value)}
+                                    />
+                                    {terminalSearchQuery && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setTerminalSearchQuery('')}
+                                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem' }}
+                                        >
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {displayViewMode === 'TERMINAL' ? (
+                        <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
+                            {/* Quick Category Filter Strip */}
+                            <div className="tb-filter-strip">
+                                <button
+                                    type="button"
+                                    className={`tb-chip ${terminalCategoryFilter === 'ALL' ? 'active' : ''}`}
+                                    onClick={() => setTerminalCategoryFilter('ALL')}
+                                >
+                                    <span>⚡</span>
+                                    <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                    <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`tb-chip ${terminalCategoryFilter === 'HOT' ? 'active' : ''}`}
+                                    onClick={() => setTerminalCategoryFilter('HOT')}
+                                >
+                                    <span>🔥</span>
+                                    <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                    <span className="tb-chip-count">
+                                        {enforcedMatches.filter(filterByTier).filter(m => calculateMatchHeatScore(m, signals[m.id]) >= 65).length}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`tb-chip ${terminalCategoryFilter === 'BET' ? 'active' : ''}`}
+                                    onClick={() => setTerminalCategoryFilter('BET')}
+                                >
+                                    <span>✓</span>
+                                    <span>{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
+                                    <span className="tb-chip-count">
+                                        {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`tb-chip ${terminalCategoryFilter === 'SECOND_HALF' ? 'active' : ''}`}
+                                    onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
+                                >
+                                    <span>⏱️</span>
+                                    <span>{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
+                                    <span className="tb-chip-count">
+                                        {enforcedMatches.filter(filterByTier).filter(m => {
+                                            const minStr = String(m.minute || '');
+                                            const min = parseInt(minStr, 10);
+                                            return min >= 45 || minStr.includes('2.Y') || minStr.includes('2H');
+                                        }).length}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`tb-chip ${terminalCategoryFilter === 'PINNED' ? 'active' : ''}`}
+                                    onClick={() => setTerminalCategoryFilter('PINNED')}
+                                >
+                                    <span>★</span>
+                                    <span>{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
+                                    <span className="tb-chip-count">
+                                        {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
+                                    </span>
+                                </button>
+                            </div>
+
+                            {/* Live Terminal Views (Desktop Table & Mobile Stream) */}
+                            <LiveTerminalTable
+                                matches={processedTerminalMatches}
+                                signals={signals}
+                                t={t}
+                                lang={lang}
+                                selectedMatch={selectedMatch}
+                                onSelectMatch={setSelectedMatch}
+                                onApproveBet={handleTerminalApproveBet}
+                                bankrollManager={bankrollManager}
+                                pinnedMatchIds={pinnedMatchIds}
+                                togglePinMatch={togglePinMatch}
+                                AttackMomentumGraph={AttackMomentumGraph}
+                                MatchIncidentsTimeline={MatchIncidentsTimeline}
+                            />
+
+                            <LiveTerminalMobile
+                                matches={processedTerminalMatches}
+                                signals={signals}
+                                t={t}
+                                lang={lang}
+                                selectedMatch={selectedMatch}
+                                onSelectMatch={setSelectedMatch}
+                                onApproveBet={handleTerminalApproveBet}
+                                bankrollManager={bankrollManager}
+                                pinnedMatchIds={pinnedMatchIds}
+                                togglePinMatch={togglePinMatch}
+                                AttackMomentumGraph={AttackMomentumGraph}
+                            />
+
+                            {/* Global AI Section */}
+                            <div style={{ marginTop: '3rem' }}>
+                                {renderGlobalAISection('LIVE')}
+                            </div>
+                        </section>
+                    ) : (
+                        <>
+                            {/* Live Opportunities Panel - Sıcak Fırsatlar & Canlı Radar */}
+                            {(() => {
                         const oppMatches = matches.filter(filterByTier).filter(m => {
                             const minStr = String(m.minute || '').toLowerCase();
                             const code = m.status?.code;
@@ -5687,7 +5885,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             );
                         })()}
                     </section>
-
+                        </>
+                    )}
 
                 </>
             )

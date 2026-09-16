@@ -1,0 +1,588 @@
+/* ==========================================================================
+   TERMINAL VIEW (BETBALLERS STYLE) - EYE-RESTING PROFESSIONAL COCKPIT
+   Designed for high data density, sensory calm, and long-session live trading.
+   ========================================================================== */
+
+:root {
+  --tb-bg: #0b0f19;
+  --tb-surface: #111827;
+  --tb-surface-elevated: #162032;
+  --tb-border: rgba(255, 255, 255, 0.07);
+  --tb-border-hover: rgba(255, 255, 255, 0.15);
+  --tb-text-primary: #f1f5f9;
+  --tb-text-secondary: #94a3b8;
+  --tb-text-muted: #64748b;
+  --tb-green: #10b981;
+  --tb-green-soft: rgba(16, 185, 129, 0.15);
+  --tb-red: #ef4444;
+  --tb-red-soft: rgba(239, 68, 68, 0.15);
+  --tb-amber: #f59e0b;
+  --tb-amber-soft: rgba(245, 158, 11, 0.15);
+  --tb-blue: #38bdf8;
+  --tb-blue-soft: rgba(56, 189, 248, 0.15);
+  --tb-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Control Bar (Toolbar & View Switcher) */
+.tb-cockpit-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.25rem;
+  background: var(--tb-surface);
+  border: 1px solid var(--tb-border);
+  border-radius: 12px;
+  margin-bottom: 1.25rem;
+}
+
+.tb-toolbar-left,
+.tb-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* View Mode Segment Switcher */
+.tb-mode-switcher {
+  display: inline-flex;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--tb-border);
+}
+
+.tb-mode-btn {
+  background: transparent;
+  border: none;
+  color: var(--tb-text-secondary);
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.tb-mode-btn.active {
+  background: var(--tb-surface-elevated);
+  color: var(--tb-text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Dynamic Re-order Status Pill & Lock Button */
+.tb-stream-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tb-stream-status.live {
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.tb-stream-status.locked {
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+.tb-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: tbPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes tbPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Quick Filter Pills Strip */
+.tb-filter-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 1rem;
+  scrollbar-width: thin;
+}
+
+.tb-filter-strip::-webkit-scrollbar {
+  height: 4px;
+}
+.tb-filter-strip::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.tb-chip {
+  background: var(--tb-surface);
+  border: 1px solid var(--tb-border);
+  color: var(--tb-text-secondary);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 20px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.tb-chip:hover {
+  background: var(--tb-surface-elevated);
+  color: var(--tb-text-primary);
+  border-color: var(--tb-border-hover);
+}
+
+.tb-chip.active {
+  background: #1e293b;
+  color: #38bdf8;
+  border-color: #38bdf8;
+}
+
+.tb-chip-count {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 0.7rem;
+}
+
+/* Search input */
+.tb-search-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--tb-border);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.tb-search-box input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--tb-text-primary);
+  font-size: 0.78rem;
+  width: 150px;
+}
+
+.tb-search-box input::placeholder {
+  color: var(--tb-text-muted);
+}
+
+/* ==========================================================================
+   DESKTOP TERMINAL TABLE (BETBALLERS STYLE)
+   ========================================================================== */
+
+.tb-terminal-wrapper {
+  background: var(--tb-surface);
+  border: 1px solid var(--tb-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.tb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--tb-font);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+}
+
+.tb-table th {
+  background: #0f172a;
+  color: var(--tb-text-muted);
+  font-weight: 700;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--tb-border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  user-select: none;
+}
+
+.tb-table th.sortable {
+  cursor: pointer;
+}
+.tb-table th.sortable:hover {
+  color: var(--tb-text-primary);
+}
+
+.tb-row {
+  border-bottom: 1px solid var(--tb-border);
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+  height: 42px;
+}
+
+.tb-row:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.tb-row.expanded {
+  background-color: rgba(30, 41, 59, 0.6);
+  border-bottom: 1px dashed rgba(56, 189, 248, 0.3);
+}
+
+.tb-row td {
+  padding: 6px 10px;
+  vertical-align: middle;
+  color: var(--tb-text-primary);
+}
+
+/* Match Columns Styling */
+.tb-col-min {
+  font-weight: 800;
+  font-size: 0.78rem;
+  color: #34d399;
+  white-space: nowrap;
+  width: 60px;
+}
+
+.tb-col-league {
+  color: var(--tb-text-muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+
+.tb-col-match {
+  min-width: 220px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tb-team-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tb-card-badge {
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-weight: 800;
+  line-height: 1;
+}
+.tb-card-red {
+  background: var(--tb-red);
+  color: #fff;
+}
+.tb-card-yellow {
+  background: #facc15;
+  color: #000;
+}
+
+.tb-col-score {
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: #38bdf8;
+  text-align: center;
+  white-space: nowrap;
+  padding: 0 8px;
+}
+
+/* Color Disciplinary Stat Badges (Clean, only pop when high) */
+.tb-stat-cell {
+  font-weight: 600;
+  color: var(--tb-text-secondary);
+  white-space: nowrap;
+  text-align: center;
+}
+
+.tb-pill-stat {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.tb-pill-stat.neutral {
+  background: transparent;
+  color: var(--tb-text-secondary);
+}
+
+.tb-pill-stat.alert-red {
+  background: var(--tb-red-soft);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.tb-pill-stat.alert-amber {
+  background: var(--tb-amber-soft);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.tb-pill-stat.alert-green {
+  background: var(--tb-green-soft);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+/* AI Sinyal Rozeti */
+.tb-signal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.tb-signal-bet {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.tb-signal-pass {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--tb-text-muted);
+  border: 1px solid var(--tb-border);
+}
+
+.tb-signal-hot {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  animation: tbPulse 2.5s infinite;
+}
+
+/* Accordion Expanded Detail Tray */
+.tb-expanded-row {
+  background: #0d1424;
+  border-bottom: 1px solid var(--tb-border);
+}
+
+.tb-expanded-content {
+  padding: 1rem 1.25rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .tb-expanded-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   MOBILE-FIRST COMPACT STREAM (< 768px)
+   Ultra-sleek ~60px compact cards for single-screen view of 5-6 matches
+   ========================================================================== */
+
+.tb-mobile-stream {
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tb-mobile-card {
+  background: var(--tb-surface);
+  border: 1px solid var(--tb-border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tb-mobile-card:active {
+  background: var(--tb-surface-elevated);
+  transform: scale(0.99);
+}
+
+.tb-mobile-card.hot-border {
+  border-left: 3px solid #ef4444;
+}
+
+.tb-mobile-card.bet-border {
+  border-left: 3px solid #10b981;
+}
+
+/* Mobile Row 1: Header (Minute, League, Score) */
+.tb-m-row-1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.tb-m-min-league {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+}
+
+.tb-m-min {
+  color: #34d399;
+  font-weight: 800;
+}
+
+.tb-m-league {
+  color: var(--tb-text-muted);
+  font-weight: 500;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tb-m-score {
+  font-weight: 900;
+  font-size: 0.92rem;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+}
+
+/* Mobile Row 2: Teams */
+.tb-m-row-2 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.tb-m-teams {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--tb-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tb-m-teams span.vs {
+  color: var(--tb-text-muted);
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+
+/* Mobile Row 3: Compact Indicators Strip */
+.tb-m-row-3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding-top: 5px;
+}
+
+.tb-m-stats-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.68rem;
+  color: var(--tb-text-secondary);
+}
+
+.tb-m-heat-pill {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* Mobile Drawer (Expand Details) */
+.tb-m-drawer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tb-m-quick-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tb-m-action-btn {
+  flex: 1;
+  background: #38bdf8;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 0.75rem;
+  padding: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.tb-m-action-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--tb-text-primary);
+}
+
+/* Responsive View Toggle */
+@media (max-width: 768px) {
+  .tb-terminal-wrapper {
+    display: none !important;
+  }
+  .tb-mobile-stream {
+    display: flex !important;
+  }
+  .tb-cockpit-toolbar {
+    padding: 0.65rem 0.85rem;
+    gap: 0.5rem;
+  }
+}
