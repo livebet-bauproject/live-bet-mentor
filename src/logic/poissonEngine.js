@@ -249,18 +249,20 @@ export class PoissonEngine {
             }
         }
 
-        // 2. Next Goal Specific Markets (ONLY if specific next goal odds are provided)
-        // Guard: Heavily dominated teams cannot be recommended for next goal
-        if (odds.nextGoalHome) {
-            const isHomeDominated = possHome < 38 || (shotsAway > 0 && shotsHome < shotsAway * 0.65);
-            if (!isHomeDominated) {
-                evaluateMarket('NEXT_GOAL_HOME', 'Sıradaki Gol Ev', probs.nextGoalHome, odds.nextGoalHome);
+        // 2. Next Goal Specific Markets (ONLY if specific next goal odds are provided and minute < 85)
+        // Guard: Heavily dominated teams or late game (85+) cannot be recommended for next goal
+        if (minute < 85) {
+            if (odds.nextGoalHome) {
+                const isHomeDominated = possHome < 38 || (shotsAway > 0 && shotsHome < shotsAway * 0.65);
+                if (!isHomeDominated) {
+                    evaluateMarket('NEXT_GOAL_HOME', 'Sıradaki Gol Ev', probs.nextGoalHome, odds.nextGoalHome);
+                }
             }
-        }
-        if (odds.nextGoalAway) {
-            const isAwayDominated = possAway < 38 || (shotsHome > 0 && shotsAway < shotsHome * 0.65);
-            if (!isAwayDominated) {
-                evaluateMarket('NEXT_GOAL_AWAY', 'Sıradaki Gol Dep', probs.nextGoalAway, odds.nextGoalAway);
+            if (odds.nextGoalAway) {
+                const isAwayDominated = possAway < 38 || (shotsHome > 0 && shotsAway < shotsHome * 0.65);
+                if (!isAwayDominated) {
+                    evaluateMarket('NEXT_GOAL_AWAY', 'Sıradaki Gol Dep', probs.nextGoalAway, odds.nextGoalAway);
+                }
             }
         }
 

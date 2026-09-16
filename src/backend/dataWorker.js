@@ -438,14 +438,38 @@ class DataWorker {
         }
 
         const goalDiff = Math.abs(homeScore - awayScore);
-        const minStr = typeof fixture.minute === 'string' ? fixture.minute.replace("'", "") : fixture.minute;
-        const minute = parseInt(minStr) || 0;
+        const totalGoals = homeScore + awayScore;
+        const rawMin = fixture.minute ?? '';
+        const minStr = typeof rawMin === 'string' ? rawMin.replace("'", "").trim() : String(rawMin);
 
-        // A. Dead Match Filter
-        if (minute >= risk.DEAD_MATCH_MIN && goalDiff >= risk.DEAD_MATCH_DIFF) {
+        let minute = 0;
+        let isStoppageOrFinished = false;
+        if (minStr === 'MS' || minStr.includes('FT') || minStr === 'Pen.' || minStr.toLowerCase().includes('ended')) {
+            minute = 999;
+            isStoppageOrFinished = true;
+        } else if (minStr.includes('90+') || minStr === '90+') {
+            minute = 95;
+            isStoppageOrFinished = true;
+        } else {
+            minute = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
+        }
+
+        // 0. Match Finished
+        if (minute === 999) {
+            filters.lateGame = {
+                status: 'FAIL',
+                reason: 'Maç Sona Erdi (MS/FT)',
+                reasonKey: 'match_finished'
+            };
+        }
+
+        // A. Dead Match / Blowout Filter (Kopmuş / Ölü Maç)
+        // 65'ten sonra 3+ fark (örn: 7-2, 4-1), 75'ten sonra 2+ fark veya toplam 6+ golde 2+ fark
+        const isBlowout = (minute >= 65 && goalDiff >= 3) || (minute >= 75 && goalDiff >= 2) || (totalGoals >= 6 && goalDiff >= 2) || goalDiff >= 4;
+        if (isBlowout && filters.deadMatch.status === 'OK') {
             filters.deadMatch = {
                 status: 'FAIL',
-                reason: `Dk:${minute} Skor:${homeScore}-${awayScore} (Ölü Maç)`,
+                reason: `Dk:${minute >= 90 ? '90+' : minute}' Skor:${homeScore}-${awayScore} (Kopmuş Maç)`,
                 reasonKey: 'dead_match_reason'
             };
         }
@@ -471,13 +495,15 @@ class DataWorker {
             }
         }
 
-        // C. Late Game Ban
-        if (minute >= risk.LATE_GAME_BAN_MIN) {
-            filters.lateGame = {
-                status: 'FAIL',
-                reason: 'Geç Dakika Yasaklı (85+)',
-                reasonKey: 'late_game_reason'
-            };
+        // C. Late Game Ban (85+ or 90+)
+        if (minute >= risk.LATE_GAME_BAN_MIN || isStoppageOrFinished) {
+            if (filters.lateGame.status === 'OK') {
+                filters.lateGame = {
+                    status: 'FAIL',
+                    reason: minute >= 90 ? 'Maç Sonu / Uzatmalar (90+ Kilitli)' : 'Geç Dakika Yasaklı (85+)',
+                    reasonKey: 'late_game_reason'
+                };
+            }
         }
 
         // D. Tier 2 Aggressive Dead Match
@@ -550,6 +576,15 @@ class DataWorker {
             verdict = 'PASS';
             mainReason = 'BANKROLL STOP (NO-BET MODE)';
             reasonKey = 'bankroll_stop';
+        } else if (hasRiskFail) {
+            // STRICT RISK OVERRIDE:
+            // Regardless of decisionMode (CORE_DQS, FULL_STACK, or VIP Fast-Track),
+            // a failed risk filter (dead match, 85+ / 90+ late game, no momentum, or finished)
+            // MUST ALWAYS return PASS!
+            verdict = 'PASS';
+            const failed = Object.values(riskFilters).find(f => f.status === 'FAIL');
+            mainReason = failed?.reason || 'Risk Filtresi Engeli';
+            reasonKey = failed?.reasonKey || 'risk_rejected';
         } else if (dqs < CONFIG.DECISION.DQS_THRESHOLD) {
             verdict = 'PASS';
             mainReason = `DQS Düşük (${dqs.toFixed(2)})`;
@@ -559,21 +594,25 @@ class DataWorker {
             mainReason = 'Tier 3: Discovery Only (No Bets)';
             reasonKey = 'tier_3_desc';
         } else {
-            // VIP Fast-Track Logic: If Tier 1 and high momentum, lower DQS threshold slightly
-            const isVipFastTrack = fixture.tier === 1 && dqs >= 0.65 && !hasRiskFail;
+            // Only evaluated if hasRiskFail is FALSE and DQS >= threshold:
+            const isVipFastTrack = fixture.tier === 1 && dqs >= 0.65;
 
             if (this.decisionMode === CONFIG.DECISION.MODES.CORE_DQS || isVipFastTrack) {
-                verdict = 'BET';
-                mainReason = isVipFastTrack ? 'VIP Fast-Track (DQS Esnetildi)' : 'DQS Onaylandı';
-                reasonKey = isVipFastTrack ? 'vip_fasttrack' : 'dqs_approved';
-            } else if (this.decisionMode === CONFIG.DECISION.MODES.FULL_STACK) {
-                // FULL STACK: Both Basic Risk Filters AND Advanced Expert Analysis must be OK
-                if (hasRiskFail) {
+                if (matchAnalysis.activeStrategies && matchAnalysis.activeStrategies.length > 0) {
+                    verdict = 'BET';
+                    mainReason = matchAnalysis.activeStrategies[0].label;
+                    reasonKey = 'strategy_bet';
+                } else if (matchAnalysis.verdict === 'BET') {
+                    verdict = 'BET';
+                    mainReason = matchAnalysis.reason || (isVipFastTrack ? 'VIP Fast-Track' : 'DQS Onaylandı');
+                    reasonKey = isVipFastTrack ? 'vip_fasttrack' : 'dqs_approved';
+                } else {
                     verdict = 'PASS';
-                    const failed = Object.values(riskFilters).find(f => f.status === 'FAIL');
-                    mainReason = failed.reason;
-                    reasonKey = failed.reasonKey;
-                } else if (matchAnalysis.verdict === 'PASS') {
+                    mainReason = 'Kriterlere Uygun Strateji Bulunamadı';
+                    reasonKey = 'waiting_strategy';
+                }
+            } else if (this.decisionMode === CONFIG.DECISION.MODES.FULL_STACK) {
+                if (matchAnalysis.verdict === 'PASS') {
                     verdict = 'PASS';
                     mainReason = matchAnalysis.reason;
                     reasonKey = 'analysis_rejected';
@@ -583,12 +622,11 @@ class DataWorker {
                     reasonKey = 'full_stack_ok';
                 }
             } else {
-                // DQS_RISK (STANDART): Basic Risk Filters only
-                if (hasRiskFail) {
-                    verdict = 'PASS';
-                    const failed = Object.values(riskFilters).find(f => f.status === 'FAIL');
-                    mainReason = failed.reason;
-                    reasonKey = failed.reasonKey;
+                // DQS_RISK (STANDART)
+                if (matchAnalysis.verdict === 'BET') {
+                    verdict = 'BET';
+                    mainReason = matchAnalysis.reason;
+                    reasonKey = 'full_stack_ok';
                 } else {
                     verdict = 'BET';
                     mainReason = 'DQS + Risk Filtreleri OK';

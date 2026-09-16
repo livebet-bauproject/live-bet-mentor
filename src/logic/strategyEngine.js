@@ -5,13 +5,55 @@
  */
 
 export const strategyEngine = {
+    _parseMinute(match) {
+        const raw = match.minute ?? 0;
+        if (typeof raw === 'number') return raw;
+        const str = String(raw).trim();
+        if (str === 'MS' || str.includes('FT') || str.toLowerCase().includes('ended') || str === 'Pen.') return 999;
+        if (str === 'İY' || str === 'HT') return -2;
+        if (str.includes('90+') || str === '90+') return 95;
+        if (str.includes('45+') || str === '45+') return 46;
+        const num = parseInt(str.replace(/[^0-9]/g, ''));
+        return isNaN(num) ? 0 : num;
+    },
+
+    _getScoreDiff(match) {
+        let home = 0;
+        let away = 0;
+        if (match.score && typeof match.score === 'object') {
+            home = Number(match.score.home ?? 0) || 0;
+            away = Number(match.score.away ?? 0) || 0;
+        } else if (match.homeScore !== undefined || match.awayScore !== undefined) {
+            home = Number(match.homeScore?.current ?? match.homeScore ?? 0) || 0;
+            away = Number(match.awayScore?.current ?? match.awayScore ?? 0) || 0;
+        } else if (typeof match.score === 'string' && match.score.includes('-')) {
+            const parts = match.score.split('-');
+            home = parseInt(parts[0]) || 0;
+            away = parseInt(parts[1]) || 0;
+        }
+        return {
+            home,
+            away,
+            total: home + away,
+            diff: Math.abs(home - away)
+        };
+    },
+
     /**
      * 🔥 BASKI DOMİNASYONU
      * Toplam baskı skoru ve dominant takımın üstünlüğü.
      */
     checkPressureDominance(match) {
+        const minute = this._parseMinute(match);
+        const score = this._getScoreDiff(match);
+
+        // Katı Geç Dakika & Kopmuş Maç Filtresi:
+        // 1. 85+ veya 90+ uzatmalarda "Sıradaki Gol" önermek kumar ve ölü sinyaldir (oranlar kilitli/çöp).
+        if (minute >= 85 || minute === 999) return { active: false };
+        // 2. Kopmuş Maç / Blowout: 65'ten sonra 3+ fark (örn: 7-2, 4-1, 3-0) veya genel 4+ fark
+        if ((minute >= 65 && score.diff >= 3) || score.diff >= 4) return { active: false };
+
         const stats = match.stats || {};
-        const minute = match.minute || 0;
         const observations = match.observations || {};
         const pressure = observations.pressure || {};
         const threshold = 70; // 70+ Puan
@@ -36,6 +78,11 @@ export const strategyEngine = {
      * Maçın genel gidişatına göre son 15 dakikadaki hızlanma.
      */
     checkMomentumBurst(match) {
+        const minute = this._parseMinute(match);
+        const score = this._getScoreDiff(match);
+        if (minute >= 85 || minute === 999) return { active: false };
+        if ((minute >= 65 && score.diff >= 3) || score.diff >= 4) return { active: false };
+
         const history = (match.history && match.history.length > 0) ? match.history : (match.minuteHistory || []);
         const observations = match.observations || {};
         if (!history || history.length < 5) return { active: false };
@@ -94,6 +141,11 @@ export const strategyEngine = {
      * Geriye düşen favori veya dominant takımın baskısı.
      */
     checkComeback(match) {
+        const minute = this._parseMinute(match);
+        const scoreDiff = this._getScoreDiff(match);
+        // Geri dönüş uyarısı 80. dakikadan sonra veya 3+ gol farkında (örn: 1-4, 2-7) imkansızdır/geçersizdir
+        if (minute >= 80 || minute === 999 || scoreDiff.diff >= 3) return { active: false };
+
         const score = match.score || { home: 0, away: 0 };
         const observations = match.observations || {};
         const pressure = observations.pressure || {};
@@ -120,6 +172,10 @@ export const strategyEngine = {
      * Favori olup da geriye düşen takımın istatistiksel baskısı.
      */
     checkAdvancedComeback(match) {
+        const minute = this._parseMinute(match);
+        const scoreDiff = this._getScoreDiff(match);
+        if (minute >= 80 || minute === 999 || scoreDiff.diff >= 3) return { active: false };
+
         const score = match.score || { home: 0, away: 0 };
         const stats = match.stats || {};
         const observations = match.observations || {};
@@ -177,6 +233,11 @@ export const strategyEngine = {
      * Şut, korner, topla oynama ve xG verilerindeki belirgin üstünlük.
      */
     checkStatDominance(match) {
+        const minute = this._parseMinute(match);
+        const score = this._getScoreDiff(match);
+        if (minute >= 85 || minute === 999) return { active: false };
+        if ((minute >= 65 && score.diff >= 3) || score.diff >= 4) return { active: false };
+
         const stats = match.stats || {};
         const sogHome = stats.shotsOnGoal?.home || 0;
         const sogAway = stats.shotsOnGoal?.away || 0;
@@ -217,6 +278,11 @@ export const strategyEngine = {
      * Kısa sürede artan korner sayısı (Tehlikeli duran toplar).
      */
     checkCornerPressure(match) {
+        const minute = this._parseMinute(match);
+        const score = this._getScoreDiff(match);
+        if (minute >= 85 || minute === 999) return { active: false };
+        if ((minute >= 65 && score.diff >= 3) || score.diff >= 4) return { active: false };
+
         const history = (match.history && match.history.length > 0) ? match.history : (match.minuteHistory || []);
         if (!history || history.length < 3) return { active: false };
 
@@ -252,6 +318,9 @@ export const strategyEngine = {
      * SADECE henüz her iki takım birden gol atmamışsa aktiftir!
      */
     checkBTTS(match) {
+        const minute = this._parseMinute(match);
+        if (minute >= 80 || minute === 999) return { active: false };
+
         const curHome = Number(match.score?.home ?? match.homeScore?.current ?? 0);
         const curAway = Number(match.score?.away ?? match.awayScore?.current ?? 0);
 
@@ -313,6 +382,10 @@ export const strategyEngine = {
      * Runs all enabled strategies and returns results.
      */
     runAll(match, enabledStrategies = {}) {
+        const minute = this._parseMinute(match);
+        // Global late-game shutdown: At 88'+, stoppage time (90+), or finished (MS/FT), all strategies shut down
+        if (minute >= 88 || minute === 999) return [];
+
         const results = [];
         
         // Final fallback consistency check (requested by user)

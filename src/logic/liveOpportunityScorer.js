@@ -1112,8 +1112,23 @@ class LiveOpportunityScorer {
         const liveAwayOdds = parseSanitizedOdds(oddsInfo?.nextGoalAway) || (goalDiff <= -1 ? parseSanitizedOdds(oddsInfo?.away) : null);
         const liveOverOdds = parseSanitizedOdds(oddsInfo?.over25 || oddsInfo?.over);
 
+        // SCENARIO 0: STOPPAGE TIME / BLOWOUT (Kopmuş Maç) / FINISHED SUPPRESSION
+        if (minute >= 88 || minute >= 95 || minute === 999) {
+            return { marketKey: 'STABLE_GAME', confidence: 50, label: 'Maç Sonu / Kilitli' };
+        }
+        if ((minute >= 65 && Math.abs(goalDiff) >= 3) || (curTotalGoals >= 6 && Math.abs(goalDiff) >= 2) || Math.abs(goalDiff) >= 4) {
+            return { marketKey: 'STABLE_GAME', confidence: 50, label: 'Kopmuş Maç (Riskli)' };
+        }
+
         // SCENARIO 1: LATE GAME (minute >= 75)
         if (minute >= 75) {
+            // 85+ dakikada veya 2+ farkta "Sıradaki Gol" önermek tehlikelidir
+            if (minute >= 85) {
+                return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Son Dakikalar (Stabil)' };
+            }
+            if (Math.abs(goalDiff) >= 2) {
+                return { marketKey: 'STABLE_GAME', confidence: 60, label: 'Fark 2+ (Oyun Kapalı)' };
+            }
             if (isHomeDominant) {
                 // Home can ONLY be "Kazanmaya Yakın" if they are leading or drawing!
                 if (goalDiff >= 0) {

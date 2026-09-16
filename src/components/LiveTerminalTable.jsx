@@ -50,6 +50,12 @@ export const LiveTerminalTable = ({
 
     const getPredictionDisplay = (m, signal) => {
         if (!signal || signal.verdict !== 'BET') return null;
+
+        const minStr = String(m?.minute || '').trim();
+        const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
+        const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
+        if (isLateOrFinished) return null;
+
         const strat = signal.activeStrategies?.[0];
         let label = strat?.label || signal.prediction || m.opportunityData?.suggestedMarket?.label;
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
@@ -278,26 +284,53 @@ export const LiveTerminalTable = ({
 
                                         {/* AI Signal */}
                                         <td style={{ textAlign: 'center' }}>
-                                            {signal?.verdict === 'BET' ? (
-                                                <span
-                                                    className="tb-signal-badge tb-signal-bet"
-                                                    title={signal.reason || signal.mainReason || 'AI Strateji Onaylandı'}
-                                                >
-                                                    ✓ {getPredictionDisplay(m, signal)}
-                                                </span>
-                                            ) : heat >= 75 ? (
-                                                <span className="tb-signal-badge tb-signal-hot">
-                                                    🔥 ALEV
-                                                </span>
-                                            ) : (m.dqs || 0) >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60) ? (
-                                                <span className="tb-signal-badge tb-signal-pass" style={{ color: '#38bdf8' }}>
-                                                    DQS {(m.dqs || 0).toFixed(2)}
-                                                </span>
-                                            ) : (
-                                                <span className="tb-signal-badge tb-signal-pass">
-                                                    {t?.verdict_pass || 'PAS'}
-                                                </span>
-                                            )}
+                                            {(() => {
+                                                const minStr = String(m?.minute || '').trim();
+                                                const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
+                                                const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
+                                                const predText = getPredictionDisplay(m, signal);
+
+                                                if (isLateOrFinished) {
+                                                    return (
+                                                        <span className="tb-signal-badge tb-signal-pass" style={{ opacity: 0.6 }}>
+                                                            {minStr === 'MS' || minStr.includes('FT') ? 'MS' : 'KİLİTLİ (88+)'}
+                                                        </span>
+                                                    );
+                                                }
+
+                                                if (signal?.verdict === 'BET' && predText) {
+                                                    return (
+                                                        <span
+                                                            className="tb-signal-badge tb-signal-bet"
+                                                            title={signal.reason || signal.mainReason || 'AI Strateji Onaylandı'}
+                                                        >
+                                                            ✓ {predText}
+                                                        </span>
+                                                    );
+                                                }
+
+                                                if (heat >= 75) {
+                                                    return (
+                                                        <span className="tb-signal-badge tb-signal-hot">
+                                                            🔥 ALEV
+                                                        </span>
+                                                    );
+                                                }
+
+                                                if ((m.dqs || 0) >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60)) {
+                                                    return (
+                                                        <span className="tb-signal-badge tb-signal-pass" style={{ color: '#38bdf8' }}>
+                                                            DQS {(m.dqs || 0).toFixed(2)}
+                                                        </span>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <span className="tb-signal-badge tb-signal-pass">
+                                                        {t?.verdict_pass || 'PAS'}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
 
                                         {/* Detail Expand Arrow */}
@@ -335,7 +368,7 @@ export const LiveTerminalTable = ({
                                                                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8' }}>
                                                                     🎯 {lang === 'tr' ? 'YAPAY ZEKA ANALİZİ & STRATEJİ' : 'AI MATCH CONVICTION'}
                                                                 </span>
-                                                                {signal?.verdict === 'BET' && (
+                                                                {signal?.verdict === 'BET' && getPredictionDisplay(m, signal) && (
                                                                     <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '4px' }}>
                                                                         ÖNERİ: {getPredictionDisplay(m, signal)}
                                                                     </span>

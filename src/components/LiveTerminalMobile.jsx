@@ -58,6 +58,12 @@ export const LiveTerminalMobile = ({
 
     const getPredictionDisplay = (m, signal) => {
         if (!signal || signal.verdict !== 'BET') return null;
+
+        const minStr = String(m?.minute || '').trim();
+        const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
+        const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
+        if (isLateOrFinished) return null;
+
         const strat = signal.activeStrategies?.[0];
         let label = strat?.label || signal.prediction || m.opportunityData?.suggestedMarket?.label;
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
@@ -112,9 +118,12 @@ export const LiveTerminalMobile = ({
                     const oddsHome = m.odds?.home || m.liveOdds?.home || '-';
                     const oddsDraw = m.odds?.draw || m.liveOdds?.draw || '-';
                     const oddsAway = m.odds?.away || m.liveOdds?.away || '-';
-                    const hasOdds = oddsHome !== '-' || oddsDraw !== '-' || oddsAway !== '-';
+                    const minStr = String(m?.minute || '').trim();
+                    const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
+                    const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
 
-                    const isBetReady = signal?.verdict === 'BET';
+                    const predDisplay = getPredictionDisplay(m, signal);
+                    const isBetReady = signal?.verdict === 'BET' && Boolean(predDisplay) && !isLateOrFinished;
                     const isHot = heat >= 75;
 
                     // Stat coloring discipline matching desktop
@@ -277,9 +286,16 @@ export const LiveTerminalMobile = ({
 
                             {/* Line 6: AI Signal & DQS Footer */}
                             <div className="tb-m-footer">
-                                {isBetReady ? (
+                                {isLateOrFinished ? (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
+                                        <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
+                                        <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px', opacity: 0.6 }}>
+                                            {minStr === 'MS' || minStr.includes('FT') ? 'MS' : 'KİLİTLİ (88+)'}
+                                        </span>
+                                    </div>
+                                ) : isBetReady ? (
                                     <span className="tb-signal-badge tb-signal-bet" style={{ width: '100%', justifyContent: 'center' }}>
-                                        ✓ {getPredictionDisplay(m, signal)}
+                                        ✓ {predDisplay}
                                     </span>
                                 ) : isHot ? (
                                     <span className="tb-signal-badge tb-signal-hot" style={{ width: '100%', justifyContent: 'center' }}>
@@ -333,7 +349,7 @@ export const LiveTerminalMobile = ({
                                                 </span>
                                                 {isBetReady && (
                                                     <span style={{ fontWeight: 800, color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem' }}>
-                                                        {getPredictionDisplay(m, signal)}
+                                                        {predDisplay}
                                                     </span>
                                                 )}
                                             </div>

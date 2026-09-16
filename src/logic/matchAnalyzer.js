@@ -58,7 +58,14 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
     let verdict = 'PASS';
     let reason = 'Strateji Bekleniyor';
     
-    if (activeStrategies.length > 0) {
+    const minStr = String(minute || '').trim();
+    const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
+    const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
+
+    if (isLateOrFinished) {
+        verdict = 'PASS';
+        reason = minStr === 'MS' || minStr.includes('FT') ? 'Maç Sona Erdi (MS)' : 'Maç Sonu / Kilitli (88+)';
+    } else if (activeStrategies.length > 0) {
         verdict = 'BET';
         // Primary strategy for the main label
         reason = activeStrategies[0].label + (activeStrategies.length > 1 ? ` (+${activeStrategies.length - 1})` : '');
