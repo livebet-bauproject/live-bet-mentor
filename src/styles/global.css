@@ -235,8 +235,9 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 9999;
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 @keyframes slideInUp {
@@ -673,10 +674,58 @@ body {
   font-size: 1.1rem;
 }
 
+.intelligence-modal-content {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.intelligence-fusion-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
 .modal-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.grid-col {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.bayesian-grid-col {
+  grid-column: 1 / -1;
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+.bayesian-intel-card {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.05) 0%, rgba(15, 23, 42, 0.4) 100%);
+  border: 1px solid rgba(0, 242, 254, 0.2);
+  padding: 1.5rem;
+  border-radius: 14px;
+}
+
+.bayesian-gauge-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
   gap: 2rem;
+  align-items: center;
+}
+
+.modal-footer-actions {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .grid-col h3 {
@@ -2734,6 +2783,7 @@ html, body {
   .modal-overlay {
     align-items: flex-end !important;
     padding: 0 !important;
+    z-index: 9999 !important;
     background: rgba(3, 7, 18, 0.88) !important;
     backdrop-filter: blur(15px) !important;
     -webkit-backdrop-filter: blur(15px) !important;
@@ -2744,9 +2794,13 @@ html, body {
     max-width: 100% !important;
     border-radius: 20px 20px 0 0 !important;
     max-height: 92vh !important;
-    padding: 1.25rem 1rem !important;
+    padding: 1.25rem 0.85rem !important;
     margin: 0 !important;
     border-bottom: none !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
     animation: slideUpSheet 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
 
@@ -2763,16 +2817,90 @@ html, body {
 
   .modal-content .close-btn,
   .close-btn-enhanced {
-    top: 0.85rem !important;
-    right: 0.85rem !important;
+    top: 0.75rem !important;
+    right: 0.75rem !important;
     width: 2.2rem !important;
     height: 2.2rem !important;
     font-size: 1.3rem !important;
+    z-index: 10 !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
-  .modal-grid {
+  .intelligence-modal-content {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .intelligence-fusion-grid {
     grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+    margin-bottom: 1.2rem !important;
+  }
+
+  /* Single-column flex layout guarantees zero horizontal overflow on mobile */
+  .modal-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
     gap: 1.2rem !important;
+    box-sizing: border-box !important;
+  }
+
+  .grid-col {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .bayesian-grid-col {
+    width: 100% !important;
+    margin-top: 1rem !important;
+  }
+
+  .bayesian-intel-card {
+    padding: 1rem 0.75rem !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .bayesian-gauge-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+    align-items: center !important;
+  }
+
+  .bayesian-gauge-box {
+    grid-column: 1 / -1 !important;
+    order: -1 !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  .bayesian-stat-box {
+    background: rgba(255, 255, 255, 0.03) !important;
+    padding: 0.6rem 0.4rem !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .modal-footer-actions {
+    flex-direction: column !important;
+    gap: 0.65rem !important;
+    margin-top: 1.5rem !important;
+    padding-top: 1rem !important;
+    padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .modal-footer-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 0.75rem 1rem !important;
   }
 
   .intelligence-modal-content > div[style*="gridTemplateColumns"],

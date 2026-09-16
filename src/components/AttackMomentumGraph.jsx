@@ -100,7 +100,8 @@ export const AttackMomentumGraph = ({
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                minWidth: '130px',
+                minWidth: 0,
+                flex: '1 1 auto',
                 maxWidth: '160px'
             }}>
                 {logoUrl ? (
@@ -183,9 +184,9 @@ export const AttackMomentumGraph = ({
                 flexWrap: 'wrap',
                 gap: '8px'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.2rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: '1 1 auto', minWidth: 0 }}>
                     {renderTeamBadge(true)}
-                    <span style={{ opacity: 0.3, fontWeight: 900, fontSize: '0.8rem' }}>VS</span>
+                    <span style={{ opacity: 0.3, fontWeight: 900, fontSize: '0.75rem', flexShrink: 0 }}>VS</span>
                     {renderTeamBadge(false)}
                 </div>
 

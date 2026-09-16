@@ -1233,13 +1233,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         };
 
         return (
-            <div className="grid-col" style={{ gridColumn: 'span 3', marginTop: '1.5rem' }}>
-                <div className="stats-card" style={{
-                    background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.05) 0%, rgba(15, 23, 42, 0.4) 100%)',
-                    border: '1px solid rgba(0, 242, 254, 0.2)',
-                    padding: '1.5rem'
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div className="grid-col bayesian-grid-col">
+                <div className="stats-card bayesian-intel-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '6px' }}>
                         <h3 style={{ margin: 0, color: 'var(--accent-color)', fontSize: '0.9rem' }}>
                             <span style={{ marginRight: '0.5rem' }}>🧠</span> {t.bayesian_intelligence || 'BAYESÇİ OLASILIK İNTELİJANSI'}
                         </h3>
@@ -1248,16 +1244,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '2rem', alignItems: 'center' }}>
-                        <div style={{ textAlign: 'center' }}>
+                    <div className="bayesian-gauge-grid">
+                        <div className="bayesian-stat-box" style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
                                 {t.prior_prob || (lang === 'tr' ? 'BAŞLANGIÇ (ÖNCÜL)' : 'PRIOR PROB')}
                             </div>
                             <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>%{(data.prior * 100).toFixed(0)}</div>
                         </div>
 
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '1rem' }}>
+                        <div className="bayesian-gauge-box" style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
                                 {t.posterior_refined || (lang === 'tr' ? 'GÜNCEL OLASILIK (SONCUL)' : 'POSTERIOR (REFINED)')}
                             </div>
                             <div style={{ position: 'relative', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -1271,7 +1267,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             </div>
                         </div>
 
-                        <div style={{ textAlign: 'center' }}>
+                        <div className="bayesian-stat-box" style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
                                 {t.impact || (lang === 'tr' ? 'DİNAMİK ETKİ' : 'IMPACT')}
                             </div>
@@ -1281,14 +1277,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ marginTop: '1.2rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                             <span style={{ opacity: 0.6 }}>{t.confidence_label || (lang === 'tr' ? 'GÜVEN DERECESİ:' : 'CONFIDENCE:')}:</span>
                             <span style={{ color: data.confidence === 'HIGH' ? 'var(--success-color)' : 'var(--warning-color)', fontWeight: 800 }}>
                                 {confidenceMap[data.confidence] || data.confidence}
                             </span>
                         </div>
-                        <div style={{ opacity: 0.6, fontStyle: 'italic' }}>
+                        <div style={{ opacity: 0.6, fontStyle: 'italic', fontSize: '0.65rem' }}>
                             {t.evidence_update || (lang === 'tr' ? 'DQS, Saha Momentumu ve xG verileriyle dinamik olarak güncellenir.' : 'Evidence update based on DQS, Momentum & xG support.')}
                         </div>
                     </div>
@@ -1309,7 +1305,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     <div className="intelligence-modal-content">
                         {/* AI & Consensus Layer (Fusion) */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+                        <div className="intelligence-fusion-grid">
                             {/* AI Expert Column */}
                             <div style={{ background: 'rgba(56, 189, 248, 0.08)', borderRadius: '15px', padding: '1.5rem', border: '1px solid rgba(56, 189, 248, 0.2)', boxShadow: '0 0 30px rgba(56, 189, 248, 0.1)', position: 'relative', overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -1668,7 +1664,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {renderBayesianIntelligence(currentMatch)}
                         </div>
 
-                        <div style={{ marginTop: '2.5rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '2rem', borderTop: '1px solid var(--glass-border)', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <div className="modal-footer-actions">
                             <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', opacity: 0.5 }}>
                                 <span style={{ width: '8px', height: '8px', background: 'var(--success-color)', borderRadius: '50%' }}></span>
                                 {t.live_feed_connected}
