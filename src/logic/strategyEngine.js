@@ -47,18 +47,27 @@ export const strategyEngine = {
         const minute = this._parseMinute(match);
         const score = this._getScoreDiff(match);
 
-        // Katı Geç Dakika & Kopmuş Maç Filtresi:
-        // 1. 85+ veya 90+ uzatmalarda "Sıradaki Gol" önermek kumar ve ölü sinyaldir (oranlar kilitli/çöp).
-        if (minute >= 85 || minute === 999) return { active: false };
-        // 2. Kopmuş Maç / Blowout: 65'ten sonra 3+ fark (örn: 7-2, 4-1, 3-0) veya genel 4+ fark
-        if ((minute >= 65 && score.diff >= 3) || score.diff >= 4) return { active: false };
+        // 1. Katı Geç Dakika & Bitiş Filtresi (82+ dakikada sıradaki gol kumar/ölü sinyaldir)
+        if (minute >= 82 || minute === 999) return { active: false };
+
+        // 2. Taktiksel Rehavet & Kopmuş Maç Filtresi (Game-State Blindness Veto):
+        // 2+ farkla önde olan takımlar (örn: 4-1, 3-0, 3-1) rölantiye alır, as oyuncuları çıkarır.
+        // Önde olan takıma sıradaki gol verilmesi kesinlikle yasaklanmalıdır!
+        const isHomeLeadingComfortably = (score.home - score.away) >= 2;
+        const isAwayLeadingComfortably = (score.away - score.home) >= 2;
+        if (score.diff >= 3) return { active: false };
+        if (minute >= 60 && score.diff >= 2) return { active: false };
 
         const stats = match.stats || {};
         const observations = match.observations || {};
         const pressure = observations.pressure || {};
-        const threshold = 70; // 70+ Puan
+        const threshold = 72; // VIP Hassasiyet Eşiği: 72+ Puan
 
         if (pressure.total >= threshold && pressure.dominantTeam !== 'NONE') {
+            // Rehavet Veto: Önde olan takıma "Sıradaki Gol" üretilmesi engellenir
+            if (pressure.dominantTeam === 'HOME' && isHomeLeadingComfortably) return { active: false };
+            if (pressure.dominantTeam === 'AWAY' && isAwayLeadingComfortably) return { active: false };
+
             const team = pressure.dominantTeam === 'HOME' ? (match.homeTeam || 'Ev Sahibi') : (match.awayTeam || 'Deplasman');
             return {
                 active: true,
@@ -80,8 +89,8 @@ export const strategyEngine = {
     checkMomentumBurst(match) {
         const minute = this._parseMinute(match);
         const score = this._getScoreDiff(match);
-        if (minute >= 85 || minute === 999) return { active: false };
-        if ((minute >= 65 && score.diff >= 3) || score.diff >= 4) return { active: false };
+        if (minute >= 82 || minute === 999) return { active: false };
+        if (score.diff >= 3 || (minute >= 65 && score.diff >= 2)) return { active: false };
 
         const history = (match.history && match.history.length > 0) ? match.history : (match.minuteHistory || []);
         const observations = match.observations || {};

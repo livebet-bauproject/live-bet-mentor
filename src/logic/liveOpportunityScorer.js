@@ -1113,37 +1113,35 @@ class LiveOpportunityScorer {
         const liveOverOdds = parseSanitizedOdds(oddsInfo?.over25 || oddsInfo?.over);
 
         // SCENARIO 0: STOPPAGE TIME / BLOWOUT (Kopmuş Maç) / FINISHED SUPPRESSION
-        if (minute >= 88 || minute >= 95 || minute === 999) {
+        if (minute >= 82 || minute >= 95 || minute === 999) {
             return { marketKey: 'STABLE_GAME', confidence: 50, label: 'Maç Sonu / Kilitli' };
         }
-        if ((minute >= 65 && Math.abs(goalDiff) >= 3) || (curTotalGoals >= 6 && Math.abs(goalDiff) >= 2) || Math.abs(goalDiff) >= 4) {
-            return { marketKey: 'STABLE_GAME', confidence: 50, label: 'Kopmuş Maç (Riskli)' };
+        // Fark 3+ veya 50'den sonra 2+ fark varsa maç rehavete/kilitlenmeye girmiştir
+        if (Math.abs(goalDiff) >= 3 || (minute >= 50 && Math.abs(goalDiff) >= 2) || (curTotalGoals >= 6 && Math.abs(goalDiff) >= 2)) {
+            return { marketKey: 'STABLE_GAME', confidence: 50, label: 'Kopmuş Maç (Rehavet / Riskli)' };
         }
 
         // SCENARIO 1: LATE GAME (minute >= 75)
         if (minute >= 75) {
-            // 85+ dakikada veya 2+ farkta "Sıradaki Gol" önermek tehlikelidir
-            if (minute >= 85) {
-                return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Son Dakikalar (Stabil)' };
+            // 80+ dakikada veya 2+ farkta "Sıradaki Gol" önermek tehlikelidir
+            if (minute >= 80 || Math.abs(goalDiff) >= 2) {
+                return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Son Dakikalar / Fark 2+ (Stabil)' };
             }
-            if (Math.abs(goalDiff) >= 2) {
-                return { marketKey: 'STABLE_GAME', confidence: 60, label: 'Fark 2+ (Oyun Kapalı)' };
+            // Tempo kontrolü: Şut veya tehlikeli atak yoksa ölü maç
+            if ((daHome + daAway) < 20 && (sogHome + sogAway) < 2) {
+                return { marketKey: 'STABLE_GAME', confidence: 50, label: 'Düşük Tempo (Ölü Maç)' };
             }
             if (isHomeDominant) {
-                // Home can ONLY be "Kazanmaya Yakın" if they are leading or drawing!
                 if (goalDiff >= 0) {
                     return { marketKey: 'HOME_WIN_NEXT', confidence: 70, team: match.homeTeam, odds: liveHomeOdds };
                 } else {
-                    // Home is trailing: they are pushing for NEXT GOAL!
                     return { marketKey: 'HOME_NEXT_GOAL', confidence: 65, team: match.homeTeam, odds: liveHomeOdds };
                 }
             }
             if (isAwayDominant) {
-                // Away can ONLY be "Kazanmaya Yakın" if they are leading or drawing!
                 if (goalDiff <= 0) {
                     return { marketKey: 'AWAY_WIN_NEXT', confidence: 70, team: match.awayTeam, odds: liveAwayOdds };
                 } else {
-                    // Away is trailing: they are pushing for NEXT GOAL!
                     return { marketKey: 'AWAY_NEXT_GOAL', confidence: 65, team: match.awayTeam, odds: liveAwayOdds };
                 }
             }
@@ -1162,31 +1160,39 @@ class LiveOpportunityScorer {
 
             // SUB-CASE A: Home is Dominant
             if (isHomeDominant) {
-                // If Home is already leading by 1 or more goals:
-                if (goalDiff >= 1) {
-                    // Late in the match (>= 65'), Home likely to protect/close out win:
+                // REHAVET & BLOWOUT VETO: 2+ farkla önde olan takıma (örn 4-1, 3-0) ASLA Sıradaki Gol verilmez!
+                if (goalDiff >= 2) {
+                    return { marketKey: 'HOME_WIN_NEXT', confidence: 75, team: match.homeTeam, odds: liveHomeOdds, label: `${match.homeTeam} Kontrol Ediyor` };
+                }
+                if (goalDiff === 1) {
                     if (minute >= 65) {
                         return { marketKey: 'HOME_WIN_NEXT', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
                     }
-                    // Earlier, Next Goal is the sharper in-play prediction:
+                    if (liveHomeOdds && liveHomeOdds < 1.40) {
+                        return { marketKey: 'HOME_WIN_NEXT', confidence: 70, team: match.homeTeam, odds: liveHomeOdds };
+                    }
                     return { marketKey: 'HOME_NEXT_GOAL', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
                 }
                 // Home is DRAWING (0) or TRAILING (<0):
-                // Trailing team is pushing for NEXT GOAL! (Never "Kazanmaya Yakın" when trailing!)
                 return { marketKey: 'HOME_NEXT_GOAL', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
             }
 
             // SUB-CASE B: Away is Dominant
             if (isAwayDominant) {
-                // If Away is already leading by 1 or more goals:
-                if (goalDiff <= -1) {
+                // REHAVET & BLOWOUT VETO: Deplasman 2+ farkla öndeyse Sıradaki Gol verilmez!
+                if (goalDiff <= -2) {
+                    return { marketKey: 'AWAY_WIN_NEXT', confidence: 75, team: match.awayTeam, odds: liveAwayOdds, label: `${match.awayTeam} Kontrol Ediyor` };
+                }
+                if (goalDiff === -1) {
                     if (minute >= 65) {
                         return { marketKey: 'AWAY_WIN_NEXT', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
                     }
+                    if (liveAwayOdds && liveAwayOdds < 1.40) {
+                        return { marketKey: 'AWAY_WIN_NEXT', confidence: 70, team: match.awayTeam, odds: liveAwayOdds };
+                    }
                     return { marketKey: 'AWAY_NEXT_GOAL', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
                 }
-                // Away is DRAWING (0) or TRAILING (>0, like Monza 1 - 3 Lecce):
-                // Trailing team is pushing for NEXT GOAL! (Never "Monza Kazanmaya Yakın" when trailing 1-3!)
+                // Away is DRAWING (0) or TRAILING (>0):
                 return { marketKey: 'AWAY_NEXT_GOAL', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
             }
 

@@ -92,15 +92,54 @@ class SmartAlertService {
         }
 
         const minute = parseInt(minStr) || 0;
-        // Strict in-play golden window: 15' to 82'
-        if (minute < 15 || minute > 82) {
+        // Strict in-play golden window: 15' to 80' (after 80' games enter chaotic/dead stoppage)
+        if (minute < 15 || minute > 80) {
             return { shouldAlert: false, blockedReason: 'OUT_OF_WINDOW' };
         }
 
+        // Parse actual match score and score differential
+        let curHome = 0, curAway = 0;
+        if (match.score && typeof match.score === 'object') {
+            curHome = Number(match.score.home ?? 0);
+            curAway = Number(match.score.away ?? 0);
+        } else if (match.homeScore !== undefined || match.awayScore !== undefined) {
+            curHome = Number(match.homeScore?.current ?? match.homeScore ?? 0);
+            curAway = Number(match.awayScore?.current ?? match.awayScore ?? 0);
+        } else if (typeof match.score === 'string' && match.score.includes('-')) {
+            const parts = match.score.split('-');
+            curHome = parseInt(parts[0]) || 0;
+            curAway = parseInt(parts[1]) || 0;
+        }
+        const goalDiff = curHome - curAway;
+        const absGoalDiff = Math.abs(goalDiff);
+
+        // VETO 1: Blowout / Rehavet Filter:
+        // Fark 3+ ise maç kopmuştur, as kadro dinlendirilir, rehavet ve sürpriz kontra riski devasadır (örn: 4-1 Barça vs Racing).
+        if (absGoalDiff >= 3) {
+            return { shouldAlert: false, blockedReason: 'BLOWOUT_DIFF_3_PLUS' };
+        }
+        // 50. dakikadan sonra 2+ fark varsa rehavet riski çok yüksektir
+        if (minute >= 50 && absGoalDiff >= 2) {
+            return { shouldAlert: false, blockedReason: 'BLOWOUT_REHAVET_DIFF_2_PLUS' };
+        }
+
+        // VETO 2: Late Game Stale Match Filter (75+ minutes):
+        // Guabirá vs Club Aurora 77' 3-1 gibi ölü maçları engeller
+        if (minute >= 75) {
+            if (absGoalDiff >= 2) {
+                return { shouldAlert: false, blockedReason: 'LATE_GAME_DEAD_DIFF' };
+            }
+            const daTotal = (match.stats?.dangerousAttacks?.home || 0) + (match.stats?.dangerousAttacks?.away || 0);
+            const sogTotal = (match.stats?.shotsOnGoal?.home || 0) + (match.stats?.shotsOnGoal?.away || 0);
+            if (daTotal < 25 && sogTotal < 3) {
+                return { shouldAlert: false, blockedReason: 'LATE_GAME_STALE_NO_PACE' };
+            }
+        }
+
         const dqs = match.dqs || 0;
-        // Quality data threshold: minimum 0.60
-        if (dqs < 0.60) {
-            return { shouldAlert: false, blockedReason: 'LOW_DQS' };
+        // VIP Data Quality threshold: minimum 0.70 (0.60 creates excessive false positives)
+        if (dqs < 0.70) {
+            return { shouldAlert: false, blockedReason: 'LOW_DQS_VIP_BARRIER' };
         }
 
         const xgHome = match.stats?.xg?.home || 0;
@@ -129,8 +168,8 @@ class SmartAlertService {
             conditions.xgAdvantage = true;
         }
 
-        // 2. High Pressure Check
-        if (pressure >= 55 || velocity === 'HOT') {
+        // 2. High Pressure Check: Minimum 68+ for true institutional dominance
+        if (pressure >= 68 || velocity === 'HOT') {
             conditions.highPressure = true;
         }
 
@@ -187,14 +226,14 @@ class SmartAlertService {
         let level = 'NORMAL';
         if (oppData.hasLatencyEdge) level = 'ALEV';
         else if (conditions.alphaValue || (oppData.hasValueEV && oppData.bestEV?.ev >= 10)) level = 'ALPHA';
-        else if (metConditions >= 5 || oppData.hasValueEV) level = 'ALEV';
-        else if (metConditions >= 4) level = 'SICAK';
+        else if (metConditions >= 6 || oppData.hasValueEV) level = 'ALEV';
+        else if (metConditions >= 5) level = 'SICAK';
 
         return {
             conditions,
             metCount: metConditions,
             score,
-            shouldAlert: metConditions >= 4 || conditions.alphaValue || oppData.hasValueEV || oppData.hasLatencyEdge,
+            shouldAlert: metConditions >= 5 || conditions.alphaValue || (oppData.hasValueEV && oppData.bestEV?.ev >= 8) || oppData.hasLatencyEdge,
             alertLevel: level
         };
     }
@@ -281,9 +320,19 @@ class SmartAlertService {
                 const isHomeDom = strat.team ? (strat.team === match.homeTeam) : 
                     ((xgHome > xgAway + 0.2) || (match.stats?.dangerousAttacks?.home || 0) > (match.stats?.dangerousAttacks?.away || 0) * 1.25);
                 team = strat.team || (isHomeDom ? match.homeTeam : match.awayTeam);
-                marketKey = isHomeDom ? 'market_next_goal_home' : 'market_next_goal_away';
-                marketLabel = `Sıradaki Gol: ${team}`;
-                confidence = Math.min(90, Math.max(65, Math.round(signal.confidence || 78)));
+
+                // REHAVET GUARD: 2+ farkla önde olan takıma asla Sıradaki Gol verilmez!
+                const isHomeComfortable = (scoreHome - scoreAway) >= 2;
+                const isAwayComfortable = (scoreAway - scoreHome) >= 2;
+                if ((isHomeDom && isHomeComfortable) || (!isHomeDom && isAwayComfortable)) {
+                    marketKey = isHomeDom ? 'HOME_WIN_NEXT' : 'AWAY_WIN_NEXT';
+                    marketLabel = `${team} Kontrol Ediyor`;
+                    confidence = 72;
+                } else {
+                    marketKey = isHomeDom ? 'market_next_goal_home' : 'market_next_goal_away';
+                    marketLabel = `Sıradaki Gol: ${team}`;
+                    confidence = Math.min(90, Math.max(65, Math.round(signal.confidence || 78)));
+                }
             } else {
                 marketLabel = strat.label || signal.market || 'Strateji Sinyali';
                 team = strat.team || (strat.id === 'COMEBACK' || strat.id === 'ADV_COMEBACK' ? (scoreHome < scoreAway ? match.homeTeam : match.awayTeam) :
@@ -312,14 +361,26 @@ class SmartAlertService {
                     confidence = 74;
                 } else if ((xgHome > xgAway + 0.3 || (match.observations?.pressure?.home || 0) > (match.observations?.pressure?.away || 0) + 15) && possHome >= 40 && (shotsAway === 0 || shotsHome >= shotsAway * 0.65)) {
                     team = match.homeTeam;
-                    marketKey = 'market_next_goal_home';
-                    marketLabel = `Sıradaki Gol (Ev)`;
-                    confidence = 75;
+                    if (scoreHome - scoreAway >= 2) {
+                        marketKey = 'HOME_WIN_NEXT';
+                        marketLabel = 'Maç Sonu Ev Galibiyeti';
+                        confidence = 72;
+                    } else {
+                        marketKey = 'market_next_goal_home';
+                        marketLabel = `Sıradaki Gol (Ev)`;
+                        confidence = 75;
+                    }
                 } else if ((xgAway > xgHome + 0.3 || (match.observations?.pressure?.away || 0) > (match.observations?.pressure?.home || 0) + 15) && possAway >= 40 && (shotsHome === 0 || shotsAway >= shotsHome * 0.65)) {
                     team = match.awayTeam;
-                    marketKey = 'market_next_goal_away';
-                    marketLabel = `Sıradaki Gol (Deplasman)`;
-                    confidence = 75;
+                    if (scoreAway - scoreHome >= 2) {
+                        marketKey = 'AWAY_WIN_NEXT';
+                        marketLabel = 'Maç Sonu Dep Galibiyeti';
+                        confidence = 72;
+                    } else {
+                        marketKey = 'market_next_goal_away';
+                        marketLabel = `Sıradaki Gol (Deplasman)`;
+                        confidence = 75;
+                    }
                 } else {
                     const targetGoals = totalGoals + 0.5;
                     marketKey = 'market_over_goals';
@@ -337,14 +398,26 @@ class SmartAlertService {
                 // Offer dynamic Next Goal or dynamically higher Over line!
                 if ((xgHome > xgAway + 0.3 || (match.observations?.pressure?.home || 0) > (match.observations?.pressure?.away || 0) + 15) && possHome >= 40 && (shotsAway === 0 || shotsHome >= shotsAway * 0.65)) {
                     team = match.homeTeam;
-                    marketKey = 'market_next_goal_home';
-                    marketLabel = `Sıradaki Gol (Ev)`;
-                    confidence = 75;
+                    if (scoreHome - scoreAway >= 2) {
+                        marketKey = 'HOME_WIN_NEXT';
+                        marketLabel = 'Maç Sonu Ev Galibiyeti';
+                        confidence = 72;
+                    } else {
+                        marketKey = 'market_next_goal_home';
+                        marketLabel = `Sıradaki Gol (Ev)`;
+                        confidence = 75;
+                    }
                 } else if ((xgAway > xgHome + 0.3 || (match.observations?.pressure?.away || 0) > (match.observations?.pressure?.home || 0) + 15) && possAway >= 40 && (shotsHome === 0 || shotsAway >= shotsHome * 0.65)) {
                     team = match.awayTeam;
-                    marketKey = 'market_next_goal_away';
-                    marketLabel = `Sıradaki Gol (Deplasman)`;
-                    confidence = 75;
+                    if (scoreAway - scoreHome >= 2) {
+                        marketKey = 'AWAY_WIN_NEXT';
+                        marketLabel = 'Maç Sonu Dep Galibiyeti';
+                        confidence = 72;
+                    } else {
+                        marketKey = 'market_next_goal_away';
+                        marketLabel = `Sıradaki Gol (Deplasman)`;
+                        confidence = 75;
+                    }
                 } else {
                     const nextLine = totalGoals + 0.5;
                     marketKey = 'market_over_goals';

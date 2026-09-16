@@ -2262,7 +2262,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     };
 
     // Portfolio Rendering Logic
-    const RenderPortfolio = () => {
+    const renderPortfolio = () => {
         const state = bankrollManager.getState();
         const ledger = state.ledger || [];
         const initialBalance = state.initial_balance || 1000;
@@ -2288,7 +2288,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }).join(' ');
 
         return (
-            <div className="portfolio-view" style={{ animation: 'fadeIn 0.5s ease', paddingBottom: '5rem' }}>
+            <div className="portfolio-view" style={{ paddingBottom: '5rem' }}>
                 <div className="section-header" style={{ marginBottom: '1.5rem' }}>
                     <h2 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px' }}>📈 {t.portfolio_title}</h2>
                     <p style={{ opacity: 0.5, fontSize: '0.9rem', fontWeight: 600 }}>{t.subtitle} — v2.0 Algorithm Tracking</p>
@@ -2728,7 +2728,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
     }, [matches, lang, t]);
 
-    const RenderTrending = () => {
+    const renderTrending = () => {
         // Group trending bets by match (eventId or home_away)
         const matchGroupsMap = new Map();
         (trendingBets || []).forEach(bet => {
@@ -2788,7 +2788,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const maxBetCount = Math.max(...(trendingBets || []).map(b => b.count || 1), 1);
 
         return (
-            <div className="trending-view" style={{ animation: 'fadeIn 0.4s ease-out', paddingBottom: '5rem' }}>
+            <div className="trending-view" style={{ paddingBottom: '5rem' }}>
                 {/* Header Row */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
                     <div>
@@ -3763,13 +3763,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             </div>
 
             {view === 'PORTFOLIO' ? (
-                <RenderPortfolio />
+                renderPortfolio()
             ) : view === 'TRENDING' ? (
-                <RenderTrending />
+                renderTrending()
             ) : view === 'ADMIN' ? (
                 <AdminPanel lang={lang} />
             ) : view === 'RADAR' ? (
-                <div className="radar-view" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                <div className="radar-view">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem', flexWrap: 'wrap', gap: '2rem' }}>
                         <div>
                             <h3 style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-1px' }}>

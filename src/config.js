@@ -13,7 +13,7 @@ export const CONFIG = {
     MIN_SELECTIVITY_PASS_RATE: 0.60, // Target selectivity
     MAX_COUNTER_ARGUMENTS: 2, // Max allowed counter-args before automatic PASS
     DAILY_TRANSACTION_LIMIT: 2, // Max 2 approved trades per day
-    DQS_THRESHOLD: 0.40, // Min Data Quality Score to allow analysis
+    DQS_THRESHOLD: 0.50, // Min Data Quality Score to allow analysis
     DQS_WEIGHTS: {
       LATENCY: 0.4,
       STATS_AVAILABILITY: 0.4,
@@ -28,7 +28,16 @@ export const CONFIG = {
       DEAD_MATCH_MIN: 75,
       DEAD_MATCH_DIFF: 2,
       MOMENTUM_WINDOW_MIN: 10,
-      LATE_GAME_BAN_MIN: 85
+      LATE_GAME_BAN_MIN: 82
+    },
+    // Institutional VIP Syndicate Quality Gate (78-85% Target Win Rate)
+    VIP_CRITERIA: {
+      MIN_DQS: 0.70, // Strict data quality
+      MIN_ODDS: 1.40, // Value floor: no low-odds traps (<1.40)
+      MIN_PRESSURE: 68, // Dominant momentum only
+      BLOWOUT_DIFF: 2, // Never recommend next goal for leading team with 2+ diff
+      LATE_GAME_MIN: 75, // Stale match check starting minute
+      MIN_CONDITIONS: 5 // Min 5/7 conditions required for alert
     }
   },
 
