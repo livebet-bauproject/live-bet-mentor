@@ -10,6 +10,7 @@ class SmartAlertService {
         } catch (e) {
             this.alertHistory = [];
         }
+        this.reEvaluateFinishedAlerts();
 
         // Persistent score-state locks (Anti-Spam Deduplication)
         try {
@@ -689,54 +690,49 @@ class SmartAlertService {
         }
 
         const rec = alert.recommendation || {};
+        const marketKey = (rec.marketKey || '').toUpperCase();
         const marketLabel = (rec.predictionText || rec.marketLabel || rec.marketKey || rec.market || '').toLowerCase();
-        const homeName = (alert.homeTeam || alert.match?.split(' vs ')?.[0] || '').toLowerCase();
-        const awayName = (alert.awayTeam || alert.match?.split(' vs ')?.[1] || '').toLowerCase();
+        const homeName = (alert.homeTeam || alert.match?.split(' vs ')?.[0] || '').toLowerCase().trim();
+        const awayName = (alert.awayTeam || alert.match?.split(' vs ')?.[1] || '').toLowerCase().trim();
+        const recTeam = (rec.team || '').toLowerCase().trim();
 
-        // 1. OVER GOALS (Üst Gol)
-        if (marketLabel.includes('üst') || marketLabel.includes('over')) {
-            const matchLine = marketLabel.match(/(\d+\.?\d*)/);
-            const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
-            if (totalGoals > line) return 'WON';
-            if (isFinished && totalGoals <= line) return 'LOST';
-            return 'PENDING';
-        }
+        // 1. NEXT GOAL (Sıradaki Gol / Dominasyon / Baskı / Kontra)
+        // MUST be evaluated FIRST: prediction texts contain team names (e.g. "Sunderland", "Hannover")
+        // that would otherwise false-trigger "under" or "over" regexes!
+        const isNextGoalMarket = marketKey.includes('NEXT_GOAL') || 
+            marketKey === 'PRESS' || marketKey === 'MOMENTUM_SURGE' || marketKey === 'STATS' || 
+            marketKey === 'CORNERS' || marketKey === 'COMEBACK' || marketKey === 'ADV_COMEBACK' || 
+            marketKey === 'RED_CARD_ADV' || marketKey === 'COUNTER_ATTACK' ||
+            marketLabel.includes('sıradaki') || marketLabel.includes('next goal') || marketLabel.includes('next_goal');
 
-        // 2. UNDER GOALS (Alt Gol)
-        if (marketLabel.includes('alt') || marketLabel.includes('under')) {
-            const matchLine = marketLabel.match(/(\d+\.?\d*)/);
-            const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
-            if (totalGoals > line) return 'LOST';
-            if (isFinished && totalGoals < line) return 'WON';
-            return 'PENDING';
-        }
+        if (isNextGoalMarket) {
+            let isHomeTarget = false;
+            let isAwayTarget = false;
 
-        // 3. BTTS / KG VAR
-        if (marketLabel.includes('karşılıklı') || marketLabel.includes('kg var') || marketLabel.includes('btts')) {
-            if (curHome >= 1 && curAway >= 1) return 'WON';
-            if (isFinished) return 'LOST';
-            return 'PENDING';
-        }
+            if (marketKey === 'HOME_NEXT_GOAL' || marketKey === 'market_next_goal_home') {
+                isHomeTarget = true;
+            } else if (marketKey === 'AWAY_NEXT_GOAL' || marketKey === 'market_next_goal_away') {
+                isAwayTarget = true;
+            } else if (recTeam) {
+                if (homeName && (recTeam === homeName || homeName.includes(recTeam) || recTeam.includes(homeName))) isHomeTarget = true;
+                if (awayName && (recTeam === awayName || awayName.includes(recTeam) || recTeam.includes(awayName))) isAwayTarget = true;
+            }
 
-        // 4. BTTS YOK / KG YOK
-        if (marketLabel.includes('kg yok') || marketLabel.includes('btts no')) {
-            if (curHome >= 1 && curAway >= 1) return 'LOST';
-            if (isFinished && (curHome === 0 || curAway === 0)) return 'WON';
-            return 'PENDING';
-        }
-
-        // 5. NEXT GOAL (Sıradaki Gol)
-        if (marketLabel.includes('sıradaki') || marketLabel.includes('next goal') || marketLabel.includes('next_goal')) {
-            const team = (rec.team || '').toLowerCase();
-            const isHomeTarget = marketLabel.includes('ev') || marketLabel.includes('home') || (team && homeName.includes(team)) || (homeName && marketLabel.includes(homeName.slice(0, 5)));
-            const isAwayTarget = marketLabel.includes('deplasman') || marketLabel.includes('away') || (team && awayName.includes(team)) || (awayName && marketLabel.includes(awayName.slice(0, 5)));
+            // Text matching fallbacks with whole words / exact team names to avoid substring bugs (e.g. Everton vs ev)
+            if (!isHomeTarget && !isAwayTarget) {
+                const mentionsHome = homeName && homeName.length >= 3 && marketLabel.includes(homeName);
+                const mentionsAway = awayName && awayName.length >= 3 && marketLabel.includes(awayName);
+                if (mentionsHome && !mentionsAway) isHomeTarget = true;
+                else if (mentionsAway && !mentionsHome) isAwayTarget = true;
+                else if (/\b(ev|home)\b/i.test(marketLabel)) isHomeTarget = true;
+                else if (/\b(deplasman|dep|away)\b/i.test(marketLabel)) isAwayTarget = true;
+            }
 
             if (curHome > initHome && curAway === initAway) {
-                return isHomeTarget ? 'WON' : 'LOST';
+                return isHomeTarget ? 'WON' : (isAwayTarget ? 'LOST' : 'WON');
             } else if (curAway > initAway && curHome === initHome) {
-                return isAwayTarget ? 'WON' : 'LOST';
+                return isAwayTarget ? 'WON' : (isHomeTarget ? 'LOST' : 'WON');
             } else if (curHome > initHome || curAway > initAway) {
-                // Both scored or multiple goals: check which team hit their target
                 if (isHomeTarget && curHome > initHome) return 'WON';
                 if (isAwayTarget && curAway > initAway) return 'WON';
                 return 'LOST';
@@ -746,11 +742,55 @@ class SmartAlertService {
             return 'PENDING';
         }
 
+        // 2. OVER GOALS (Üst Gol) - Use word boundary to avoid matching "Hannover", "Dover", etc.
+        const isOverMarket = marketKey.includes('OVER') || marketKey === 'FHG' || marketKey === 'market_fh_over05' ||
+            /\b(üst|over)\b/i.test(marketLabel);
+
+        if (isOverMarket) {
+            const matchLine = marketLabel.match(/(\d+\.?\d*)/);
+            const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
+            if (totalGoals > line) return 'WON';
+            if (isFinished && totalGoals <= line) return 'LOST';
+            return 'PENDING';
+        }
+
+        // 3. UNDER GOALS (Alt Gol) - Use word boundary to avoid matching "Sunderland", "Altach", etc.
+        const isUnderMarket = marketKey.includes('UNDER') || /\b(alt|under)\b/i.test(marketLabel);
+
+        if (isUnderMarket) {
+            const matchLine = marketLabel.match(/(\d+\.?\d*)/);
+            const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
+            if (totalGoals > line) return 'LOST';
+            if (isFinished && totalGoals < line) return 'WON';
+            return 'PENDING';
+        }
+
+        // 4. BTTS / KG VAR
+        if (marketKey.includes('BTTS') || marketLabel.includes('karşılıklı') || marketLabel.includes('kg var')) {
+            if (curHome >= 1 && curAway >= 1) return 'WON';
+            if (isFinished) return 'LOST';
+            return 'PENDING';
+        }
+
+        // 5. BTTS YOK / KG YOK
+        if (marketKey.includes('BTTS_NO') || marketLabel.includes('kg yok') || marketLabel.includes('btts no')) {
+            if (curHome >= 1 && curAway >= 1) return 'LOST';
+            if (isFinished && (curHome === 0 || curAway === 0)) return 'WON';
+            return 'PENDING';
+        }
+
         // 6. MATCH WINNER / KAZANMAYA YAKIN / MS 1 / MS 2 / 1X2
-        if (marketLabel.includes('kazan') || marketLabel.includes('win') || marketLabel.includes('ms 1') || marketLabel.includes('ms 2') || marketLabel.includes('1x2') || rec.marketKey === 'HOME_WIN_NEXT' || rec.marketKey === 'AWAY_WIN_NEXT') {
-            const team = (rec.team || '').toLowerCase();
-            const isHomeTarget = marketLabel.includes('ms 1') || marketLabel.includes('ev') || (team && homeName.includes(team)) || (homeName && marketLabel.includes(homeName.slice(0, 5)));
-            const isAwayTarget = marketLabel.includes('ms 2') || marketLabel.includes('deplasman') || (team && awayName.includes(team)) || (awayName && marketLabel.includes(awayName.slice(0, 5)));
+        const isWinMarket = marketKey === 'HOME_WIN_NEXT' || marketKey === 'AWAY_WIN_NEXT' ||
+            marketKey.includes('WIN') || /\b(kazanmaya|kazanır|ms 1|ms 2|1x2)\b/i.test(marketLabel);
+
+        if (isWinMarket) {
+            let isHomeTarget = marketKey === 'HOME_WIN_NEXT' || /\b(ms 1|ev|home)\b/i.test(marketLabel);
+            let isAwayTarget = marketKey === 'AWAY_WIN_NEXT' || /\b(ms 2|deplasman|away)\b/i.test(marketLabel);
+
+            if (!isHomeTarget && !isAwayTarget && recTeam) {
+                if (homeName && (recTeam === homeName || homeName.includes(recTeam))) isHomeTarget = true;
+                if (awayName && (recTeam === awayName || awayName.includes(recTeam))) isAwayTarget = true;
+            }
 
             if (isFinished) {
                 if (isHomeTarget && curHome > curAway) return 'WON';
@@ -758,7 +798,6 @@ class SmartAlertService {
                 return 'LOST';
             }
 
-            // In-play early win: If a team leads by 3+ goals past 80' (e.g. 4-0 at 80')
             const minuteNum = typeof currentMinute === 'number' ? currentMinute : parseInt(currentMinute || 0);
             if (minuteNum >= 80) {
                 if (isHomeTarget && (curHome - curAway) >= 3) return 'WON';
@@ -769,14 +808,41 @@ class SmartAlertService {
 
         // 7. MATCH FINISHED GENERIC FALLBACK
         if (isFinished) {
-            // If team was mentioned and they won:
-            if (homeName && marketLabel.includes(homeName.slice(0, 5)) && curHome > curAway) return 'WON';
-            if (awayName && marketLabel.includes(awayName.slice(0, 5)) && curAway > curHome) return 'WON';
+            if (homeName && marketLabel.includes(homeName) && curHome > curAway) return 'WON';
+            if (awayName && marketLabel.includes(awayName) && curAway > curHome) return 'WON';
             if (totalGoals > (initHome + initAway)) return 'WON';
             return 'LOST';
         }
 
         return 'PENDING';
+    }
+
+    /**
+     * Re-evaluates previously finished alerts in local history against corrected logic
+     * (e.g. fixes Sunderland / Hannover / Everton substring evaluation bugs)
+     */
+    reEvaluateFinishedAlerts() {
+        let updated = false;
+        (this.alertHistory || []).forEach(alert => {
+            if (alert.finalScore && (alert.status === 'WON' || alert.status === 'LOST')) {
+                const parts = alert.finalScore.split('-');
+                const curHome = parseInt(parts[0]) || 0;
+                const curAway = parseInt(parts[1]) || 0;
+                const correctedOutcome = this.evaluateAlertStatus(alert, curHome, curAway, true);
+                if ((correctedOutcome === 'WON' || correctedOutcome === 'LOST') && alert.status !== correctedOutcome) {
+                    console.log(`[ALERT] 🔄 Auto-corrected result for ${alert.match}: ${alert.status} -> ${correctedOutcome}`);
+                    alert.status = correctedOutcome;
+                    updated = true;
+                }
+            }
+        });
+
+        if (updated) {
+            try {
+                localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
+            } catch (e) {}
+        }
+        return updated;
     }
 
     /**
@@ -821,6 +887,7 @@ class SmartAlertService {
      * that are no longer present in the live match feed.
      */
     async resolveFinishedAlerts() {
+        this.reEvaluateFinishedAlerts();
         const pending = this.alertHistory.filter(a => a.status === 'PENDING');
         if (pending.length === 0) return 0;
 

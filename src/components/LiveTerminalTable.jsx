@@ -17,7 +17,8 @@ export const LiveTerminalTable = ({
     pinnedMatchIds = new Set(),
     togglePinMatch = () => {},
     AttackMomentumGraph = null,
-    MatchIncidentsTimeline = null
+    MatchIncidentsTimeline = null,
+    mobileTableMode = false
 }) => {
     const [expandedMatchId, setExpandedMatchId] = useState(null);
 
@@ -58,7 +59,7 @@ export const LiveTerminalTable = ({
     };
 
     return (
-        <div className="tb-terminal-wrapper">
+        <div className={`tb-terminal-wrapper ${mobileTableMode ? 'mobile-table-mode' : ''}`}>
             <table className="tb-table">
                 <thead>
                     <tr>

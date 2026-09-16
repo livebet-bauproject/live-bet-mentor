@@ -139,6 +139,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [terminalSortCriteria, setTerminalSortCriteria] = useState(SORT_CRITERIA.MOMENTUM);
     const [terminalCategoryFilter, setTerminalCategoryFilter] = useState('ALL');
     const [terminalSearchQuery, setTerminalSearchQuery] = useState('');
+    const [terminalMobileSubView, setTerminalMobileSubView] = useState(() => {
+        try {
+            return localStorage.getItem('lbm_mobile_subview') || 'CARDS';
+        } catch {
+            return 'CARDS';
+        }
+    });
+
+    const handleSetTerminalMobileSubView = (mode) => {
+        setTerminalMobileSubView(mode);
+        try {
+            localStorage.setItem('lbm_mobile_subview', mode);
+        } catch (e) {}
+    };
     const [pinnedMatchIds, setPinnedMatchIds] = useState(() => {
         try {
             const saved = localStorage.getItem('lbm_pinned_matches');
@@ -410,6 +424,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         setIsScanningResults(true);
         try {
             await smartAlertService.resolveFinishedAlerts();
+            smartAlertService.reEvaluateFinishedAlerts();
             setAlertHistoryList(smartAlertService.getHistory(50));
             setTrackingStats(predictionTracker.getStats());
         } catch (e) {
@@ -2950,8 +2965,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#f8fafc' }}>
                             {groupedMatches.length} <span style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 600 }}>{lang === 'tr' ? 'Maç' : 'Matches'}</span>
                         </div>
-                        <div style={{ fontSize: '0.7rem', opacity: 0.5, marginTop: '0.2rem' }}>
-                            {trendingBets.length} {lang === 'tr' ? 'farklı trend pazarında' : 'trending market lines'}
+                        <div style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.2rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                            <span style={{ color: '#34d399', fontWeight: 700 }}>● {approvedCount + trapCount} {lang === 'tr' ? 'Canlı Radarda' : 'in Radar'}</span>
+                            <span style={{ opacity: 0.4 }}>|</span>
+                            <span style={{ color: '#38bdf8', fontWeight: 700 }}>● {marketCount + cautionCount} {lang === 'tr' ? 'Radar Dışı' : 'Outside Radar'}</span>
                         </div>
                     </div>
 
@@ -2963,7 +2980,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {approvedCount}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#34d399', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'DQS ≥ 0.50 & Yüksek Saha Baskısı' : 'DQS ≥ 0.50 & Strong Pitch Pressure'}
+                            {lang === 'tr' ? 'Canlı Radarda & DQS ≥ 0.50' : 'In Live Radar & DQS ≥ 0.50'}
                         </div>
                     </div>
 
@@ -2987,7 +3004,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {marketCount + cautionCount}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Avrupa 5 dk Bahis Hacmi' : 'European 5 min Volume'}
+                            {lang === 'tr' ? 'Avrupa Hacmi (Radar Dışı / Alt Lig)' : 'European Volume (Outside Radar)'}
                         </div>
                     </div>
                 </div>
@@ -4609,6 +4626,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     </select>
                                 </div>
                             )}
+
+                            {/* Mobile Sub-View Switcher: [ 📱 Kartlar | 📋 Tablo ] */}
+                            {displayViewMode === 'TERMINAL' && (
+                                <div className="tb-mobile-view-toggle">
+                                    <button
+                                        type="button"
+                                        className={`tb-sub-btn ${terminalMobileSubView === 'CARDS' ? 'active' : ''}`}
+                                        onClick={() => handleSetTerminalMobileSubView('CARDS')}
+                                        title={lang === 'tr' ? 'Mobil Net Kart Görünümü' : 'Mobile Cards View'}
+                                    >
+                                        <span>📱</span>
+                                        <span>{lang === 'tr' ? 'Kartlar' : 'Cards'}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-sub-btn ${terminalMobileSubView === 'TABLE' ? 'active' : ''}`}
+                                        onClick={() => handleSetTerminalMobileSubView('TABLE')}
+                                        title={lang === 'tr' ? 'Genişletilmiş Tablo Görünümü' : 'Full Table View'}
+                                    >
+                                        <span>📋</span>
+                                        <span>{lang === 'tr' ? 'Tablo' : 'Table'}</span>
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Search Box */}
@@ -4664,9 +4705,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     type="button"
                                     className={`tb-chip ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
                                     onClick={() => setTerminalCategoryFilter('TREND')}
+                                    title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
                                 >
                                     <span>📈</span>
-                                    <span>{lang === 'tr' ? 'Piyasa Trendleri' : 'Market Trends'}</span>
+                                    <span>{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
                                     <span className="tb-chip-count">
                                         {enforcedMatches.filter(filterByTier).filter(m => {
                                             return (trendingBets || []).some(tb => 
@@ -4731,6 +4773,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 togglePinMatch={togglePinMatch}
                                 AttackMomentumGraph={AttackMomentumGraph}
                                 MatchIncidentsTimeline={MatchIncidentsTimeline}
+                                mobileTableMode={terminalMobileSubView === 'TABLE'}
                             />
 
                             <LiveTerminalMobile
@@ -4747,6 +4790,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 pinnedMatchIds={pinnedMatchIds}
                                 togglePinMatch={togglePinMatch}
                                 AttackMomentumGraph={AttackMomentumGraph}
+                                MatchIncidentsTimeline={MatchIncidentsTimeline}
+                                hideInTableMode={terminalMobileSubView === 'TABLE'}
                             />
 
                             {/* Global AI Section */}
@@ -6691,11 +6736,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.2rem' }}>
                                                         <div>
                                                             {alert.status === 'WON' ? (
-                                                                <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>
+                                                                <span
+                                                                    onClick={() => {
+                                                                        smartAlertService.updateAlertResult(alert.id, 'LOST');
+                                                                        setAlertHistoryList(smartAlertService.getHistory(50));
+                                                                    }}
+                                                                    style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
+                                                                    title="Durumu değiştirmek için tıklayın (Kaybetti)"
+                                                                >
                                                                     ✓ KAZANDI
                                                                 </span>
                                                             ) : alert.status === 'LOST' ? (
-                                                                <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>
+                                                                <span
+                                                                    onClick={() => {
+                                                                        smartAlertService.updateAlertResult(alert.id, 'WON');
+                                                                        setAlertHistoryList(smartAlertService.getHistory(50));
+                                                                    }}
+                                                                    style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
+                                                                    title="Durumu değiştirmek için tıklayın (Kazandı)"
+                                                                >
                                                                     ✗ KAYBETTİ
                                                                 </span>
                                                             ) : (

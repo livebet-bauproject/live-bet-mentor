@@ -606,35 +606,16 @@ class TelegramBot {
 
             const marketText = (signal.market || '').toLowerCase();
 
-            // 1. OVER GOALS (Üst)
-            if (marketText.includes('üst') || marketText.includes('over')) {
-                const matchLine = marketText.match(/(\d+\.?\d*)/);
-                const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
-                if (totalGoals > line) {
-                    const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
-                    if (res) resolved.push(res);
-                } else if (isFinished) {
-                    const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
-                    if (res) resolved.push(res);
-                }
-            }
-            // 2. BTTS / KG VAR
-            else if (marketText.includes('karşılıklı') || marketText.includes('kg var') || marketText.includes('btts')) {
-                if (curHome >= 1 && curAway >= 1) {
-                    const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
-                    if (res) resolved.push(res);
-                } else if (isFinished) {
-                    const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
-                    if (res) resolved.push(res);
-                }
-            }
-            // 3. NEXT GOAL (Sıradaki Gol / Comeback / Press)
-            else if (marketText.includes('sıradaki') || marketText.includes('next_goal') || marketText.includes('comeback') || marketText.includes('press') || marketText.includes('dominasyon')) {
-                const homeName = (signal.homeTeam || signal.match?.split(' vs ')[0] || '').toLowerCase();
-                const awayName = (signal.awayTeam || signal.match?.split(' vs ')[1] || '').toLowerCase();
+            // 1. NEXT GOAL (Sıradaki Gol / Comeback / Press) - Evaluate FIRST to prevent team names matching under/over/ev
+            if (marketText.includes('sıradaki') || marketText.includes('next_goal') || marketText.includes('comeback') || marketText.includes('press') || marketText.includes('dominasyon')) {
+                const homeName = (signal.homeTeam || signal.match?.split(' vs ')[0] || '').toLowerCase().trim();
+                const awayName = (signal.awayTeam || signal.match?.split(' vs ')[1] || '').toLowerCase().trim();
 
-                const isHomeTarget = marketText.includes('home') || marketText.includes('ev') || (homeName && marketText.includes(homeName.slice(0, 5)));
-                const isAwayTarget = marketText.includes('away') || marketText.includes('deplasman') || (awayName && marketText.includes(awayName.slice(0, 5)));
+                const mentionsHome = homeName && homeName.length >= 3 && marketText.includes(homeName);
+                const mentionsAway = awayName && awayName.length >= 3 && marketText.includes(awayName);
+
+                const isHomeTarget = mentionsHome || (/\b(home|ev)\b/i.test(marketText) && !mentionsAway);
+                const isAwayTarget = mentionsAway || (/\b(away|deplasman)\b/i.test(marketText) && !mentionsHome);
 
                 if (isHomeTarget && !isAwayTarget) {
                     if (curHome > initHome) {
@@ -667,6 +648,28 @@ class TelegramBot {
                         const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
                         if (res) resolved.push(res);
                     }
+                }
+            }
+            // 2. OVER GOALS (Üst) with word boundary
+            else if (/\b(üst|over)\b/i.test(marketText)) {
+                const matchLine = marketText.match(/(\d+\.?\d*)/);
+                const line = matchLine ? parseFloat(matchLine[1]) : (initHome + initAway + 0.5);
+                if (totalGoals > line) {
+                    const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                } else if (isFinished) {
+                    const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                }
+            }
+            // 3. BTTS / KG VAR
+            else if (marketText.includes('karşılıklı') || marketText.includes('kg var') || marketText.includes('btts')) {
+                if (curHome >= 1 && curAway >= 1) {
+                    const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                    if (res) resolved.push(res);
+                } else if (isFinished) {
+                    const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                    if (res) resolved.push(res);
                 }
             }
             // 4. MATCH FINISHED FALLBACK

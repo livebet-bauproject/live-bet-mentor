@@ -16,7 +16,9 @@ export const LiveTerminalMobile = ({
     bankrollManager = null,
     pinnedMatchIds = new Set(),
     togglePinMatch = () => {},
-    AttackMomentumGraph = null
+    AttackMomentumGraph = null,
+    MatchIncidentsTimeline = null,
+    hideInTableMode = false
 }) => {
     const [expandedMatchId, setExpandedMatchId] = useState(null);
 
@@ -28,12 +30,21 @@ export const LiveTerminalMobile = ({
         onSelectMatch(match);
     };
 
-    const formatScore = (score) => {
-        if (!score) return '0 - 0';
+    const parseScores = (score) => {
+        if (!score && score !== 0) return { home: '0', away: '0' };
         if (typeof score === 'object') {
-            return `${score.home ?? 0} - ${score.away ?? 0}`;
+            return { home: String(score.home ?? 0), away: String(score.away ?? 0) };
         }
-        return score;
+        const str = String(score).trim();
+        if (str.includes('-')) {
+            const parts = str.split('-');
+            return { home: parts[0].trim(), away: parts[1].trim() };
+        }
+        if (str.includes(':')) {
+            const parts = str.split(':');
+            return { home: parts[0].trim(), away: parts[1].trim() };
+        }
+        return { home: str, away: '' };
     };
 
     const formatMinute = (minute) => {
@@ -72,7 +83,7 @@ export const LiveTerminalMobile = ({
     }
 
     return (
-        <div className="tb-mobile-stream">
+        <div className={`tb-mobile-stream ${hideInTableMode ? 'hide-in-table-mode' : ''}`}>
             {matches.map(m => {
                 const isExpanded = expandedMatchId === m.id;
                 const signal = signals[m.id];
@@ -95,9 +106,20 @@ export const LiveTerminalMobile = ({
 
                     const redHome = Number(m.cards?.home?.red || m.stats?.cards?.home?.red || 0);
                     const redAway = Number(m.cards?.away?.red || m.stats?.cards?.away?.red || 0);
+                    const yellowHome = Number(m.cards?.home?.yellow || m.stats?.cards?.home?.yellow || 0);
+                    const yellowAway = Number(m.cards?.away?.yellow || m.stats?.cards?.away?.yellow || 0);
+
+                    const oddsHome = m.odds?.home || m.liveOdds?.home || '-';
+                    const oddsDraw = m.odds?.draw || m.liveOdds?.draw || '-';
+                    const oddsAway = m.odds?.away || m.liveOdds?.away || '-';
+                    const hasOdds = oddsHome !== '-' || oddsDraw !== '-' || oddsAway !== '-';
 
                     const isBetReady = signal?.verdict === 'BET';
                     const isHot = heat >= 75;
+
+                    // Stat coloring discipline matching desktop
+                    const daAlertClass = daDiff >= 20 ? 'alert-red' : daDiff >= 12 ? 'alert-amber' : 'neutral';
+                    const heatAlertClass = heat >= 75 ? 'alert-red' : heat >= 55 ? 'alert-amber' : 'neutral';
 
                     // European Market Flow / Trending Bets
                     const matchTrendingBets = (trendingBets || []).filter(tb => 
@@ -116,13 +138,15 @@ export const LiveTerminalMobile = ({
                     const isTrendTrap = hasTrend && dqsVal < 0.40;
                     const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
 
+                    const scores = parseScores(m.score);
+
                     return (
                         <div
                             key={m.id}
-                            className={`tb-mobile-card ${isBetReady ? 'bet-border' : isHot ? 'hot-border' : ''}`}
+                            className={`tb-mobile-card ${isBetReady ? 'bet-border' : isHot ? 'hot-border' : ''} ${isExpanded ? 'expanded' : ''}`}
                             onClick={(e) => handleCardClick(m, e)}
                         >
-                            {/* Line 1: Meta, Minute, League & Score */}
+                            {/* Line 1: Header (Pin, Minute, League, Heat & Caret) */}
                             <div className="tb-m-row-1">
                                 <div className="tb-m-min-league">
                                     <button
@@ -131,97 +155,153 @@ export const LiveTerminalMobile = ({
                                         style={{
                                             background: 'transparent',
                                             border: 'none',
-                                            color: isPinned ? '#facc15' : 'rgba(255,255,255,0.2)',
-                                            fontSize: '0.75rem',
-                                            padding: 0,
+                                            color: isPinned ? '#facc15' : 'rgba(255,255,255,0.25)',
+                                            fontSize: '0.9rem',
+                                            padding: '0 2px',
                                             cursor: 'pointer'
                                         }}
+                                        title={isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
                                     >
                                         ★
                                     </button>
                                     <span className="tb-m-min">
-                                        <span className="tb-pulse-dot" style={{ display: 'inline-block', marginRight: '3px' }} />
+                                        <span className="tb-pulse-dot" style={{ display: 'inline-block', marginRight: '4px' }} />
                                         {formatMinute(m.minute)}
                                     </span>
                                     <span className="tb-m-league">
+                                        <span style={{ opacity: 0.6, marginRight: '3px' }}>T{m.tier || 1}</span>
                                         {m.league || m.leagueName || 'Futbol'}
                                     </span>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span
                                         className={`tb-heat-badge tb-heat-${(heatLevel || 'soguk').toLowerCase()}`}
-                                        style={{ fontSize: '0.66rem', padding: '1px 6px' }}
                                         title={`Isı Skoru: ${heatScore} • Seviye: ${heatLevel}`}
                                     >
                                         {heatIcon} {heatScore} {heatLevel}
                                     </span>
-                                    <span className="tb-m-score">
-                                        {formatScore(m.score)}
+                                    <span
+                                        style={{
+                                            fontSize: '0.72rem',
+                                            color: 'var(--tb-text-muted)',
+                                            transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                            transition: 'transform 0.2s ease',
+                                            display: 'inline-block'
+                                        }}
+                                    >
+                                        ▼
                                     </span>
                                 </div>
                             </div>
 
-                            {/* Line 2: Teams */}
-                            <div className="tb-m-row-2">
-                                <div className="tb-m-teams">
-                                    <span style={{ fontWeight: 700, color: 'var(--tb-text-primary)' }}>{m.homeTeam}</span>
-                                    {redHome > 0 && <span className="tb-card-badge tb-card-red">{redHome}</span>}
-                                    <span className="vs">-</span>
-                                    <span style={{ fontWeight: 700, color: 'var(--tb-text-primary)' }}>{m.awayTeam}</span>
-                                    {redAway > 0 && <span className="tb-card-badge tb-card-red">{redAway}</span>}
+                            {/* Line 2: Teams & Scores (Clear 2-row layout with cards & scores aligned) */}
+                            <div className="tb-m-match-box">
+                                <div className="tb-m-team-row">
+                                    <div className="tb-m-team-name-group">
+                                        <span className="tb-m-team-name">{m.homeTeam}</span>
+                                        {yellowHome > 0 && <span className="tb-card-badge tb-card-yellow">{yellowHome}</span>}
+                                        {redHome > 0 && <span className="tb-card-badge tb-card-red">{redHome}</span>}
+                                    </div>
+                                    <span className="tb-m-team-score">{scores.home}</span>
                                 </div>
-                                {hasTrend && (
-                                    <div style={{ marginTop: '3px', display: 'flex', alignItems: 'center' }}>
-                                        <span
-                                            className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
-                                            style={{ fontSize: '0.62rem', padding: '1px 5px' }}
-                                        >
-                                            <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
-                                            <span style={{ fontWeight: 800 }}>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : 'SMART:') : isTrendTrap ? (lang === 'tr' ? 'TUZAK:' : 'TRAP:') : (lang === 'tr' ? 'PİYASA:' : 'FLOW:')}</span>
-                                            <span className="tb-trend-pred" style={{ fontSize: '0.62rem', padding: '0 4px' }}>
-                                                {marketPrediction}
+                                <div className="tb-m-team-row">
+                                    <div className="tb-m-team-name-group">
+                                        <span className="tb-m-team-name">{m.awayTeam}</span>
+                                        {yellowAway > 0 && <span className="tb-card-badge tb-card-yellow">{yellowAway}</span>}
+                                        {redAway > 0 && <span className="tb-card-badge tb-card-red">{redAway}</span>}
+                                    </div>
+                                    <span className="tb-m-team-score">{scores.away}</span>
+                                </div>
+                            </div>
+
+                            {/* Line 3: European Market Flow / Akıllı Para Pill (Dedicated full-width line) */}
+                            {hasTrend && (
+                                <div className="tb-m-trend-bar">
+                                    <span className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}>
+                                        <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
+                                        <span style={{ fontWeight: 900 }}>
+                                            {isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : 'SMART MONEY:') : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : 'TRAP ALERT:') : (lang === 'tr' ? 'PİYASA AKIŞI:' : 'MARKET INFLUX:')}
+                                        </span>
+                                        <span className="tb-trend-pred">{marketPrediction}</span>
+                                        {primaryTrend.odds && (
+                                            <span className="tb-trend-odds">
+                                                @{typeof primaryTrend.odds === 'number' ? primaryTrend.odds.toFixed(2) : primaryTrend.odds}
                                             </span>
-                                            {primaryTrend.odds && (
-                                                <span className="tb-trend-odds">
-                                                    @{typeof primaryTrend.odds === 'number' ? primaryTrend.odds.toFixed(2) : primaryTrend.odds}
-                                                </span>
-                                            )}
-                                            <span style={{ opacity: 0.85 }}>• {totalTrendCount} K</span>
+                                        )}
+                                        <span style={{ opacity: 0.85, fontSize: '0.62rem' }}>• {totalTrendCount} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Line 4: 1X2 Live Odds Row (If available) */}
+                            {hasOdds && (
+                                <div className="tb-m-odds-row">
+                                    <span className="tb-m-odds-label">1X2:</span>
+                                    <span className="tb-m-odds-val">1: <strong>{oddsHome}</strong></span>
+                                    <span className="tb-m-odds-sep">•</span>
+                                    <span className="tb-m-odds-val">X: <strong>{oddsDraw}</strong></span>
+                                    <span className="tb-m-odds-sep">•</span>
+                                    <span className="tb-m-odds-val">2: <strong>{oddsAway}</strong></span>
+                                </div>
+                            )}
+
+                            {/* Line 5: 4-Column Live Stats Grid with Explicit Desktop Labels */}
+                            <div className="tb-m-stats-grid">
+                                {/* Column 1: BASKI / İVME */}
+                                <div className={`tb-m-stat-cell ${heatAlertClass}`}>
+                                    <span className="tb-m-stat-label">{lang === 'tr' ? 'BASKI/İVME' : 'PRESSURE'}</span>
+                                    <span className="tb-m-stat-value">%{heat}</span>
+                                </div>
+
+                                {/* Column 2: ŞUT (İSB) */}
+                                <div className="tb-m-stat-cell">
+                                    <span className="tb-m-stat-label">{lang === 'tr' ? 'ŞUT (İSB)' : 'SOG'}</span>
+                                    <span className="tb-m-stat-value">{sogHome} - {sogAway}</span>
+                                </div>
+
+                                {/* Column 3: T.ATAK */}
+                                <div className={`tb-m-stat-cell ${daAlertClass}`}>
+                                    <span className="tb-m-stat-label">{lang === 'tr' ? 'T.ATAK' : 'D.ATTACK'}</span>
+                                    <span className="tb-m-stat-value">{daHome} - {daAway}</span>
+                                </div>
+
+                                {/* Column 4: xG */}
+                                <div className="tb-m-stat-cell xg">
+                                    <span className="tb-m-stat-label">xG</span>
+                                    <span className="tb-m-stat-value">
+                                        {(xgHome > 0 || xgAway > 0) ? `${xgHome.toFixed(1)} - ${xgAway.toFixed(1)}` : '-'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Line 6: AI Signal & DQS Footer */}
+                            <div className="tb-m-footer">
+                                {isBetReady ? (
+                                    <span className="tb-signal-badge tb-signal-bet" style={{ width: '100%', justifyContent: 'center' }}>
+                                        ✓ {getPredictionDisplay(m, signal)}
+                                    </span>
+                                ) : isHot ? (
+                                    <span className="tb-signal-badge tb-signal-hot" style={{ width: '100%', justifyContent: 'center' }}>
+                                        🔥 {lang === 'tr' ? `ALEV BASKI (%${heat})` : `BURNING PRESSURE (%${heat})`}
+                                    </span>
+                                ) : (m.dqs || 0) >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60) ? (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.7rem' }}>
+                                        <span style={{ color: 'var(--tb-text-muted)' }}>
+                                            AI DQS: <strong style={{ color: '#38bdf8' }}>{(m.dqs || 0).toFixed(2)}</strong>
+                                        </span>
+                                        <span style={{ color: '#34d399', fontWeight: 700, fontSize: '0.68rem' }}>
+                                            ● {lang === 'tr' ? 'Tempolu' : 'Active'}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
+                                        <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
+                                        <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                                            {t?.verdict_pass || 'PAS'}
                                         </span>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Line 3: Compact Stats & Sinyal Badge */}
-                            <div className="tb-m-row-3">
-                                <div className="tb-m-stats-cluster">
-                                    <span title="İsabetli Şut">🎯 {sogHome}-{sogAway}</span>
-                                    <span title="Tehlikeli Atak" style={{ color: daDiff >= 15 ? '#f87171' : 'inherit' }}>
-                                        ⚡ {daHome}-{daAway}
-                                    </span>
-                                    {(xgHome > 0 || xgAway > 0) && (
-                                        <span style={{ color: '#fbbf24' }}>
-                                            xG {xgHome.toFixed(1)}-{xgAway.toFixed(1)}
-                                        </span>
-                                    )}
-                                </div>
-
-                                <div>
-                                    {isBetReady ? (
-                                        <span className="tb-signal-badge tb-signal-bet" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
-                                            ✓ {getPredictionDisplay(m, signal)}
-                                        </span>
-                                    ) : isHot ? (
-                                        <span className="tb-signal-badge tb-signal-hot" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
-                                            🔥 ALEV
-                                        </span>
-                                    ) : (
-                                        <span style={{ fontSize: '0.65rem', color: 'var(--tb-text-muted)' }}>
-                                            DQS {(m.dqs || 0).toFixed(2)}
-                                        </span>
-                                    )}
-                                </div>
                             </div>
 
                             {/* Mobile Drawer on Click */}
@@ -234,6 +314,13 @@ export const LiveTerminalMobile = ({
                                                 📈 Canlı Baskı Grafiği
                                             </div>
                                             <AttackMomentumGraph match={m} />
+                                        </div>
+                                    )}
+
+                                    {/* Match Incidents Timeline */}
+                                    {MatchIncidentsTimeline && (
+                                        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '8px' }}>
+                                            <MatchIncidentsTimeline match={m} />
                                         </div>
                                     )}
 

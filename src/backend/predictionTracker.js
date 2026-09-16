@@ -313,43 +313,60 @@ class PredictionTracker {
      * Evaluate if prediction was correct
      */
     evaluateResult(prediction, finalScore) {
-        const { market, prediction: pred } = prediction;
-        const homeGoals = finalScore.home;
-        const awayGoals = finalScore.away;
+        const { market = '', prediction: pred = '' } = prediction;
+        const marketStr = `${market} ${pred}`;
+        const homeGoals = Number(finalScore?.home ?? 0);
+        const awayGoals = Number(finalScore?.away ?? 0);
         const totalGoals = homeGoals + awayGoals;
 
-        // Over/Under markets
-        if (market.includes('Üst') || market.includes('Over')) {
-            const line = parseFloat(market.match(/(\d+\.?\d*)/)?.[1] || 0);
+        // 1. Next Goal market (check FIRST to avoid team names like Sunderland matching "under" or Hannover matching "over")
+        if (marketStr.includes('Sıradaki') || marketStr.includes('Next Goal') || marketStr.includes('Golü')) {
+            const home = (prediction.homeTeam || '').toLowerCase();
+            const away = (prediction.awayTeam || '').toLowerCase();
+            const targetHome = (home && home.length >= 3 && marketStr.toLowerCase().includes(home)) || /\b(Ev|Home)\b/i.test(marketStr);
+            const targetAway = (away && away.length >= 3 && marketStr.toLowerCase().includes(away)) || /\b(Deplasman|Away)\b/i.test(marketStr);
+
+            if (targetHome && !targetAway) {
+                return homeGoals > 0 ? 'WON' : (totalGoals > 0 ? 'LOST' : 'PENDING');
+            }
+            if (targetAway && !targetHome) {
+                return awayGoals > 0 ? 'WON' : (totalGoals > 0 ? 'LOST' : 'PENDING');
+            }
+            return totalGoals > 0 ? 'WON' : 'PENDING';
+        }
+
+        // 2. Over/Under markets with strict word boundaries
+        if (/\b(Üst|Over)\b/i.test(marketStr)) {
+            const line = parseFloat(marketStr.match(/(\d+\.?\d*)/)?.[1] || 0);
             return totalGoals > line ? 'WON' : 'LOST';
         }
 
-        if (market.includes('Alt') || market.includes('Under')) {
-            const line = parseFloat(market.match(/(\d+\.?\d*)/)?.[1] || 0);
+        if (/\b(Alt|Under)\b/i.test(marketStr)) {
+            const line = parseFloat(marketStr.match(/(\d+\.?\d*)/)?.[1] || 0);
             return totalGoals < line ? 'WON' : 'LOST';
         }
 
-        // Home/Away Win
-        if (market.includes('Ev') || market.includes('Home') || market === '1') {
-            return homeGoals > awayGoals ? 'WON' : 'LOST';
-        }
-
-        if (market.includes('Deplasman') || market.includes('Away') || market === '2') {
-            return awayGoals > homeGoals ? 'WON' : 'LOST';
-        }
-
-        // Draw
-        if (market.includes('Berabere') || market.includes('Draw') || market === 'X') {
-            return homeGoals === awayGoals ? 'WON' : 'LOST';
-        }
-
-        // BTTS (Both Teams To Score)
-        if (market.includes('KG Var') || market.includes('BTTS Yes')) {
+        // 3. Both Teams To Score (BTTS)
+        if (marketStr.includes('KG Var') || marketStr.includes('BTTS Yes') || marketStr.includes('Karşılıklı')) {
             return homeGoals > 0 && awayGoals > 0 ? 'WON' : 'LOST';
         }
 
-        if (market.includes('KG Yok') || market.includes('BTTS No')) {
+        if (marketStr.includes('KG Yok') || marketStr.includes('BTTS No')) {
             return homeGoals === 0 || awayGoals === 0 ? 'WON' : 'LOST';
+        }
+
+        // 4. Home/Away Win with strict word boundaries
+        if (/\b(Ev|Home)\b/i.test(market) || market === '1') {
+            return homeGoals > awayGoals ? 'WON' : 'LOST';
+        }
+
+        if (/\b(Deplasman|Away)\b/i.test(market) || market === '2') {
+            return awayGoals > homeGoals ? 'WON' : 'LOST';
+        }
+
+        // 5. Draw
+        if (/\b(Berabere|Draw)\b/i.test(market) || market === 'X') {
+            return homeGoals === awayGoals ? 'WON' : 'LOST';
         }
 
         return 'PENDING';
@@ -394,11 +411,12 @@ class PredictionTracker {
         const byMarket = {};
         resolved.forEach(p => {
             let marketType = 'OTHER';
-            if (p.market.includes('Üst') || p.market.includes('Over')) marketType = 'OVER';
-            else if (p.market.includes('Alt') || p.market.includes('Under')) marketType = 'UNDER';
-            else if (p.market.includes('Ev') || p.market.includes('Home') || p.market === '1') marketType = 'HOME';
-            else if (p.market.includes('Deplasman') || p.market.includes('Away') || p.market === '2') marketType = 'AWAY';
-            else if (p.market.includes('Gol')) marketType = 'NEXT_GOAL';
+            const m = p.market || '';
+            if (m.includes('Gol') || m.includes('Sıradaki') || m.includes('Next Goal')) marketType = 'NEXT_GOAL';
+            else if (/\b(Üst|Over)\b/i.test(m)) marketType = 'OVER';
+            else if (/\b(Alt|Under)\b/i.test(m)) marketType = 'UNDER';
+            else if (/\b(Ev|Home)\b/i.test(m) || m === '1') marketType = 'HOME';
+            else if (/\b(Deplasman|Away)\b/i.test(m) || m === '2') marketType = 'AWAY';
 
             if (!byMarket[marketType]) byMarket[marketType] = { won: 0, total: 0 };
             byMarket[marketType].total++;
