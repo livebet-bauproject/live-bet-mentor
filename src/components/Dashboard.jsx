@@ -773,6 +773,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const data = match?.observations?.bayesian;
         if (!data || (!isAdmin && userProfile?.plan !== 'premium') || !advancedSettings.BAYESIAN_PRICING) return null;
 
+        const confidenceMap = {
+            'LOW': t.confidence_low || (lang === 'tr' ? 'DÜŞÜK' : 'LOW'),
+            'MEDIUM': t.confidence_medium || (lang === 'tr' ? 'ORTA' : 'MEDIUM'),
+            'HIGH': t.confidence_high || (lang === 'tr' ? 'YÜKSEK' : 'HIGH')
+        };
+
         return (
             <div className="grid-col" style={{ gridColumn: 'span 3', marginTop: '1.5rem' }}>
                 <div className="stats-card" style={{
@@ -782,19 +788,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h3 style={{ margin: 0, color: 'var(--accent-color)', fontSize: '0.9rem' }}>
-                            <span style={{ marginRight: '0.5rem' }}>🧠</span> BAYESIAN INTELLIGENCE
+                            <span style={{ marginRight: '0.5rem' }}>🧠</span> {t.bayesian_intelligence || 'BAYESÇİ OLASILIK İNTELİJANSI'}
                         </h3>
-                        <div style={{ background: 'var(--accent-color)', color: '#000', fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900 }}>PRODUCTION ENGINE</div>
+                        <div style={{ background: 'var(--accent-color)', color: '#000', fontSize: '0.6rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900 }}>
+                            {t.production_engine || 'CANLI ÜRETİM MOTORU'}
+                        </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '2rem', alignItems: 'center' }}>
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>PRIOR PROB</div>
+                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
+                                {t.prior_prob || (lang === 'tr' ? 'BAŞLANGIÇ (ÖNCÜL)' : 'PRIOR PROB')}
+                            </div>
                             <div style={{ fontSize: '1.2rem', fontWeight: 800 }}>%{(data.prior * 100).toFixed(0)}</div>
                         </div>
 
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '1rem' }}>POSTERIOR (REFINED)</div>
+                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '1rem' }}>
+                                {t.posterior_refined || (lang === 'tr' ? 'GÜNCEL OLASILIK (SONCUL)' : 'POSTERIOR (REFINED)')}
+                            </div>
                             <div style={{ position: 'relative', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <svg width="100" height="60" viewBox="0 0 100 60">
                                     <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
@@ -807,19 +819,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
 
                         <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>IMPACT</div>
+                            <div style={{ fontSize: '0.6rem', opacity: 0.5, marginBottom: '0.5rem' }}>
+                                {t.impact || (lang === 'tr' ? 'DİNAMİK ETKİ' : 'IMPACT')}
+                            </div>
                             <div style={{ fontSize: '1.2rem', fontWeight: 800, color: data.impact > 0 ? 'var(--success-color)' : (data.impact < 0 ? 'var(--danger-color)' : '#fff') }}>
                                 {data.impact > 0 ? `+${(data.impact * 100).toFixed(1)}%` : `${(data.impact * 100).toFixed(1)}%`}
                             </div>
                         </div>
                     </div>
 
-                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem' }}>
-                        <div style={{ display: 'flex', gap: '1rem' }}>
-                            <span style={{ opacity: 0.6 }}>CONFIDENCE:</span>
-                            <span style={{ color: data.confidence === 'HIGH' ? 'var(--success-color)' : 'var(--warning-color)', fontWeight: 800 }}>{data.confidence}</span>
+                    <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                            <span style={{ opacity: 0.6 }}>{t.confidence_label || (lang === 'tr' ? 'GÜVEN DERECESİ:' : 'CONFIDENCE:')}:</span>
+                            <span style={{ color: data.confidence === 'HIGH' ? 'var(--success-color)' : 'var(--warning-color)', fontWeight: 800 }}>
+                                {confidenceMap[data.confidence] || data.confidence}
+                            </span>
                         </div>
-                        <div style={{ opacity: 0.6, fontStyle: 'italic' }}>Evidence update based on DQS, Momentum & xG support.</div>
+                        <div style={{ opacity: 0.6, fontStyle: 'italic' }}>
+                            {t.evidence_update || (lang === 'tr' ? 'DQS, Saha Momentumu ve xG verileriyle dinamik olarak güncellenir.' : 'Evidence update based on DQS, Momentum & xG support.')}
+                        </div>
                     </div>
                 </div>
             </div>
