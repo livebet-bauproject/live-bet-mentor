@@ -3966,496 +3966,327 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             const heatStyle = heatColors[opp.heatLevel] || heatColors.SOGUK;
                             const isTop = idx === 0 && opp.heatLevel === 'ALEV' && !isCompact;
 
+                            if (isCompact) {
+                                return (
+                                    <div
+                                        key={opp.matchId}
+                                        onClick={() => setSelectedMatch(match)}
+                                        className="opp-card-container"
+                                        style={{
+                                            padding: '0.75rem 1rem',
+                                            background: 'rgba(15, 23, 42, 0.45)',
+                                            border: '1px solid rgba(255,255,255,0.06)',
+                                            opacity: 0.8
+                                        }}
+                                    >
+                                        <div className="opp-meta-row">
+                                            <div className="opp-meta-left">
+                                                <div className="opp-rank-badge" style={{ background: heatStyle.text }}>
+                                                    #{idx + 1}
+                                                </div>
+                                                {(match.league || match.leagueName) && (
+                                                    <span className="opp-league-pill">
+                                                        {match.league || match.leagueName}
+                                                    </span>
+                                                )}
+                                                <div className="opp-minute-pill">
+                                                    {renderMatchMinute(match.minute, t, false)}
+                                                </div>
+                                            </div>
+                                            <div className="opp-meta-right">
+                                                <div className="opp-heat-pill" style={{ color: heatStyle.text }}>
+                                                    <span>{opp.score}</span>
+                                                    <span style={{ fontSize: '0.58rem', opacity: 0.8 }}>{opp.heatLevel}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="opp-teams-hero" style={{ padding: '0.1rem 0' }}>
+                                            <div className="opp-team-side home">
+                                                <span className="opp-team-name">{match.homeTeam}</span>
+                                            </div>
+                                            <div className="opp-score-box" style={{ fontSize: '1rem', padding: '2px 10px' }}>
+                                                <span>{match.score?.home ?? 0}</span>
+                                                <span className="opp-score-divider">-</span>
+                                                <span>{match.score?.away ?? 0}</span>
+                                            </div>
+                                            <div className="opp-team-side away">
+                                                <span className="opp-team-name">{match.awayTeam}</span>
+                                            </div>
+                                        </div>
+                                        <div style={{ fontSize: '0.62rem', color: '#94a3b8', textAlign: 'center', opacity: 0.7 }}>
+                                            ⏳ Derin İstatistikler Yükleniyor...
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            // Full Non-Compact Card
+                            const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
+                            const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
+                            const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
+                            const sogAway = Number(match.stats?.shotsOnGoal?.away || 0);
+                            const cornersHome = Number(match.stats?.corners?.home || 0);
+                            const cornersAway = Number(match.stats?.corners?.away || 0);
+                            const xgHome = Number(match.stats?.xg?.home || 0);
+                            const xgAway = Number(match.stats?.xg?.away || 0);
+                            const pressHome = Number(match.observations?.pressure?.home || 0);
+                            const pressAway = Number(match.observations?.pressure?.away || 0);
+                            const velocityTrend = match.observations?.velocity?.trend || 'STABLE';
+
+                            // Weighted Attack Pressure Index
+                            const homePower = (daHome * 1.0) + (sogHome * 3.5) + (cornersHome * 1.5) + (xgHome * 15) + (pressHome * 0.5);
+                            const awayPower = (daAway * 1.0) + (sogAway * 3.5) + (cornersAway * 1.5) + (xgAway * 15) + (pressAway * 0.5);
+                            const totalPower = homePower + awayPower;
+
+                            let homePct = 50;
+                            if (totalPower > 0) {
+                                homePct = Math.min(88, Math.max(12, Math.round((homePower / totalPower) * 100)));
+                            } else if (daHome + daAway > 0) {
+                                homePct = Math.round((daHome / (daHome + daAway)) * 100);
+                            }
+                            const awayPct = 100 - homePct;
+
+                            const isHomeHeavy = homePct >= 62;
+                            const isAwayHeavy = awayPct >= 62;
+                            const isHot = velocityTrend === 'HOT';
+                            const odds = (match.matchedOdds && match.matchedOdds.home) ? match.matchedOdds : opp.oddsInfo;
+
                             return (
                                 <div
                                     key={opp.matchId}
                                     onClick={() => setSelectedMatch(match)}
+                                    className="opp-card-container"
                                     style={{
-                                        padding: isCompact ? '0.8rem 1rem' : '1.2rem',
-                                        background: isCompact ? 'rgba(15, 23, 42, 0.3)' : heatStyle.bg,
-                                        border: `1px solid ${isCompact ? 'rgba(255,255,255,0.05)' : heatStyle.border}`,
-                                        borderRadius: '16px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.3s ease',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        opacity: isCompact ? 0.7 : 1,
+                                        background: heatStyle.bg,
+                                        border: `1px solid ${heatStyle.border}`,
                                         animation: isTop ? 'pulse 2s infinite' : 'none'
                                     }}
                                 >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: isCompact ? 'center' : 'flex-start' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: isCompact ? '0.5rem' : '0.8rem', marginBottom: isCompact ? '0' : '0.5rem' }}>
-                                                {/* Ranking Badge - shows for both compact and non-compact */}
-                                                <div style={{
-                                                    fontSize: isCompact ? '0.6rem' : '0.7rem',
-                                                    fontWeight: 900,
-                                                    color: '#000',
-                                                    background: heatStyle.text,
-                                                    minWidth: isCompact ? '20px' : '24px',
-                                                    height: isCompact ? '20px' : '24px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    borderRadius: isCompact ? '5px' : '6px',
-                                                    flexShrink: 0,
-                                                    boxShadow: isCompact ? '0 2px 4px rgba(0,0,0,0.2)' : 'none'
-                                                }}>
-                                                    #{idx + 1}
-                                                </div>
-                                                {(match.league || match.leagueName) && (
-                                                    <span style={{
-                                                        fontSize: '0.6rem',
-                                                        padding: '1px 6px',
-                                                        borderRadius: '4px',
-                                                        background: 'rgba(255, 255, 255, 0.08)',
-                                                        border: '1px solid rgba(255, 255, 255, 0.14)',
-                                                        color: '#cbd5e1',
-                                                        fontWeight: 700,
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.5px',
-                                                        whiteSpace: 'nowrap'
-                                                    }}>
-                                                        {match.league || match.leagueName}
-                                                    </span>
-                                                )}
-                                                <span style={{ fontWeight: 800, fontSize: isCompact ? '0.85rem' : '1rem', color: isCompact ? '#e2e8f0' : heatStyle.text, display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                                                    <span>{match.homeTeam}</span>
-                                                    {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
-                                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900, lineHeight: '1.2', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}>
-                                                            🟥 {(match.cards?.home?.red || match.stats?.cards?.home?.red)}
-                                                        </span>
-                                                    )}
-                                                    <span style={{ opacity: 0.35, margin: '0 3px' }}>vs</span>
-                                                    <span>{match.awayTeam}</span>
-                                                    {((match.cards?.away?.red || 0) > 0 || (match.stats?.cards?.away?.red || 0) > 0) && (
-                                                        <span style={{ background: '#ef4444', color: '#fff', fontSize: '0.6rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900, lineHeight: '1.2', display: 'inline-flex', alignItems: 'center', gap: '2px', verticalAlign: 'middle' }}>
-                                                            🟥 {(match.cards?.away?.red || match.stats?.cards?.away?.red)}
-                                                        </span>
-                                                    )}
+                                    {/* 1. Meta Row: Rank, League, Minute, Heat, Telegram */}
+                                    <div className="opp-meta-row">
+                                        <div className="opp-meta-left">
+                                            <div className="opp-rank-badge" style={{ background: heatStyle.text }}>
+                                                #{idx + 1}
+                                            </div>
+                                            {(match.league || match.leagueName) && (
+                                                <span className="opp-league-pill">
+                                                    {match.league || match.leagueName}
                                                 </span>
-                                                {opp.valueDetected && (
-                                                    <span style={{
-                                                        background: 'linear-gradient(135deg, #10b981, #34d399)',
-                                                        padding: '0.1rem 0.4rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.5rem',
-                                                        fontWeight: 900,
-                                                        color: '#000'
-                                                    }} title={lang === 'tr' ? 'Büronun açtığı oran, yapay zekanın hesapladığı gerçek olasılıktan daha karlı / değerli' : 'Implied odds value detected'}>
-                                                        {lang === 'tr' ? '💰 DEĞERLİ ORAN' : '💰 VALUE'}
-                                                    </span>
-                                                )}
-                                                {opp.smartMoney?.active && (
-                                                    <span style={{
-                                                        background: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
-                                                        padding: '0.1rem 0.4rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.5rem',
-                                                        fontWeight: 900,
-                                                        color: '#fff',
-                                                        marginLeft: '4px'
-                                                    }} title={lang === 'tr' ? `Profesyonel/yüklü bahis girişi sebebiyle oran %${opp.smartMoney.dropPct.toFixed(0)} düştü` : `Sharp money flow dropped odds by ${opp.smartMoney.dropPct.toFixed(0)}%`}>
-                                                        {lang === 'tr' ? `📉 BÜYÜK PARA GİRİŞİ (-%${opp.smartMoney.dropPct.toFixed(0)})` : `📉 SMART MONEY (-%${opp.smartMoney.dropPct.toFixed(0)})`}
-                                                    </span>
-                                                )}
-                                                {opp.isTrap && (
-                                                    <span style={{
-                                                        background: 'rgba(239, 68, 68, 0.2)',
-                                                        border: '1px solid #ef4444',
-                                                        padding: '0.1rem 0.4rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.5rem',
-                                                        fontWeight: 900,
-                                                        color: '#ef4444',
-                                                        marginLeft: '4px'
-                                                    }} title={lang === 'tr' ? 'Saha baskısına rağmen büro oranları şüpheli şekilde yükseliyor (tuzak riski)' : 'Odds drifting despite on-pitch pressure'}>
-                                                        {lang === 'tr' ? '⚠️ TUZAK ORAN' : '⚠️ TRAP ODDS'}
-                                                    </span>
-                                                )}
-                                                {opp.hasValueEV && opp.bestEV && (
-                                                    <span style={{
-                                                        background: 'linear-gradient(135deg, #a855f7, #6366f1)',
-                                                        padding: '0.1rem 0.4rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.5rem',
-                                                        fontWeight: 900,
-                                                        color: '#fff',
-                                                        marginLeft: '4px',
-                                                        boxShadow: '0 0 8px rgba(168, 85, 247, 0.4)'
-                                                    }} title={lang === 'tr' ? 'Matematiksel olarak pozitif beklenen değere (+EV) sahip oran' : 'Positive Expected Value (+EV)'}>
-                                                        {lang === 'tr' ? `💎 KAZANÇLI ORAN (+EV %${opp.bestEV.ev})` : `💎 +EV %${opp.bestEV.ev} (${opp.bestEV.label})`}
-                                                    </span>
-                                                )}
-                                                {opp.hasLatencyEdge && opp.latencyEdge && (
-                                                    <span style={{
-                                                        background: 'linear-gradient(135deg, #eab308, #f97316)',
-                                                        padding: '0.1rem 0.4rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.5rem',
-                                                        fontWeight: 900,
-                                                        color: '#000',
-                                                        marginLeft: '4px',
-                                                        boxShadow: '0 0 10px rgba(234, 179, 8, 0.6)'
-                                                    }} title={lang === 'tr' ? 'Canlı radar verisi büro oranından önce gol/baskı sinyali yakaladı' : 'Latency arbitrage edge'}>
-                                                        {lang === 'tr' ? `⚡ RADAR HIZI (+%${opp.latencyEdge.discrepancyPct})` : `⚡ GECİKME (+%${opp.latencyEdge.discrepancyPct})`}
-                                                    </span>
-                                                )}
-                                                {opp.cashOutWarning && (
-                                                    <span style={{
-                                                        background: 'linear-gradient(135deg, #ef4444, #991b1b)',
-                                                        padding: '0.1rem 0.45rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.5rem',
-                                                        fontWeight: 900,
-                                                        color: '#fff',
-                                                        marginLeft: '4px',
-                                                        boxShadow: '0 0 10px rgba(239, 68, 68, 0.6)',
-                                                        animation: 'pulse 1.5s infinite'
-                                                    }} title={opp.cashOutWarning.reason}>
-                                                        {lang === 'tr' ? '🛡️ BAHİS BOZDUR' : '🛡️ CASHOUT'}
-                                                    </span>
-                                                )}
-                                                {opp.isLowData && (
-                                                    <span style={{
-                                                        background: 'rgba(148, 163, 184, 0.15)',
-                                                        border: '1px solid rgba(148, 163, 184, 0.3)',
-                                                        padding: '0.1rem 0.4rem',
-                                                        borderRadius: '4px',
-                                                        fontSize: '0.55rem',
-                                                        fontWeight: 700,
-                                                        color: '#94a3b8',
-                                                        marginLeft: '4px'
-                                                    }} title="xG veya Tehlikeli Atak verisi bulunmuyor (Sadece temel şut/korner)">
-                                                        ⚠️ Kısıtlı İstatistik
-                                                    </span>
-                                                )}
+                                            )}
+                                            <div className="opp-minute-pill">
+                                                <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', animation: 'pulse 1.5s infinite' }} />
+                                                {renderMatchMinute(match.minute, t, false)}
                                             </div>
-
-                                            {!isCompact && (
-                                                <>
-                                                    <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <span>{renderMatchMinute(match.minute, t, false)} • <span style={{ fontWeight: 800, color: 'var(--accent-color)' }}>{match.score?.home ?? 0} - {match.score?.away ?? 0}</span></span>
-                                                        {opp.isHalftime && (
-                                                            <span style={{
-                                                                background: 'rgba(245, 158, 11, 0.15)',
-                                                                border: '1px solid rgba(245, 158, 11, 0.4)',
-                                                                color: '#fbbf24',
-                                                                fontSize: '0.6rem',
-                                                                padding: '1px 6px',
-                                                                borderRadius: '4px',
-                                                                fontWeight: 800
-                                                            }}>☕ 2. YARI DEĞERİ</span>
-                                                        )}
-                                                        {match.stats?.xg && (
-                                                            <span style={{ color: '#fbbf24', fontSize: '0.7rem' }}>
-                                                                xG: {(Number(match.stats?.xg?.home) || 0).toFixed(1)}-{(Number(match.stats?.xg?.away) || 0).toFixed(1)}
-                                                            </span>
-                                                        )}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', padding: '2px 6px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px' }}>
-                                                            {opp.trend === 'UP' ? <span style={{ color: '#10b981' }}>⬆️</span> : opp.trend === 'DOWN' ? <span style={{ color: '#ef4444' }}>⬇️</span> : <span style={{ opacity: 0.5 }}>➡️</span>}
-                                                            <span style={{ fontSize: '0.6rem', fontWeight: 800 }}>%{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta}</span>
-                                                        </div>
-                                                        <span style={{ fontSize: '0.6rem', opacity: 0.4 }}>({momentumWindow}dk)</span>
-                                                    </div>
-
-                                                    {/* Modern Attack Momentum & Pitch Control Bar */}
-                                                    {(() => {
-                                                        const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
-                                                        const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
-                                                        const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
-                                                        const sogAway = Number(match.stats?.shotsOnGoal?.away || 0);
-                                                        const cornersHome = Number(match.stats?.corners?.home || 0);
-                                                        const cornersAway = Number(match.stats?.corners?.away || 0);
-                                                        const xgHome = Number(match.stats?.xg?.home || 0);
-                                                        const xgAway = Number(match.stats?.xg?.away || 0);
-                                                        const pressHome = Number(match.observations?.pressure?.home || 0);
-                                                        const pressAway = Number(match.observations?.pressure?.away || 0);
-                                                        const velocityTrend = match.observations?.velocity?.trend || 'STABLE';
-
-                                                        // Weighted Attack Pressure Index (Synthesizes dangerous attacks, shots, xG and pressure)
-                                                        const homePower = (daHome * 1.0) + (sogHome * 3.5) + (cornersHome * 1.5) + (xgHome * 15) + (pressHome * 0.5);
-                                                        const awayPower = (daAway * 1.0) + (sogAway * 3.5) + (cornersAway * 1.5) + (xgAway * 15) + (pressAway * 0.5);
-                                                        const totalPower = homePower + awayPower;
-
-                                                        let homePct = 50;
-                                                        if (totalPower > 0) {
-                                                            homePct = Math.min(88, Math.max(12, Math.round((homePower / totalPower) * 100)));
-                                                        } else if (daHome + daAway > 0) {
-                                                            homePct = Math.round((daHome / (daHome + daAway)) * 100);
-                                                        }
-                                                        const awayPct = 100 - homePct;
-
-                                                        const isHomeHeavy = homePct >= 62;
-                                                        const isAwayHeavy = awayPct >= 62;
-                                                        const isHot = velocityTrend === 'HOT';
-
-                                                        return (
-                                                            <div style={{
-                                                                marginBottom: '0.65rem',
-                                                                padding: '0.45rem 0.7rem',
-                                                                background: isHot 
-                                                                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(15, 23, 42, 0.6))'
-                                                                    : 'rgba(0, 0, 0, 0.25)',
-                                                                border: isHot 
-                                                                    ? '1px solid rgba(239, 68, 68, 0.3)' 
-                                                                    : '1px solid rgba(255, 255, 255, 0.04)',
-                                                                borderRadius: '10px',
-                                                                position: 'relative'
-                                                            }}>
-                                                                {/* Top Row: Team Labels & Momentum Status */}
-                                                                <div style={{
-                                                                    display: 'flex',
-                                                                    justifyContent: 'space-between',
-                                                                    alignItems: 'center',
-                                                                    fontSize: '0.62rem',
-                                                                    fontWeight: 800,
-                                                                    marginBottom: '0.35rem'
-                                                                }}>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8' }}>
-                                                                        <span style={{
-                                                                            display: 'inline-block',
-                                                                            width: '6px',
-                                                                            height: '6px',
-                                                                            borderRadius: '50%',
-                                                                            background: '#38bdf8',
-                                                                            boxShadow: isHomeHeavy ? '0 0 8px #38bdf8' : 'none'
-                                                                        }} />
-                                                                        <span>%{homePct}</span>
-                                                                        {isHomeHeavy && <span style={{ fontSize: '0.55rem', opacity: 0.8, color: '#38bdf8' }}>BASKI</span>}
-                                                                    </div>
-
-                                                                    {/* Velocity / Momentum Status Badge */}
-                                                                    <div style={{
-                                                                        fontSize: '0.58rem',
-                                                                        fontWeight: 800,
-                                                                        padding: '1px 6px',
-                                                                        borderRadius: '4px',
-                                                                        background: isHot 
-                                                                            ? 'rgba(239, 68, 68, 0.2)' 
-                                                                            : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.04)'),
-                                                                        color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8'),
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '3px'
-                                                                    }}>
-                                                                        {isHot ? '🔥 RİTİM YÜKSEK' : (isHomeHeavy ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : isAwayHeavy ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : '⚪ DENGELİ TEMPO')}
-                                                                    </div>
-
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8' }}>
-                                                                        {isAwayHeavy && <span style={{ fontSize: '0.55rem', opacity: 0.8, color: '#f43f5e' }}>BASKI</span>}
-                                                                        <span>%{awayPct}</span>
-                                                                        <span style={{
-                                                                            display: 'inline-block',
-                                                                            width: '6px',
-                                                                            height: '6px',
-                                                                            borderRadius: '50%',
-                                                                            background: '#f43f5e',
-                                                                            boxShadow: isAwayHeavy ? '0 0 8px #f43f5e' : 'none'
-                                                                        }} />
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Dual Colored Gradient Momentum Bar */}
-                                                                <div style={{
-                                                                    position: 'relative',
-                                                                    height: '6px',
-                                                                    background: 'rgba(255, 255, 255, 0.06)',
-                                                                    borderRadius: '4px',
-                                                                    overflow: 'hidden',
-                                                                    display: 'flex',
-                                                                    boxShadow: isHomeHeavy 
-                                                                        ? '0 0 10px rgba(56, 189, 248, 0.3)' 
-                                                                        : isAwayHeavy ? '0 0 10px rgba(244, 63, 94, 0.3)' : 'none'
-                                                                }}>
-                                                                    <div style={{
-                                                                        width: `${homePct}%`,
-                                                                        height: '100%',
-                                                                        background: 'linear-gradient(90deg, #0284c7, #38bdf8)',
-                                                                        transition: 'width 0.6s ease'
-                                                                    }} />
-                                                                    <div style={{
-                                                                        position: 'absolute',
-                                                                        left: '50%',
-                                                                        top: 0,
-                                                                        bottom: 0,
-                                                                        width: '1px',
-                                                                        background: 'rgba(255, 255, 255, 0.4)',
-                                                                        zIndex: 2
-                                                                    }} />
-                                                                    <div style={{
-                                                                        width: `${awayPct}%`,
-                                                                        height: '100%',
-                                                                        background: 'linear-gradient(90deg, #f43f5e, #e11d48)',
-                                                                        transition: 'width 0.6s ease'
-                                                                    }} />
-                                                                </div>
-
-                                                                {/* Bottom Row: Micro Metric Badges & Graph Link */}
-                                                                <div style={{
-                                                                    display: 'flex',
-                                                                    justifyContent: 'space-between',
-                                                                    alignItems: 'center',
-                                                                    marginTop: '0.35rem',
-                                                                    fontSize: '0.56rem',
-                                                                    fontWeight: 700,
-                                                                    color: '#94a3b8'
-                                                                }}>
-                                                                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-                                                                        <span title="Kaleyi Bulan Şut" style={{ color: (sogHome > 0 || sogAway > 0) ? '#38bdf8' : 'inherit' }}>
-                                                                            🎯 {sogHome}-{sogAway}
-                                                                        </span>
-                                                                        <span title="Tehlikeli Atak" style={{ color: (daHome > 0 || daAway > 0) ? '#fbbf24' : 'inherit' }}>
-                                                                            ⚔️ {daHome}-{daAway}
-                                                                        </span>
-                                                                        <span title="Kornerler" style={{ color: (cornersHome > 0 || cornersAway > 0) ? '#a78bfa' : 'inherit' }}>
-                                                                            🚩 {cornersHome}-{cornersAway}
-                                                                        </span>
-                                                                        {(xgHome > 0 || xgAway > 0) && (
-                                                                            <span title="Beklenen Gol (xG)" style={{ color: '#34d399', fontWeight: 800 }}>
-                                                                                ⚽ {xgHome.toFixed(1)}-{xgAway.toFixed(1)}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-
-                                                                    <div 
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setSelectedMatch(match);
-                                                                        }}
-                                                                        style={{ 
-                                                                            display: 'flex', 
-                                                                            alignItems: 'center', 
-                                                                            gap: '3px', 
-                                                                            cursor: 'pointer', 
-                                                                            color: 'var(--accent-color)',
-                                                                            opacity: 0.9
-                                                                        }}
-                                                                        title="Detaylı Baskı Grafiği"
-                                                                    >
-                                                                        <span>📈</span>
-                                                                        <span style={{ textDecoration: 'underline' }}>{lang === 'tr' ? 'Baskı Grafiği' : 'Wave'}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })()}
-
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                                        {(() => {
-                                                            const odds = (match.matchedOdds && match.matchedOdds.home) ? match.matchedOdds : opp.oddsInfo;
-                                                            if (!odds) return null;
-                                                            return (
-                                                                <div style={{
-                                                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
-                                                                    background: 'rgba(16, 185, 129, 0.08)',
-                                                                    border: '1px solid rgba(16, 185, 129, 0.2)',
-                                                                    padding: '0.3rem 0.6rem',
-                                                                    borderRadius: '8px'
-                                                                }}>
-                                                                    <span style={{ fontSize: '0.55rem', opacity: 0.6, fontWeight: 600 }}>1X2</span>
-                                                                    <span style={{
-                                                                        fontSize: '0.7rem', fontWeight: 900,
-                                                                        color: '#10b981',
-                                                                        background: 'rgba(16, 185, 129, 0.15)',
-                                                                        padding: '0.1rem 0.4rem',
-                                                                        borderRadius: '4px',
-                                                                        minWidth: '32px',
-                                                                        textAlign: 'center'
-                                                                    }}>{odds.home}</span>
-                                                                    <span style={{
-                                                                        fontSize: '0.7rem', fontWeight: 900,
-                                                                        color: '#94a3b8',
-                                                                        background: 'rgba(148, 163, 184, 0.1)',
-                                                                        padding: '0.1rem 0.4rem',
-                                                                        borderRadius: '4px',
-                                                                        minWidth: '32px',
-                                                                        textAlign: 'center'
-                                                                    }}>{odds.draw || '-'}</span>
-                                                                    <span style={{
-                                                                        fontSize: '0.7rem', fontWeight: 900,
-                                                                        color: '#ef4444',
-                                                                        background: 'rgba(239, 68, 68, 0.1)',
-                                                                        padding: '0.1rem 0.4rem',
-                                                                        borderRadius: '4px',
-                                                                        minWidth: '32px',
-                                                                        textAlign: 'center'
-                                                                    }}>{odds.away}</span>
-                                                                </div>
-                                                            );
-                                                        })()}
-                                                        {opp.suggestedMarket?.marketKey && (
-                                                            <div style={{ 
-                                                                marginTop: '0.4rem',
-                                                                padding: '0.5rem 0.8rem',
-                                                                background: 'rgba(251, 191, 36, 0.1)',
-                                                                border: '1px solid rgba(251, 191, 36, 0.2)',
-                                                                borderRadius: '8px',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.6rem'
-                                                            }}>
-                                                                <span style={{ fontSize: '0.75rem' }}>💡</span>
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.55rem', opacity: 0.6, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                                                        {opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : '2ND HALF PREDICTION') : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION')}
-                                                                    </div>
-                                                                    <div style={{ fontSize: '0.8rem', fontWeight: 900, color: '#fbbf24' }}>
-                                                                        {(t[opp.suggestedMarket.marketKey] || opp.suggestedMarket.label || opp.suggestedMarket.marketKey)
-                                                                            .replace('{team}', opp.suggestedMarket.team || '')
-                                                                            .replace('{goals}', opp.suggestedMarket.target || `${((match.score?.home ?? 0) + (match.score?.away ?? 0)) + 0.5}`)}
-                                                                        {opp.suggestedMarket.confidence && (
-                                                                            <span style={{ marginLeft: '0.5rem', fontSize: '0.65rem', opacity: 0.7 }}>
-                                                                                %{opp.suggestedMarket.confidence}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </>
-                                            )}
-
-                                            {isCompact && (
-                                                <div style={{ fontSize: '0.65rem', opacity: 0.5, marginTop: '0.2rem' }}>
-                                                    {renderMatchMinute(match.minute, t, false)} • {match.score?.home ?? 0} - {match.score?.away ?? 0} • Veri Bekleniyor...
-                                                </div>
-                                            )}
                                         </div>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: isCompact ? '1.2rem' : '1.8rem', fontWeight: 900, color: heatStyle.text }}>
-                                                {opp.score}
+
+                                        <div className="opp-meta-right">
+                                            <div className="opp-heat-pill" style={{ color: heatStyle.text }}>
+                                                <span>{opp.score}</span>
+                                                <span style={{ fontSize: '0.58rem', opacity: 0.8 }}>{opp.heatLevel}</span>
                                             </div>
-                                            {!isCompact && <div style={{ fontSize: '0.6rem', opacity: 0.5 }}>{opp.heatLevel}</div>}
-                                            
-                                            {/* Manual Telegram Button */}
-                                            <button 
+                                            <button
+                                                type="button"
                                                 onClick={(e) => handleSendToTelegram(e, match, opp)}
-                                                style={{
-                                                    marginTop: '0.8rem',
-                                                    width: '32px',
-                                                    height: '32px',
-                                                    borderRadius: '50%',
-                                                    background: '#24A1DE', // Telegram Blue
-                                                    border: 'none',
-                                                    color: '#fff',
-                                                    fontSize: '1rem',
-                                                    cursor: 'pointer',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    boxShadow: '0 2px 8px rgba(36, 161, 222, 0.4)',
-                                                    transition: 'transform 0.2s'
-                                                }}
-                                                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.2)'}
-                                                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                                                className="opp-telegram-btn"
                                                 title="VIP Gruba Gönder"
                                             >
                                                 ✈️
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* 2. Teams & Score Hero */}
+                                    <div className="opp-teams-hero">
+                                        <div className="opp-team-side home">
+                                            <span className="opp-team-name">{match.homeTeam}</span>
+                                            {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
+                                                <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff' }}>
+                                                    🟥 {(match.cards?.home?.red || match.stats?.cards?.home?.red)}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="opp-score-box">
+                                            <span>{match.score?.home ?? 0}</span>
+                                            <span className="opp-score-divider">-</span>
+                                            <span>{match.score?.away ?? 0}</span>
+                                        </div>
+
+                                        <div className="opp-team-side away">
+                                            {((match.cards?.away?.red || 0) > 0 || (match.stats?.cards?.away?.red || 0) > 0) && (
+                                                <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff' }}>
+                                                    🟥 {(match.cards?.away?.red || match.stats?.cards?.away?.red)}
+                                                </span>
+                                            )}
+                                            <span className="opp-team-name">{match.awayTeam}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. Badges Row */}
+                                    <div className="opp-badges-row">
+                                        {opp.isHalftime && (
+                                            <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24' }}>
+                                                ☕ 2. YARI DEĞERİ
+                                            </span>
+                                        )}
+                                        {opp.valueDetected && (
+                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000' }}>
+                                                💰 DEĞERLİ ORAN
+                                            </span>
+                                        )}
+                                        {match.stats?.xg && (
+                                            <span className="opp-micro-badge" style={{ background: 'rgba(251, 191, 36, 0.15)', border: '1px solid rgba(251, 191, 36, 0.3)', color: '#fbbf24' }}>
+                                                ⚽ xG: {(Number(match.stats?.xg?.home) || 0).toFixed(1)}-{(Number(match.stats?.xg?.away) || 0).toFixed(1)}
+                                            </span>
+                                        )}
+                                        <span className="opp-micro-badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1' }}>
+                                            {opp.trend === 'UP' ? '⬆️' : opp.trend === 'DOWN' ? '⬇️' : '➡️'} %{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta} ({momentumWindow}dk)
+                                        </span>
+                                        {opp.smartMoney?.active && (
+                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', color: '#fff' }}>
+                                                📉 BÜYÜK PARA (-%{opp.smartMoney.dropPct.toFixed(0)})
+                                            </span>
+                                        )}
+                                        {opp.hasValueEV && opp.bestEV && (
+                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', color: '#fff' }}>
+                                                💎 +EV %{opp.bestEV.ev}
+                                            </span>
+                                        )}
+                                        {opp.hasLatencyEdge && opp.latencyEdge && (
+                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #eab308, #f97316)', color: '#000' }}>
+                                                ⚡ RADAR (+%{opp.latencyEdge.discrepancyPct})
+                                            </span>
+                                        )}
+                                        {opp.cashOutWarning && (
+                                            <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff', animation: 'pulse 1.5s infinite' }}>
+                                                🛡️ BAHİS BOZDUR
+                                            </span>
+                                        )}
+                                        {opp.isLowData && (
+                                            <span className="opp-micro-badge" style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}>
+                                                ⚠️ Kısıtlı İstatistik
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* 4. Modern Momentum & Pitch Control Box */}
+                                    <div className="opp-momentum-container">
+                                        <div className="opp-momentum-top">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8' }}>
+                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block', boxShadow: isHomeHeavy ? '0 0 8px #38bdf8' : 'none' }} />
+                                                <span>%{homePct}</span>
+                                                {isHomeHeavy && <span style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 900 }}>BASKI</span>}
+                                            </div>
+
+                                            <div className="opp-momentum-pill" style={{
+                                                background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
+                                                color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
+                                            }}>
+                                                {isHot ? '🔥 RİTİM YÜKSEK' : (isHomeHeavy ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : isAwayHeavy ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : '⚪ DENGELİ TEMPO')}
+                                            </div>
+
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8' }}>
+                                                {isAwayHeavy && <span style={{ fontSize: '0.58rem', color: '#f43f5e', fontWeight: 900 }}>BASKI</span>}
+                                                <span>%{awayPct}</span>
+                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block', boxShadow: isAwayHeavy ? '0 0 8px #f43f5e' : 'none' }} />
+                                            </div>
+                                        </div>
+
+                                        {/* Dual Colored Gradient Momentum Bar */}
+                                        <div className="opp-dual-bar">
+                                            <div className="opp-dual-bar-home" style={{ width: `${homePct}%` }} />
+                                            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '1px', background: 'rgba(255, 255, 255, 0.4)', zIndex: 2 }} />
+                                            <div className="opp-dual-bar-away" style={{ width: `${awayPct}%` }} />
+                                        </div>
+
+                                        {/* Bottom Row: Micro Metric Badges & Graph Button */}
+                                        <div className="opp-momentum-bottom">
+                                            <div className="opp-telemetry-row">
+                                                <span style={{ color: (sogHome > 0 || sogAway > 0) ? '#38bdf8' : 'inherit' }}>
+                                                    🎯 {sogHome}-{sogAway}
+                                                </span>
+                                                <span style={{ color: (daHome > 0 || daAway > 0) ? '#fbbf24' : 'inherit' }}>
+                                                    ⚔️ {daHome}-{daAway}
+                                                </span>
+                                                <span style={{ color: (cornersHome > 0 || cornersAway > 0) ? '#a78bfa' : 'inherit' }}>
+                                                    🚩 {cornersHome}-{cornersAway}
+                                                </span>
+                                            </div>
+
+                                            <button 
+                                                type="button"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedMatch(match);
+                                                }}
+                                                className="opp-wave-btn"
+                                                title="Detaylı Baskı Grafiği"
+                                            >
+                                                <span>📈</span>
+                                                <span>{lang === 'tr' ? 'Baskı Grafiği' : 'Wave'}</span>
+                                                <span style={{ fontSize: '0.7rem' }}>➔</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 5. Algorithmic Prediction & Live Odds Card */}
+                                    {opp.suggestedMarket?.marketKey && (
+                                        <div className="opp-prediction-card">
+                                            <div className="opp-pred-header">
+                                                <span className="opp-pred-tag">
+                                                    <span>💡</span>
+                                                    <span>{opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : '2ND HALF PREDICTION') : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION')}</span>
+                                                </span>
+                                                {opp.suggestedMarket.confidence && (
+                                                    <span className="opp-pred-confidence">
+                                                        %{opp.suggestedMarket.confidence} Güven
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="opp-pred-body">
+                                                {(t[opp.suggestedMarket.marketKey] || opp.suggestedMarket.label || opp.suggestedMarket.marketKey)
+                                                    .replace('{team}', opp.suggestedMarket.team || '')
+                                                    .replace('{goals}', opp.suggestedMarket.target || `${((match.score?.home ?? 0) + (match.score?.away ?? 0)) + 0.5}`)}
+                                            </div>
+
+                                            {odds && odds.home && (
+                                                <div className="opp-odds-row" style={{ marginTop: '0.25rem' }}>
+                                                    <div className="opp-odd-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+                                                        <span className="opp-odd-label">1 (MS 1)</span>
+                                                        <span className="opp-odd-val" style={{ color: '#10b981' }}>{odds.home}</span>
+                                                    </div>
+                                                    <div className="opp-odd-pill">
+                                                        <span className="opp-odd-label">X (Beraberlik)</span>
+                                                        <span className="opp-odd-val" style={{ color: '#94a3b8' }}>{odds.draw || '-'}</span>
+                                                    </div>
+                                                    <div className="opp-odd-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.25)' }}>
+                                                        <span className="opp-odd-label">2 (MS 2)</span>
+                                                        <span className="opp-odd-val" style={{ color: '#ef4444' }}>{odds.away}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* If no prediction, show odds directly */}
+                                    {!opp.suggestedMarket?.marketKey && odds && odds.home && (
+                                        <div className="opp-odds-row">
+                                            <div className="opp-odd-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+                                                <span className="opp-odd-label">1 (MS 1)</span>
+                                                <span className="opp-odd-val" style={{ color: '#10b981' }}>{odds.home}</span>
+                                            </div>
+                                            <div className="opp-odd-pill">
+                                                <span className="opp-odd-label">X (Beraberlik)</span>
+                                                <span className="opp-odd-val" style={{ color: '#94a3b8' }}>{odds.draw || '-'}</span>
+                                            </div>
+                                            <div className="opp-odd-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.25)' }}>
+                                                <span className="opp-odd-label">2 (MS 2)</span>
+                                                <span className="opp-odd-val" style={{ color: '#ef4444' }}>{odds.away}</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             );
                         };

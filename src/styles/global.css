@@ -2789,3 +2789,389 @@ html, body {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* =========================================================
+   MODERN MOBILE-FIRST OPPORTUNITY MATCH CARDS
+   ========================================================= */
+
+.opp-card-container {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 1.1rem;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.opp-card-container:active {
+  transform: scale(0.99);
+}
+
+/* 1. Header Meta Row */
+.opp-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.opp-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.opp-rank-badge {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: #000;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.opp-league-pill {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.opp-minute-pill {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.opp-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+.opp-heat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid currentColor;
+  font-weight: 900;
+  font-size: 0.72rem;
+}
+
+.opp-telegram-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #24a1de;
+  border: none;
+  color: #fff;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(36, 161, 222, 0.4);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.opp-telegram-btn:hover {
+  transform: scale(1.1);
+}
+
+/* 2. Teams & Score Hero Row */
+.opp-teams-hero {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.25rem 0;
+}
+
+.opp-team-side {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.opp-team-side.home {
+  justify-content: flex-start;
+}
+
+.opp-team-side.away {
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.opp-team-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #f8fafc;
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.opp-score-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 14px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--accent-color, #38bdf8);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 12px rgba(56, 189, 248, 0.15);
+  flex-shrink: 0;
+  min-width: 64px;
+}
+
+.opp-score-divider {
+  color: rgba(255, 255, 255, 0.3);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+
+/* 3. Badges Row */
+.opp-badges-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.opp-micro-badge {
+  font-size: 0.58rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+/* 4. Modern Momentum & Pitch Control Box */
+.opp-momentum-container {
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.65) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  position: relative;
+}
+
+.opp-momentum-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.opp-momentum-pill {
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.opp-dual-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+}
+
+.opp-dual-bar-home {
+  height: 100%;
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
+  transition: width 0.5s ease;
+}
+
+.opp-dual-bar-away {
+  height: 100%;
+  background: linear-gradient(90deg, #f43f5e, #e11d48);
+  transition: width 0.5s ease;
+}
+
+.opp-momentum-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.opp-telemetry-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.opp-wave-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 999px;
+  color: #38bdf8;
+  font-size: 0.62rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.opp-wave-btn:hover, .opp-wave-btn:active {
+  background: rgba(56, 189, 248, 0.25);
+  transform: translateY(-1px);
+}
+
+/* 5. Algorithmic Prediction Card */
+.opp-prediction-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(15, 23, 42, 0.9) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  padding: 0.7rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.08);
+}
+
+.opp-pred-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.opp-pred-tag {
+  font-size: 0.6rem;
+  font-weight: 900;
+  color: #fbbf24;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.opp-pred-confidence {
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fde68a;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.opp-pred-body {
+  font-size: 0.92rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.3;
+}
+
+/* 6. Odds Grid Row */
+.opp-odds-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  width: 100%;
+}
+
+.opp-odd-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.opp-odd-label {
+  font-size: 0.52rem;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.opp-odd-val {
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+@media (max-width: 480px) {
+  .opp-card-container {
+    padding: 0.85rem !important;
+    gap: 0.6rem !important;
+  }
+  .opp-team-name {
+    font-size: 0.85rem !important;
+  }
+  .opp-score-box {
+    padding: 3px 10px !important;
+    font-size: 1.1rem !important;
+    min-width: 54px !important;
+  }
+  .opp-league-pill {
+    max-width: 110px !important;
+  }
+  .opp-pred-body {
+    font-size: 0.85rem !important;
+  }
+}
