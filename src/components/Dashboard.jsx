@@ -176,6 +176,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
     // Live Odds State for Opportunity Scoring
     const [liveOdds, setLiveOdds] = useState(null);
+    const [mobileQuickFilter, setMobileQuickFilter] = useState('ALL'); // 'ALL', 'HOT', 'SECOND_HALF', 'COMBO', 'READY'
 
     // Membership Request State
     const [pendingRequest, setPendingRequest] = useState(null);
@@ -2864,7 +2865,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     };
 
     return (
-        <div className="dashboard-container" style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
+        <div className={`dashboard-container ${view === 'DASHBOARD' ? 'dashboard-live-mode' : ''}`} style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
 
             {pendingRequest && (
                 <div style={{
@@ -3152,6 +3153,43 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </div>
                 </div>
             )}
+
+            {/* Mobile Breaking Ticker: Real-Time Social Proof & In-Play Feed */}
+            <div className="mobile-breaking-ticker">
+                <span className="ticker-pulse-badge">
+                    <span className="ticker-pulse-dot"></span>
+                    <span>{lang === 'tr' ? 'CANLI AKIŞ' : 'LIVE FEED'}</span>
+                </span>
+                <span className="ticker-content">
+                    {(() => {
+                        const hotMatches = matches.filter(m => (m.stats?.attacks?.home || 0) + (m.stats?.attacks?.away || 0) > 35);
+                        if (hotMatches.length > 0) {
+                            const topM = hotMatches[0];
+                            return lang === 'tr'
+                                ? `🔥 ${topM.homeTeam || 'Ev'} - ${topM.awayTeam || 'Dep'} maçında dakikanın gol baskısı yakalandı!`
+                                : `🔥 Intense in-play pressure detected in ${topM.homeTeam || 'Home'} - ${topM.awayTeam || 'Away'}!`;
+                        }
+                        return lang === 'tr'
+                            ? `⚡ Canlı İvme Radarı aktif · 24/7 algoritmik değer fırsatları taranıyor...`
+                            : `⚡ Live Momentum Radar active · Scanning real-time value edges...`;
+                    })()}
+                </span>
+            </div>
+
+            {/* Mobile Bankroll Glance Bar (Compact 1-Line with click to Portfolio) */}
+            <div className="mobile-bankroll-glance" onClick={() => setView('PORTFOLIO')}>
+                <div className="glance-left">
+                    <span style={{ fontSize: '1rem' }}>💰</span>
+                    <span className="glance-balance">{bankState.current_balance.toLocaleString()} ₺</span>
+                    <span className={`glance-pl ${bankState.daily_pl >= 0 ? 'positive' : 'negative'}`}>
+                        {bankState.daily_pl >= 0 ? '+' : ''}{bankState.daily_pl.toLocaleString()} ₺
+                    </span>
+                </div>
+                <div className="glance-right">
+                    <span>🛡️ {bankrollManager.getModeLabel(lang)}</span>
+                    <span style={{ fontSize: '0.8rem' }}>➔</span>
+                </div>
+            </div>
 
             {view === 'PORTFOLIO' ? (
                 <RenderPortfolio />
@@ -4099,7 +4137,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {/* 2. Teams & Score Hero */}
                                     <div className="opp-teams-hero">
                                         <div className="opp-team-side home">
-                                            <span className="opp-team-name">{match.homeTeam}</span>
+                                            <span className="opp-team-name">
+                                                {match.homeTeam}
+                                                {isHomeHeavy && <span style={{ color: '#38bdf8', marginLeft: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title="Yoğun Ev Baskısı">⚡▶</span>}
+                                            </span>
                                             {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
                                                 <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff' }}>
                                                     🟥 {(match.cards?.home?.red || match.stats?.cards?.home?.red)}
@@ -4119,7 +4160,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     🟥 {(match.cards?.away?.red || match.stats?.cards?.away?.red)}
                                                 </span>
                                             )}
-                                            <span className="opp-team-name">{match.awayTeam}</span>
+                                            <span className="opp-team-name">
+                                                {isAwayHeavy && <span style={{ color: '#f43f5e', marginRight: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title="Yoğun Deplasman Baskısı">◀⚡</span>}
+                                                {match.awayTeam}
+                                            </span>
                                         </div>
                                     </div>
 
@@ -4299,6 +4343,57 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     border: '1px solid rgba(239, 68, 68, 0.15)',
                                     borderRadius: '20px'
                                 }}>
+                                    {/* Mobile Quick Chips: Horizontal Thumb Scroller */}
+                                    <div className="mobile-quick-chips">
+                                        <button
+                                            type="button"
+                                            className={`mobile-quick-chip hot ${mobileQuickFilter === 'HOT' ? 'active' : ''}`}
+                                            onClick={() => setMobileQuickFilter(mobileQuickFilter === 'HOT' ? 'ALL' : 'HOT')}
+                                        >
+                                            <span>🔥</span>
+                                            <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                            <span className="chip-count">{allOpportunities.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA').length}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`mobile-quick-chip second-half ${mobileQuickFilter === 'SECOND_HALF' ? 'active' : ''}`}
+                                            onClick={() => setMobileQuickFilter(mobileQuickFilter === 'SECOND_HALF' ? 'ALL' : 'SECOND_HALF')}
+                                        >
+                                            <span>☕</span>
+                                            <span>{lang === 'tr' ? '2. Yarı Değeri' : '2nd Half'}</span>
+                                            <span className="chip-count">{allOpportunities.filter(o => o.isHalftime || o.isSecondHalfPressure).length}</span>
+                                        </button>
+                                        {goldenCombo && (
+                                            <button
+                                                type="button"
+                                                className={`mobile-quick-chip combo ${mobileQuickFilter === 'COMBO' ? 'active' : ''}`}
+                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'COMBO' ? 'ALL' : 'COMBO')}
+                                            >
+                                                <span>🎟️</span>
+                                                <span>{lang === 'tr' ? 'Altın İkili' : 'Golden Combo'}</span>
+                                                <span className="chip-count">{goldenCombo.totalOdds}</span>
+                                            </button>
+                                        )}
+                                        <button
+                                            type="button"
+                                            className={`mobile-quick-chip ready ${mobileQuickFilter === 'READY' ? 'active' : ''}`}
+                                            onClick={() => setMobileQuickFilter(mobileQuickFilter === 'READY' ? 'ALL' : 'READY')}
+                                        >
+                                            <span>🟢</span>
+                                            <span>{lang === 'tr' ? 'Hazır' : 'Ready'}</span>
+                                            <span className="chip-count">{readyOpportunities.length}</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`mobile-quick-chip all ${mobileQuickFilter === 'ALL' ? 'active' : ''}`}
+                                            onClick={() => setMobileQuickFilter('ALL')}
+                                        >
+                                            <span>⚡</span>
+                                            <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                            <span className="chip-count">{allOpportunities.length}</span>
+                                        </button>
+                                    </div>
+
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                             <h3 style={{
@@ -4393,16 +4488,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                     {/* GOLDEN DOUBLE COMBO WIDGET (CANLI KUPON SİHİRBAZI) */}
                                     {goldenCombo && (
-                                        <div style={{
-                                            marginBottom: '2.5rem',
-                                            padding: '1.5rem',
-                                            background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(249, 115, 22, 0.08) 50%, rgba(15, 23, 42, 0.7) 100%)',
-                                            border: '1.5px solid rgba(234, 179, 8, 0.4)',
-                                            borderRadius: '16px',
-                                            boxShadow: '0 10px 30px -5px rgba(234, 179, 8, 0.25)',
-                                            position: 'relative',
-                                            overflow: 'hidden'
-                                        }}>
+                                        <div className="golden-combo-ticket">
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.2rem' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
                                                     <span style={{ fontSize: '1.8rem' }}>🎟️</span>
@@ -4499,90 +4585,139 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     </div>
                                                 ))}
                                             </div>
-                                        </div>
-                                    )}
 
-                                    {/* SECTION 1: READY OPPORTUNITIES */}
-                                    <div style={{ marginBottom: '2.5rem' }}>
-                                        <div style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.6rem',
-                                            marginBottom: '1rem',
-                                            padding: '0.4rem 0.8rem',
-                                            background: 'rgba(16, 185, 129, 0.1)',
-                                            borderRadius: '8px',
-                                            width: 'fit-content',
-                                            border: '1px solid rgba(16, 185, 129, 0.2)'
-                                        }}>
-                                            <span style={{ fontSize: '0.8rem' }}>🟢</span>
-                                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#10b981', letterSpacing: '0.5px' }}>
-                                                {lang === 'tr' ? 'CANLI ANALİZ HAZIR' : 'LIVE ANALYSIS READY'}
-                                            </span>
-                                        </div>
-
-                                        {topReady.length > 0 ? (
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                {topReady.map((opp, idx) => renderOppCard(opp, idx, false))}
-                                            </div>
-                                        ) : (
-                                            <div style={{
-                                                padding: '2rem',
-                                                textAlign: 'center',
-                                                background: 'rgba(255,255,255,0.02)',
-                                                borderRadius: '16px',
-                                                fontSize: '0.85rem',
-                                                opacity: 0.5
-                                            }}>
-                                                {lang === 'tr' ? 'Şu an tam analiz bekleyen canlı maç bulunmuyor.' : 'No live matches ready for full analysis yet.'}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* SECTION 2: PENDING STATS */}
-                                    {topPending.length > 0 && !hidePendingOpportunities && (
-                                        <div>
-                                            <div style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.6rem',
-                                                marginBottom: '1rem',
-                                                padding: '0.4rem 0.8rem',
-                                                background: 'rgba(148, 163, 184, 0.1)',
-                                                borderRadius: '8px',
-                                                width: 'fit-content',
-                                                border: '1px solid rgba(148, 163, 184, 0.2)'
-                                            }}>
-                                                <span style={{ fontSize: '0.8rem' }}>⏳</span>
-                                                <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', letterSpacing: '0.5px' }}>
-                                                    {lang === 'tr' ? 'CANLI VERİ BEKLENİYOR (RADAR AKTİF)' : 'WAITING FOR LIVE DATA (RADAR ACTIVE)'}
-                                                </span>
-                                            </div>
-
-                                            <div className="pending-opps-grid" style={{
-                                                display: 'grid',
-                                                gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                                                gap: '0.8rem',
-                                                maxHeight: liveOpportunitiesLimit === 'ALL' ? '600px' : 'none',
-                                                overflowY: liveOpportunitiesLimit === 'ALL' ? 'auto' : 'visible',
-                                                paddingRight: liveOpportunitiesLimit === 'ALL' ? '0.5rem' : '0'
-                                            }}>
-                                                {topPending.map((opp, idx) => renderOppCard(opp, idx, true))}
-                                            </div>
-
-                                            <div style={{
-                                                marginTop: '1.5rem',
-                                                fontSize: '0.65rem',
-                                                opacity: 0.4,
-                                                textAlign: 'center',
-                                                fontStyle: 'italic',
-                                                padding: '0.8rem',
-                                                borderTop: '1px solid rgba(255,255,255,0.03)'
-                                            }}>
-                                                * {lang === 'tr' ? 'Bu maçlar için yeterli istatistik toplandığında otomatik olarak yukarıdaki analiz bölümüne taşınacaktır.' : 'These matches will automatically move to the analysis section once enough live stats are collected.'}
+                                            {/* Golden Combo Action Bar */}
+                                            <div style={{ display: 'flex', gap: '0.8rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        try {
+                                                            const renderBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                                                            await fetch(`${renderBase}/api/telegram/send-combo`, {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ combo: goldenCombo })
+                                                            });
+                                                            alert(lang === 'tr' ? 'Altın İkili Telegram VIP kanalına iletildi!' : 'Golden Double sent to Telegram VIP!');
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        flex: 1,
+                                                        minWidth: '150px',
+                                                        padding: '0.6rem 1rem',
+                                                        background: 'linear-gradient(135deg, #229ED9 0%, #1778F2 100%)',
+                                                        border: 'none',
+                                                        borderRadius: '10px',
+                                                        color: '#fff',
+                                                        fontWeight: 800,
+                                                        fontSize: '0.75rem',
+                                                        cursor: 'pointer',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '0.4rem',
+                                                        boxShadow: '0 4px 15px rgba(34, 158, 217, 0.3)'
+                                                    }}
+                                                >
+                                                    <span>✈️</span>
+                                                    <span>{lang === 'tr' ? 'VIP Gruba İlet' : 'Share to VIP'}</span>
+                                                </button>
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Compute Displayed Opportunities Based on Quick Filter */}
+                                    {(() => {
+                                        const displayedReady = mobileQuickFilter === 'HOT'
+                                            ? topReady.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA')
+                                            : mobileQuickFilter === 'SECOND_HALF'
+                                            ? topReady.filter(o => o.isHalftime || o.isSecondHalfPressure)
+                                            : topReady;
+
+                                        const displayedPending = mobileQuickFilter === 'HOT'
+                                            ? topPending.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA')
+                                            : mobileQuickFilter === 'SECOND_HALF'
+                                            ? topPending.filter(o => o.isHalftime || o.isSecondHalfPressure)
+                                            : mobileQuickFilter === 'READY'
+                                            ? []
+                                            : topPending;
+
+                                        return (
+                                            <>
+                                                {/* SECTION 1: READY OPPORTUNITIES */}
+                                                <div style={{ marginBottom: '2.5rem' }}>
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.6rem',
+                                                        marginBottom: '1rem',
+                                                        padding: '0.4rem 0.8rem',
+                                                        background: 'rgba(16, 185, 129, 0.1)',
+                                                        borderRadius: '8px',
+                                                        width: 'fit-content',
+                                                        border: '1px solid rgba(16, 185, 129, 0.2)'
+                                                    }}>
+                                                        <span style={{ fontSize: '0.8rem' }}>🟢</span>
+                                                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#10b981', letterSpacing: '0.5px' }}>
+                                                            {lang === 'tr' ? 'CANLI ANALİZ HAZIR' : 'LIVE ANALYSIS READY'} ({displayedReady.length})
+                                                        </span>
+                                                    </div>
+
+                                                    {displayedReady.length > 0 ? (
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                            {displayedReady.map((opp, idx) => renderOppCard(opp, idx, false))}
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{
+                                                            padding: '2rem',
+                                                            textAlign: 'center',
+                                                            background: 'rgba(255,255,255,0.02)',
+                                                            borderRadius: '16px',
+                                                            fontSize: '0.85rem',
+                                                            opacity: 0.5
+                                                        }}>
+                                                            {lang === 'tr' ? 'Seçili filtreye uygun canlı maç bulunamadı.' : 'No live matches match this filter.'}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* SECTION 2: PENDING STATS */}
+                                                {displayedPending.length > 0 && !hidePendingOpportunities && (
+                                                    <div>
+                                                        <div style={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.6rem',
+                                                            marginBottom: '1rem',
+                                                            padding: '0.4rem 0.8rem',
+                                                            background: 'rgba(148, 163, 184, 0.1)',
+                                                            borderRadius: '8px',
+                                                            width: 'fit-content',
+                                                            border: '1px solid rgba(148, 163, 184, 0.2)'
+                                                        }}>
+                                                            <span style={{ fontSize: '0.8rem' }}>⏳</span>
+                                                            <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#94a3b8', letterSpacing: '0.5px' }}>
+                                                                {lang === 'tr' ? 'CANLI VERİ BEKLENİYOR (RADAR AKTİF)' : 'WAITING FOR LIVE DATA (RADAR ACTIVE)'} ({displayedPending.length})
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="pending-opps-grid" style={{
+                                                            display: 'grid',
+                                                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                                                            gap: '0.8rem',
+                                                            maxHeight: liveOpportunitiesLimit === 'ALL' ? '600px' : 'none',
+                                                            overflowY: liveOpportunitiesLimit === 'ALL' ? 'auto' : 'visible',
+                                                            paddingRight: liveOpportunitiesLimit === 'ALL' ? '0.5rem' : '0'
+                                                        }}>
+                                                            {displayedPending.map((opp, idx) => renderOppCard(opp, idx, true))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </section>
                         );
