@@ -38,18 +38,25 @@ export const parseNumericMinute = (minute) => {
 export const calculateMatchHeatScore = (match, signal = null, oppData = null) => {
     if (!match) return 0;
 
-    let score = 0;
+    // Direct opportunity score from liveOpportunityScorer if available
+    const directOppScore = Number(
+        oppData?.score ||
+        match.opportunityData?.score ||
+        0
+    );
 
-    // 1. Direct Pressure / Momentum Score (Max 35 pts)
+    // 1. Direct Pressure / Momentum Score (Max 40 pts)
     const rawPressure = Number(
+        match.observations?.pressure?.total ||
+        match.observations?.pressure ||
         oppData?.pressure ||
-        oppData?.heatScore ||
+        match.opportunityData?.pressure ||
         match.pressureIndex ||
         match.stats?.pressure?.current ||
         (match.momentum && typeof match.momentum === 'object' ? match.momentum.current : 0) ||
         0
     );
-    score += Math.min(35, (rawPressure / 100) * 35);
+    let pressureContribution = Math.min(40, (rawPressure / 100) * 40);
 
     // 2. Dangerous Attacks & Shots Dominance (Max 25 pts)
     const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
@@ -61,45 +68,81 @@ export const calculateMatchHeatScore = (match, signal = null, oppData = null) =>
     const totalDa = daHome + daAway;
 
     // Activity volume
-    score += Math.min(15, totalSog * 1.5 + Math.min(10, totalDa * 0.15));
+    let attackContribution = Math.min(18, totalSog * 2.0 + Math.min(10, totalDa * 0.25));
 
     // One-team dominance (Tek kale maç bonusu)
     const daDiff = Math.abs(daHome - daAway);
-    if (daDiff >= 20) score += 6;
-    else if (daDiff >= 12) score += 3;
+    if (daDiff >= 18) attackContribution += 7;
+    else if (daDiff >= 10) attackContribution += 4;
 
     // 3. Critical Minute Window (Max 15 pts)
     const minute = parseNumericMinute(match.minute);
+    let minuteBonus = 0;
     if (minute >= 68 && minute <= 85) {
-        score += 15; // Golden live goal window
-    } else if (minute >= 50 && minute < 68) {
-        score += 10; // Second-half surge
+        minuteBonus = 15; // Golden live goal window
+    } else if (minute >= 48 && minute < 68) {
+        minuteBonus = 10; // Second-half push
     } else if (minute >= 35 && minute <= 45) {
-        score += 8;  // First-half finish
+        minuteBonus = 8;  // First-half climax
     } else if (minute > 85 && minute <= 95) {
-        score += 12; // High-tension stoppage time
+        minuteBonus = 12; // High-tension stoppage time
     }
 
     // 4. AI Signal & DQS Edge (Max 20 pts)
     const activeSignal = signal || match.signal;
+    let aiContribution = 0;
     if (activeSignal && activeSignal.verdict === 'BET') {
-        score += 15;
+        aiContribution = 18;
     } else if (activeSignal && activeSignal.verdict === 'VALUE') {
-        score += 10;
+        aiContribution = 12;
     }
 
     const dqs = Number(match.dqs || 0);
-    if (dqs >= 0.70) score += 5;
-    else if (dqs >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60)) score += 3;
+    if (dqs >= 0.70) aiContribution += 5;
+    else if (dqs >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60)) aiContribution += 3;
 
     // 5. Red Card / Numerical Imbalance (Max 5 pts)
     const redHome = Number(match.cards?.home?.red || match.stats?.cards?.home?.red || 0);
     const redAway = Number(match.cards?.away?.red || match.stats?.cards?.away?.red || 0);
+    let redBonus = 0;
     if (redHome > 0 || redAway > 0) {
-        score += 5;
+        redBonus = 5;
     }
 
-    return Math.min(100, Math.round(score));
+    const calculated = Math.min(100, Math.round(pressureContribution + attackContribution + minuteBonus + aiContribution + redBonus));
+
+    // If liveOpportunityScorer produced a valid score, blend or take the maximum
+    if (directOppScore > 0) {
+        return Math.min(100, Math.round(Math.max(directOppScore, calculated)));
+    }
+
+    return calculated;
+};
+
+/**
+ * Determines if a match is considered "Hot" (Sıcak Fırsat)
+ */
+export const isMatchHot = (match, signal = null) => {
+    if (!match) return false;
+    const sig = signal || match.signal;
+    const opp = match.opportunityData;
+    const heat = calculateMatchHeatScore(match, sig, opp);
+
+    // 1. If AI has a confirmed BET verdict, it's immediately hot!
+    if (sig && sig.verdict === 'BET') return true;
+
+    // 2. If heat score is high
+    if (heat >= 40) return true;
+
+    // 3. If opportunity level is ALEV, SICAK, or ALPHA
+    if (opp && (opp.heatLevel === 'ALEV' || opp.heatLevel === 'SICAK' || opp.heatLevel === 'ALPHA')) return true;
+
+    // 4. If dangerous attack difference is big
+    const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
+    const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
+    if (Math.abs(daHome - daAway) >= 15 && (daHome + daAway) >= 25) return true;
+
+    return false;
 };
 
 /**

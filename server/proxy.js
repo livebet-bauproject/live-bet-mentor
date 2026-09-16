@@ -985,10 +985,17 @@ app.post('/api/telegram/send-combo', async (req, res) => {
             return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler altın ikili gönderebilir.' });
         }
         const { combo } = req.body || {};
+        if (!combo || !combo.picks || combo.picks.length === 0) {
+            return res.status(400).json({ error: 'Geçerli bir altın ikili kombinasyonu bulunamadı.' });
+        }
         const result = await telegramBot.sendGoldenCombo(combo);
+        if (!result) {
+            return res.status(500).json({ sent: false, error: 'Telegram mesajı iletilemedi. Bot veya grup izinlerini kontrol edin.' });
+        }
         res.json({ sent: true, result });
     } catch (e) {
-        res.status(500).json({ error: e.message });
+        console.error('[PROXY] Error sending golden combo:', e.message);
+        res.status(500).json({ sent: false, error: e.message });
     }
 });
 

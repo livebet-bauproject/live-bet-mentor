@@ -23,7 +23,7 @@ import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore } from '../logic/liveSortEngine';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot } from '../logic/liveSortEngine';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -251,6 +251,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     // Live Odds State for Opportunity Scoring
     const [liveOdds, setLiveOdds] = useState(null);
     const [mobileQuickFilter, setMobileQuickFilter] = useState('ALL'); // 'ALL', 'HOT', 'SECOND_HALF', 'COMBO', 'READY'
+    const [isSendingGoldenCombo, setIsSendingGoldenCombo] = useState(false);
 
     // Membership Request State
     const [pendingRequest, setPendingRequest] = useState(null);
@@ -702,6 +703,46 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         } catch (err) {
             console.error('Telegram radar send error:', err);
             alert(lang === 'tr' ? '❌ Telegram servisine bağlanılamadı.' : '❌ Connection error to Telegram service.');
+        }
+    };
+
+    const handleSendGoldenComboToTelegram = async (e, combo) => {
+        if (e) e.stopPropagation();
+        if (!isAdmin) {
+            console.warn('[SECURITY] Non-admin user attempted to send golden combo to Telegram.');
+            return;
+        }
+        if (!combo || !combo.picks || combo.picks.length === 0) {
+            alert(lang === 'tr' ? '⚠️ Gönderilecek geçerli bir Altın İkili bulunamadı.' : '⚠️ No valid Golden Double found to send.');
+            return;
+        }
+
+        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:3001'
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+        setIsSendingGoldenCombo(true);
+        try {
+            const res = await fetch(`${proxyBase}/api/telegram/send-combo`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-admin-sender': user?.email || 'admin@livebetmentor.com',
+                    'x-admin-token': 'master-admin-token'
+                },
+                body: JSON.stringify({ combo })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data.sent) {
+                alert(lang === 'tr' ? '🎟️ Günün Canlı Altın İkilisi Telegram VIP kanalına başarıyla iletildi!' : '🎟️ Golden Double sent to Telegram VIP successfully!');
+            } else {
+                alert(lang === 'tr' ? `⚠️ Gönderilemedi: ${data.error || data.reason || 'Bilinmeyen hata'}` : `⚠️ Failed: ${data.error || data.reason || 'Unknown error'}`);
+            }
+        } catch (err) {
+            console.error('Telegram combo send error:', err);
+            alert(lang === 'tr' ? '❌ Telegram servisine bağlanılamadı: ' + err.message : '❌ Connection error to Telegram service: ' + err.message);
+        } finally {
+            setIsSendingGoldenCombo(false);
         }
     };
 
@@ -1852,11 +1893,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         // Category filter
         if (terminalCategoryFilter === 'HOT') {
-            list = list.filter(m => {
-                const sig = signals[m.id];
-                const heat = calculateMatchHeatScore(m, sig);
-                return heat >= 65;
-            });
+            list = list.filter(m => isMatchHot(m, signals[m.id]));
         } else if (terminalCategoryFilter === 'BET') {
             list = list.filter(m => signals[m.id]?.verdict === 'BET');
         } else if (terminalCategoryFilter === 'SECOND_HALF') {
@@ -4594,7 +4631,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <span>🔥</span>
                                     <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
                                     <span className="tb-chip-count">
-                                        {enforcedMatches.filter(filterByTier).filter(m => calculateMatchHeatScore(m, signals[m.id]) >= 65).length}
+                                        {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
                                     </span>
                                 </button>
                                 <button
@@ -5248,26 +5285,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <div className="golden-combo-actions">
                                                     <button
                                                         type="button"
-                                                        onClick={async () => {
-                                                            try {
-                                                                const renderBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-                                                                await fetch(`${renderBase}/api/telegram/send-combo`, {
-                                                                    method: 'POST',
-                                                                    headers: { 
-                                                                        'Content-Type': 'application/json',
-                                                                        'x-admin-sender': user?.email || 'admin@livebetmentor.com'
-                                                                    },
-                                                                    body: JSON.stringify({ combo: goldenCombo })
-                                                                });
-                                                                alert(lang === 'tr' ? 'Altın İkili Telegram VIP kanalına iletildi!' : 'Golden Double sent to Telegram VIP!');
-                                                            } catch (err) {
-                                                                console.error(err);
-                                                            }
-                                                        }}
+                                                        disabled={isSendingGoldenCombo}
+                                                        onClick={(e) => handleSendGoldenComboToTelegram(e, goldenCombo)}
                                                         className="golden-combo-vip-btn"
+                                                        style={isSendingGoldenCombo ? { opacity: 0.65, cursor: 'wait' } : undefined}
                                                     >
-                                                        <span>✈️</span>
-                                                        <span>{lang === 'tr' ? 'VIP Gruba İlet' : 'Share to VIP'}</span>
+                                                        <span>{isSendingGoldenCombo ? '⏳' : '✈️'}</span>
+                                                        <span>
+                                                            {isSendingGoldenCombo 
+                                                                ? (lang === 'tr' ? 'VIP Gruba İletiliyor...' : 'Sending to VIP...') 
+                                                                : (lang === 'tr' ? 'VIP Gruba İlet' : 'Share to VIP')}
+                                                        </span>
                                                     </button>
                                                 </div>
                                             )}

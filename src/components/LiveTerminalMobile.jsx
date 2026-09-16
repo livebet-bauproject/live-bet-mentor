@@ -41,6 +41,16 @@ export const LiveTerminalMobile = ({
         return str.includes("'") ? str : `${str}'`;
     };
 
+    const getPredictionDisplay = (m, signal) => {
+        if (!signal || signal.verdict !== 'BET') return null;
+        const strat = signal.activeStrategies?.[0];
+        let label = strat?.label || signal.prediction || m.opportunityData?.suggestedMarket?.label;
+        if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
+            label = signal.reason;
+        }
+        return label || 'BAHİS';
+    };
+
     return (
         <div className="tb-mobile-stream">
             {matches.length === 0 ? (
@@ -148,7 +158,7 @@ export const LiveTerminalMobile = ({
                                 <div>
                                     {isBetReady ? (
                                         <span className="tb-signal-badge tb-signal-bet" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
-                                            ✓ {signal.prediction || 'BAHİS'}
+                                            ✓ {getPredictionDisplay(m, signal)}
                                         </span>
                                     ) : isHot ? (
                                         <span className="tb-signal-badge tb-signal-hot" style={{ fontSize: '0.65rem', padding: '2px 6px' }}>
@@ -178,12 +188,39 @@ export const LiveTerminalMobile = ({
                                     {/* AI Verdict Details */}
                                     {signal && (
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px', borderRadius: '8px', fontSize: '0.72rem' }}>
-                                            <div style={{ fontWeight: 800, color: '#38bdf8', marginBottom: '2px' }}>
-                                                AI Öngörüsü: {signal.prediction || signal.verdict}
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                                                <span style={{ fontWeight: 800, color: '#38bdf8' }}>
+                                                    🎯 Yapay Zeka Stratejisi
+                                                </span>
+                                                {isBetReady && (
+                                                    <span style={{ fontWeight: 800, color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem' }}>
+                                                        {getPredictionDisplay(m, signal)}
+                                                    </span>
+                                                )}
                                             </div>
-                                            <div style={{ color: 'var(--tb-text-secondary)' }}>
-                                                {signal.mainReason || 'Sistem saha verilerini analiz ediyor.'}
+                                            <div style={{ color: 'var(--tb-text-secondary)', lineHeight: 1.4 }}>
+                                                {signal.reason || signal.mainReason || m.opportunityData?.reason || 'Sistem saha verilerini analiz ediyor.'}
                                             </div>
+                                            {signal.activeStrategies && signal.activeStrategies.length > 0 && (
+                                                <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                    {signal.activeStrategies.map((strat, sIdx) => (
+                                                        <span
+                                                            key={sIdx}
+                                                            style={{
+                                                                background: 'rgba(16, 185, 129, 0.12)',
+                                                                color: '#34d399',
+                                                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                                padding: '2px 6px',
+                                                                borderRadius: '4px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 700
+                                                            }}
+                                                        >
+                                                            ⚡ {strat.label} {strat.score ? `(%${Math.round(strat.score)})` : ''}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

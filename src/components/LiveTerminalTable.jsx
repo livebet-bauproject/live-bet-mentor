@@ -44,6 +44,16 @@ export const LiveTerminalTable = ({
         return str.includes("'") ? str : `${str}'`;
     };
 
+    const getPredictionDisplay = (m, signal) => {
+        if (!signal || signal.verdict !== 'BET') return null;
+        const strat = signal.activeStrategies?.[0];
+        let label = strat?.label || signal.prediction || m.opportunityData?.suggestedMarket?.label;
+        if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
+            label = signal.reason;
+        }
+        return label || 'BAHİS';
+    };
+
     return (
         <div className="tb-terminal-wrapper">
             <table className="tb-table">
@@ -207,8 +217,11 @@ export const LiveTerminalTable = ({
                                         {/* AI Signal */}
                                         <td style={{ textAlign: 'center' }}>
                                             {signal?.verdict === 'BET' ? (
-                                                <span className="tb-signal-badge tb-signal-bet">
-                                                    ✓ {signal.prediction || 'BAHİS'}
+                                                <span
+                                                    className="tb-signal-badge tb-signal-bet"
+                                                    title={signal.reason || signal.mainReason || 'AI Strateji Onaylandı'}
+                                                >
+                                                    ✓ {getPredictionDisplay(m, signal)}
                                                 </span>
                                             ) : heat >= 75 ? (
                                                 <span className="tb-signal-badge tb-signal-hot">
@@ -256,12 +269,39 @@ export const LiveTerminalTable = ({
                                                     {/* Right: Quick Action & Signal Card */}
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'space-between' }}>
                                                         <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--tb-border)' }}>
-                                                            <div style={{ fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem', color: '#38bdf8' }}>
-                                                                🎯 {lang === 'tr' ? 'YAPAY ZEKA ANALİZİ' : 'AI MATCH CONVICTION'}
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                                                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8' }}>
+                                                                    🎯 {lang === 'tr' ? 'YAPAY ZEKA ANALİZİ & STRATEJİ' : 'AI MATCH CONVICTION'}
+                                                                </span>
+                                                                {signal?.verdict === 'BET' && (
+                                                                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '4px' }}>
+                                                                        ÖNERİ: {getPredictionDisplay(m, signal)}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             <div style={{ fontSize: '0.78rem', color: 'var(--tb-text-secondary)', lineHeight: 1.4 }}>
-                                                                {signal?.mainReason || (lang === 'tr' ? 'Maç istatistiksel olarak radar altında izleniyor.' : 'Match is actively tracked under live radar.')}
+                                                                {signal?.reason || signal?.mainReason || m.opportunityData?.reason || (lang === 'tr' ? 'Maç istatistiksel olarak radar altında izleniyor.' : 'Match is actively tracked under live radar.')}
                                                             </div>
+                                                            {signal?.activeStrategies && signal.activeStrategies.length > 0 && (
+                                                                <div style={{ marginTop: '0.6rem', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                                    {signal.activeStrategies.map((strat, sIdx) => (
+                                                                        <span
+                                                                            key={sIdx}
+                                                                            style={{
+                                                                                background: 'rgba(16, 185, 129, 0.12)',
+                                                                                color: '#34d399',
+                                                                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                                                padding: '3px 8px',
+                                                                                borderRadius: '4px',
+                                                                                fontSize: '0.7rem',
+                                                                                fontWeight: 700
+                                                                            }}
+                                                                        >
+                                                                            ⚡ {strat.label} {strat.score ? `(%${Math.round(strat.score)})` : ''}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {signal?.verdict === 'BET' && bankrollManager && (

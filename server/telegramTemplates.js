@@ -337,7 +337,9 @@ export function formatGoldenCombo(combo, lang = 'tr') {
         const matchTitle = cleanMd(p.matchTitle);
         const market = cleanMd(p.market);
         const odds = p.odds || '1.50';
-        return `${i + 1}️⃣ *${matchTitle}* (${p.minute}') ➔ *${market}* (Oran: ${odds})`;
+        const minClean = cleanMd(String(p.minute || '').replace(/['’]/g, ''));
+        const minDisplay = minClean ? ` (${minClean}')` : '';
+        return `${i + 1}️⃣ *${matchTitle}*${minDisplay} ➔ *${market}* (Oran: ${odds})`;
     }).join('\n');
 
     if (isTr) {

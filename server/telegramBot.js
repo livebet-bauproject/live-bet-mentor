@@ -153,6 +153,26 @@ class TelegramBot {
             const data = await res.json();
             if (!data.ok) {
                 console.error(`[TELEGRAM] Send failed to ${chatId}:`, data.description);
+                // Fallback: If Telegram failed due to markdown formatting entities, retry without parse_mode
+                if (data.description && (data.description.includes("can't parse entities") || data.description.includes("entity"))) {
+                    console.log(`[TELEGRAM] 🔄 Retrying message to ${chatId} as plain text...`);
+                    const fallbackBody = { ...body };
+                    delete fallbackBody.parse_mode;
+                    try {
+                        const fbRes = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(fallbackBody)
+                        });
+                        const fbData = await fbRes.json();
+                        if (fbData.ok) {
+                            console.log(`[TELEGRAM] ✅ Plaintext fallback message sent to ${chatId}`);
+                            return fbData.result;
+                        }
+                    } catch (fbErr) {
+                        console.error('[TELEGRAM] Fallback retry error:', fbErr.message);
+                    }
+                }
                 return null;
             }
 
@@ -449,11 +469,21 @@ class TelegramBot {
      * Send Golden Double Combo to VIP
      */
     async sendGoldenCombo(combo) {
-        if (!this.enabled || !this.vipGroupId || !combo) return null;
+        if (!this.enabled || !this.vipGroupId || !combo) {
+            console.warn(`[TELEGRAM] ⚠️ sendGoldenCombo skipped: enabled=${this.enabled}, vipGroupId=${this.vipGroupId}, hasCombo=${!!combo}`);
+            return null;
+        }
         const message = formatGoldenCombo(combo, this.lang);
-        if (!message) return null;
+        if (!message) {
+            console.warn('[TELEGRAM] ⚠️ formatGoldenCombo returned empty message');
+            return null;
+        }
         const result = await this.sendMessage(this.vipGroupId, message);
-        console.log(`[TELEGRAM] 🎟️ Golden Double Combo sent to VIP`);
+        if (result) {
+            console.log(`[TELEGRAM] 🎟️ Golden Double Combo sent to VIP successfully`);
+        } else {
+            console.error(`[TELEGRAM] ❌ Failed to send Golden Double Combo to VIP (${this.vipGroupId})`);
+        }
         return result;
     }
 
