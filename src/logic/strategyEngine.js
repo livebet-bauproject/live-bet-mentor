@@ -47,8 +47,8 @@ export const strategyEngine = {
         const minute = this._parseMinute(match);
         const score = this._getScoreDiff(match);
 
-        // 1. Katı Geç Dakika & Bitiş Filtresi (82+ dakikada sıradaki gol kumar/ölü sinyaldir)
-        if (minute >= 82 || minute === 999) return { active: false };
+        // 1. Katı Erken/Geç Dakika & Bitiş Filtresi (15 altı erken, 82+ dakikada sıradaki gol kumar/ölü sinyaldir)
+        if (minute < 15 || minute >= 82 || minute === 999) return { active: false };
 
         // 2. Taktiksel Rehavet & Kopmuş Maç Filtresi (Game-State Blindness Veto):
         // 2+ farkla önde olan takımlar (örn: 4-1, 3-0, 3-1) rölantiye alır, as oyuncuları çıkarır.
@@ -89,7 +89,7 @@ export const strategyEngine = {
     checkMomentumBurst(match) {
         const minute = this._parseMinute(match);
         const score = this._getScoreDiff(match);
-        if (minute >= 82 || minute === 999) return { active: false };
+        if (minute < 15 || minute >= 82 || minute === 999) return { active: false };
         if (score.diff >= 3 || (minute >= 65 && score.diff >= 2)) return { active: false };
 
         const history = (match.history && match.history.length > 0) ? match.history : (match.minuteHistory || []);
@@ -152,8 +152,8 @@ export const strategyEngine = {
     checkComeback(match) {
         const minute = this._parseMinute(match);
         const scoreDiff = this._getScoreDiff(match);
-        // Geri dönüş uyarısı 80. dakikadan sonra veya 3+ gol farkında (örn: 1-4, 2-7) imkansızdır/geçersizdir
-        if (minute >= 80 || minute === 999 || scoreDiff.diff >= 3) return { active: false };
+        // Geri dönüş uyarısı 20. dakikadan önce (maç henüz oturmamıştır), 80'den sonra veya 3+ gol farkında geçersizdir
+        if (minute < 20 || minute >= 80 || minute === 999 || scoreDiff.diff >= 3) return { active: false };
 
         const score = match.score || { home: 0, away: 0 };
         const observations = match.observations || {};
@@ -183,7 +183,7 @@ export const strategyEngine = {
     checkAdvancedComeback(match) {
         const minute = this._parseMinute(match);
         const scoreDiff = this._getScoreDiff(match);
-        if (minute >= 80 || minute === 999 || scoreDiff.diff >= 3) return { active: false };
+        if (minute < 20 || minute >= 80 || minute === 999 || scoreDiff.diff >= 3) return { active: false };
 
         const score = match.score || { home: 0, away: 0 };
         const stats = match.stats || {};
@@ -244,28 +244,37 @@ export const strategyEngine = {
     checkStatDominance(match) {
         const minute = this._parseMinute(match);
         const score = this._getScoreDiff(match);
-        if (minute >= 85 || minute === 999) return { active: false };
+        
+        // 1. Örneklem Güvenlik Eşiği: 20. dakikadan önce istatistikler oturmamıştır, erken sinyal engellenir!
+        if (minute < 20 || minute >= 85 || minute === 999) return { active: false };
         if ((minute >= 65 && score.diff >= 3) || score.diff >= 4) return { active: false };
 
         const stats = match.stats || {};
-        const sogHome = stats.shotsOnGoal?.home || 0;
-        const sogAway = stats.shotsOnGoal?.away || 0;
-        const xgHome = stats.xg?.home || 0;
-        const xgAway = stats.xg?.away || 0;
-        const possHome = stats.possession?.home || 50;
-        const possAway = stats.possession?.away || 50;
-        const shotsHome = stats.totalShots?.home || 0;
-        const shotsAway = stats.totalShots?.away || 0;
-        const cornersHome = stats.corners?.home || 0;
-        const cornersAway = stats.corners?.away || 0;
+        const sogHome = Number(stats.shotsOnGoal?.home) || 0;
+        const sogAway = Number(stats.shotsOnGoal?.away) || 0;
+        const xgHome = Number(stats.xg?.home) || 0;
+        const xgAway = Number(stats.xg?.away) || 0;
+        const possHome = Number(stats.possession?.home) || 50;
+        const possAway = Number(stats.possession?.away) || 50;
+        const shotsHome = Number(stats.totalShots?.home) || 0;
+        const shotsAway = Number(stats.totalShots?.away) || 0;
+        const cornersHome = Number(stats.corners?.home) || 0;
+        const cornersAway = Number(stats.corners?.away) || 0;
 
-        // Composite stat points: SOG * 3 + Shots * 1 + Corners * 1.5 + xG * 10 + (Poss - 50) * 0.8
-        const homePoints = (sogHome * 3) + shotsHome + (cornersHome * 1.5) + (xgHome * 10) + ((possHome - 50) * 0.8);
-        const awayPoints = (sogAway * 3) + shotsAway + (cornersAway * 1.5) + (xgAway * 10) + ((possAway - 50) * 0.8);
+        // 2. Pozitif Topla Oynama Bonusu: Asla puanı eksiye düşüremez! Sadece %50 üzerindeyse ek puan ekler
+        const possBonusHome = possHome > 50 ? (possHome - 50) * 0.4 : 0;
+        const possBonusAway = possAway > 50 ? (possAway - 50) * 0.4 : 0;
 
-        // A team CANNOT be statistically dominant if in severe possession deficit (< 38%) or heavily outshot!
-        const isHome = (homePoints > awayPoints * 1.35 + 15) && possHome >= 38 && (shotsHome >= shotsAway * 0.7);
-        const isAway = (awayPoints > homePoints * 1.35 + 15) && possAway >= 38 && (shotsAway >= shotsHome * 0.7);
+        // Composite stat points: SOG * 3.5 + Shots * 1 + Corners * 1.2 + xG * 12 + possBonus
+        const homePoints = (sogHome * 3.5) + shotsHome + (cornersHome * 1.2) + (xgHome * 12) + possBonusHome;
+        const awayPoints = (sogAway * 3.5) + shotsAway + (cornersAway * 1.2) + (xgAway * 12) + possBonusAway;
+
+        // 3. Somut Hücum Tehlikesi Şartı: En az 1 isabetli şut veya 0.25 xG veya 3 şut yoksa dominasyon ilan edilemez!
+        const hasMinHomeDanger = (sogHome >= 1 || xgHome >= 0.25 || shotsHome >= 3);
+        const hasMinAwayDanger = (sogAway >= 1 || xgAway >= 0.25 || shotsAway >= 3);
+
+        const isHome = hasMinHomeDanger && (homePoints >= awayPoints * 1.4 + 14) && possHome >= 40 && (shotsHome >= shotsAway * 0.8);
+        const isAway = hasMinAwayDanger && (awayPoints >= homePoints * 1.4 + 14) && possAway >= 40 && (shotsAway >= shotsHome * 0.8);
 
         if (isHome || isAway) {
             const team = isHome ? (match.homeTeam || 'Ev Sahibi') : (match.awayTeam || 'Deplasman');
