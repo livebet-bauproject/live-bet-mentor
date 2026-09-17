@@ -4941,7 +4941,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     }}
                                                 >
                                                     <span>📋</span>
-                                                    <span>{lang === 'tr' ? 'Genel Filtreler' : 'General'}</span>
+                                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Genel Filtreler' : 'General'}</span>
+                                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Genel' : 'General'}</span>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -4954,7 +4955,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     }}
                                                 >
                                                     <span>🎯</span>
-                                                    <span>{lang === 'tr' ? 'Canlı Fırsat Radarları' : 'In-Play Radars'}</span>
+                                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Fırsat Radarları' : 'In-Play Radars'}</span>
+                                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Radarlar' : 'Radars'}</span>
                                                     {radarMatchesCount > 0 && (
                                                         <span className="tb-group-badge">{radarMatchesCount}</span>
                                                     )}
@@ -4972,7 +4974,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('ALL')}
                                                     >
                                                         <span>⚡</span>
-                                                        <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Tümü' : 'All'}</span>
                                                         <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
                                                     </button>
                                                     <button
@@ -4981,7 +4984,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('HOT')}
                                                     >
                                                         <span>🔥</span>
-                                                        <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Sıcak' : 'Hot'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
                                                         </span>
@@ -4993,7 +4997,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
                                                     >
                                                         <span>📈</span>
-                                                        <span>{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Trend' : 'Trends'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => {
                                                                 return (trendingBets || []).some(tb => 
@@ -5009,7 +5014,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('BET')}
                                                     >
                                                         <span>✓</span>
-                                                        <span>{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'AI Sinyal' : 'Signals'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
                                                         </span>
@@ -5020,7 +5026,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
                                                     >
                                                         <span>⏱️</span>
-                                                        <span>{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '2. Yarı' : '2H'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => {
                                                                 const minStr = String(m.minute || '');
@@ -5035,7 +5042,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('PINNED')}
                                                     >
                                                         <span>★</span>
-                                                        <span>{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Favori' : 'Favs'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
                                                         </span>
@@ -5050,7 +5058,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? 'Tüm fırsat radarlarından en az birine uyan canlı maçlar' : 'Matches matching any opportunity radar'}
                                                     >
                                                         <span>🎯</span>
-                                                        <span>{lang === 'tr' ? 'Tüm Radarlar' : 'All Radars'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Tüm Radarlar' : 'All Radars'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Tümü' : 'All'}</span>
                                                         <span className="tb-chip-count">{radarMatchesCount}</span>
                                                     </button>
                                                     <button
@@ -5060,7 +5069,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? 'Şut, xG ve saha baskısı analitiğine göre sıradaki gol ihtimali %55 ve üzeri olan canlı maçlar' : 'Live matches with in-play next goal probability >= 55%'}
                                                     >
                                                         <span>🧠</span>
-                                                        <span>{lang === 'tr' ? 'Gol Radarı' : 'Goal Radar'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Gol Radarı' : 'Goal Radar'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Gol' : 'Goals'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55)).length}
                                                         </span>
@@ -5072,7 +5082,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? 'Yüksek xG ve şut üretmesine rağmen skorborda yansımamış, yüksek oran vadeden değerli maçlar' : 'Matches generating heavy xG not yet rewarded on scoreboard'}
                                                     >
                                                         <span>⏳</span>
-                                                        <span>{lang === 'tr' ? 'Geciken Gol' : 'Unrewarded xG'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Geciken Gol' : 'Unrewarded xG'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Geciken' : 'Late Goal'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchXgSurplus(m, signals[m.id])).length}
                                                         </span>
@@ -5084,7 +5095,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? 'Son 20 dakikada hücum temposu ve tehlike ivmesi tavan yapan canlı maçlar' : 'Matches with surging offensive momentum in the last 20 minutes'}
                                                     >
                                                         <span>⚡</span>
-                                                        <span>{lang === 'tr' ? '20\' Baskısı' : '20m Surge'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '20\' Baskısı' : '20m Surge'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '20\' Baskı' : '20m Surge'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m, signals[m.id])).length}
                                                         </span>
@@ -5096,7 +5108,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? '68-85. dakika aralığında tek farkla devam eden ve tempolu hücum yapılan altın pencere maçları' : 'High-tempo close matches in the 68-85 min golden scoring window'}
                                                     >
                                                         <span>⏱️</span>
-                                                        <span>{lang === 'tr' ? 'Altın Saat' : 'Golden Window'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Altın Saat' : 'Golden Window'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Altın' : 'Golden'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchGoldenMinutes(m, signals[m.id])).length}
                                                         </span>
@@ -5108,7 +5121,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? 'Skor olarak geride olan ama sahada rakip kaleyi ablukaya alan takımların maçları' : 'Trailing teams intensely sieging the opponent for a comeback'}
                                                     >
                                                         <span>🔄</span>
-                                                        <span>{lang === 'tr' ? 'Geri Dönüş' : 'Comeback'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Geri Dönüş' : 'Comeback'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Dönüş' : 'Comeback'}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchComeback(m, signals[m.id])).length}
                                                         </span>
