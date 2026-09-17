@@ -23,7 +23,7 @@ import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -2072,6 +2072,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             list = list.filter(m => isMatchSurgingLast20(m, signals[m.id]));
         } else if (terminalCategoryFilter === 'GOAL_PROB') {
             list = list.filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55));
+        } else if (terminalCategoryFilter === 'XG_SURPLUS') {
+            list = list.filter(m => isMatchXgSurplus(m, signals[m.id]));
+        } else if (terminalCategoryFilter === 'GOLDEN_MIN') {
+            list = list.filter(m => isMatchGoldenMinutes(m, signals[m.id]));
+        } else if (terminalCategoryFilter === 'COMEBACK') {
+            list = list.filter(m => isMatchComeback(m, signals[m.id]));
         } else if (terminalCategoryFilter === 'BET') {
             list = list.filter(m => signals[m.id]?.verdict === 'BET');
         } else if (terminalCategoryFilter === 'SECOND_HALF') {
@@ -4949,6 +4955,42 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     </button>
                                     <button
                                         type="button"
+                                        className={`tb-chip chip-xg-surplus ${terminalCategoryFilter === 'XG_SURPLUS' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('XG_SURPLUS')}
+                                        title={lang === 'tr' ? 'Yüksek xG ve şut üretmesine rağmen skorborda yansımamış, yüksek oran vadeden değerli maçlar' : 'Matches generating heavy xG not yet rewarded on scoreboard'}
+                                    >
+                                        <span>⏳</span>
+                                        <span>{lang === 'tr' ? 'Geciken Gol (xG)' : 'Unrewarded xG'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchXgSurplus(m, signals[m.id])).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-golden-min ${terminalCategoryFilter === 'GOLDEN_MIN' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('GOLDEN_MIN')}
+                                        title={lang === 'tr' ? '68-85. dakika aralığında tek farkla devam eden ve tempolu hücum yapılan altın pencere maçları' : 'High-tempo close matches in the 68-85 min golden scoring window'}
+                                    >
+                                        <span>⏱️</span>
+                                        <span>{lang === 'tr' ? 'Altın Saat (68\'-85\')' : 'Golden Window (68\'-85\')'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchGoldenMinutes(m, signals[m.id])).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-comeback ${terminalCategoryFilter === 'COMEBACK' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('COMEBACK')}
+                                        title={lang === 'tr' ? 'Skor olarak geride olan ama sahada rakip kaleyi ablukaya alan takımların maçları' : 'Trailing teams intensely sieging the opponent for a comeback'}
+                                    >
+                                        <span>🔄</span>
+                                        <span>{lang === 'tr' ? 'Geri Dönüş' : 'Comeback'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchComeback(m, signals[m.id])).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
                                         className={`tb-chip chip-trend ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
                                         onClick={() => setTerminalCategoryFilter('TREND')}
                                         title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
@@ -5048,6 +5090,78 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         {lang === 'tr' 
                                             ? 'Şut hacmi, xG kalitesi ve anlık baskı ivmesine göre sıradaki gol gelme ihtimali %55 ve üzeri olan maçları listeler.'
                                             : 'Lists live matches where shot volume, xG quality, and momentum elevate next goal probability above 55%.'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Active XG_SURPLUS Explanatory Banner */}
+                            {terminalCategoryFilter === 'XG_SURPLUS' && (
+                                <div style={{
+                                    padding: '0.45rem 0.85rem',
+                                    marginBottom: '0.8rem',
+                                    background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, rgba(20, 184, 166, 0.08) 100%)',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                    borderRadius: '8px',
+                                    fontSize: '0.78rem',
+                                    color: '#34d399',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span>⏳</span>
+                                    <span>
+                                        <strong>{lang === 'tr' ? 'Geciken Gol Radarı (xG Açığı & Değerli Bahis):' : 'Unrewarded xG Radar (Value Bets):'}</strong>{' '}
+                                        {lang === 'tr' 
+                                            ? 'Yüksek xG (Beklenen Gol) ve şut üretmesine rağmen skorborda henüz yansımamış, yüksek oran potansiyeli olan maçları listeler.'
+                                            : 'Highlights matches generating heavy xG not yet rewarded on the scoreboard (Prime Value).'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Active GOLDEN_MIN Explanatory Banner */}
+                            {terminalCategoryFilter === 'GOLDEN_MIN' && (
+                                <div style={{
+                                    padding: '0.45rem 0.85rem',
+                                    marginBottom: '0.8rem',
+                                    background: 'linear-gradient(90deg, rgba(234, 179, 8, 0.1) 0%, rgba(245, 158, 11, 0.08) 100%)',
+                                    border: '1px solid rgba(234, 179, 8, 0.3)',
+                                    borderRadius: '8px',
+                                    fontSize: '0.78rem',
+                                    color: '#facc15',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span>⏱️</span>
+                                    <span>
+                                        <strong>{lang === 'tr' ? 'Altın Dakikalar Radarı (68\' - 85\' Baskısı):' : 'Golden Window Radar (68\' - 85\' Pressure):'}</strong>{' '}
+                                        {lang === 'tr' 
+                                            ? 'Canlı bahiste oranların tavan yaptığı ve en çok golün çıktığı 68-85. dakika aralığında tek farkla devam eden tempolu maçları listeler.'
+                                            : 'Targets high-tempo close matches in the prime scoring window (68\'-85\') where late-goal odds are maximized.'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Active COMEBACK Explanatory Banner */}
+                            {terminalCategoryFilter === 'COMEBACK' && (
+                                <div style={{
+                                    padding: '0.45rem 0.85rem',
+                                    marginBottom: '0.8rem',
+                                    background: 'linear-gradient(90deg, rgba(244, 63, 94, 0.1) 0%, rgba(225, 29, 72, 0.08) 100%)',
+                                    border: '1px solid rgba(244, 63, 94, 0.3)',
+                                    borderRadius: '8px',
+                                    fontSize: '0.78rem',
+                                    color: '#fb7185',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span>🔄</span>
+                                    <span>
+                                        <strong>{lang === 'tr' ? 'Geri Dönüş Radarı (Baskı Kuran Takım Geride):' : 'Comeback Radar (Dominant Trailing Team):'}</strong>{' '}
+                                        {lang === 'tr' 
+                                            ? 'Skor olarak geride olmasına rağmen sahada rakibini abluka altına alan ve geri dönüş arayan takımların maçlarını listeler.'
+                                            : 'Highlights teams that are currently trailing on the scoreboard but intensely besieging the opponent for an equalizer.'}
                                     </span>
                                 </div>
                             )}

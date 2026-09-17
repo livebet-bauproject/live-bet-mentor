@@ -496,6 +496,142 @@ export const isMatchHighGoalProb = (match, signal = null, threshold = 0.55) => {
 };
 
 /**
+ * Determines if a match has an xG surplus (Geciken Gol)
+ * Strong xG or shot dominance not yet rewarded on scoreboard (Prime Value Bet)
+ */
+export const isMatchXgSurplus = (match, signal = null) => {
+    if (!match) return false;
+    const min = parseNumericMinute(match.minute);
+    const minStr = String(match.minute || '').toLowerCase();
+    const isLateOrFinished = min >= 88 || minStr.includes('ms') || minStr.includes('ft');
+    if (isLateOrFinished || min < 20) return false;
+
+    let goalsHome = 0;
+    let goalsAway = 0;
+    if (typeof match.score === 'object') {
+        goalsHome = Number(match.score.home ?? 0);
+        goalsAway = Number(match.score.away ?? 0);
+    } else {
+        const parts = String(match.score || '0-0').split('-');
+        goalsHome = parseInt(parts[0], 10) || 0;
+        goalsAway = parseInt(parts[1], 10) || 0;
+    }
+    const totalGoals = goalsHome + goalsAway;
+
+    const xgHome = Number(match.stats?.xg?.home || 0);
+    const xgAway = Number(match.stats?.xg?.away || 0);
+    const totalXg = xgHome + xgAway;
+
+    const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
+    const sogAway = Number(match.stats?.shotsOnGoal?.away || 0);
+    const totalSog = sogHome + sogAway;
+
+    const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
+    const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
+
+    // 1. High xG with low goals (Classic unrewarded xG)
+    if (totalXg > 0) {
+        if (totalXg >= 1.05 && totalGoals <= 1) return true;
+        if (totalXg >= totalGoals + 0.80 && min >= 30) return true;
+        if (xgHome >= 0.85 && goalsHome === 0) return true;
+        if (xgAway >= 0.85 && goalsAway === 0) return true;
+    }
+
+    // 2. Heavy shot pressure with 0 goals (Fallback when xG not fully available)
+    if (totalGoals === 0 && min >= 25 && (totalSog >= 4 || (daHome + daAway >= 32 && totalSog >= 2))) {
+        return true;
+    }
+    if (totalGoals <= 1 && min >= 48 && totalSog >= 6) {
+        return true;
+    }
+
+    return false;
+};
+
+/**
+ * Determines if a match is in the prime late-game scoring window (Altın Dakikalar: 68' - 85')
+ * Close scoreline, active momentum, maximized in-play goal odds
+ */
+export const isMatchGoldenMinutes = (match, signal = null) => {
+    if (!match) return false;
+    const min = parseNumericMinute(match.minute);
+    const minStr = String(match.minute || '').toLowerCase();
+    const isLateOrFinished = min > 86 || minStr.includes('ms') || minStr.includes('ft');
+    if (isLateOrFinished) return false;
+
+    // Must be in 68'-85' window
+    if (min < 68 || min > 85) return false;
+
+    let goalsHome = 0;
+    let goalsAway = 0;
+    if (typeof match.score === 'object') {
+        goalsHome = Number(match.score.home ?? 0);
+        goalsAway = Number(match.score.away ?? 0);
+    } else {
+        const parts = String(match.score || '0-0').split('-');
+        goalsHome = parseInt(parts[0], 10) || 0;
+        goalsAway = parseInt(parts[1], 10) || 0;
+    }
+    const goalDiff = Math.abs(goalsHome - goalsAway);
+    if (goalDiff > 2) return false; // Exclude blowouts
+
+    const heat = calculateMatchHeatScore(match, signal);
+    const metrics = calculateLast20MinMetrics(match, signal);
+    const prob = calculateGoalProbability(match, signal);
+
+    return heat >= 40 || metrics.isSurging || metrics.deltaDA >= 4 || prob >= 0.45;
+};
+
+/**
+ * Determines if a trailing team is actively sieging the opponent (Geri Dönüş Radarı)
+ */
+export const isMatchComeback = (match, signal = null) => {
+    if (!match) return false;
+    const min = parseNumericMinute(match.minute);
+    const minStr = String(match.minute || '').toLowerCase();
+    const isLateOrFinished = min >= 88 || minStr.includes('ms') || minStr.includes('ft');
+    if (isLateOrFinished || min < 20) return false;
+
+    let goalsHome = 0;
+    let goalsAway = 0;
+    if (typeof match.score === 'object') {
+        goalsHome = Number(match.score.home ?? 0);
+        goalsAway = Number(match.score.away ?? 0);
+    } else {
+        const parts = String(match.score || '0-0').split('-');
+        goalsHome = parseInt(parts[0], 10) || 0;
+        goalsAway = parseInt(parts[1], 10) || 0;
+    }
+
+    const homeTrailing = goalsAway > goalsHome && (goalsAway - goalsHome) <= 2;
+    const awayTrailing = goalsHome > goalsAway && (goalsHome - goalsAway) <= 2;
+    if (!homeTrailing && !awayTrailing) return false;
+
+    const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
+    const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
+    const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
+    const sogAway = Number(match.stats?.shotsOnGoal?.away || 0);
+    const xgHome = Number(match.stats?.xg?.home || 0);
+    const xgAway = Number(match.stats?.xg?.away || 0);
+
+    const metrics = calculateLast20MinMetrics(match, signal);
+
+    if (homeTrailing) {
+        if (metrics.dominantSide === 'HOME' && metrics.isSurging) return true;
+        if (daHome >= daAway + 6 && (sogHome >= sogAway || xgHome >= xgAway)) return true;
+        if (xgHome >= xgAway + 0.30) return true;
+        if (sogHome >= sogAway + 2 && daHome >= daAway) return true;
+    } else if (awayTrailing) {
+        if (metrics.dominantSide === 'AWAY' && metrics.isSurging) return true;
+        if (daAway >= daHome + 6 && (sogAway >= sogHome || xgAway >= xgHome)) return true;
+        if (xgAway >= xgHome + 0.30) return true;
+        if (sogAway >= sogHome + 2 && daAway >= daHome) return true;
+    }
+
+    return false;
+};
+
+/**
  * Sorts matches dynamically based on criteria and lock state
  */
 export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, signals = {}, isLocked = false, lockedOrderMap = null, trendingBets = []) => {
