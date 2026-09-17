@@ -1416,7 +1416,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                             <span style={{ fontWeight: 800, color: '#10b981' }}>{officeStatus?.cashier?.activeVipCount || 0} üye</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? '24s Deneme (Aktif / Bitiyor):' : '24h Trials (Active/Soon):'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? '3 Günlük Deneme (Aktif / Bitiyor):' : '3-Day Trials (Active/Soon):'}</span>
                                             <span style={{ fontWeight: 800, color: '#fff' }}>
                                                 {officeStatus?.cashier?.activeTrialCount || 0} / <span style={{ color: '#f59e0b' }}>{officeStatus?.cashier?.expiringSoonCount || 0}</span>
                                             </span>

@@ -274,7 +274,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 🔒 _Vollständiger Tipp & faire Quote im VIP-Kanal geteilt._
 
 💎 *Signale ohne Verzögerung (0s Latenz) erhalten:*
-👉 Sende /trial oder /test an @${botUser} für einen *24-Stunden VIP-Pass* oder /vip zum Beitreten!
+👉 Sende /trial oder /test an @${botUser} für einen *3-Tage VIP-Pass* oder /vip zum Beitreten!
 🌐 *Web-Terminal:* https://live-bet-mentor-brown.vercel.app`;
     }
 
@@ -284,7 +284,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 🔒 _Full pick & fair odds shared in VIP Syndicate._
 
 💎 *Catch signals live with zero latency:*
-👉 Send /trial to @${botUser} for a *24-Hour Free VIP Pass* or /vip to join!
+👉 Send /trial to @${botUser} for a *3-Day Free VIP Pass* or /vip to join!
 🌐 *Web Terminal:* https://live-bet-mentor-brown.vercel.app`;
 }
 

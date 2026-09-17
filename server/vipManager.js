@@ -1,7 +1,7 @@
 /**
  * VIP MEMBERSHIP & SUBSCRIPTION AUTOMATION MANAGER (v1.0)
  * Handles:
- * - 24-hour instant free trials (/deneme, /trial, /test)
+ * - 3-day instant free trials (/deneme, /trial, /test)
  * - Subscription duration tracking & expiration
  * - Admin grants (/vipver, /vipsil)
  * - Automated expiration alerts and stats
@@ -53,7 +53,7 @@ export class VipManager {
     }
 
     /**
-     * Start a 24-hour instant free trial
+     * Start a 3-day instant free trial
      */
     startTrial(chatId, username = 'User') {
         const id = String(chatId);

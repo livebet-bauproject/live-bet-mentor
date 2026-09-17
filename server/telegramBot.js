@@ -1503,11 +1503,11 @@ _Average activation time: 2–5 minutes._
 
             case '/katil':
             case '/link':
-                const inviteLink = await this.createInviteLink(username);
+                const inviteLink = await this.createInviteLink(username, 72);
                 if (inviteLink) {
                     await this.sendMessage(chatId, isTr
-                        ? `🎟️ *VIP Kanala Katılım Bağlantınız:*\n\nBu bağlantı tek kullanımlıktır ve 24 saat geçerlidir:\n👉 ${inviteLink}\n\n_Giriş yaptıktan sonra bağlantı otomatik olarak kapanır._`
-                        : `🎟️ *Your VIP Syndicate Join Link:*\n\nThis link is single-use and valid for 24 hours:\n👉 ${inviteLink}\n\n_Link expires automatically upon entry._`);
+                        ? `🎟️ *VIP Kanala Katılım Bağlantınız:*\n\nBu bağlantı tek kullanımlıktır ve 72 saat (3 gün) geçerlidir:\n👉 ${inviteLink}\n\n_Giriş yaptıktan sonra bağlantı otomatik olarak kapanır._`
+                        : `🎟️ *Your VIP Syndicate Join Link:*\n\nThis link is single-use and valid for 72 hours (3 days):\n👉 ${inviteLink}\n\n_Link expires automatically upon entry._`);
                 } else {
                     await this.sendMessage(chatId, isTr
                         ? `ℹ️ *VIP Bağlantı Bilgisi:*\nVIP Grubumuz: *${this.vipGroupId || 'Canlı Kanal'}*\n\nDoğrudan ekleme veya yetki tanımlaması için lütfen sistem yöneticisiyle iletişime geçin.`

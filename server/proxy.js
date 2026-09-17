@@ -1368,7 +1368,7 @@ app.get('/api/members', (req, res) => {
     }
 });
 
-// 2. Register new member (Requires Telegram Bot Verification for 24h Trial)
+// 2. Register new member (Requires Telegram Bot Verification for 3-Day Trial)
 app.post('/api/members/register', authRateLimiter, async (req, res) => {
     try {
         const { email, password, fullName, phone, plan, deviceId } = req.body || {};
@@ -1393,7 +1393,7 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
             const existingTrial = deviceTrials[deviceId];
             if (existingTrial.email !== cleanEmail) {
                 return res.status(403).json({
-                    error: '⚠️ Bu cihazdan daha önce 24 saatlik ücretsiz deneme hakkı kullanılmıştır. Lütfen mevcut hesabınıza giriş yapın veya VIP üyeliğe geçin.',
+                    error: '⚠️ Bu cihazdan daha önce 3 günlük ücretsiz deneme hakkı kullanılmıştır. Lütfen mevcut hesabınıza giriş yapın veya VIP üyeliğe geçin.',
                     deviceUsed: true
                 });
             }

@@ -228,7 +228,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     return;
                 }
 
-                // REGISTER: Require Telegram-Verified Single-Use 24-hour PRO Trial
+                // REGISTER: Require Telegram-Verified Single-Use 3-Day PRO Trial
                 const deviceId = getDeviceFingerprint();
                 try {
                     const regRes = await fetch(`${proxyBase}/api/members/register`, {
@@ -927,7 +927,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         ) : (
                                             <>
                                                 <span>⚡</span>
-                                                <span>{lang === 'tr' ? '24 Saatlik VIP Denemeyi Başlat' : (lang === 'de' ? '24h VIP-Test starten' : 'Start 24h VIP Trial')}</span>
+                                                <span>{lang === 'tr' ? '3 Günlük VIP Denemeyi Başlat' : (lang === 'de' ? '3-Tage VIP-Test starten' : 'Start 3-Day VIP Trial')}</span>
                                                 <span>→</span>
                                             </>
                                         )}
@@ -948,16 +948,16 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                 }}>
                                     <span>🔒 256-Bit SSL</span>
                                     <span>⚡ Anında Erişim</span>
-                                    <span>🛡️ Kartsız</span>
+                                    <span>🛡️ No Spams</span>
                                 </div>
 
-                                {/* Switch Mode Button */}
-                                <div style={{ marginTop: '0.9rem', textAlign: 'center' }}>
+                                {/* Toggle between Login and Register */}
+                                <div style={{ textAlign: 'center', marginTop: '1.2rem' }}>
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            setError(null);
                                             setView(view === 'login' ? 'register' : 'login');
+                                            setError('');
                                         }}
                                         style={{
                                             background: 'transparent',
@@ -972,7 +972,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         }}
                                     >
                                         {view === 'login' ? (
-                                            <span>{lang === 'tr' ? 'Hesabınız yok mu? 24 Saat Ücretsiz PRO Deneyin →' : 'No account? Start 24h Free VIP Trial →'}</span>
+                                            <span>{lang === 'tr' ? 'Hesabınız yok mu? 3 Gün Ücretsiz PRO Deneyin →' : 'No account? Start 3-Day Free VIP Trial →'}</span>
                                         ) : (
                                             <span>{lang === 'tr' ? 'Zaten hesabınız var mı? Giriş Yapın →' : 'Already have an account? Sign In →'}</span>
                                         )}
