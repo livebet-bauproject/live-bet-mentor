@@ -77,7 +77,21 @@ export const LiveTerminalMobile = ({
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
             label = signal.reason;
         }
-        if (!label) return lang === 'tr' ? 'BAHİS' : 'BET';
+        if (!label) return lang === 'tr' ? 'BAHİS' : lang === 'de' ? 'WETTE' : 'BET';
+
+        if (lang === 'de') {
+            return label
+                .replace(/^Sıradaki Gol:/i, 'Nächstes Tor:')
+                .replace(/^İY 0\.5 ÜST/i, 'HZ Über 0.5')
+                .replace(/^İY 1\.5 ÜST/i, 'HZ Über 1.5')
+                .replace(/^SON 15DK PATLAMASI/i, '15m MOMENTUM-SCHWUNG')
+                .replace(/^GERİ DÖNÜŞ/i, 'COMEBACK')
+                .replace(/^BASKI LİDERİ/i, 'DRUCK-LEADER')
+                .replace(/^İSTATİSTİKSEL BASKI/i, 'STATISTISCHE DOMINANZ')
+                .replace(/^GOL ALARMI/i, 'TOR-ALARM')
+                .replace(/ÜST/g, 'ÜBER')
+                .replace(/ALT/g, 'UNTER');
+        }
 
         if (lang === 'en') {
             return label

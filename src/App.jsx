@@ -81,14 +81,17 @@ function App() {
   const [lang, setLang] = useState(() => {
     try {
       const saved = localStorage.getItem('app_lang');
-      if (saved && (saved === 'tr' || saved === 'en')) {
+      if (saved && (saved === 'tr' || saved === 'en' || saved === 'de')) {
         return saved;
       }
       // Detect browser / device primary language
       const browserLang = (typeof navigator !== 'undefined' && (
         (navigator.languages && navigator.languages[0]) || navigator.language || ''
       )) || '';
-      return browserLang.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+      const lower = browserLang.toLowerCase();
+      if (lower.startsWith('tr')) return 'tr';
+      if (lower.startsWith('de')) return 'de';
+      return 'en';
     } catch {
       return 'en';
     }
@@ -99,16 +102,20 @@ function App() {
       localStorage.setItem('app_lang', lang);
       if (typeof document !== 'undefined') {
         document.documentElement.lang = lang;
-        document.title = lang === 'tr'
-          ? 'LiveBet Mentor | Canlı İstatistik & AI Terminali'
-          : 'LiveBet Mentor | Live In-Play Stats & AI Terminal';
+        if (lang === 'tr') {
+          document.title = 'LiveBet Mentor | Canlı İstatistik & AI Terminali';
+        } else if (lang === 'de') {
+          document.title = 'LiveBet Mentor | Live In-Play Statistiken & KI-Terminal';
+        } else {
+          document.title = 'LiveBet Mentor | Live In-Play Stats & AI Terminal';
+        }
       }
     } catch (e) {
       console.warn('Lang sync error:', e);
     }
   }, [lang]);
 
-  const t = translations[lang];
+  const t = translations[lang] || translations['en'];
 
   useEffect(() => {
     const checkUserStatus = async (user) => {

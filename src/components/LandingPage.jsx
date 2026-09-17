@@ -260,9 +260,26 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         <span>✈️</span>
                         <span>{lang === 'tr' ? 'Telegram Destek' : 'Support Desk'}</span>
                     </a>
-                    <button onClick={() => setLang(lang === 'tr' ? 'en' : 'tr')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', padding: '0.4rem 0.8rem', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '0.75rem' }}>
-                        {lang === 'tr' ? 'EN' : 'TR'}
-                    </button>
+                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', padding: '2px' }}>
+                        {['tr', 'en', 'de'].map(l => (
+                            <button
+                                key={l}
+                                onClick={() => setLang(l)}
+                                style={{
+                                    background: lang === l ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
+                                    border: 'none',
+                                    color: lang === l ? '#38bdf8' : '#94a3b8',
+                                    padding: '0.3rem 0.6rem',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontWeight: 800,
+                                    fontSize: '0.72rem'
+                                }}
+                            >
+                                {l.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
                     <button onClick={() => setView('login')} style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>{t.landing_cta_login}</button>
                     <button onClick={() => setView('register')} style={{ background: '#fff', color: '#000', border: 'none', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(255,255,255,0.2)' }}>{t.landing_cta_main}</button>
                 </div>

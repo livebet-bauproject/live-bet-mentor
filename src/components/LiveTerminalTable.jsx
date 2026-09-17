@@ -69,7 +69,27 @@ export const LiveTerminalTable = ({
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
             label = signal.reason;
         }
-        if (lang === 'en' && label) {
+        if (lang === 'de' && label) {
+            if (label.startsWith('Sıradaki Gol:')) {
+                label = label.replace('Sıradaki Gol:', 'Nächstes Tor:');
+            } else if (label === 'İY 0.5 ÜST') {
+                label = 'HZ Über 0.5';
+            } else if (label === 'SON 15DK PATLAMASI') {
+                label = '15m MOMENTUM-SCHWUNG';
+            } else if (label === 'GERİ DÖNÜŞ') {
+                label = 'COMEBACK';
+            } else if (label === 'FAVORİ GERİ DÖNÜŞ') {
+                label = 'FAVORITEN-COMEBACK';
+            } else if (label === 'KORNER BASKISI') {
+                label = 'ECKENDIFFERENZ';
+            } else if (label === 'KG VAR DİNAMİĞİ') {
+                label = 'BEIDE TREFFEN (BTTS)';
+            } else if (label === 'SAYISAL ÜSTÜNLÜK') {
+                label = 'ÜBERZAHL-VORTEIL';
+            } else if (label === 'SKOR MARUZİYETİ') {
+                label = 'TORREICHES SPIEL';
+            }
+        } else if (lang === 'en' && label) {
             if (label.startsWith('Sıradaki Gol:')) {
                 label = label.replace('Sıradaki Gol:', 'Next Goal:');
             } else if (label === 'İY 0.5 ÜST') {
@@ -90,7 +110,7 @@ export const LiveTerminalTable = ({
                 label = 'HIGH SCORE EXPOSURE';
             }
         }
-        return label || (lang === 'tr' ? 'BAHİS' : 'BET');
+        return label || (lang === 'tr' ? 'BAHİS' : lang === 'de' ? 'WETTE' : 'BET');
     };
 
     return (

@@ -3725,9 +3725,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                     {/* Language Switch */}
                                     <div className="popover-row">
-                                        <span className="popover-label">🌐 {lang === 'tr' ? 'Dil' : 'Language'}</span>
+                                        <span className="popover-label">🌐 {lang === 'tr' ? 'Dil' : lang === 'de' ? 'Sprache' : 'Language'}</span>
                                         <div className="popover-lang-group">
-                                            {['tr', 'en'].map(l => (
+                                            {['tr', 'en', 'de'].map(l => (
                                                 <button
                                                     key={l}
                                                     onClick={() => setLang(l)}
