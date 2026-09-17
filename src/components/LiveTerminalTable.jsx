@@ -297,11 +297,14 @@ export const LiveTerminalTable = ({
                                                         background: 'rgba(245, 158, 11, 0.15)',
                                                         border: '1px solid rgba(245, 158, 11, 0.35)',
                                                         borderRadius: '4px',
-                                                        padding: '1px 4px',
+                                                        padding: '1px 5px',
                                                         display: 'inline-block',
-                                                        whiteSpace: 'nowrap'
-                                                    }} title={`Son 20 Dakika İvmesi: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Şut (İvme: %${last20.surgeScore})`}>
-                                                        ⚡ 20': +{last20.deltaDA}A
+                                                        whiteSpace: 'nowrap',
+                                                        maxWidth: '125px',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis'
+                                                    }} title={`${last20.dominantTeam ? `${last20.dominantTeam} son 20 dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Şut)`}>
+                                                        ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.deltaDA})` : `+${last20.deltaDA} Atak`}
                                                     </span>
                                                 </div>
                                             )}
@@ -317,11 +320,6 @@ export const LiveTerminalTable = ({
                                             <span className={`tb-pill-stat ${daAlertClass}`}>
                                                 {daHome} - {daAway}
                                             </span>
-                                            {last20.deltaDA > 0 && (
-                                                <div style={{ fontSize: '0.62rem', color: last20.deltaDA >= 14 ? '#fbbf24' : 'var(--tb-text-muted)', marginTop: '2px', fontWeight: 700 }} title="Son 20 dakikadaki tehlikeli atak artışı">
-                                                    (20': +{last20.deltaDA})
-                                                </div>
-                                            )}
                                         </td>
 
                                         {/* xG */}
@@ -387,6 +385,7 @@ export const LiveTerminalTable = ({
                                                 }
 
                                                 if (last20.isSurging) {
+                                                    const teamLabel = last20.dominantTeam ? `${last20.dominantTeam.slice(0, 14)}` : '';
                                                     return (
                                                         <span
                                                             className="tb-signal-badge"
@@ -394,11 +393,13 @@ export const LiveTerminalTable = ({
                                                                 background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 88, 12, 0.25))',
                                                                 color: '#fbbf24',
                                                                 border: '1px solid #f59e0b',
-                                                                boxShadow: '0 0 8px rgba(245, 158, 11, 0.25)'
+                                                                boxShadow: '0 0 8px rgba(245, 158, 11, 0.25)',
+                                                                whiteSpace: 'nowrap',
+                                                                fontWeight: 800
                                                             }}
-                                                            title={`Son 20 Dakika: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Şut (İvme: %${last20.surgeScore})`}
+                                                            title={`${teamLabel || 'Takımlar'} son 20 dakikadır hücum temposunu artırdı. (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak)`}
                                                         >
-                                                            ⚡ 20' BASKISI
+                                                            ⚡ {teamLabel ? `Baskı: ${teamLabel}` : "20' Baskısı"}
                                                         </span>
                                                     );
                                                 }

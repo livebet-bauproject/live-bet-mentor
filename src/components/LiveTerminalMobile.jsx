@@ -296,7 +296,7 @@ export const LiveTerminalMobile = ({
                                         %{heat}
                                         {last20.isSurging && (
                                             <span style={{ display: 'block', fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800, marginTop: '2px' }}>
-                                                ⚡ 20': +{last20.deltaDA}A
+                                                ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.deltaDA})` : `+${last20.deltaDA} Atak`}
                                             </span>
                                         )}
                                     </span>
@@ -313,11 +313,6 @@ export const LiveTerminalMobile = ({
                                     <span className="tb-m-stat-label">{lang === 'tr' ? 'T.ATAK' : 'D.ATTACK'}</span>
                                     <span className="tb-m-stat-value">
                                         {daHome} - {daAway}
-                                        {last20.deltaDA > 0 && (
-                                            <span style={{ display: 'block', fontSize: '0.62rem', color: last20.deltaDA >= 14 ? '#fbbf24' : 'var(--tb-text-muted)', fontWeight: 700, marginTop: '2px' }}>
-                                                (+{last20.deltaDA})
-                                            </span>
-                                        )}
                                     </span>
                                 </div>
 
@@ -388,7 +383,7 @@ export const LiveTerminalMobile = ({
                                                     boxShadow: '0 0 8px rgba(245, 158, 11, 0.25)'
                                                 }}
                                             >
-                                                ⚡ {lang === 'tr' ? `SON 20' BASKISI (+${last20.deltaDA} Atak)` : `LAST 20m SURGE (+${last20.deltaDA} Att)`}
+                                                ⚡ {last20.dominantTeam ? `${lang === 'tr' ? 'Baskı' : 'Surge'}: ${last20.dominantTeam} (+${last20.deltaDA})` : (lang === 'tr' ? `SON 20' BASKISI (+${last20.deltaDA})` : `LAST 20m SURGE (+${last20.deltaDA})`)}
                                             </span>
                                         );
                                     }

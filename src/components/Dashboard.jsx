@@ -4989,6 +4989,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 </div>
                             </div>
 
+                            {/* Active SURGE_20 Explanatory Banner */}
+                            {terminalCategoryFilter === 'SURGE_20' && (
+                                <div style={{
+                                    padding: '0.45rem 0.85rem',
+                                    marginBottom: '0.8rem',
+                                    background: 'rgba(245, 158, 11, 0.08)',
+                                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                                    borderRadius: '8px',
+                                    fontSize: '0.78rem',
+                                    color: '#fde047',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span>⚡</span>
+                                    <span>
+                                        <strong>{lang === 'tr' ? 'Son 20 Dakika Abluka Radarı:' : 'Last 20-Min Siege Radar:'}</strong>{' '}
+                                        {lang === 'tr' 
+                                            ? 'Son 20 dakikada hücum temposunu katlayan ve rakip kaleye yüklenen takımları listeler.'
+                                            : 'Highlights matches where a team is intensely dominating the opponent in the last 20 minutes.'}
+                                    </span>
+                                </div>
+                            )}
+
                             {/* Live Terminal Views (Desktop Table & Mobile Stream) */}
                             <LiveTerminalTable
                                 matches={processedTerminalMatches}

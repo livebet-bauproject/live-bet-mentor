@@ -311,12 +311,35 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
         (livePressure >= 58 && deltaDA >= 4)
     );
 
+    const curDAHome = Number(stats.dangerousAttacks?.home) || 0;
+    const curDAAway = Number(stats.dangerousAttacks?.away) || 0;
+    const curSogHome = Number(stats.shotsOnGoal?.home) || 0;
+    const curSogAway = Number(stats.shotsOnGoal?.away) || 0;
+
+    const homeTeamName = (typeof match.homeTeam === 'object' ? match.homeTeam?.name : match.homeTeam) || 'Ev Sahibi';
+    const awayTeamName = (typeof match.awayTeam === 'object' ? match.awayTeam?.name : match.awayTeam) || 'Deplasman';
+
+    let dominantSide = 'BALANCED';
+    if (curDAHome >= curDAAway + 3 || curSogHome > curSogAway) {
+        dominantSide = 'HOME';
+    } else if (curDAAway >= curDAHome + 3 || curSogAway > curSogHome) {
+        dominantSide = 'AWAY';
+    } else if (curDAHome > curDAAway) {
+        dominantSide = 'HOME';
+    } else if (curDAAway > curDAHome) {
+        dominantSide = 'AWAY';
+    }
+
+    const dominantTeam = dominantSide === 'HOME' ? homeTeamName : (dominantSide === 'AWAY' ? awayTeamName : null);
+
     return {
         surgeScore,
         deltaDA,
         deltaShots,
         deltaCorners,
         isSurging,
+        dominantSide,
+        dominantTeam,
         source
     };
 };
