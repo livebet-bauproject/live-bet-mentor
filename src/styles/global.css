@@ -483,6 +483,15 @@ body {
   animation: pulse 2s infinite ease-in-out;
 }
 
+/* Base Dashboard Container (Prevents page-level horizontal overflow on laptops/desktops) */
+.dashboard-container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  overflow-x: clip;
+}
+
 /* Mobile Responsive Optimization (Phase 15) */
 @media (max-width: 768px) {
   :root {

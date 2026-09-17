@@ -329,8 +329,28 @@
   background: var(--tb-surface);
   border: 1px solid var(--tb-border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  width: 100%;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom sleek scrollbar for terminal table */
+.tb-terminal-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+.tb-terminal-wrapper::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+  border-radius: 4px;
+}
+.tb-terminal-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.3);
+  border-radius: 4px;
+}
+.tb-terminal-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(56, 189, 248, 0.6);
 }
 
 .tb-table {
@@ -348,13 +368,14 @@
   font-weight: 700;
   font-size: 0.68rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 8px 10px;
+  letter-spacing: 0.4px;
+  padding: 8px 6px;
   border-bottom: 1px solid var(--tb-border);
   position: sticky;
   top: 0;
   z-index: 5;
   user-select: none;
+  white-space: nowrap;
 }
 
 .tb-table th.sortable {
@@ -381,7 +402,7 @@
 }
 
 .tb-row td {
-  padding: 6px 10px;
+  padding: 5px 6px;
   vertical-align: middle;
   color: var(--tb-text-primary);
 }
@@ -392,30 +413,31 @@
   font-size: 0.78rem;
   color: #34d399;
   white-space: nowrap;
-  width: 60px;
+  width: 50px;
 }
 
 .tb-col-league {
   color: var(--tb-text-muted);
-  font-size: 0.72rem;
+  font-size: 0.70rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 110px;
+  max-width: 90px;
 }
 
 .tb-col-match {
-  min-width: 220px;
+  min-width: 180px;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .tb-team-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 125px;
 }
 
 .tb-card-badge {
@@ -487,12 +509,15 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 6px;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   white-space: nowrap;
+  max-width: 125px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tb-signal-bet {
@@ -520,11 +545,11 @@
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: 6px;
   font-weight: 800;
-  font-size: 0.72rem;
-  letter-spacing: 0.3px;
+  font-size: 0.70rem;
+  letter-spacing: 0.2px;
   white-space: nowrap;
   line-height: 1.25;
 }
@@ -559,14 +584,17 @@
 .tb-trend-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 7px;
+  gap: 4px;
+  padding: 1px 6px;
   border-radius: 4px;
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.2px;
   white-space: nowrap;
   line-height: 1.25;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tb-trend-pill.approved {

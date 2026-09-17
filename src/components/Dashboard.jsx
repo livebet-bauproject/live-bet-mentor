@@ -3586,7 +3586,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     };
 
     return (
-        <div className={`dashboard-container ${view === 'DASHBOARD' ? 'dashboard-live-mode' : ''}`} style={{ padding: '2rem', maxWidth: '1400px', margin: '0 auto', minHeight: '100vh', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
+        <div className={`dashboard-container ${view === 'DASHBOARD' ? 'dashboard-live-mode' : ''}`} style={{ padding: '1.25rem 1rem', maxWidth: '1440px', width: '100%', boxSizing: 'border-box', margin: '0 auto', minHeight: '100vh', overflowX: 'clip', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
 
             {pendingRequest && (
                 <div style={{

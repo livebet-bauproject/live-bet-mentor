@@ -71,19 +71,19 @@ export const LiveTerminalTable = ({
             <table className="tb-table">
                 <thead>
                     <tr>
-                        <th style={{ width: '32px', textAlign: 'center' }}>★</th>
-                        <th style={{ width: '55px' }}>{t?.minute_short || 'DK'}</th>
-                        <th style={{ width: '110px' }}>{t?.league_label || 'LİG'}</th>
-                        <th>{t?.match_label || 'MAÇ'}</th>
-                        <th style={{ width: '65px', textAlign: 'center' }}>{t?.score_label || 'SKOR'}</th>
-                        <th style={{ width: '90px', textAlign: 'center' }}>{lang === 'tr' ? 'ISI / DURUM' : 'HEAT'}</th>
-                        <th style={{ width: '85px', textAlign: 'center' }}>1X2 CANLI</th>
-                        <th style={{ width: '75px', textAlign: 'center' }}>BASKI / IVME</th>
-                        <th style={{ width: '70px', textAlign: 'center' }}>ŞUT (ISB)</th>
-                        <th style={{ width: '70px', textAlign: 'center' }}>T.ATAK</th>
-                        <th style={{ width: '65px', textAlign: 'center' }}>xG</th>
-                        <th style={{ width: '100px', textAlign: 'center' }}>AI SİNYAL</th>
-                        <th style={{ width: '75px', textAlign: 'center' }}>DETAY</th>
+                        <th style={{ width: '28px', textAlign: 'center' }}>★</th>
+                        <th style={{ width: '46px' }}>{t?.minute_short || 'DK'}</th>
+                        <th style={{ width: '88px' }}>{t?.league_label || 'LİG'}</th>
+                        <th style={{ minWidth: '170px' }}>{t?.match_label || 'MAÇ'}</th>
+                        <th style={{ width: '50px', textAlign: 'center' }}>{t?.score_label || 'SKOR'}</th>
+                        <th style={{ width: '78px', textAlign: 'center' }}>{lang === 'tr' ? 'ISI / DURUM' : 'HEAT'}</th>
+                        <th style={{ width: '72px', textAlign: 'center' }}>1X2 CANLI</th>
+                        <th style={{ width: '58px', textAlign: 'center' }}>BASKI / IVME</th>
+                        <th style={{ width: '56px', textAlign: 'center' }}>ŞUT (ISB)</th>
+                        <th style={{ width: '54px', textAlign: 'center' }}>T.ATAK</th>
+                        <th style={{ width: '56px', textAlign: 'center' }}>xG</th>
+                        <th style={{ width: '110px', textAlign: 'center' }}>AI SİNYAL</th>
+                        <th style={{ width: '36px', textAlign: 'center' }}>DETAY</th>
                     </tr>
                 </thead>
                 <tbody>
