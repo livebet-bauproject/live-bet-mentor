@@ -219,23 +219,76 @@ class PredictionTracker {
     }
 
     /**
-     * Update prediction result
+     * Delete a single prediction
+     */
+    async deletePrediction(predictionId) {
+        this.predictions = this.predictions.filter(p => String(p.id) !== String(predictionId));
+        this.saveToLocalStorage();
+
+        if (this.userId && !String(predictionId).startsWith('temp_')) {
+            try {
+                await supabase.from('predictions').delete().eq('id', predictionId).eq('user_id', this.userId);
+            } catch (e) {
+                console.warn('[TRACKER] Supabase delete error:', e);
+            }
+        }
+    }
+
+    /**
+     * Clear all predictions
+     */
+    async clearPredictions() {
+        this.predictions = [];
+        this.saveToLocalStorage();
+
+        if (this.userId) {
+            try {
+                await supabase.from('predictions').delete().eq('user_id', this.userId);
+            } catch (e) {
+                console.warn('[TRACKER] Supabase clear error:', e);
+            }
+        }
+    }
+
+    /**
+     * Update prediction result with undo support
      */
     async updateResult(predictionId, result, finalScore) {
-        const pred = this.predictions.find(p => p.id === predictionId);
+        const pred = this.predictions.find(p => String(p.id) === String(predictionId));
         if (!pred) return;
 
-        const finalScoreStr = finalScore ? `${finalScore.home}-${finalScore.away}` : null;
+        // Support UNDO back to PENDING
+        if (result === 'PENDING') {
+            pred.status = 'PENDING';
+            pred.finalScore = null;
+            pred.resolvedAt = null;
+            this.saveToLocalStorage();
+
+            if (!String(predictionId).startsWith('temp_')) {
+                try {
+                    await supabase
+                        .from('predictions')
+                        .update({ status: 'PENDING', final_score: null, resolved_at: null })
+                        .eq('id', predictionId);
+                } catch (e) {}
+            }
+            return;
+        }
+
+        const hasValidScore = finalScore && finalScore.home !== undefined && finalScore.away !== undefined;
+        const finalScoreStr = hasValidScore ? `${finalScore.home}-${finalScore.away}` : (pred.finalScore ? (typeof pred.finalScore === 'object' ? `${pred.finalScore.home ?? 0}-${pred.finalScore.away ?? 0}` : String(pred.finalScore)) : null);
 
         // Optimistic update
         pred.status = result;
-        pred.finalScore = finalScore;
+        if (hasValidScore) {
+            pred.finalScore = finalScore;
+        }
         pred.resolvedAt = Date.now();
         this.saveToLocalStorage();
 
         // If it's a temp ID, store it to be picked up when DB record is created
         if (typeof predictionId === 'string' && predictionId.startsWith('temp_')) {
-            this.pendingStatusUpdates[predictionId] = { result, finalScore, finalScoreStr };
+            this.pendingStatusUpdates[predictionId] = { result, finalScore: pred.finalScore, finalScoreStr };
             console.log('[TRACKER] Queued result for temp ID:', result);
             return;
         }

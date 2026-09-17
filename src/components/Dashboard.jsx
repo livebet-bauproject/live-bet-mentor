@@ -7165,8 +7165,39 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                     {/* Recent Predictions */}
                                     <div>
-                                        <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>Son Tahminler</h4>
-                                        <div style={{ maxHeight: '300px', overflow: 'auto' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                            <h4 style={{ fontSize: '0.85rem', margin: 0, opacity: 0.8 }}>
+                                                {lang === 'tr' ? 'Son Tahminler & Takip Listesi' : 'Recent Predictions & Watchlist'}
+                                            </h4>
+                                            {predictionTracker.getRecent(1).length > 0 && (
+                                                <button
+                                                    onClick={async () => {
+                                                        if (window.confirm(lang === 'tr' ? 'Tüm tahmin ve kasa karnesini temizlemek istediğinize emin misiniz?' : 'Clear all prediction tracking records?')) {
+                                                            await predictionTracker.clearPredictions();
+                                                            setTrackingStats(predictionTracker.getStats());
+                                                        }
+                                                    }}
+                                                    style={{
+                                                        background: 'rgba(239, 68, 68, 0.1)',
+                                                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                                                        color: '#ef4444',
+                                                        padding: '0.25rem 0.65rem',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 700,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                    title={lang === 'tr' ? 'Tüm listeyi temizle' : 'Clear all'}
+                                                >
+                                                    <span>🗑️</span>
+                                                    <span>{lang === 'tr' ? 'Karneni Temizle' : 'Clear All'}</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div style={{ maxHeight: '320px', overflow: 'auto' }}>
                                             {predictionTracker.getRecent(20).map((pred, idx) => {
                                                 const initialScoreStr = (pred.scoreAtPrediction && typeof pred.scoreAtPrediction === 'object')
                                                     ? `${pred.scoreAtPrediction.home ?? 0}-${pred.scoreAtPrediction.away ?? 0}`
@@ -7177,10 +7208,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                                 const liveMatch = matches.find(m => String(m.id) === String(pred.matchId));
                                                 let currentScoreStr = null;
-                                                if (pred.finalScore) {
-                                                    currentScoreStr = typeof pred.finalScore === 'object'
-                                                        ? `${pred.finalScore.home ?? 0}-${pred.finalScore.away ?? 0}`
-                                                        : String(pred.finalScore).replace(/\s+/g, '');
+                                                if (pred.finalScore && pred.finalScore.home !== undefined && pred.finalScore.away !== undefined) {
+                                                    currentScoreStr = `${pred.finalScore.home}-${pred.finalScore.away}`;
+                                                } else if (typeof pred.finalScore === 'string' && pred.finalScore.includes('-') && !pred.finalScore.includes('undefined')) {
+                                                    currentScoreStr = pred.finalScore.replace(/\s+/g, '');
                                                 }
                                                 let currentMinuteStr = null;
                                                 let isFinished = pred.status === 'WON' || pred.status === 'LOST';
@@ -7195,6 +7226,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     if (liveMatch.isFinished || liveMatch.minute === 'MS' || liveMatch.minute === 'FT') {
                                                         isFinished = true;
                                                     }
+                                                } else if (!currentScoreStr) {
+                                                    currentScoreStr = initialScoreStr;
                                                 }
 
                                                 return (
@@ -7230,17 +7263,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                                                 {currentScoreStr ? (
                                                                     <span style={{
-                                                                        background: isFinished ? 'rgba(16, 185, 129, 0.15)' : 'rgba(56, 189, 248, 0.18)',
-                                                                        border: `1px solid ${isFinished ? 'rgba(16, 185, 129, 0.35)' : 'rgba(56, 189, 248, 0.4)'}`,
+                                                                        background: isFinished ? (pred.status === 'WON' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)') : 'rgba(56, 189, 248, 0.18)',
+                                                                        border: `1px solid ${isFinished ? (pred.status === 'WON' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(239, 68, 68, 0.35)') : 'rgba(56, 189, 248, 0.4)'}`,
                                                                         padding: '2px 8px',
                                                                         borderRadius: '6px',
-                                                                        color: isFinished ? '#10b981' : '#38bdf8',
+                                                                        color: isFinished ? (pred.status === 'WON' ? '#10b981' : '#f87171') : '#38bdf8',
                                                                         fontWeight: 800,
                                                                         display: 'inline-flex',
                                                                         alignItems: 'center',
                                                                         gap: '5px'
                                                                     }}>
-                                                                        <span style={{ fontSize: '0.65rem' }}>{isFinished ? '🏁 Bitiş:' : '🔴 Canlı Skor:'}</span>
+                                                                        <span style={{ fontSize: '0.65rem' }}>{isFinished ? '🏁 Sonuç:' : '🔴 Canlı Skor:'}</span>
                                                                         <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
                                                                         {!isFinished && currentMinuteStr && (
                                                                             <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
@@ -7265,29 +7298,92 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 🎯 {t[pred.market] || pred.market} • %{pred.confidence} {t.confidence_score}
                                                             </div>
                                                         </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                             {pred.status === 'PENDING' ? (
                                                                 <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                                                    <button onClick={() => {
-                                                                        predictionTracker.updateResult(pred.id, 'WON', {});
-                                                                        setTrackingStats(predictionTracker.getStats());
-                                                                    }} style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }} title="Kazandı">✓</button>
-                                                                    <button onClick={() => {
-                                                                        predictionTracker.updateResult(pred.id, 'LOST', {});
-                                                                        setTrackingStats(predictionTracker.getStats());
-                                                                    }} style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, cursor: 'pointer' }} title="Kaybetti">✗</button>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            const finalScore = liveMatch ? (
+                                                                                typeof liveMatch.score === 'object' ? liveMatch.score :
+                                                                                (typeof liveMatch.score === 'string' && liveMatch.score.includes('-')) ? {
+                                                                                    home: parseInt(liveMatch.score.split('-')[0]) || 0,
+                                                                                    away: parseInt(liveMatch.score.split('-')[1]) || 0
+                                                                                } : null
+                                                                            ) : (pred.scoreAtPrediction || null);
+
+                                                                            await predictionTracker.updateResult(pred.id, 'WON', finalScore);
+                                                                            setTrackingStats(predictionTracker.getStats());
+                                                                        }}
+                                                                        style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
+                                                                        title="Kazandı olarak işaretle"
+                                                                    >
+                                                                        ✓
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={async () => {
+                                                                            const finalScore = liveMatch ? (
+                                                                                typeof liveMatch.score === 'object' ? liveMatch.score :
+                                                                                (typeof liveMatch.score === 'string' && liveMatch.score.includes('-')) ? {
+                                                                                    home: parseInt(liveMatch.score.split('-')[0]) || 0,
+                                                                                    away: parseInt(liveMatch.score.split('-')[1]) || 0
+                                                                                } : null
+                                                                            ) : (pred.scoreAtPrediction || null);
+
+                                                                            await predictionTracker.updateResult(pred.id, 'LOST', finalScore);
+                                                                            setTrackingStats(predictionTracker.getStats());
+                                                                        }}
+                                                                        style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
+                                                                        title="Kaybetti olarak işaretle"
+                                                                    >
+                                                                        ✗
+                                                                    </button>
                                                                 </div>
                                                             ) : (
-                                                                <span style={{
-                                                                    padding: '0.3rem 0.6rem',
-                                                                    borderRadius: '6px',
-                                                                    fontSize: '0.7rem',
-                                                                    fontWeight: 800,
-                                                                    background: pred.status === 'WON' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                                                                    border: `1px solid ${pred.status === 'WON' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
-                                                                    color: pred.status === 'WON' ? '#10b981' : '#ef4444'
-                                                                }}>{pred.status === 'WON' ? '✓ KAZANDI' : '✗ KAYBETTİ'}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={async () => {
+                                                                        if (window.confirm(lang === 'tr' ? 'Bu maçı tekrar "DEVAM EDİYOR" durumuna geri almak istiyor musunuz?' : 'Reset this match back to PENDING?')) {
+                                                                            await predictionTracker.updateResult(pred.id, 'PENDING', null);
+                                                                            setTrackingStats(predictionTracker.getStats());
+                                                                        }
+                                                                    }}
+                                                                    style={{
+                                                                        padding: '0.3rem 0.6rem',
+                                                                        borderRadius: '6px',
+                                                                        fontSize: '0.7rem',
+                                                                        fontWeight: 800,
+                                                                        background: pred.status === 'WON' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                                                        border: `1px solid ${pred.status === 'WON' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
+                                                                        color: pred.status === 'WON' ? '#10b981' : '#ef4444',
+                                                                        cursor: 'pointer'
+                                                                    }}
+                                                                    title={lang === 'tr' ? 'Yanlış tıkladıysanız geri almak (Devam Ediyor yapmak) için tıklayın' : 'Click to undo back to Pending'}
+                                                                >
+                                                                    {pred.status === 'WON' ? '✓ KAZANDI ↺' : '✗ KAYBETTİ ↺'}
+                                                                </button>
                                                             )}
+
+                                                            {/* Individual Delete Button */}
+                                                            <button
+                                                                onClick={async (e) => {
+                                                                    e.stopPropagation();
+                                                                    if (window.confirm(lang === 'tr' ? 'Bu tahmini listeden silmek istediğinize emin misiniz?' : 'Delete this prediction?')) {
+                                                                        await predictionTracker.deletePrediction(pred.id);
+                                                                        setTrackingStats(predictionTracker.getStats());
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    background: 'transparent',
+                                                                    border: 'none',
+                                                                    color: 'rgba(255,255,255,0.3)',
+                                                                    fontSize: '0.85rem',
+                                                                    cursor: 'pointer',
+                                                                    padding: '2px 4px'
+                                                                }}
+                                                                title={lang === 'tr' ? 'Bu kaydı sil' : 'Delete record'}
+                                                            >
+                                                                🗑️
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 );
