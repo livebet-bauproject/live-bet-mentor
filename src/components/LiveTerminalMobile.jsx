@@ -29,6 +29,7 @@ export const LiveTerminalMobile = ({
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
     const [expandedMatchId, setExpandedMatchId] = useState(null);
+    const [trackedMatchIds, setTrackedMatchIds] = useState(() => new Set());
 
     const handleCardClick = (match, e) => {
         if (e.target.closest('button') || e.target.closest('.tb-action-ignore')) {
@@ -603,17 +604,23 @@ export const LiveTerminalMobile = ({
 
                                     {/* Quick Actions Bar */}
                                     <div className="tb-m-quick-actions">
-                                        {isBetReady && bankrollManager && (
-                                            <button
-                                                type="button"
-                                                className="tb-m-action-btn"
-                                                style={{ background: '#10b981', color: '#000' }}
-                                                onClick={() => onApproveBet(m, signal)}
-                                            >
-                                                <span>✓</span>
-                                                <span>{t?.approve_bet || 'Bahsi Onayla'} ({bankrollManager.calculateRecommendedStake(m, signal)} ₺)</span>
-                                            </button>
-                                        )}
+                                        <button
+                                            type="button"
+                                            className="tb-m-action-btn"
+                                            disabled={trackedMatchIds.has(m.id)}
+                                            style={{
+                                                background: trackedMatchIds.has(m.id) ? 'rgba(16, 185, 129, 0.18)' : '#10b981',
+                                                color: trackedMatchIds.has(m.id) ? '#34d399' : '#000',
+                                                border: trackedMatchIds.has(m.id) ? '1px solid rgba(16, 185, 129, 0.4)' : 'none'
+                                            }}
+                                            onClick={() => {
+                                                onApproveBet(m, signal);
+                                                setTrackedMatchIds(prev => new Set([...prev, m.id]));
+                                            }}
+                                        >
+                                            <span>{trackedMatchIds.has(m.id) ? '✓' : '📌'}</span>
+                                            <span>{trackedMatchIds.has(m.id) ? (lang === 'tr' ? 'Takip Ediliyor' : 'Tracking') : (lang === 'tr' ? 'Kupona Ekle' : 'Add to Slip')}</span>
+                                        </button>
                                         <button
                                             type="button"
                                             className="tb-m-action-btn secondary"

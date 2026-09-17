@@ -1999,31 +1999,40 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const filterByTier = (m) => activeTierFilter === 'ALL' || m.tier === activeTierFilter;
 
     const handleTerminalApproveBet = (match, signal) => {
-        if (!match || !signal) return;
-        const stake = bankrollManager.calculateRecommendedStake(match, signal);
-        if (bankrollManager.approveBet(match, signal, stake)) {
-            alert(t.bet_approved_alert || 'Bahis onaylandı ve kupon kaydedildi.');
-            setBankState(bankrollManager.getState());
+        if (!match) return;
+        const strat = signal?.activeStrategies?.[0];
+        const predText = strat?.label || signal?.prediction || signal?.reason || match?.opportunityData?.suggestedMarket?.label || (lang === 'tr' ? 'Canlı Takip' : 'Live Pick');
+        const scoreObj = (match.score && typeof match.score === 'object')
+            ? match.score
+            : (typeof match.score === 'string' && match.score.includes('-'))
+                ? { home: parseInt(match.score.split('-')[0]) || 0, away: parseInt(match.score.split('-')[1]) || 0 }
+                : { home: match.homeScore || 0, away: match.awayScore || 0 };
 
-            // Record in Prediction Tracker
-            predictionTracker.recordPrediction({
-                matchId: match.id,
-                match: `${match.homeTeam} vs ${match.awayTeam}`,
-                homeTeam: match.homeTeam,
-                awayTeam: match.awayTeam,
-                minute: match.minute,
-                score: match.score,
-                market: signal.market || 'Match Result',
-                prediction: signal.prediction,
-                confidence: signal.confidence || 75,
-                source: 'LIVE_TERMINAL',
-                dqs: match.dqs,
-                xgHome: match.stats?.xg?.home || 0,
-                xgAway: match.stats?.xg?.away || 0,
-                consensusCount: match.consensusReport?.totalSources || 0
-            }).then(() => {
-                setTrackingStats(predictionTracker.getStats());
-            });
+        // 1. Record directly in Prediction Tracker & Watchlist
+        predictionTracker.recordPrediction({
+            matchId: match.id,
+            match: `${match.homeTeam} vs ${match.awayTeam}`,
+            homeTeam: match.homeTeam,
+            awayTeam: match.awayTeam,
+            minute: match.minute,
+            score: scoreObj,
+            market: signal?.market || signal?.suggestedMarket || 'Canlı Bahis',
+            prediction: predText,
+            confidence: signal?.confidence || Math.round(match.opportunityData?.score || 75),
+            source: 'LIVE_TERMINAL',
+            dqs: match.dqs,
+            xgHome: match.stats?.xg?.home || 0,
+            xgAway: match.stats?.xg?.away || 0,
+            consensusCount: match.consensusReport?.totalSources || 0
+        }).then(() => {
+            setTrackingStats(predictionTracker.getStats());
+        });
+
+        // 2. Also register in bankroll ledger if manager active
+        if (bankrollManager) {
+            const stake = bankrollManager.calculateRecommendedStake(match, signal) || 100;
+            bankrollManager.approveBet(match, signal, stake);
+            setBankState(bankrollManager.getState());
         }
     };
 
@@ -6948,16 +6957,40 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                                 )}
                                                                             </span>
                                                                         ) : (
-                                                                            <span style={{
-                                                                                background: 'rgba(255,255,255,0.04)',
-                                                                                padding: '2px 8px',
-                                                                                borderRadius: '6px',
-                                                                                color: 'rgba(255,255,255,0.5)',
-                                                                                fontSize: '0.7rem',
-                                                                                fontWeight: 700
-                                                                            }}>
-                                                                                🔴 Canlı: {initialScoreStr} ({initialMinute}')
-                                                                            </span>
+                                                                            (() => {
+                                                                                const elapsedMin = alert.timestamp ? Math.round((Date.now() - alert.timestamp) / 60000) : 0;
+                                                                                const initialMinNum = parseInt(String(initialMinute).replace(/\D/g, '')) || 0;
+                                                                                const matchEnded = elapsedMin >= 45 || (initialMinNum + elapsedMin >= 95);
+
+                                                                                if (matchEnded) {
+                                                                                    return (
+                                                                                        <span style={{
+                                                                                            background: 'rgba(255,255,255,0.06)',
+                                                                                            border: '1px solid rgba(255,255,255,0.12)',
+                                                                                            padding: '2px 8px',
+                                                                                            borderRadius: '6px',
+                                                                                            color: '#94a3b8',
+                                                                                            fontSize: '0.7rem',
+                                                                                            fontWeight: 700
+                                                                                        }}>
+                                                                                            🏁 {lang === 'tr' ? 'Maç Bitti (Sonuç Bekleniyor)' : 'Ended (Awaiting Result)'}
+                                                                                        </span>
+                                                                                    );
+                                                                                }
+
+                                                                                return (
+                                                                                    <span style={{
+                                                                                        background: 'rgba(255,255,255,0.04)',
+                                                                                        padding: '2px 8px',
+                                                                                        borderRadius: '6px',
+                                                                                        color: 'rgba(255,255,255,0.5)',
+                                                                                        fontSize: '0.7rem',
+                                                                                        fontWeight: 700
+                                                                                    }}>
+                                                                                        🔴 Canlı: {initialScoreStr} ({initialMinute}')
+                                                                                    </span>
+                                                                                );
+                                                                            })()
                                                                         )}
                                                                     </div>
                                                                     <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-color)' }}>

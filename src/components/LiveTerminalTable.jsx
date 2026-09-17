@@ -29,6 +29,7 @@ export const LiveTerminalTable = ({
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
     const [expandedMatchId, setExpandedMatchId] = useState(null);
+    const [trackedMatchIds, setTrackedMatchIds] = useState(() => new Set());
 
     const handleRowClick = (match, e) => {
         // Prevent accordion trigger when clicking buttons or links
@@ -686,32 +687,42 @@ export const LiveTerminalTable = ({
                                                             </div>
                                                         )}
 
-                                                        {signal?.verdict === 'BET' && bankrollManager && (
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="tb-action-ignore">
-                                                                <div style={{ flex: 1, background: 'rgba(16, 185, 129, 0.1)', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                                                                    <span style={{ fontSize: '0.65rem', color: '#34d399', display: 'block' }}>{t?.recom_stake_short || 'Önerilen Kasa'}</span>
-                                                                    <span style={{ fontWeight: 900, color: '#f1f5f9', fontSize: '0.9rem' }}>
-                                                                        {bankrollManager.calculateRecommendedStake(m, signal)} ₺
-                                                                    </span>
-                                                                </div>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => onApproveBet(m, signal)}
-                                                                    style={{
-                                                                        background: '#10b981',
-                                                                        color: '#000',
-                                                                        border: 'none',
-                                                                        padding: '0.75rem 1.25rem',
-                                                                        borderRadius: '8px',
-                                                                        fontWeight: 900,
-                                                                        fontSize: '0.78rem',
-                                                                        cursor: 'pointer'
-                                                                    }}
-                                                                >
-                                                                    {t?.approve_bet || 'BAHSİ ONAYLA'}
-                                                                </button>
-                                                            </div>
-                                                        )}
+                                                        {/* Sleek Single-Click Portfolio / Slip Tracking Button */}
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: '0.4rem' }} className="tb-action-ignore">
+                                                            <button
+                                                                type="button"
+                                                                disabled={trackedMatchIds.has(m.id)}
+                                                                onClick={() => {
+                                                                    onApproveBet(m, signal);
+                                                                    setTrackedMatchIds(prev => new Set([...prev, m.id]));
+                                                                }}
+                                                                style={{
+                                                                    background: trackedMatchIds.has(m.id) 
+                                                                        ? 'rgba(16, 185, 129, 0.15)' 
+                                                                        : 'linear-gradient(135deg, #10b981, #059669)',
+                                                                    color: trackedMatchIds.has(m.id) ? '#34d399' : '#000',
+                                                                    border: trackedMatchIds.has(m.id) ? '1px solid rgba(16, 185, 129, 0.4)' : 'none',
+                                                                    padding: '0.65rem 1.25rem',
+                                                                    borderRadius: '8px',
+                                                                    fontWeight: 800,
+                                                                    fontSize: '0.76rem',
+                                                                    cursor: trackedMatchIds.has(m.id) ? 'default' : 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    boxShadow: trackedMatchIds.has(m.id) ? 'none' : '0 2px 10px rgba(16, 185, 129, 0.3)',
+                                                                    transition: 'all 0.2s'
+                                                                }}
+                                                                title={lang === 'tr' ? 'Bu maçı kişisel tahmin ve kasa takip karnenize kaydedin' : 'Track this match in your prediction ledger'}
+                                                            >
+                                                                <span>{trackedMatchIds.has(m.id) ? '✓' : '📌'}</span>
+                                                                <span>
+                                                                    {trackedMatchIds.has(m.id) 
+                                                                        ? (lang === 'tr' ? 'Takip Listenize Eklendi' : 'Added to Watchlist') 
+                                                                        : (lang === 'tr' ? 'Kuponuma / Takibe Ekle' : 'Add to Watchlist')}
+                                                                </span>
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </td>
