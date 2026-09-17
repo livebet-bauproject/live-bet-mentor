@@ -109,7 +109,7 @@ export const LiveTerminalMobile = ({
                 const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
                 const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
                 const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
-                const last20 = calculateLast20MinMetrics(m);
+                const last20 = calculateLast20MinMetrics(m, signal);
 
                     const sogHome = m.stats?.shotsOnGoal?.home || 0;
                     const sogAway = m.stats?.shotsOnGoal?.away || 0;
@@ -296,7 +296,7 @@ export const LiveTerminalMobile = ({
                                         %{heat}
                                         {last20.isSurging && (
                                             <span style={{ display: 'block', fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800, marginTop: '2px' }}>
-                                                ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.deltaDA})` : `+${last20.deltaDA} Atak`}
+                                                ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA})` : `+${last20.deltaDA} Atak`}
                                             </span>
                                         )}
                                     </span>

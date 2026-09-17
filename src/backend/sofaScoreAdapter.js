@@ -43,6 +43,30 @@ export const sofaScoreAdapter = {
     _graphCache: adapterGraphCache,
     _incidentsCache: adapterIncidentsCache,
     _statsCache: adapterStatsCache,
+
+    /**
+     * Synchronously returns cached attack momentum graph points if available
+     */
+    getCachedGraph(eventId) {
+        if (!eventId) return null;
+        const cached = adapterGraphCache.get(eventId);
+        if (cached && (Date.now() - cached.time < 180000)) {
+            return cached.data?.graphPoints || null;
+        }
+        return null;
+    },
+
+    /**
+     * Synchronously returns cached match incidents if available
+     */
+    getCachedIncidents(eventId) {
+        if (!eventId) return null;
+        const cached = adapterIncidentsCache.get(eventId);
+        if (cached && (Date.now() - cached.time < 180000)) {
+            return cached.data || null;
+        }
+        return null;
+    },
     /**
      * Fetches the match list for the current day.
      */

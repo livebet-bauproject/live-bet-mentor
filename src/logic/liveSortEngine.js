@@ -6,6 +6,7 @@
 
 import { CONFIG } from '../config.js';
 import { consensusAdapter } from '../backend/consensusAdapter.js';
+import { sofaScoreAdapter } from '../backend/sofaScoreAdapter.js';
 
 export const SORT_CRITERIA = {
     MOMENTUM: 'MOMENTUM',       // Dynamic: High pressure, hot attacks, active momentum bubble to top
@@ -191,6 +192,8 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
         ? match.minuteHistory
         : (Array.isArray(match.history) ? match.history : []);
 
+    let historySnapDeltas = null;
+
     if (history.length > 1) {
         const now = Date.now();
         const targetMs = 20 * 60 * 1000;
@@ -211,9 +214,19 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
             const snapAgeMin = Math.round((now - bestSnap.timestamp) / 60000);
             // Only use HISTORY snapshot if we have at least 8 minutes of tracked history
             if (snapAgeMin >= 8) {
-                const oldSog = (Number(bestSnap.stats.shotsOnGoal?.home) || 0) + (Number(bestSnap.stats.shotsOnGoal?.away) || 0);
+                const curDAHome = Number(stats.dangerousAttacks?.home) || 0;
+                const curDAAway = Number(stats.dangerousAttacks?.away) || 0;
+                const curSogHome = Number(stats.shotsOnGoal?.home) || 0;
+                const curSogAway = Number(stats.shotsOnGoal?.away) || 0;
+
+                const oldSogHome = Number(bestSnap.stats.shotsOnGoal?.home) || 0;
+                const oldSogAway = Number(bestSnap.stats.shotsOnGoal?.away) || 0;
+                const oldDAHome = Number(bestSnap.stats.dangerousAttacks?.home) || 0;
+                const oldDAAway = Number(bestSnap.stats.dangerousAttacks?.away) || 0;
+
+                const oldSog = oldSogHome + oldSogAway;
                 const oldTotalShots = (Number(bestSnap.stats.totalShots?.home) || 0) + (Number(bestSnap.stats.totalShots?.away) || 0);
-                const oldDA = (Number(bestSnap.stats.dangerousAttacks?.home) || 0) + (Number(bestSnap.stats.dangerousAttacks?.away) || 0);
+                const oldDA = oldDAHome + oldDAAway;
                 const oldCorners = (Number(bestSnap.stats.corners?.home) || 0) + (Number(bestSnap.stats.corners?.away) || 0);
 
                 const rawDeltaDA = Math.max(0, curDA - oldDA);
@@ -225,18 +238,41 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
                 deltaShots = Math.round(rawDeltaShots * scale);
                 deltaCorners = Math.round(rawDeltaCorners * scale);
                 source = 'HISTORY';
+
+                historySnapDeltas = {
+                    deltaDAHome: Math.max(0, curDAHome - oldDAHome),
+                    deltaDAAway: Math.max(0, curDAAway - oldDAAway),
+                    deltaSogHome: Math.max(0, curSogHome - oldSogHome),
+                    deltaSogAway: Math.max(0, curSogAway - oldSogAway)
+                };
             }
         }
     }
 
     // 2. Try SofaScore minute-by-minute momentum graphPoints
     let graphMomentumActivity = 0;
-    if (Array.isArray(match.graphPoints) && match.graphPoints.length > 5) {
+    const graphPts = (Array.isArray(match.graphPoints) && match.graphPoints.length > 0)
+        ? match.graphPoints
+        : (sofaScoreAdapter?.getCachedGraph ? sofaScoreAdapter.getCachedGraph(match.id) : null);
+
+    let graphHomeScore = 0;
+    let graphAwayScore = 0;
+    let hasGraphData = false;
+
+    if (Array.isArray(graphPts) && graphPts.length > 3) {
         const minStart = Math.max(1, currentMinute - 20);
-        const last20Points = match.graphPoints.filter(p => p.minute >= minStart && p.minute <= currentMinute);
-        if (last20Points.length > 0) {
-            const totalAbsMomentum = last20Points.reduce((acc, p) => acc + Math.abs(p.value || 0), 0);
-            graphMomentumActivity = Math.min(100, Math.round(totalAbsMomentum / (last20Points.length || 1) * 2));
+        const last20Points = graphPts.filter(p => p.minute >= minStart && p.minute <= currentMinute);
+        const activePts = last20Points.length >= 3 ? last20Points : graphPts.slice(-12);
+
+        if (activePts.length > 0) {
+            const totalAbsMomentum = activePts.reduce((acc, p) => acc + Math.abs(p.value || 0), 0);
+            graphMomentumActivity = Math.min(100, Math.round(totalAbsMomentum / (activePts.length || 1) * 2));
+
+            graphHomeScore = activePts.reduce((acc, p) => acc + (p.value > 0 ? p.value : 0), 0);
+            graphAwayScore = activePts.reduce((acc, p) => acc + (p.value < 0 ? Math.abs(p.value) : 0), 0);
+            if (graphHomeScore + graphAwayScore >= 10) {
+                hasGraphData = true;
+            }
         }
     }
 
@@ -320,21 +356,77 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
     const awayTeamName = (typeof match.awayTeam === 'object' ? match.awayTeam?.name : match.awayTeam) || 'Deplasman';
 
     let dominantSide = 'BALANCED';
-    if (curDAHome >= curDAAway + 3 || curSogHome > curSogAway) {
-        dominantSide = 'HOME';
-    } else if (curDAAway >= curDAHome + 3 || curSogAway > curSogHome) {
-        dominantSide = 'AWAY';
-    } else if (curDAHome > curDAAway) {
-        dominantSide = 'HOME';
-    } else if (curDAAway > curDAHome) {
-        dominantSide = 'AWAY';
+
+    // 1. PRIORITY 1: SofaScore Attack Momentum Graph wave in the last 20 minutes (Visual ground truth)
+    if (hasGraphData) {
+        if (graphHomeScore >= graphAwayScore * 1.3 || (graphHomeScore - graphAwayScore >= 15)) {
+            dominantSide = 'HOME';
+        } else if (graphAwayScore >= graphHomeScore * 1.3 || (graphAwayScore - graphHomeScore >= 15)) {
+            dominantSide = 'AWAY';
+        }
     }
 
+    // 2. PRIORITY 2: History delta within the last 15-20 min window (What actually happened recently)
+    if (dominantSide === 'BALANCED' && historySnapDeltas) {
+        const { deltaDAHome, deltaDAAway, deltaSogHome, deltaSogAway } = historySnapDeltas;
+        if (deltaDAHome >= deltaDAAway + 2 || (deltaDAHome > deltaDAAway && deltaSogHome >= deltaSogAway)) {
+            dominantSide = 'HOME';
+        } else if (deltaDAAway >= deltaDAHome + 2 || (deltaDAAway > deltaDAHome && deltaSogAway >= deltaSogHome)) {
+            dominantSide = 'AWAY';
+        }
+    }
+
+    // 3. PRIORITY 3: Recent goal scored within last 12 minutes
+    if (dominantSide === 'BALANCED') {
+        const incidents = (Array.isArray(match.incidents) && match.incidents.length > 0)
+            ? match.incidents
+            : (sofaScoreAdapter?.getCachedIncidents ? sofaScoreAdapter.getCachedIncidents(match.id) : null);
+        if (Array.isArray(incidents)) {
+            const recentGoal = incidents.find(inc => 
+                inc.incidentType === 'goal' && 
+                (currentMinute - inc.time) <= 12 && 
+                (currentMinute - inc.time) >= 0
+            );
+            if (recentGoal) {
+                dominantSide = recentGoal.isHome ? 'HOME' : 'AWAY';
+            }
+        }
+    }
+
+    // 4. PRIORITY 4: Active AI Analyst Signal Target / Prediction
+    if (dominantSide === 'BALANCED' && signal) {
+        const sigText = `${signal.prediction || ''} ${signal.label || ''} ${signal.reasoning || ''}`.toLowerCase();
+        if (homeTeamName && sigText.includes(homeTeamName.toLowerCase())) {
+            dominantSide = 'HOME';
+        } else if (awayTeamName && sigText.includes(awayTeamName.toLowerCase())) {
+            dominantSide = 'AWAY';
+        }
+    }
+
+    // 5. PRIORITY 5: Observations dominantTeam
+    if (dominantSide === 'BALANCED') {
+        const obsPressure = match.observations?.pressure;
+        if (obsPressure?.dominantTeam === 'HOME' || obsPressure?.dominantTeam === 'AWAY') {
+            dominantSide = obsPressure.dominantTeam;
+        }
+    }
+
+    // CRITICAL: We NEVER fall back to full match cumulative stats (e.g. 1st half stats)
+    // to determine who is dominating the last 20 minutes!
     const dominantTeam = dominantSide === 'HOME' ? homeTeamName : (dominantSide === 'AWAY' ? awayTeamName : null);
+
+    // Calculate team-specific deltaDA if known
+    let teamDeltaDA = deltaDA;
+    if (dominantSide === 'HOME' && historySnapDeltas && historySnapDeltas.deltaDAHome > 0) {
+        teamDeltaDA = historySnapDeltas.deltaDAHome;
+    } else if (dominantSide === 'AWAY' && historySnapDeltas && historySnapDeltas.deltaDAAway > 0) {
+        teamDeltaDA = historySnapDeltas.deltaDAAway;
+    }
 
     return {
         surgeScore,
         deltaDA,
+        teamDeltaDA,
         deltaShots,
         deltaCorners,
         isSurging,

@@ -111,7 +111,7 @@ export const LiveTerminalTable = ({
                             const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
                             const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
                             const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
-                            const last20 = calculateLast20MinMetrics(m);
+                            const last20 = calculateLast20MinMetrics(m, signal);
 
                             const sogHome = m.stats?.shotsOnGoal?.home || 0;
                             const sogAway = m.stats?.shotsOnGoal?.away || 0;
@@ -304,7 +304,7 @@ export const LiveTerminalTable = ({
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis'
                                                     }} title={`${last20.dominantTeam ? `${last20.dominantTeam} son 20 dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Şut)`}>
-                                                        ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.deltaDA})` : `+${last20.deltaDA} Atak`}
+                                                        ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA})` : `+${last20.deltaDA} Atak`}
                                                     </span>
                                                 </div>
                                             )}
