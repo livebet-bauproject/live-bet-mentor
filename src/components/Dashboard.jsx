@@ -138,6 +138,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [isSortLocked, setIsSortLocked] = useState(false);
     const [terminalSortCriteria, setTerminalSortCriteria] = useState(SORT_CRITERIA.MOMENTUM);
     const [terminalCategoryFilter, setTerminalCategoryFilter] = useState('ALL');
+    const [filterGroupMode, setFilterGroupMode] = useState('GENERAL');
     const [terminalSearchQuery, setTerminalSearchQuery] = useState('');
     const [terminalMobileSubView, setTerminalMobileSubView] = useState(() => {
         try {
@@ -2068,6 +2069,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         // Category filter
         if (terminalCategoryFilter === 'HOT') {
             list = list.filter(m => isMatchHot(m, signals[m.id]));
+        } else if (terminalCategoryFilter === 'RADAR_ALL') {
+            list = list.filter(m => 
+                isMatchHighGoalProb(m, signals[m.id], 0.55) ||
+                isMatchXgSurplus(m, signals[m.id]) ||
+                isMatchSurgingLast20(m, signals[m.id]) ||
+                isMatchGoldenMinutes(m, signals[m.id]) ||
+                isMatchComeback(m, signals[m.id])
+            );
         } else if (terminalCategoryFilter === 'SURGE_20') {
             list = list.filter(m => isMatchSurgingLast20(m, signals[m.id]));
         } else if (terminalCategoryFilter === 'GOAL_PROB') {
@@ -4906,145 +4915,234 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                     {displayViewMode === 'TERMINAL' ? (
                         <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
-                            {/* Quick Category Filter Strip */}
-                            <div className="tb-filter-strip-wrapper">
-                                <div className="tb-filter-strip" ref={filterStripRef}>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip ${terminalCategoryFilter === 'ALL' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('ALL')}
-                                    >
-                                        <span>⚡</span>
-                                        <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
-                                        <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-hot ${terminalCategoryFilter === 'HOT' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('HOT')}
-                                    >
-                                        <span>🔥</span>
-                                        <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-surge ${terminalCategoryFilter === 'SURGE_20' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('SURGE_20')}
-                                        title={lang === 'tr' ? 'Son 20 dakikada hücum temposu ve tehlike ivmesi tavan yapan canlı maçlar' : 'Matches with surging offensive momentum in the last 20 minutes'}
-                                    >
-                                        <span>⚡</span>
-                                        <span>{lang === 'tr' ? 'Son 20 Dk Baskısı' : 'Last 20m Surge'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m, signals[m.id])).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-goal-prob ${terminalCategoryFilter === 'GOAL_PROB' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('GOAL_PROB')}
-                                        title={lang === 'tr' ? 'Şut, xG ve saha baskısı analitiğine göre sıradaki gol ihtimali %55 ve üzeri olan canlı maçlar' : 'Live matches with in-play next goal probability >= 55%'}
-                                    >
-                                        <span>🧠</span>
-                                        <span>{lang === 'tr' ? 'Gol Radarı (%55+)' : 'Goal Radar (55%+)'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55)).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-xg-surplus ${terminalCategoryFilter === 'XG_SURPLUS' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('XG_SURPLUS')}
-                                        title={lang === 'tr' ? 'Yüksek xG ve şut üretmesine rağmen skorborda yansımamış, yüksek oran vadeden değerli maçlar' : 'Matches generating heavy xG not yet rewarded on scoreboard'}
-                                    >
-                                        <span>⏳</span>
-                                        <span>{lang === 'tr' ? 'Geciken Gol (xG)' : 'Unrewarded xG'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchXgSurplus(m, signals[m.id])).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-golden-min ${terminalCategoryFilter === 'GOLDEN_MIN' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('GOLDEN_MIN')}
-                                        title={lang === 'tr' ? '68-85. dakika aralığında tek farkla devam eden ve tempolu hücum yapılan altın pencere maçları' : 'High-tempo close matches in the 68-85 min golden scoring window'}
-                                    >
-                                        <span>⏱️</span>
-                                        <span>{lang === 'tr' ? 'Altın Saat (68\'-85\')' : 'Golden Window (68\'-85\')'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchGoldenMinutes(m, signals[m.id])).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-comeback ${terminalCategoryFilter === 'COMEBACK' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('COMEBACK')}
-                                        title={lang === 'tr' ? 'Skor olarak geride olan ama sahada rakip kaleyi ablukaya alan takımların maçları' : 'Trailing teams intensely sieging the opponent for a comeback'}
-                                    >
-                                        <span>🔄</span>
-                                        <span>{lang === 'tr' ? 'Geri Dönüş' : 'Comeback'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchComeback(m, signals[m.id])).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-trend ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('TREND')}
-                                        title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
-                                    >
-                                        <span>📈</span>
-                                        <span>{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => {
-                                                return (trendingBets || []).some(tb => 
-                                                    consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                                                    consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                                                );
-                                            }).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-bet ${terminalCategoryFilter === 'BET' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('BET')}
-                                    >
-                                        <span>✓</span>
-                                        <span>{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-second-half ${terminalCategoryFilter === 'SECOND_HALF' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
-                                    >
-                                        <span>⏱️</span>
-                                        <span>{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => {
-                                                const minStr = String(m.minute || '');
-                                                const min = parseInt(minStr, 10);
-                                                return min >= 45 || minStr.includes('2.Y') || minStr.includes('2H');
-                                            }).length}
-                                        </span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-chip chip-pinned ${terminalCategoryFilter === 'PINNED' ? 'active' : ''}`}
-                                        onClick={() => setTerminalCategoryFilter('PINNED')}
-                                    >
-                                        <span>★</span>
-                                        <span>{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
-                                        <span className="tb-chip-count">
-                                            {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
-                                        </span>
-                                    </button>
+                            {/* Quick Category Filter Strip with Two Mini Sub-Tabs */}
+                            {(() => {
+                                const radarMatchesCount = enforcedMatches.filter(filterByTier).filter(m => 
+                                    isMatchHighGoalProb(m, signals[m.id], 0.55) ||
+                                    isMatchXgSurplus(m, signals[m.id]) ||
+                                    isMatchSurgingLast20(m, signals[m.id]) ||
+                                    isMatchGoldenMinutes(m, signals[m.id]) ||
+                                    isMatchComeback(m, signals[m.id])
+                                ).length;
+
+                                return (
+                                    <div className="tb-filter-strip-wrapper">
+                                        {/* Sub-Tab Navigation Bar between General and Radars */}
+                                        <div className="tb-filter-nav-bar">
+                                            <div className="tb-filter-group-nav">
+                                                <button
+                                                    type="button"
+                                                    className={`tb-group-nav-btn ${filterGroupMode === 'GENERAL' ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        setFilterGroupMode('GENERAL');
+                                                        if (['RADAR_ALL', 'GOAL_PROB', 'XG_SURPLUS', 'SURGE_20', 'GOLDEN_MIN', 'COMEBACK'].includes(terminalCategoryFilter)) {
+                                                            setTerminalCategoryFilter('ALL');
+                                                        }
+                                                    }}
+                                                >
+                                                    <span>📋</span>
+                                                    <span>{lang === 'tr' ? 'Genel Filtreler' : 'General'}</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`tb-group-nav-btn radar-mode ${filterGroupMode === 'RADAR' ? 'active' : ''}`}
+                                                    onClick={() => {
+                                                        setFilterGroupMode('RADAR');
+                                                        if (!['RADAR_ALL', 'GOAL_PROB', 'XG_SURPLUS', 'SURGE_20', 'GOLDEN_MIN', 'COMEBACK'].includes(terminalCategoryFilter)) {
+                                                            setTerminalCategoryFilter('RADAR_ALL');
+                                                        }
+                                                    }}
+                                                >
+                                                    <span>🎯</span>
+                                                    <span>{lang === 'tr' ? 'Canlı Fırsat Radarları' : 'In-Play Radars'}</span>
+                                                    {radarMatchesCount > 0 && (
+                                                        <span className="tb-group-badge">{radarMatchesCount}</span>
+                                                    )}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Chips List: Dynamically toggles based on filterGroupMode */}
+                                        <div className="tb-filter-strip" ref={filterStripRef}>
+                                            {filterGroupMode === 'GENERAL' ? (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip ${terminalCategoryFilter === 'ALL' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('ALL')}
+                                                    >
+                                                        <span>⚡</span>
+                                                        <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                                        <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-hot ${terminalCategoryFilter === 'HOT' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('HOT')}
+                                                    >
+                                                        <span>🔥</span>
+                                                        <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-trend ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('TREND')}
+                                                        title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
+                                                    >
+                                                        <span>📈</span>
+                                                        <span>{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => {
+                                                                return (trendingBets || []).some(tb => 
+                                                                    consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                                                                    consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                                                                );
+                                                            }).length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-bet ${terminalCategoryFilter === 'BET' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('BET')}
+                                                    >
+                                                        <span>✓</span>
+                                                        <span>{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-second-half ${terminalCategoryFilter === 'SECOND_HALF' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
+                                                    >
+                                                        <span>⏱️</span>
+                                                        <span>{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => {
+                                                                const minStr = String(m.minute || '');
+                                                                const min = parseInt(minStr, 10);
+                                                                return min >= 45 || minStr.includes('2.Y') || minStr.includes('2H');
+                                                            }).length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-pinned ${terminalCategoryFilter === 'PINNED' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('PINNED')}
+                                                    >
+                                                        <span>★</span>
+                                                        <span>{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
+                                                        </span>
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-radar-all ${terminalCategoryFilter === 'RADAR_ALL' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('RADAR_ALL')}
+                                                        title={lang === 'tr' ? 'Tüm fırsat radarlarından en az birine uyan canlı maçlar' : 'Matches matching any opportunity radar'}
+                                                    >
+                                                        <span>🎯</span>
+                                                        <span>{lang === 'tr' ? 'Tüm Radarlar' : 'All Radars'}</span>
+                                                        <span className="tb-chip-count">{radarMatchesCount}</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-goal-prob ${terminalCategoryFilter === 'GOAL_PROB' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('GOAL_PROB')}
+                                                        title={lang === 'tr' ? 'Şut, xG ve saha baskısı analitiğine göre sıradaki gol ihtimali %55 ve üzeri olan canlı maçlar' : 'Live matches with in-play next goal probability >= 55%'}
+                                                    >
+                                                        <span>🧠</span>
+                                                        <span>{lang === 'tr' ? 'Gol Radarı' : 'Goal Radar'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55)).length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-xg-surplus ${terminalCategoryFilter === 'XG_SURPLUS' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('XG_SURPLUS')}
+                                                        title={lang === 'tr' ? 'Yüksek xG ve şut üretmesine rağmen skorborda yansımamış, yüksek oran vadeden değerli maçlar' : 'Matches generating heavy xG not yet rewarded on scoreboard'}
+                                                    >
+                                                        <span>⏳</span>
+                                                        <span>{lang === 'tr' ? 'Geciken Gol' : 'Unrewarded xG'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchXgSurplus(m, signals[m.id])).length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-surge ${terminalCategoryFilter === 'SURGE_20' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('SURGE_20')}
+                                                        title={lang === 'tr' ? 'Son 20 dakikada hücum temposu ve tehlike ivmesi tavan yapan canlı maçlar' : 'Matches with surging offensive momentum in the last 20 minutes'}
+                                                    >
+                                                        <span>⚡</span>
+                                                        <span>{lang === 'tr' ? '20\' Baskısı' : '20m Surge'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m, signals[m.id])).length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-golden-min ${terminalCategoryFilter === 'GOLDEN_MIN' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('GOLDEN_MIN')}
+                                                        title={lang === 'tr' ? '68-85. dakika aralığında tek farkla devam eden ve tempolu hücum yapılan altın pencere maçları' : 'High-tempo close matches in the 68-85 min golden scoring window'}
+                                                    >
+                                                        <span>⏱️</span>
+                                                        <span>{lang === 'tr' ? 'Altın Saat' : 'Golden Window'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchGoldenMinutes(m, signals[m.id])).length}
+                                                        </span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className={`tb-chip chip-comeback ${terminalCategoryFilter === 'COMEBACK' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('COMEBACK')}
+                                                        title={lang === 'tr' ? 'Skor olarak geride olan ama sahada rakip kaleyi ablukaya alan takımların maçları' : 'Trailing teams intensely sieging the opponent for a comeback'}
+                                                    >
+                                                        <span>🔄</span>
+                                                        <span>{lang === 'tr' ? 'Geri Dönüş' : 'Comeback'}</span>
+                                                        <span className="tb-chip-count">
+                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchComeback(m, signals[m.id])).length}
+                                                        </span>
+                                                    </button>
+                                                </>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Active RADAR_ALL Explanatory Banner */}
+                            {terminalCategoryFilter === 'RADAR_ALL' && (
+                                <div style={{
+                                    padding: '0.45rem 0.85rem',
+                                    marginBottom: '0.8rem',
+                                    background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.1) 0%, rgba(234, 88, 12, 0.08) 100%)',
+                                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                                    borderRadius: '8px',
+                                    fontSize: '0.78rem',
+                                    color: '#fbbf24',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span>🎯</span>
+                                    <span>
+                                        <strong>{lang === 'tr' ? 'Tüm Fırsat Radarları (Konsolide):' : 'All In-Play Radars (Consolidated):'}</strong>{' '}
+                                        {lang === 'tr' 
+                                            ? 'Gol Radarı, Geciken Gol, 20 Dk Baskısı, Altın Saat veya Geri Dönüş şartlarından en az birini sağlayan tüm canlı maçları listeler.'
+                                            : 'Aggregates all live matches meeting any of the 5 specialized opportunity radar conditions.'}
+                                    </span>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Active SURGE_20 Explanatory Banner */}
                             {terminalCategoryFilter === 'SURGE_20' && (

@@ -162,6 +162,76 @@
   margin-bottom: 0.85rem;
 }
 
+/* Sub-Tab Navigation Bar between General and Radars */
+.tb-filter-nav-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tb-filter-group-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(15, 23, 42, 0.65);
+  padding: 3px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tb-group-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tb-group-nav-btn:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.tb-group-nav-btn.active {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+  font-weight: 800;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+}
+
+.tb-group-nav-btn.radar-mode.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(234, 88, 12, 0.15) 100%);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+}
+
+.tb-group-badge {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.tb-chip.chip-radar-all.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(234, 88, 12, 0.18) 100%);
+  color: #fbbf24;
+  border-color: #f59e0b;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
+}
+
 /* Subtle edge fade to indicate horizontal swipeability */
 .tb-filter-strip-wrapper::after {
   content: '';
