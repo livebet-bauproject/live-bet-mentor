@@ -164,7 +164,7 @@ export const isMatchHot = (match, signal = null) => {
  * Uses match.minuteHistory (rolling snapshots) and match.graphPoints (SofaScore minute-by-minute momentum),
  * with rate-based fallbacks for newly tracked matches.
  */
-export const calculateLast20MinMetrics = (match) => {
+export const calculateLast20MinMetrics = (match, signal = null) => {
     if (!match) return {
         surgeScore: 0,
         deltaDA: 0,
@@ -249,10 +249,22 @@ export const calculateLast20MinMetrics = (match) => {
         const shotRate = (curTotalShots || curSog) / minDivisor;
         const cornerRate = curCorners / minDivisor;
 
-        // Current live pressure weight
-        const pressure = (typeof match.observations?.pressure?.total === 'number')
-            ? match.observations.pressure.total
-            : (typeof match.pressureIndex === 'number' ? match.pressureIndex : 50);
+        // Extract live pressure robustly
+        let pressure = 50;
+        if (typeof match.observations?.pressure?.total === 'number' && !isNaN(match.observations.pressure.total)) {
+            pressure = match.observations.pressure.total;
+        } else if (typeof match.observations?.pressure === 'number' && !isNaN(match.observations.pressure)) {
+            pressure = match.observations.pressure;
+        } else if (typeof match.opportunityData?.pressure === 'number' && !isNaN(match.opportunityData.pressure)) {
+            pressure = match.opportunityData.pressure;
+        } else if (typeof match.pressureIndex === 'number' && !isNaN(match.pressureIndex)) {
+            pressure = match.pressureIndex;
+        } else if (typeof match.stats?.pressure?.current === 'number' && !isNaN(match.stats.pressure.current)) {
+            pressure = match.stats.pressure.current;
+        } else {
+            const calculatedHeat = calculateMatchHeatScore(match, signal);
+            if (calculatedHeat > 0) pressure = calculatedHeat;
+        }
 
         const pressureBoost = Math.max(0.6, pressure / 50);
         deltaDA = Math.round(daRate * 20 * pressureBoost);
@@ -267,13 +279,25 @@ export const calculateLast20MinMetrics = (match) => {
     // - 2+ corners -> 10 pts
     // - Pressure/Momentum score contribution -> 25 pts
     let score = 0;
-    score += Math.min(40, (deltaDA / 22) * 40);
-    score += Math.min(25, (deltaShots / 4) * 25);
-    score += Math.min(10, (deltaCorners / 3) * 10);
+    score += Math.min(40, (deltaDA / 20) * 40);
+    score += Math.min(25, (deltaShots / 3.5) * 25);
+    score += Math.min(10, (deltaCorners / 2.5) * 10);
 
-    const livePressure = (typeof match.observations?.pressure?.total === 'number')
-        ? match.observations.pressure.total
-        : (typeof match.pressureIndex === 'number' ? match.pressureIndex : 50);
+    let livePressure = 50;
+    if (typeof match.observations?.pressure?.total === 'number' && !isNaN(match.observations.pressure.total)) {
+        livePressure = match.observations.pressure.total;
+    } else if (typeof match.observations?.pressure === 'number' && !isNaN(match.observations.pressure)) {
+        livePressure = match.observations.pressure;
+    } else if (typeof match.opportunityData?.pressure === 'number' && !isNaN(match.opportunityData.pressure)) {
+        livePressure = match.opportunityData.pressure;
+    } else if (typeof match.pressureIndex === 'number' && !isNaN(match.pressureIndex)) {
+        livePressure = match.pressureIndex;
+    } else if (typeof match.stats?.pressure?.current === 'number' && !isNaN(match.stats.pressure.current)) {
+        livePressure = match.stats.pressure.current;
+    } else {
+        const calculatedHeat = calculateMatchHeatScore(match, signal);
+        if (calculatedHeat > 0) livePressure = calculatedHeat;
+    }
     score += Math.min(25, (livePressure / 100) * 25);
 
     if (graphMomentumActivity > 60) {
@@ -282,10 +306,18 @@ export const calculateLast20MinMetrics = (match) => {
 
     const surgeScore = Math.max(0, Math.min(100, Math.round(score)));
 
-    // Condition to be considered "Surging":
-    // Match played at least 20 minutes, not finished, and surgeScore >= 52 or (deltaDA >= 14 and deltaShots >= 1)
+    // Balanced Condition to be considered "Surging":
+    // Match in-play (between 15' and 87'), not finished.
+    // Quality criteria:
+    // 1. surgeScore >= 42
+    // 2. OR sustained action: deltaDA >= 8 and deltaShots >= 1
+    // 3. OR heavy pressure: livePressure >= 60 and deltaDA >= 6
     const isLateOrFinished = currentMinute >= 88 || String(match.minute || '').includes('MS') || String(match.minute || '').includes('FT');
-    const isSurging = !isLateOrFinished && currentMinute >= 20 && (surgeScore >= 52 || (deltaDA >= 14 && deltaShots >= 1));
+    const isSurging = !isLateOrFinished && currentMinute >= 15 && (
+        surgeScore >= 42 ||
+        (deltaDA >= 8 && deltaShots >= 1) ||
+        (livePressure >= 60 && deltaDA >= 6)
+    );
 
     return {
         surgeScore,
@@ -300,9 +332,9 @@ export const calculateLast20MinMetrics = (match) => {
 /**
  * Determines if a match is surging in the last 20 minutes
  */
-export const isMatchSurgingLast20 = (match) => {
+export const isMatchSurgingLast20 = (match, signal = null) => {
     if (!match) return false;
-    const metrics = calculateLast20MinMetrics(match);
+    const metrics = calculateLast20MinMetrics(match, signal);
     return metrics.isSurging;
 };
 
@@ -339,8 +371,8 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
 
         case SORT_CRITERIA.LAST_20_MIN:
             list.sort((a, b) => {
-                const metricsA = calculateLast20MinMetrics(a.match);
-                const metricsB = calculateLast20MinMetrics(b.match);
+                const metricsA = calculateLast20MinMetrics(a.match, signals[a.match.id]);
+                const metricsB = calculateLast20MinMetrics(b.match, signals[b.match.id]);
                 if (metricsB.surgeScore !== metricsA.surgeScore) {
                     return metricsB.surgeScore - metricsA.surgeScore;
                 }
