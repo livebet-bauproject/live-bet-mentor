@@ -6226,7 +6226,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             )
             }
 
-            {renderMatchDetailsModal()}
+            {displayViewMode !== 'TERMINAL' && renderMatchDetailsModal()}
             {renderPlanComparison()}
             {renderUpgradeConfirmation()}
 
