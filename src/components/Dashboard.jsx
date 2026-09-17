@@ -2070,6 +2070,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             list = list.filter(m => isMatchHot(m, signals[m.id]));
         } else if (terminalCategoryFilter === 'SURGE_20') {
             list = list.filter(m => isMatchSurgingLast20(m, signals[m.id]));
+        } else if (terminalCategoryFilter === 'GOAL_PROB') {
+            list = list.filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55));
         } else if (terminalCategoryFilter === 'BET') {
             list = list.filter(m => signals[m.id]?.verdict === 'BET');
         } else if (terminalCategoryFilter === 'SECOND_HALF') {
@@ -4883,6 +4885,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         onChange={(e) => setTerminalSortCriteria(e.target.value)}
                                     >
                                         <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme' : 'Live Momentum'}</option>
+                                        <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali' : 'Goal Probability'}</option>
                                         <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : 'Last 20m Momentum'}</option>
                                         <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Kupon Hacmi' : 'Market Volume'}</option>
                                         <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Dakika' : 'Minute'}</option>
@@ -4930,6 +4933,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <span>{lang === 'tr' ? 'Son 20 Dk Baskısı' : 'Last 20m Surge'}</span>
                                         <span className="tb-chip-count">
                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m, signals[m.id])).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-goal-prob ${terminalCategoryFilter === 'GOAL_PROB' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('GOAL_PROB')}
+                                        title={lang === 'tr' ? 'Şut, xG ve saha baskısı analitiğine göre sıradaki gol ihtimali %55 ve üzeri olan canlı maçlar' : 'Live matches with in-play next goal probability >= 55%'}
+                                    >
+                                        <span>🧠</span>
+                                        <span>{lang === 'tr' ? 'Gol Radarı (%55+)' : 'Goal Radar (55%+)'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55)).length}
                                         </span>
                                     </button>
                                     <button
@@ -5009,6 +5024,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         {lang === 'tr' 
                                             ? 'Son 20 dakikada hücum temposunu katlayan ve rakip kaleye yüklenen takımları listeler.'
                                             : 'Highlights matches where a team is intensely dominating the opponent in the last 20 minutes.'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Active GOAL_PROB Explanatory Banner */}
+                            {terminalCategoryFilter === 'GOAL_PROB' && (
+                                <div style={{
+                                    padding: '0.45rem 0.85rem',
+                                    marginBottom: '0.8rem',
+                                    background: 'linear-gradient(90deg, rgba(56, 189, 248, 0.1) 0%, rgba(99, 102, 241, 0.08) 100%)',
+                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                    borderRadius: '8px',
+                                    fontSize: '0.78rem',
+                                    color: '#38bdf8',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '8px'
+                                }}>
+                                    <span>🧠</span>
+                                    <span>
+                                        <strong>{lang === 'tr' ? 'Canlı Gol Radarı (Bayesian Olasılık):' : 'Live Goal Radar (Bayesian Probability):'}</strong>{' '}
+                                        {lang === 'tr' 
+                                            ? 'Şut hacmi, xG kalitesi ve anlık baskı ivmesine göre sıradaki gol gelme ihtimali %55 ve üzeri olan maçları listeler.'
+                                            : 'Lists live matches where shot volume, xG quality, and momentum elevate next goal probability above 55%.'}
                                     </span>
                                 </div>
                             )}
