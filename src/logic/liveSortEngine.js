@@ -208,22 +208,24 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
         }
 
         if (bestSnap && bestSnap.stats) {
-            const snapAgeMin = Math.max(1, Math.round((now - bestSnap.timestamp) / 60000));
-            const oldSog = (Number(bestSnap.stats.shotsOnGoal?.home) || 0) + (Number(bestSnap.stats.shotsOnGoal?.away) || 0);
-            const oldTotalShots = (Number(bestSnap.stats.totalShots?.home) || 0) + (Number(bestSnap.stats.totalShots?.away) || 0);
-            const oldDA = (Number(bestSnap.stats.dangerousAttacks?.home) || 0) + (Number(bestSnap.stats.dangerousAttacks?.away) || 0);
-            const oldCorners = (Number(bestSnap.stats.corners?.home) || 0) + (Number(bestSnap.stats.corners?.away) || 0);
+            const snapAgeMin = Math.round((now - bestSnap.timestamp) / 60000);
+            // Only use HISTORY snapshot if we have at least 8 minutes of tracked history
+            if (snapAgeMin >= 8) {
+                const oldSog = (Number(bestSnap.stats.shotsOnGoal?.home) || 0) + (Number(bestSnap.stats.shotsOnGoal?.away) || 0);
+                const oldTotalShots = (Number(bestSnap.stats.totalShots?.home) || 0) + (Number(bestSnap.stats.totalShots?.away) || 0);
+                const oldDA = (Number(bestSnap.stats.dangerousAttacks?.home) || 0) + (Number(bestSnap.stats.dangerousAttacks?.away) || 0);
+                const oldCorners = (Number(bestSnap.stats.corners?.home) || 0) + (Number(bestSnap.stats.corners?.away) || 0);
 
-            const rawDeltaDA = Math.max(0, curDA - oldDA);
-            const rawDeltaShots = Math.max(0, (curTotalShots || curSog) - (oldTotalShots || oldSog));
-            const rawDeltaCorners = Math.max(0, curCorners - oldCorners);
+                const rawDeltaDA = Math.max(0, curDA - oldDA);
+                const rawDeltaShots = Math.max(0, (curTotalShots || curSog) - (oldTotalShots || oldSog));
+                const rawDeltaCorners = Math.max(0, curCorners - oldCorners);
 
-            // Scale to 20-minute equivalent if history is shorter (e.g. 5-15 mins)
-            const scale = snapAgeMin < 20 ? (20 / snapAgeMin) : 1.0;
-            deltaDA = Math.round(rawDeltaDA * scale);
-            deltaShots = Math.round(rawDeltaShots * scale);
-            deltaCorners = Math.round(rawDeltaCorners * scale);
-            source = 'HISTORY';
+                const scale = snapAgeMin < 20 ? (20 / snapAgeMin) : 1.0;
+                deltaDA = Math.round(rawDeltaDA * scale);
+                deltaShots = Math.round(rawDeltaShots * scale);
+                deltaCorners = Math.round(rawDeltaCorners * scale);
+                source = 'HISTORY';
+            }
         }
     }
 
@@ -235,19 +237,13 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
         if (last20Points.length > 0) {
             const totalAbsMomentum = last20Points.reduce((acc, p) => acc + Math.abs(p.value || 0), 0);
             graphMomentumActivity = Math.min(100, Math.round(totalAbsMomentum / (last20Points.length || 1) * 2));
-            if (source === 'ESTIMATE') {
-                source = 'GRAPH';
-                deltaDA = Math.round((graphMomentumActivity / 100) * 22);
-            }
         }
     }
 
-    // 3. Fallback: Normalized rate-based calculation
+    // 3. Rate-based calculation if history window is not yet deep enough
     if (source === 'ESTIMATE') {
-        const minDivisor = Math.max(20, currentMinute);
-        const daRate = curDA / minDivisor;
-        const shotRate = (curTotalShots || curSog) / minDivisor;
-        const cornerRate = curCorners / minDivisor;
+        const minDivisor = Math.max(10, currentMinute);
+        const windowRatio = Math.min(1.0, 20 / minDivisor);
 
         // Extract live pressure robustly
         let pressure = 50;
@@ -266,22 +262,22 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
             if (calculatedHeat > 0) pressure = calculatedHeat;
         }
 
-        const pressureBoost = Math.max(0.6, pressure / 50);
-        deltaDA = Math.round(daRate * 20 * pressureBoost);
-        deltaShots = Math.round(shotRate * 20 * pressureBoost);
-        deltaCorners = Math.round(cornerRate * 20 * pressureBoost);
+        const pressureRatio = Math.min(1.4, Math.max(0.7, pressure / 50));
+        deltaDA = Math.round(curDA * windowRatio * pressureRatio);
+        deltaShots = Math.round((curTotalShots || curSog) * windowRatio * pressureRatio);
+        deltaCorners = Math.round(curCorners * windowRatio * pressureRatio);
     }
 
+    // CRITICAL HARD CAP: A 20-minute delta can NEVER exceed total stats of the match
+    deltaDA = Math.max(0, Math.min(curDA, deltaDA));
+    deltaShots = Math.max(0, Math.min(curTotalShots || curSog, deltaShots));
+    deltaCorners = Math.max(0, Math.min(curCorners, deltaCorners));
+
     // Calculate 0 - 100 Surge Score
-    // Benchmarks for a high-intensity 20-minute window:
-    // - 20+ dangerous attacks (1+ per min) -> 40 pts
-    // - 3+ shots -> 25 pts
-    // - 2+ corners -> 10 pts
-    // - Pressure/Momentum score contribution -> 25 pts
     let score = 0;
-    score += Math.min(40, (deltaDA / 20) * 40);
-    score += Math.min(25, (deltaShots / 3.5) * 25);
-    score += Math.min(10, (deltaCorners / 2.5) * 10);
+    score += Math.min(40, (deltaDA / 8) * 40);
+    score += Math.min(25, (deltaShots / 2) * 25);
+    score += Math.min(10, (deltaCorners / 2) * 10);
 
     let livePressure = 50;
     if (typeof match.observations?.pressure?.total === 'number' && !isNaN(match.observations.pressure.total)) {
@@ -308,15 +304,11 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
 
     // Balanced Condition to be considered "Surging":
     // Match in-play (between 15' and 87'), not finished.
-    // Quality criteria:
-    // 1. surgeScore >= 42
-    // 2. OR sustained action: deltaDA >= 8 and deltaShots >= 1
-    // 3. OR heavy pressure: livePressure >= 60 and deltaDA >= 6
     const isLateOrFinished = currentMinute >= 88 || String(match.minute || '').includes('MS') || String(match.minute || '').includes('FT');
     const isSurging = !isLateOrFinished && currentMinute >= 15 && (
-        surgeScore >= 42 ||
-        (deltaDA >= 8 && deltaShots >= 1) ||
-        (livePressure >= 60 && deltaDA >= 6)
+        surgeScore >= 45 ||
+        (deltaDA >= 5 && deltaShots >= 1) ||
+        (livePressure >= 58 && deltaDA >= 4)
     );
 
     return {
