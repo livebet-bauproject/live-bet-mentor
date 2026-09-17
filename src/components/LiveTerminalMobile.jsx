@@ -296,7 +296,7 @@ export const LiveTerminalMobile = ({
                                         %{heat}
                                         {last20.isSurging && (
                                             <span style={{ display: 'block', fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800, marginTop: '2px' }}>
-                                                ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA})` : `+${last20.deltaDA} Atak`}
+                                                ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} Atak)` : `+${last20.deltaDA} Atak`}
                                             </span>
                                         )}
                                     </span>

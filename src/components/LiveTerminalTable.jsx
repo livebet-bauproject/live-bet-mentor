@@ -300,11 +300,11 @@ export const LiveTerminalTable = ({
                                                         padding: '1px 5px',
                                                         display: 'inline-block',
                                                         whiteSpace: 'nowrap',
-                                                        maxWidth: '125px',
+                                                        maxWidth: '145px',
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis'
-                                                    }} title={`${last20.dominantTeam ? `${last20.dominantTeam} son 20 dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Şut)`}>
-                                                        ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA})` : `+${last20.deltaDA} Atak`}
+                                                    }} title={`${last20.dominantTeam ? `${last20.dominantTeam} son 20 dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Toplam Şut${last20.deltaSog ? ` [${last20.deltaSog} İsabetli]` : ''})`}>
+                                                        ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} Atak)` : `+${last20.deltaDA} Atak`}
                                                     </span>
                                                 </div>
                                             )}

@@ -184,6 +184,7 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
 
     let deltaDA = 0;
     let deltaShots = 0;
+    let deltaSog = 0;
     let deltaCorners = 0;
     let source = 'ESTIMATE';
 
@@ -230,12 +231,14 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
                 const oldCorners = (Number(bestSnap.stats.corners?.home) || 0) + (Number(bestSnap.stats.corners?.away) || 0);
 
                 const rawDeltaDA = Math.max(0, curDA - oldDA);
+                const rawDeltaSog = Math.max(0, curSog - oldSog);
                 const rawDeltaShots = Math.max(0, (curTotalShots || curSog) - (oldTotalShots || oldSog));
                 const rawDeltaCorners = Math.max(0, curCorners - oldCorners);
 
                 const scale = snapAgeMin < 20 ? (20 / snapAgeMin) : 1.0;
                 deltaDA = Math.round(rawDeltaDA * scale);
                 deltaShots = Math.round(rawDeltaShots * scale);
+                deltaSog = Math.round(rawDeltaSog * scale);
                 deltaCorners = Math.round(rawDeltaCorners * scale);
                 source = 'HISTORY';
 
@@ -301,12 +304,14 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
         const pressureRatio = Math.min(1.4, Math.max(0.7, pressure / 50));
         deltaDA = Math.round(curDA * windowRatio * pressureRatio);
         deltaShots = Math.round((curTotalShots || curSog) * windowRatio * pressureRatio);
+        deltaSog = Math.round(curSog * windowRatio * pressureRatio);
         deltaCorners = Math.round(curCorners * windowRatio * pressureRatio);
     }
 
     // CRITICAL HARD CAP: A 20-minute delta can NEVER exceed total stats of the match
     deltaDA = Math.max(0, Math.min(curDA, deltaDA));
     deltaShots = Math.max(0, Math.min(curTotalShots || curSog, deltaShots));
+    deltaSog = Math.max(0, Math.min(curSog, deltaSog));
     deltaCorners = Math.max(0, Math.min(curCorners, deltaCorners));
 
     // Calculate 0 - 100 Surge Score
@@ -428,6 +433,7 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
         deltaDA,
         teamDeltaDA,
         deltaShots,
+        deltaSog,
         deltaCorners,
         isSurging,
         dominantSide,
