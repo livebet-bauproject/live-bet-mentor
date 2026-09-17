@@ -1791,20 +1791,30 @@ app.post('/api/members/extend', (req, res) => {
         if (!isAdminRequest(req)) {
             return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler süre uzatabilir.' });
         }
-        const { id, email, days } = req.body || {};
+        const { id, email, days, plan, resetDays } = req.body || {};
         const members = loadMembers();
         const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
         if (!member) {
             return res.status(404).json({ error: 'Üye bulunamadı.' });
         }
 
-        const addDays = Number(days) || 30;
-        let baseDate = member.subscription_end ? new Date(member.subscription_end) : new Date();
-        if (baseDate < new Date()) baseDate = new Date();
-        const newEnd = new Date(baseDate.getTime() + addDays * 24 * 60 * 60 * 1000);
+        if (plan) {
+            member.plan = plan;
+        }
+
+        if (resetDays !== undefined && resetDays !== null) {
+            const numReset = Number(resetDays);
+            const newEnd = new Date(Date.now() + numReset * 24 * 60 * 60 * 1000);
+            member.subscription_end = newEnd.toISOString();
+        } else if (days !== undefined && days !== null && Number(days) !== 0) {
+            const addDays = Number(days);
+            let baseDate = member.subscription_end ? new Date(member.subscription_end) : new Date();
+            if (baseDate < new Date()) baseDate = new Date();
+            const newEnd = new Date(baseDate.getTime() + addDays * 24 * 60 * 60 * 1000);
+            member.subscription_end = newEnd.toISOString();
+        }
 
         member.status = 'approved';
-        member.subscription_end = newEnd.toISOString();
         saveMembers(members);
         res.json({ success: true, member: sanitizeMember(member), members: sanitizeMemberList(members) });
     } catch (e) {

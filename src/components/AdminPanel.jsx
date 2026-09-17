@@ -9,7 +9,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [loading, setLoading] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [subscriptionDays, setSubscriptionDays] = useState(1);
+    const [subscriptionDays, setSubscriptionDays] = useState(3);
     const [selectedPlan, setSelectedPlan] = useState('trial');
     const [status, setStatus] = useState({ type: '', message: '' });
     const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'active', 'all', 'upgrades'
@@ -687,7 +687,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const approveUser = async (profile, days = subscriptionDays, plan = selectedPlan) => {
         const proxyBase = getProxyBase();
         const effectivePlan = plan || profile.plan || 'trial';
-        const effectiveDays = (effectivePlan === 'trial' && days === subscriptionDays) ? 1 : days;
+        const effectiveDays = (effectivePlan === 'trial' && days === subscriptionDays) ? 3 : days;
         
         // 1. Update backend proxy
         try {
@@ -809,7 +809,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         fetchProfiles();
     };
 
-    const updateSubscription = async (profileId, days, plan, userEmail = null) => {
+    const updateSubscription = async (profileId, days, plan, userEmail = null, resetExactDays = null) => {
         const proxyBase = getProxyBase();
         
         // 1. Update backend proxy
@@ -817,15 +817,26 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             await fetch(`${proxyBase}/api/members/extend`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
-                body: JSON.stringify({ id: profileId, days })
+                body: JSON.stringify({ 
+                    id: profileId, 
+                    email: userEmail,
+                    days: days !== undefined && days !== null ? days : null,
+                    plan: plan || null,
+                    resetDays: resetExactDays || null
+                })
             });
         } catch (e) {}
 
         // 2. Update Supabase
         const updates = {};
-        if (days) {
-            const endDate = new Date();
-            endDate.setDate(endDate.getDate() + days);
+        if (resetExactDays) {
+            const endDate = new Date(Date.now() + resetExactDays * 24 * 60 * 60 * 1000);
+            updates.subscription_end = endDate.toISOString();
+        } else if (days !== undefined && days !== null && Number(days) !== 0) {
+            const currentProfile = profiles.find(p => p.id === profileId || (userEmail && (p.email || '').toLowerCase() === userEmail.toLowerCase()));
+            let baseDate = currentProfile?.subscription_end ? new Date(currentProfile.subscription_end) : new Date();
+            if (baseDate < new Date()) baseDate = new Date();
+            const endDate = new Date(baseDate.getTime() + Number(days) * 24 * 60 * 60 * 1000);
             updates.subscription_end = endDate.toISOString();
         }
         if (plan) {
@@ -932,22 +943,27 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                             onChange={(e) => setSubscriptionDays(parseInt(e.target.value))}
                             style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}
                         >
-                            <option value={1}>1 {lang === 'tr' ? 'gün (24 Saat)' : 'day (24 Hours)'}</option>
-                            <option value={7}>7 {t.days}</option>
-                            <option value={30}>30 {t.days}</option>
-                            <option value={90}>90 {t.days}</option>
-                            <option value={180}>180 {t.days}</option>
-                            <option value={365}>365 {t.days}</option>
+                            <option value={3}>3 {lang === 'tr' ? 'gün (3 Günlük Deneme / 72s)' : 'days (3-Day Trial / 72h)'}</option>
+                            <option value={7}>7 {lang === 'tr' ? 'gün (1 Hafta)' : 'days (1 Week)'}</option>
+                            <option value={30}>30 {lang === 'tr' ? 'gün (1 Ay)' : 'days (1 Month)'}</option>
+                            <option value={90}>90 {lang === 'tr' ? 'gün (3 Ay)' : 'days (3 Months)'}</option>
+                            <option value={180}>180 {lang === 'tr' ? 'gün (6 Ay)' : 'days (6 Months)'}</option>
+                            <option value={365}>365 {lang === 'tr' ? 'gün (1 Yıl)' : 'days (1 Year)'}</option>
                         </select>
                     </div>
                     <div>
                         <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.5rem' }}>{t.plan}</label>
                         <select
                             value={selectedPlan}
-                            onChange={(e) => setSelectedPlan(e.target.value)}
+                            onChange={(e) => {
+                                const p = e.target.value;
+                                setSelectedPlan(p);
+                                if (p === 'trial') setSubscriptionDays(3);
+                                else if (subscriptionDays === 3) setSubscriptionDays(30);
+                            }}
                             style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}
                         >
-                            <option value="trial">Trial</option>
+                            <option value="trial">Trial (Deneme)</option>
                             <option value="pro">Pro</option>
                             <option value="premium">Premium</option>
                         </select>
@@ -1679,6 +1695,22 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                 </div>
                             </div>
 
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+                                    💳 {lang === 'tr' ? 'Shopier Kredi Kartı Ödeme / Mağaza Linki' : 'Shopier Payment / Store Link'}
+                                </label>
+                                <input
+                                    type="url"
+                                    placeholder="https://www.shopier.com/QuantDataLabs"
+                                    value={systemSettings.shopier_link || ''}
+                                    onChange={(e) => setSystemSettings({ ...systemSettings, shopier_link: e.target.value })}
+                                    style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}
+                                />
+                                <span style={{ fontSize: '0.72rem', opacity: 0.5, marginTop: '0.3rem', display: 'block' }}>
+                                    {lang === 'tr' ? 'Kullanıcılar web panelinde veya Telegram botunda kredi kartı ile öde butonuna bastığında bu linke yönlendirilir.' : 'Users will be redirected to this URL when clicking Pay with Card.'}
+                                </span>
+                            </div>
+
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem' }}>{t.proPrice}</label>
@@ -2131,7 +2163,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                     {(profile.status === 'pending' || !profile.status) && !profile.is_banned && (
                                                         <>
                                                             <button
-                                                                onClick={() => approveUser(profile, profile.plan === 'trial' ? 1 : subscriptionDays, profile.plan || selectedPlan)}
+                                                                onClick={() => approveUser(profile, profile.plan === 'trial' ? 3 : subscriptionDays, profile.plan || selectedPlan)}
                                                                 title={t.approve}
                                                                 style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#10b981', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
                                                             >
@@ -2149,40 +2181,195 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                     {/* Edit Mode */}
                                                     {profile.status === 'approved' && !profile.is_banned && (
                                                         isEditing ? (
-                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(0,0,0,0.5)', padding: '0.5rem', borderRadius: '8px', zIndex: 10 }}>
-                                                                <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                                                    {[1, 7, 30, 90].map(days => (
-                                                                        <button
-                                                                            key={days}
-                                                                            onClick={() => updateSubscription(profile.id, days)}
-                                                                            style={{ background: 'rgba(56, 189, 248, 0.1)', border: '1px solid #38bdf8', padding: '0.3rem 0.5rem', borderRadius: '4px', color: '#38bdf8', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 700 }}
-                                                                        >
-                                                                            +{days}{days === 1 ? (lang === 'tr' ? 'g (24s)' : 'd (24h)') : (lang === 'tr' ? 'g' : 'd')}
-                                                                        </button>
-                                                                    ))}
+                                                            <div style={{
+                                                                position: 'absolute',
+                                                                right: 0,
+                                                                top: 'calc(100% + 6px)',
+                                                                background: 'rgba(15, 23, 42, 0.98)',
+                                                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                                                borderRadius: '12px',
+                                                                padding: '1rem',
+                                                                zIndex: 100,
+                                                                boxShadow: '0 20px 40px rgba(0,0,0,0.85), 0 0 25px rgba(56, 189, 248, 0.2)',
+                                                                minWidth: '340px',
+                                                                textAlign: 'left',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '0.75rem',
+                                                                backdropFilter: 'blur(16px)'
+                                                            }}>
+                                                                {/* Header info */}
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.5rem' }}>
+                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8' }}>
+                                                                        ⚙️ {lang === 'tr' ? 'Üyelik & Süre Yönetimi' : 'Manage Subscription'}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
+                                                                        {getRemainingDays(profile.subscription_end)} {lang === 'tr' ? 'kaldı' : 'left'}
+                                                                    </div>
                                                                 </div>
-                                                                <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                                                    {Object.keys(PLANS).filter(k => k !== 'admin').map(p => (
+
+                                                                {/* 1. Hızlı 1-Tık Presetler (Paket + Süre Birlikte) */}
+                                                                <div>
+                                                                    <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
+                                                                        ⚡ {lang === 'tr' ? 'Hızlı Paket Tanımla (Paket + Süre)' : 'Quick Presets (Plan + Days)'}
+                                                                    </div>
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
                                                                         <button
-                                                                            key={p}
-                                                                            onClick={() => updateSubscription(profile.id, null, p)}
+                                                                            type="button"
+                                                                            onClick={() => updateSubscription(profile.id, null, 'trial', profile.email, 3)}
+                                                                            title={lang === 'tr' ? '3 Günlük Deneme başlatır' : 'Start 3-day trial'}
                                                                             style={{
-                                                                                background: profile.plan === p ? PLANS[p].color : 'transparent',
-                                                                                color: profile.plan === p ? '#000' : PLANS[p].color,
-                                                                                border: `1px solid ${PLANS[p].color}`,
-                                                                                padding: '0.3rem 0.5rem', borderRadius: '4px', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 700
+                                                                                background: profile.plan === 'trial' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.1)',
+                                                                                border: `1px solid ${profile.plan === 'trial' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`,
+                                                                                color: '#10b981',
+                                                                                padding: '0.45rem 0.3rem',
+                                                                                borderRadius: '6px',
+                                                                                cursor: 'pointer',
+                                                                                fontSize: '0.62rem',
+                                                                                fontWeight: 800,
+                                                                                display: 'flex',
+                                                                                flexDirection: 'column',
+                                                                                alignItems: 'center',
+                                                                                gap: '2px'
                                                                             }}
                                                                         >
-                                                                            {PLANS[p].label}
+                                                                            <span>⚡ {lang === 'tr' ? '3G Deneme' : '3D Trial'}</span>
+                                                                            <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(72 Saat)</span>
                                                                         </button>
-                                                                    ))}
+
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateSubscription(profile.id, null, 'pro', profile.email, 30)}
+                                                                            title={lang === 'tr' ? '1 Aylık PRO tanımlar' : 'Assign 1-Month Pro'}
+                                                                            style={{
+                                                                                background: profile.plan === 'pro' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(56, 189, 248, 0.1)',
+                                                                                border: `1px solid ${profile.plan === 'pro' ? '#38bdf8' : 'rgba(56, 189, 248, 0.3)'}`,
+                                                                                color: '#38bdf8',
+                                                                                padding: '0.45rem 0.3rem',
+                                                                                borderRadius: '6px',
+                                                                                cursor: 'pointer',
+                                                                                fontSize: '0.62rem',
+                                                                                fontWeight: 800,
+                                                                                display: 'flex',
+                                                                                flexDirection: 'column',
+                                                                                alignItems: 'center',
+                                                                                gap: '2px'
+                                                                            }}
+                                                                        >
+                                                                            <span>👑 {lang === 'tr' ? '1 Ay PRO' : '1 Mo PRO'}</span>
+                                                                            <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(30 Gün)</span>
+                                                                        </button>
+
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => updateSubscription(profile.id, null, 'premium', profile.email, 30)}
+                                                                            title={lang === 'tr' ? '1 Aylık PREMIUM tanımlar' : 'Assign 1-Month Premium'}
+                                                                            style={{
+                                                                                background: profile.plan === 'premium' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.1)',
+                                                                                border: `1px solid ${profile.plan === 'premium' ? '#a855f7' : 'rgba(168, 85, 247, 0.3)'}`,
+                                                                                color: '#c084fc',
+                                                                                padding: '0.45rem 0.3rem',
+                                                                                borderRadius: '6px',
+                                                                                cursor: 'pointer',
+                                                                                fontSize: '0.62rem',
+                                                                                fontWeight: 800,
+                                                                                display: 'flex',
+                                                                                flexDirection: 'column',
+                                                                                alignItems: 'center',
+                                                                                gap: '2px'
+                                                                            }}
+                                                                        >
+                                                                            <span>💎 {lang === 'tr' ? '1 Ay VIP' : '1 Mo VIP'}</span>
+                                                                            <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(30 Gün)</span>
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
-                                                                <button
-                                                                    onClick={() => setEditingUser(null)}
-                                                                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.7rem' }}
-                                                                >
-                                                                    {t.cancel}
-                                                                </button>
+
+                                                                {/* 2. Mevcut Bitiş Tarihine Gün Ekle */}
+                                                                <div>
+                                                                    <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
+                                                                        ⏳ {lang === 'tr' ? 'Mevcut Süreye Gün Ekle (+ Gün)' : 'Extend Current Duration (+ Days)'}
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                                                        {[
+                                                                            { d: 1, label: '+1g' },
+                                                                            { d: 3, label: lang === 'tr' ? '+3g (Deneme)' : '+3d (Trial)' },
+                                                                            { d: 7, label: lang === 'tr' ? '+7g (1 Hf)' : '+7d (1 Wk)' },
+                                                                            { d: 30, label: lang === 'tr' ? '+30g (1 Ay)' : '+30d (1 Mo)' },
+                                                                            { d: 90, label: lang === 'tr' ? '+90g (3 Ay)' : '+90d (3 Mo)' },
+                                                                            { d: 365, label: lang === 'tr' ? '+365g (1 Yıl)' : '+365d (1 Yr)' }
+                                                                        ].map(item => (
+                                                                            <button
+                                                                                key={item.d}
+                                                                                type="button"
+                                                                                onClick={() => updateSubscription(profile.id, item.d, null, profile.email)}
+                                                                                style={{
+                                                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                                                                    padding: '0.35rem 0.55rem',
+                                                                                    borderRadius: '5px',
+                                                                                    color: '#e2e8f0',
+                                                                                    cursor: 'pointer',
+                                                                                    fontSize: '0.62rem',
+                                                                                    fontWeight: 700,
+                                                                                    transition: 'all 0.15s'
+                                                                                }}
+                                                                                onMouseOver={(e) => { e.currentTarget.style.borderColor = '#38bdf8'; e.currentTarget.style.color = '#38bdf8'; }}
+                                                                                onMouseOut={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'; e.currentTarget.style.color = '#e2e8f0'; }}
+                                                                            >
+                                                                                {item.label}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* 3. Sadece Plan Değiştir */}
+                                                                <div>
+                                                                    <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
+                                                                        🏷️ {lang === 'tr' ? 'Sadece Paketi Değiştir (Süreyi Koru)' : 'Change Plan Only (Keep Days)'}
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                                                                        {Object.keys(PLANS).filter(k => k !== 'admin').map(p => {
+                                                                            const isCurrent = profile.plan === p;
+                                                                            return (
+                                                                                <button
+                                                                                    key={p}
+                                                                                    type="button"
+                                                                                    onClick={() => updateSubscription(profile.id, null, p, profile.email)}
+                                                                                    style={{
+                                                                                        flex: 1,
+                                                                                        background: isCurrent ? PLANS[p].color : 'transparent',
+                                                                                        color: isCurrent ? '#000' : PLANS[p].color,
+                                                                                        border: `1px solid ${PLANS[p].color}`,
+                                                                                        padding: '0.35rem 0.5rem',
+                                                                                        borderRadius: '5px',
+                                                                                        cursor: 'pointer',
+                                                                                        fontSize: '0.62rem',
+                                                                                        fontWeight: 800,
+                                                                                        display: 'flex',
+                                                                                        alignItems: 'center',
+                                                                                        justifyContent: 'center',
+                                                                                        gap: '3px'
+                                                                                    }}
+                                                                                >
+                                                                                    {isCurrent && <span>✓</span>}
+                                                                                    <span>{PLANS[p].label}</span>
+                                                                                </button>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Kapat / Vazgeç */}
+                                                                <div style={{ textAlign: 'right', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.5rem' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setEditingUser(null)}
+                                                                        style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}
+                                                                    >
+                                                                        ✕ {lang === 'tr' ? 'Kapat / Vazgeç' : 'Close'}
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         ) : (
                                                             <button
@@ -2194,21 +2381,25 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                         )
                                                     )}
 
-                                                    {/* Ban/Unban */}
-                                                    <button
-                                                        onClick={() => toggleBan(profile.id, profile.is_banned)}
-                                                        style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.65rem' }}
-                                                    >
-                                                        {profile.is_banned ? t.unban : t.ban}
-                                                    </button>
+                                                    {!isEditing && (
+                                                        <>
+                                                            {/* Ban/Unban */}
+                                                            <button
+                                                                onClick={() => toggleBan(profile.id, profile.is_banned)}
+                                                                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.65rem' }}
+                                                            >
+                                                                {profile.is_banned ? t.unban : t.ban}
+                                                            </button>
 
-                                                    {/* Delete */}
-                                                    <button
-                                                        onClick={() => deleteUser(profile.id)}
-                                                        style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', fontSize: '0.65rem' }}
-                                                    >
-                                                        {t.delete}
-                                                    </button>
+                                                            {/* Delete */}
+                                                            <button
+                                                                onClick={() => deleteUser(profile.id)}
+                                                                style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', fontSize: '0.65rem' }}
+                                                            >
+                                                                {t.delete}
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

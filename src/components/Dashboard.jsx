@@ -1294,7 +1294,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         ) : (
                             <>
                                 <a
-                                    href={settings?.shopier_link || 'https://shopier.com/livebetmentor'}
+                                    href={settings?.shopier_link || 'https://www.shopier.com/QuantDataLabs'}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="btn"
@@ -6697,7 +6697,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <span style={{ fontSize: '1.1rem' }}>🏆</span> {t.compare_plans}
                                         </button>
                                         <a
-                                            href={settings?.shopier_link || 'https://shopier.com/livebetmentor'}
+                                            href={settings?.shopier_link || 'https://www.shopier.com/QuantDataLabs'}
                                             target="_blank"
                                             rel="noreferrer"
                                             style={{

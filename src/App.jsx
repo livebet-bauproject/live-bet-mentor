@@ -605,7 +605,7 @@ function App() {
   // Subscription Expired / Trial Converted Screen
   if (page === 'expired') {
     const telegramUrl = `https://t.me/${cleanTelegram}`;
-    const shopierUrl = systemSettings?.shopier_link || 'https://shopier.com/livebetmentor';
+    const shopierUrl = systemSettings?.shopier_link || 'https://www.shopier.com/QuantDataLabs';
     const endDate = userProfile?.subscription_end 
       ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
       : '';
