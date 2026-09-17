@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
+import { calculateLast20MinMetrics } from '../logic/liveSortEngine';
 
 const graphCache = new Map();
 const incidentsCache = new Map();
@@ -188,6 +189,17 @@ export const AttackMomentumGraph = ({
     const recentHomePct = Math.round((recentHomeScore / recentTotal) * 100);
     const recentAwayPct = 100 - recentHomePct;
 
+    // Calculate 20-minute momentum (last 20 data points)
+    const points20 = points.slice(-20);
+    const homeScore20 = points20.reduce((acc, p) => acc + (p.value > 0 ? p.value : 0), 0);
+    const awayScore20 = points20.reduce((acc, p) => acc + (p.value < 0 ? Math.abs(p.value) : 0), 0);
+    const total20 = homeScore20 + awayScore20 || 1;
+    const homePct20 = Math.round((homeScore20 / total20) * 100);
+    const awayPct20 = 100 - homePct20;
+
+    // Match 20m surge metrics (delta attacks & shots)
+    const last20Metrics = match ? calculateLast20MinMetrics(match) : null;
+
     // Filter relevant incidents for graph pins (goals, cards, substitutions)
     const graphIncidents = (Array.isArray(incidents) ? incidents : []).filter(inc => {
         return (inc.incidentType === 'goal' || inc.incidentType === 'card' || inc.incidentType === 'substitution') && inc.time > 0;
@@ -300,22 +312,47 @@ export const AttackMomentumGraph = ({
                     {renderTeamBadge(false)}
                 </div>
 
-                <div style={{
-                    fontSize: '0.68rem',
-                    fontWeight: 800,
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    color: recentHomePct > 60 ? '#22c55e' : recentAwayPct > 60 ? '#3b82f6' : '#94a3b8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                }}>
-                    <span>⚡ {lang === 'tr' ? 'Son 10 Dk Baskı:' : 'Last 10m Momentum:'}</span>
-                    <span style={{ color: '#22c55e' }}>%{recentHomePct}</span>
-                    <span style={{ opacity: 0.3 }}>/</span>
-                    <span style={{ color: '#3b82f6' }}>%{recentAwayPct}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {/* Son 10 Dk Rozeti */}
+                    <div style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 800,
+                        background: recentHomePct >= 65 ? 'rgba(34, 197, 94, 0.12)' : (recentAwayPct >= 65 ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.04)'),
+                        border: recentHomePct >= 65 ? '1px solid rgba(34, 197, 94, 0.3)' : (recentAwayPct >= 65 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)'),
+                        padding: '3px 8px',
+                        borderRadius: '7px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                    }} title={lang === 'tr' ? 'Son 10 dakikadaki anlık atak dalgası ve baskı dağılımı' : 'Last 10-minute wave momentum distribution'}>
+                        <span style={{ color: '#fbbf24' }}>⚡ {lang === 'tr' ? "Son 10'" : "Last 10m"}:</span>
+                        <span style={{ color: '#22c55e' }}>%{recentHomePct}</span>
+                        <span style={{ opacity: 0.3 }}>/</span>
+                        <span style={{ color: '#3b82f6' }}>%{recentAwayPct}</span>
+                    </div>
+
+                    {/* Son 20 Dk Rozeti */}
+                    <div style={{
+                        fontSize: '0.66rem',
+                        fontWeight: 800,
+                        background: homePct20 >= 60 ? 'rgba(34, 197, 94, 0.12)' : (awayPct20 >= 60 ? 'rgba(59, 130, 246, 0.12)' : 'rgba(255, 255, 255, 0.04)'),
+                        border: homePct20 >= 60 ? '1px solid rgba(34, 197, 94, 0.3)' : (awayPct20 >= 60 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)'),
+                        padding: '3px 8px',
+                        borderRadius: '7px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px'
+                    }} title={last20Metrics ? `${last20Metrics.dominantTeam ? `${last20Metrics.dominantTeam} baskı kuruyor.` : 'Yüksek hücum temposu.'} (Son 20 Dk: +${last20Metrics.deltaDA} Tehlikeli Atak, +${last20Metrics.deltaShots} Şut)` : ''}>
+                        <span style={{ color: '#f59e0b' }}>⏱️ {lang === 'tr' ? "Son 20'" : "Last 20m"}:</span>
+                        <span style={{ color: '#22c55e' }}>%{homePct20}</span>
+                        <span style={{ opacity: 0.3 }}>/</span>
+                        <span style={{ color: '#3b82f6' }}>%{awayPct20}</span>
+                        {last20Metrics?.deltaDA > 0 && (
+                            <span style={{ color: '#fde047', marginLeft: '2px', fontWeight: 900 }}>
+                                (+{last20Metrics.teamDeltaDA || last20Metrics.deltaDA} Atak)
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 
