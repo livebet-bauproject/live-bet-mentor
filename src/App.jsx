@@ -79,12 +79,33 @@ function App() {
   });
   const [systemSettings, setSystemSettings] = useState({})
   const [lang, setLang] = useState(() => {
-    const saved = localStorage.getItem('app_lang');
-    return saved || (navigator.language.startsWith('tr') ? 'tr' : 'en');
+    try {
+      const saved = localStorage.getItem('app_lang');
+      if (saved && (saved === 'tr' || saved === 'en')) {
+        return saved;
+      }
+      // Detect browser / device primary language
+      const browserLang = (typeof navigator !== 'undefined' && (
+        (navigator.languages && navigator.languages[0]) || navigator.language || ''
+      )) || '';
+      return browserLang.toLowerCase().startsWith('tr') ? 'tr' : 'en';
+    } catch {
+      return 'en';
+    }
   });
 
   useEffect(() => {
-    localStorage.setItem('app_lang', lang);
+    try {
+      localStorage.setItem('app_lang', lang);
+      if (typeof document !== 'undefined') {
+        document.documentElement.lang = lang;
+        document.title = lang === 'tr'
+          ? 'LiveBet Mentor | Canlı İstatistik & AI Terminali'
+          : 'LiveBet Mentor | Live In-Play Stats & AI Terminal';
+      }
+    } catch (e) {
+      console.warn('Lang sync error:', e);
+    }
   }, [lang]);
 
   const t = translations[lang];
