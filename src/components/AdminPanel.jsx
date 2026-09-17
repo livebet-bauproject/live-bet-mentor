@@ -7,7 +7,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [loading, setLoading] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [subscriptionDays, setSubscriptionDays] = useState(7);
+    const [subscriptionDays, setSubscriptionDays] = useState(1);
     const [selectedPlan, setSelectedPlan] = useState('trial');
     const [status, setStatus] = useState({ type: '', message: '' });
     const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'active', 'all', 'upgrades'
@@ -609,20 +609,22 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
     const approveUser = async (profile, days = subscriptionDays, plan = selectedPlan) => {
         const proxyBase = getProxyBase();
+        const effectivePlan = plan || profile.plan || 'trial';
+        const effectiveDays = (effectivePlan === 'trial' && days === subscriptionDays) ? 1 : days;
         
         // 1. Update backend proxy
         try {
             await fetch(`${proxyBase}/api/members/approve`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
-                body: JSON.stringify({ id: profile.id, email: profile.email, days, plan })
+                body: JSON.stringify({ id: profile.id, email: profile.email, days: effectiveDays, plan: effectivePlan })
             });
         } catch (e) {}
 
         // 2. Update Supabase profiles
         const startDate = new Date();
         const endDate = new Date();
-        endDate.setDate(endDate.getDate() + days);
+        endDate.setDate(endDate.getDate() + effectiveDays);
 
         try {
             const updates = {
@@ -630,7 +632,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                 subscription_start: startDate.toISOString(),
                 subscription_end: endDate.toISOString(),
                 approved_at: new Date().toISOString(),
-                plan: plan
+                plan: effectivePlan
             };
             let query = supabase.from('profiles').update(updates);
             if (profile.id && profile.email) {
@@ -796,9 +798,12 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         if (!endDate) return '-';
         const end = new Date(endDate);
         const now = new Date();
-        const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
-        if (diff < 0) return lang === 'tr' ? 'Doldu' : 'Expired';
-        return `${diff} ${t.days}`;
+        const diffMs = end - now;
+        if (diffMs <= 0) return lang === 'tr' ? 'Doldu' : 'Expired';
+        const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+        if (diffHours <= 24) return `${diffHours} ${lang === 'tr' ? 'saat' : 'hours'}`;
+        const diffDays = Math.ceil(diffHours / 24);
+        return `${diffDays} ${t.days}`;
     };
 
     const filteredProfiles = profiles.filter(p => {
@@ -850,6 +855,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                             onChange={(e) => setSubscriptionDays(parseInt(e.target.value))}
                             style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}
                         >
+                            <option value={1}>1 {lang === 'tr' ? 'gün (24 Saat)' : 'day (24 Hours)'}</option>
                             <option value={7}>7 {t.days}</option>
                             <option value={30}>30 {t.days}</option>
                             <option value={90}>90 {t.days}</option>
@@ -1569,7 +1575,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                 </span>
                                             </td>
                                             <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
-                                                {profile.subscription_end ? new Date(profile.subscription_end).toLocaleDateString('tr-TR') : '-'}
+                                                {profile.subscription_end ? new Date(profile.subscription_end).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                                             </td>
                                             <td style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 700 }}>
                                                 {getRemainingDays(profile.subscription_end)}
@@ -1579,8 +1585,8 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                     {(profile.status === 'pending' || !profile.status) && !profile.is_banned && (
                                                         <>
                                                             <button
-                                                                onClick={() => approveUser(profile)}
-                                                                title="Approve as Pro"
+                                                                onClick={() => approveUser(profile, profile.plan === 'trial' ? 1 : subscriptionDays, profile.plan || selectedPlan)}
+                                                                title={t.approve}
                                                                 style={{ background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#10b981', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
                                                             >
                                                                 {t.approve}
@@ -1599,13 +1605,13 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                         isEditing ? (
                                                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(0,0,0,0.5)', padding: '0.5rem', borderRadius: '8px', zIndex: 10 }}>
                                                                 <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                                                    {[7, 30, 90].map(days => (
+                                                                    {[1, 7, 30, 90].map(days => (
                                                                         <button
                                                                             key={days}
                                                                             onClick={() => updateSubscription(profile.id, days)}
                                                                             style={{ background: 'rgba(56, 189, 248, 0.1)', border: '1px solid #38bdf8', padding: '0.3rem 0.5rem', borderRadius: '4px', color: '#38bdf8', cursor: 'pointer', fontSize: '0.6rem', fontWeight: 700 }}
                                                                         >
-                                                                            +{days}
+                                                                            +{days}{days === 1 ? (lang === 'tr' ? 'g (24s)' : 'd (24h)') : (lang === 'tr' ? 'g' : 'd')}
                                                                         </button>
                                                                     ))}
                                                                 </div>

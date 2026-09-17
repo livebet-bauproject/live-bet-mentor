@@ -151,27 +151,49 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     console.warn('Backend register failed:', beErr);
                 }
 
-                // Fallback Supabase registration
+                // Sync with Supabase Auth & Auto-Approve 24-hour trial in profiles table
+                const now = new Date();
+                const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000);
                 try {
-                    await supabase.auth.signUp({ email: cleanEmail, password });
+                    const { data: sbAuth } = await supabase.auth.signUp({ email: cleanEmail, password });
+                    // Explicitly ensure the Supabase profile row is set to approved with 24h trial
+                    await supabase
+                        .from('profiles')
+                        .update({
+                            status: 'approved',
+                            plan: 'trial',
+                            subscription_start: now.toISOString(),
+                            subscription_end: trialEnd.toISOString(),
+                            approved_at: now.toISOString()
+                        })
+                        .eq('email', cleanEmail);
                 } catch (supErr) {
-                    console.warn('Supabase signup notice:', supErr);
+                    console.warn('Supabase signup/profile sync notice:', supErr);
                 }
 
-                if (registeredUser) {
-                    const userSession = {
-                        user: {
-                            id: registeredUser.id,
-                            email: registeredUser.email,
-                            user_metadata: { display_name: registeredUser.full_name || registeredUser.email.split('@')[0] }
-                        },
-                        memberProfile: registeredUser,
-                        access_token: 'member-token-' + registeredUser.id
+                if (!registeredUser) {
+                    registeredUser = {
+                        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                        email: cleanEmail,
+                        status: 'approved',
+                        plan: 'trial',
+                        subscription_start: now.toISOString(),
+                        subscription_end: trialEnd.toISOString()
                     };
-                    localStorage.setItem('lbm_member_session', JSON.stringify(userSession));
-                    onLoginSuccess(userSession);
-                    return;
                 }
+
+                const userSession = {
+                    user: {
+                        id: registeredUser.id,
+                        email: registeredUser.email,
+                        user_metadata: { display_name: registeredUser.full_name || registeredUser.email.split('@')[0] }
+                    },
+                    memberProfile: registeredUser,
+                    access_token: 'member-token-' + registeredUser.id
+                };
+                localStorage.setItem('lbm_member_session', JSON.stringify(userSession));
+                onLoginSuccess(userSession);
+                return;
 
                 // Fallback if backend returned without user
                 setError(lang === 'tr'

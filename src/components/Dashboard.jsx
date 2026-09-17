@@ -3700,8 +3700,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 👑 {lang === 'tr' ? 'Süper Yönetici (Sınırsız)' : 'Super Admin (Unlimited)'}
                                             </div>
                                         ) : userProfile?.subscription_end && (
-                                            <div className="user-expiry-text" style={{ color: (getRemainingDays(userProfile.subscription_end) ?? 999) <= 3 ? '#ef4444' : '#94a3b8' }}>
-                                                ⏳ {getRemainingDays(userProfile.subscription_end)} {t.days_remaining}
+                                            <div className="user-expiry-text" style={{ color: (userProfile?.plan === 'trial' || (getRemainingDays(userProfile.subscription_end) ?? 999) <= 3) ? '#38bdf8' : '#94a3b8', fontWeight: 700 }}>
+                                                {userProfile?.plan === 'trial' && remainingTrialSeconds > 0
+                                                    ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)} ${lang === 'tr' ? 'kaldı' : 'remaining'}`
+                                                    : `⏳ ${getRemainingDays(userProfile.subscription_end)} ${t.days_remaining}`}
                                             </div>
                                         )}
                                     </div>
