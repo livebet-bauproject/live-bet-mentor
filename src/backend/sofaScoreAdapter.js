@@ -31,7 +31,18 @@ async function getLiveOddsMap() {
     return centralOddsCache || {};
 }
 
+// Module-level caches and in-flight request deduplication maps for ultra-fast UI rendering
+const adapterGraphCache = new Map();
+const adapterIncidentsCache = new Map();
+const adapterStatsCache = new Map();
+const inFlightGraph = new Map();
+const inFlightIncidents = new Map();
+const inFlightStats = new Map();
+
 export const sofaScoreAdapter = {
+    _graphCache: adapterGraphCache,
+    _incidentsCache: adapterIncidentsCache,
+    _statsCache: adapterStatsCache,
     /**
      * Fetches the match list for the current day.
      */
@@ -283,28 +294,46 @@ export const sofaScoreAdapter = {
      */
     async fetchEventGraph(eventId) {
         if (!eventId) return { graphPoints: [], noGraph: false, isQueued: false };
-        try {
-            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiBase = isLocalDev
-                ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-
-            const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/graph`, {
-                signal: AbortSignal.timeout(5000)
-            });
-            if (res.ok) {
-                const data = await res.json();
-                const points = data?.graphPoints || data?.graphPointsV2 || [];
-                return {
-                    graphPoints: Array.isArray(points) ? points : [],
-                    noGraph: Boolean(data?.noGraph),
-                    isQueued: data?.status === 'queued'
-                };
-            }
-        } catch (e) {
-            console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
+        const now = Date.now();
+        const cached = adapterGraphCache.get(eventId);
+        if (cached && (now - cached.time < 60000)) {
+            return cached.data;
         }
-        return { graphPoints: [], noGraph: false, isQueued: false };
+        if (inFlightGraph.has(eventId)) {
+            return inFlightGraph.get(eventId);
+        }
+
+        const promise = (async () => {
+            try {
+                const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const apiBase = isLocalDev
+                    ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+                    : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/graph`, {
+                    signal: AbortSignal.timeout(4000)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const points = data?.graphPoints || data?.graphPointsV2 || [];
+                    const result = {
+                        graphPoints: Array.isArray(points) ? points : [],
+                        noGraph: Boolean(data?.noGraph),
+                        isQueued: data?.status === 'queued'
+                    };
+                    adapterGraphCache.set(eventId, { time: Date.now(), data: result });
+                    return result;
+                }
+            } catch (e) {
+                console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
+            }
+            return { graphPoints: [], noGraph: false, isQueued: false };
+        })().finally(() => {
+            inFlightGraph.delete(eventId);
+        });
+
+        inFlightGraph.set(eventId, promise);
+        return promise;
     },
 
     /**
@@ -312,29 +341,88 @@ export const sofaScoreAdapter = {
      */
     async fetchEventIncidents(eventId) {
         if (!eventId) return [];
-        try {
-            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiBase = isLocalDev
-                ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-
-            const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/incidents`, {
-                signal: AbortSignal.timeout(5000)
-            });
-            if (res.ok) {
-                const data = await res.json();
-                const incidents = Array.isArray(data?.incidents) ? data.incidents : [];
-                incidents.isQueued = data?.status === 'queued';
-                incidents.noIncidents = Boolean(data?.noIncidents);
-                return incidents;
-            }
-        } catch (e) {
-            console.warn(`[SOFASCORE_ADAPTER] Incidents fetch failed for ${eventId}:`, e.message);
+        const now = Date.now();
+        const cached = adapterIncidentsCache.get(eventId);
+        if (cached && (now - cached.time < 60000)) {
+            return cached.data;
         }
-        const empty = [];
-        empty.isQueued = false;
-        empty.noIncidents = false;
-        return empty;
+        if (inFlightIncidents.has(eventId)) {
+            return inFlightIncidents.get(eventId);
+        }
+
+        const promise = (async () => {
+            try {
+                const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const apiBase = isLocalDev
+                    ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+                    : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/incidents`, {
+                    signal: AbortSignal.timeout(4000)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const incidents = Array.isArray(data?.incidents) ? data.incidents : [];
+                    incidents.isQueued = data?.status === 'queued';
+                    incidents.noIncidents = Boolean(data?.noIncidents);
+                    adapterIncidentsCache.set(eventId, { time: Date.now(), data: incidents });
+                    return incidents;
+                }
+            } catch (e) {
+                console.warn(`[SOFASCORE_ADAPTER] Incidents fetch failed for ${eventId}:`, e.message);
+            }
+            const empty = [];
+            empty.isQueued = false;
+            empty.noIncidents = false;
+            return empty;
+        })().finally(() => {
+            inFlightIncidents.delete(eventId);
+        });
+
+        inFlightIncidents.set(eventId, promise);
+        return promise;
+    },
+
+    /**
+     * Fetches match statistics (possession, shots, corners, etc.).
+     */
+    async fetchEventStatistics(eventId) {
+        if (!eventId) return [];
+        const now = Date.now();
+        const cached = adapterStatsCache.get(eventId);
+        if (cached && (now - cached.time < 45000)) {
+            return cached.data;
+        }
+        if (inFlightStats.has(eventId)) {
+            return inFlightStats.get(eventId);
+        }
+
+        const promise = (async () => {
+            try {
+                const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+                const apiBase = isLocalDev
+                    ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+                    : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/statistics`, {
+                    signal: AbortSignal.timeout(4000)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const stats = data?.statistics || [];
+                    adapterStatsCache.set(eventId, { time: Date.now(), data: stats });
+                    return stats;
+                }
+            } catch (e) {
+                console.warn(`[SOFASCORE_ADAPTER] Statistics fetch failed for ${eventId}:`, e.message);
+            }
+            return [];
+        })().finally(() => {
+            inFlightStats.delete(eventId);
+        });
+
+        inFlightStats.set(eventId, promise);
+        return promise;
     },
 
     /**

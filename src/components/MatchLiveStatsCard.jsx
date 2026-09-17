@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-
-const statsCache = new Map();
+import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 
 export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
+    if (!match) return null;
     const matchId = match?.id;
     const [statsData, setStatsData] = useState(() => {
-        if (matchId && statsCache.has(matchId)) {
-            return statsCache.get(matchId).stats;
+        if (matchId && sofaScoreAdapter._statsCache?.has(matchId)) {
+            return sofaScoreAdapter._statsCache.get(matchId).data;
         }
         return null;
     });
     const [loading, setLoading] = useState(() => {
-        if (matchId && statsCache.has(matchId)) return false;
+        if (matchId && sofaScoreAdapter._statsCache?.has(matchId)) return false;
         return Boolean(matchId);
     });
 
@@ -19,27 +19,18 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
         if (!matchId) return;
 
         let isCancelled = false;
-        const now = Date.now();
-        const cached = statsCache.get(matchId);
-
-        if (cached && (now - cached.time < 30000)) {
-            setStatsData(cached.stats);
+        const cached = sofaScoreAdapter._statsCache?.get(matchId);
+        if (cached && (Date.now() - cached.time < 45000)) {
+            setStatsData(cached.data);
             setLoading(false);
             return;
         }
 
         setLoading(true);
-        const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
-        
-        fetch(`${apiBase}/api/sofascore/event/${matchId}/statistics`, {
-            signal: AbortSignal.timeout(6000)
-        })
-            .then(res => res.ok ? res.json() : null)
-            .then(data => {
+        sofaScoreAdapter.fetchEventStatistics(matchId)
+            .then(stats => {
                 if (isCancelled) return;
-                const stats = data?.statistics || [];
                 setStatsData(stats);
-                statsCache.set(matchId, { time: Date.now(), stats });
                 setLoading(false);
             })
             .catch(() => {
@@ -114,7 +105,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
 
     // Fouls & Cards
     const foulsHome = foulsItem ? parseNum(foulsItem.home, 0) : parseNum(match?.stats?.fouls?.home, 0);
-    const foulsAway = foulsItem ? parseNum(foulsAway.away, 0) : parseNum(match?.stats?.fouls?.away, 0);
+    const foulsAway = foulsItem ? parseNum(foulsItem.away, 0) : parseNum(match?.stats?.fouls?.away, 0);
     const ycHome = yellowCardsItem ? parseNum(yellowCardsItem.home, 0) : parseNum(match?.cards?.home?.yellow, 0);
     const ycAway = yellowCardsItem ? parseNum(yellowCardsItem.away, 0) : parseNum(match?.cards?.away?.yellow, 0);
     const rcHome = parseNum(match?.cards?.home?.red, 0);
