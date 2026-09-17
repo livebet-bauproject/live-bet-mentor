@@ -20,7 +20,8 @@ export function resolveMarketText(alert, lang = 'tr') {
     if (team.toLowerCase() === 'away') team = away;
 
     const oddsVal = rec.odds || alert.odds;
-    const oddsStr = oddsVal ? (isTr ? ` (Oran: ${oddsVal})` : ` (Odds: ${oddsVal})`) : '';
+    const hasExistingOdds = /\(Oran:|\(Odds:/i.test(label || '') || /\(Oran:|\(Odds:/i.test(rec.predictionText || '');
+    const oddsStr = (oddsVal && !hasExistingOdds) ? (isTr ? ` (Oran: ${oddsVal})` : ` (Odds: ${oddsVal})`) : '';
 
     // Direct explicit prediction if provided
     if (rec.predictionText) {
@@ -173,20 +174,27 @@ export function formatPublicTeaser(alert, lang = 'tr') {
     const isTr = lang === 'tr';
     const home = cleanMd(alert.homeTeam || 'Ev');
     const away = cleanMd(alert.awayTeam || 'Dep');
+    const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetdeskbot';
 
     if (isTr) {
         return `⚡ *CANLI GOL BASKISI ALARMI* · *${alert.minute}'* [*${alert.score || '0-0'}*]
 ⚽ *${home} - ${away}*
-🔥 *Yüksek Gol Baskısı & Şut Üstünlüğü Yakalandı!*
-🔒 _Tahmin ve oran VIP grubumuzda paylaşıldı._
-👉 *Canlı Terminal:* https://live-bet-mentor-brown.vercel.app`;
+🔥 *Yüksek Gol Baskısı & xG İvmesi Yakalandı!*
+🔒 _Net tahmin ve oran VIP grubumuzda canlı paylaşıldı._
+
+💎 *Sinyalleri 0 saniye gecikmeyle yakalamak için:*
+👉 @${botUser} bota /deneme yazarak *3 Günlük Ücretsiz VIP* başlatın veya /vip ile katılın!
+🌐 *Web Terminali:* https://live-bet-mentor-brown.vercel.app`;
     }
 
     return `⚡ *IN-PLAY PRESSURE ALERT* · *${alert.minute}'* [*${alert.score || '0-0'}*]
 ⚽ *${home} - ${away}*
 🔥 *High Pitch Pressure & Shot Edge Detected!*
-🔒 _Full pick & fair odds shared in VIP._
-👉 *Live Terminal:* https://live-bet-mentor-brown.vercel.app`;
+🔒 _Full pick & fair odds shared in VIP Syndicate._
+
+💎 *Catch signals live with zero latency:*
+👉 Send /trial to @${botUser} for a *3-Day Free VIP Pass* or /vip to join!
+🌐 *Web Terminal:* https://live-bet-mentor-brown.vercel.app`;
 }
 
 export function resolveConsensusPredName(pred, lang = 'tr') {
@@ -472,51 +480,52 @@ AI-powered live football analysis & value signal service.
 
 export function formatVIPInfo(settings = {}, lang = 'tr') {
     const isTr = lang === 'tr';
-    const usdtAddress = 'TXDCxXx5XjNWFRLQmNZeHVcwjpHjDDPrvd';
+    const usdtAddress = process.env.TELEGRAM_USDT_ADDRESS || 'TXDCxXx5XjNWFRLQmNZeHVcwjpHjDDPrvd';
+    const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://shopier.com/livebetmentor';
     
     if (isTr) {
         return `💎 *VIP QUANT SYNDICATE ÜYELİK PAKETLERİ*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-Canlı sinyallere, +EV fırsatlarına, gecikme arbitrajına ve konsensüs radarına anında erişin.
+Yapay zeka xG ivmesi, Poisson oranları ve gecikme arbitrajı sinyallerine 0 saniye gecikmeyle erişin.
 
-🎟️ *Paketler:*
-1️⃣ *Haftalık VIP:* *$19 USDT* (7 Günlük tam erişim)
-2️⃣ *Aylık VIP (Popüler):* *$49 USDT* (30 Günlük sınırsız erişim)
-3️⃣ *3 Aylık Sezonluk Pass:* *$119 USDT* (90 Günlük tam erişim)
+🎟️ *Abonelik Paketleri:*
+1️⃣ *Haftalık VIP Pass:* *9.90 €* (veya 11 USDT) (7 Günlük tam erişim)
+2️⃣ *Aylık VIP Pro (En Popüler):* *14.90 €* (veya 16 USDT) (30 Gün tam erişim)
+3️⃣ *Premium Pass:* *34.90 €* (veya 38 USDT) (Tüm AI Modülleri + VIP Bot)
 
-💳 *Ödeme Adresi (USDT TRC-20):*
+💳 *1. Ödeme Yolu (Kredi Kartı / Havale - Anında Otomatik Aktivasyon):*
+👉 [Kredi Kartı ile Güvenli Satın Al](${shopierLink})
+
+💰 *2. Ödeme Yolu (Kripto - USDT TRC-20):*
 \`${usdtAddress}\`
 _(Kopyalamak için adrese dokunun)_
+Ödeme sonrası TXID veya dekontu bu bota mesaj olarak göndermeniz yeterlidir.
 
-⚡ *Aktivasyon:*
-1. Tutarı yukarıdaki adrese gönderin.
-2. Dekontu (ekran görüntüsü veya TXID) buraya bota mesaj olarak atın.
-3. VIP giriş bağlantınız anında gönderilecektir!
-
-🎁 *Ücretsiz denemek için:* /deneme
+🎁 *Sistemi 3 Gün Boyunca Ücretsiz Test Etmek İçin:*
+👉 /deneme yazarak *3 Günlük Ücretsiz VIP Erişiminizi* hemen başlatabilirsiniz!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-💎 *Live Bet Mentor VIP Syndicate*`;
+💎 *Live Bet Mentor Quant Syndicate*`;
     }
 
     return `💎 *VIP QUANT SYNDICATE MEMBERSHIP*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-Instant access to live in-play signals, +EV edges, latency arbitrage & consensus radar.
+Zero-latency access to in-play algorithmic signals, +EV value edges and live latency arbitrage.
 
-🎟️ *Tiers:*
-1️⃣ *Weekly Pass:* *$19 USDT* (7 Days full access)
-2️⃣ *Monthly Pro:* *$49 USDT* (30 Days unrestricted)
-3️⃣ *Quarterly Pass:* *$119 USDT* (90 Days full access)
+🎟️ *Membership Passes:*
+1️⃣ *Weekly Pass:* *9.90 €* (or 11 USDT) (7 Days full access)
+2️⃣ *Monthly Pro (Most Popular):* *14.90 €* (or 16 USDT) (30 Days unrestricted)
+3️⃣ *Premium Pass:* *34.90 €* (or 38 USDT) (Full Modules + VIP Bot)
 
-💳 *Payment (USDT TRC-20):*
+💳 *Card / Checkout:*
+👉 [Instant Card Checkout](${shopierLink})
+
+💰 *Crypto (USDT TRC-20):*
 \`${usdtAddress}\`
-_(Tap to copy)_
+_(Tap to copy address)_
+Send TXID or screenshot here upon transfer for immediate VIP activation.
 
-⚡ *Activation:*
-1. Send tier amount in USDT (TRC-20).
-2. Send screenshot or TXID here to this chat.
-3. Instant VIP access link will be dispatched!
-
-🎁 *Free trial:* /trial
+🎁 *Instant Free Trial:*
+👉 Send /trial to activate your *3-Day Free VIP Pass* instantly!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor VIP Syndicate*`;
 }

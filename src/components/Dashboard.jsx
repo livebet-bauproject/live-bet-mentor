@@ -570,6 +570,31 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return diff > 0 ? diff : 0;
     };
 
+    const [remainingTrialSeconds, setRemainingTrialSeconds] = useState(() => {
+        if (!userProfile?.subscription_end) return 0;
+        const diff = Math.floor((new Date(userProfile.subscription_end).getTime() - Date.now()) / 1000);
+        return diff > 0 ? diff : 0;
+    });
+
+    useEffect(() => {
+        if (!userProfile?.subscription_end || userProfile?.plan !== 'trial') return;
+        const updateTimer = () => {
+            const diff = Math.floor((new Date(userProfile.subscription_end).getTime() - Date.now()) / 1000);
+            setRemainingTrialSeconds(diff > 0 ? diff : 0);
+        };
+        updateTimer();
+        const timer = setInterval(updateTimer, 1000);
+        return () => clearInterval(timer);
+    }, [userProfile?.subscription_end, userProfile?.plan]);
+
+    const formatTrialCountdown = (seconds) => {
+        if (seconds <= 0) return '00:00:00';
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
     // Auto-dismiss floating toast after 10 seconds (with pause on hover)
     useEffect(() => {
         if (!showAlertPopup || alertNotifyMode !== 'TOAST') return;
@@ -951,8 +976,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 name: t.trial_badge,
                 color: '#94a3b8',
                 features: t.plan_trial_features,
-                price: t.plan_trial_price || '7 Gün Ücretsiz',
-                subtext: t.plan_trial_subtext || (lang === 'tr' ? '7 gün deneme erişimi' : '7 days trial access'),
+                price: lang === 'tr' ? '24 Saat Ücretsiz' : '24h Free PRO Trial',
+                subtext: lang === 'tr' ? 'Anında erişim, kredi kartsız' : 'Instant access, no card required',
                 isFree: true
             },
             {
@@ -1187,7 +1212,31 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </ul>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+                        <a
+                            href={settings?.shopier_link || 'https://shopier.com/livebetmentor'}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn"
+                            style={{
+                                background: 'linear-gradient(135deg, #10b981, #059669)',
+                                color: '#fff',
+                                textDecoration: 'none',
+                                padding: '1rem',
+                                borderRadius: '12px',
+                                fontSize: '1rem',
+                                fontWeight: 800,
+                                textAlign: 'center',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                            }}
+                        >
+                            💳 {lang === 'tr' ? 'Kredi Kartı / Havale ile Satın Al (Shopier)' : 'Pay with Card / Bank (Shopier)'}
+                        </a>
+
                         <button
                             onClick={() => {
                                 const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
@@ -1200,7 +1249,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 setSelectedPlanForUpgrade(null);
                             }}
                             className="btn btn-primary"
-                            style={{ background: '#0088cc', border: 'none', padding: '1rem', borderRadius: '12px', fontSize: '1rem', color: '#fff' }}
+                            style={{ background: '#0088cc', border: 'none', padding: '1rem', borderRadius: '12px', fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                         >
                             ✈️ {t.telegram_upgrade_now || 'Telegram ile Hemen Aktif Et'}
                         </button>
@@ -3793,37 +3842,92 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
             </header>
 
-            {/* Slim Dismissible Membership Warning Banner (Never show to Admin) */}
+            {/* Slim Dismissible Membership / 24h Trial Countdown Banner */}
             {!isAdmin && userProfile?.plan !== 'admin' && !dismissTrialBanner && (
-                userProfile?.plan === 'trial' || 
-                (userProfile?.subscription_end && getRemainingDays(userProfile?.subscription_end) !== null && getRemainingDays(userProfile?.subscription_end) <= 3)
-            ) && (
-                <div className="slim-membership-banner glass-panel">
-                    <div className="banner-left">
-                        <span className="banner-icon">{getRemainingDays(userProfile?.subscription_end) <= 3 ? '⚠️' : '🎁'}</span>
-                        <div className="banner-text">
-                            <strong>{getRemainingDays(userProfile?.subscription_end) <= 3 ? t.expiry_warning : t.trial_banner_title}:</strong>
-                            <span> {getRemainingDays(userProfile?.subscription_end) <= 3
-                                ? `${getRemainingDays(userProfile?.subscription_end)} ${t.days_remaining}`
-                                : t.trial_banner_desc}</span>
+                userProfile?.plan === 'trial' ? (
+                    <div className="slim-membership-banner glass-panel" style={{
+                        background: 'linear-gradient(90deg, rgba(30, 27, 75, 0.95) 0%, rgba(49, 16, 66, 0.95) 50%, rgba(30, 27, 75, 0.95) 100%)',
+                        border: '1px solid rgba(168, 85, 247, 0.45)',
+                        boxShadow: '0 4px 20px rgba(168, 85, 247, 0.25)',
+                        padding: '0.65rem 1.2rem'
+                    }}>
+                        <div className="banner-left" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span className="banner-icon" style={{ fontSize: '1.3rem' }}>⏳</span>
+                            <div className="banner-text" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <strong style={{ color: '#c084fc', letterSpacing: '0.5px' }}>
+                                    {lang === 'tr' ? '24 SAATLİK PRO DENEME:' : '24H PRO TRIAL:'}
+                                </strong>
+                                <span style={{
+                                    background: 'rgba(0, 0, 0, 0.55)',
+                                    border: '1px solid rgba(56, 189, 248, 0.55)',
+                                    color: '#38bdf8',
+                                    fontFamily: 'monospace',
+                                    fontWeight: 900,
+                                    fontSize: '0.95rem',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    letterSpacing: '1px',
+                                    boxShadow: '0 0 10px rgba(56, 189, 248, 0.25)'
+                                }}>
+                                    {formatTrialCountdown(remainingTrialSeconds)}
+                                </span>
+                                <span style={{ color: '#e2e8f0', fontSize: '0.82rem', opacity: 0.9 }}>
+                                    {lang === 'tr'
+                                        ? '— VIP xG Radarı, Alevli Maçlar & Telegram Sinyalleri Aktif'
+                                        : '— VIP xG Radar, Hot Matches & Telegram Signals Active'}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="banner-right" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                                onClick={() => setShowPlanComparison(true)}
+                                className="banner-upgrade-btn"
+                                style={{
+                                    background: 'linear-gradient(135deg, #a855f7, #38bdf8)',
+                                    color: '#000',
+                                    fontWeight: 900,
+                                    boxShadow: '0 2px 10px rgba(168, 85, 247, 0.4)'
+                                }}
+                            >
+                                ⚡ {lang === 'tr' ? '%30 İndirimle VIP\'ye Geç' : 'Upgrade to VIP (30% OFF)'}
+                            </button>
+                            <button
+                                onClick={() => setDismissTrialBanner(true)}
+                                className="banner-dismiss-btn"
+                                title={lang === 'tr' ? 'Kapat' : 'Close'}
+                            >
+                                ✕
+                            </button>
                         </div>
                     </div>
-                    <div className="banner-right">
-                        <button
-                            onClick={() => setShowAdvanced(true)}
-                            className="banner-upgrade-btn"
-                        >
-                            {t.upgrade_plan}
-                        </button>
-                        <button
-                            onClick={() => setDismissTrialBanner(true)}
-                            className="banner-dismiss-btn"
-                            title={lang === 'tr' ? 'Kapat' : 'Close'}
-                        >
-                            ✕
-                        </button>
-                    </div>
-                </div>
+                ) : (
+                    (userProfile?.subscription_end && getRemainingDays(userProfile?.subscription_end) !== null && getRemainingDays(userProfile?.subscription_end) <= 3) && (
+                        <div className="slim-membership-banner glass-panel">
+                            <div className="banner-left">
+                                <span className="banner-icon">⚠️</span>
+                                <div className="banner-text">
+                                    <strong>{t.expiry_warning}:</strong>
+                                    <span> {`${getRemainingDays(userProfile?.subscription_end)} ${t.days_remaining}`}</span>
+                                </div>
+                            </div>
+                            <div className="banner-right">
+                                <button
+                                    onClick={() => setShowPlanComparison(true)}
+                                    className="banner-upgrade-btn"
+                                >
+                                    {t.upgrade_plan}
+                                </button>
+                                <button
+                                    onClick={() => setDismissTrialBanner(true)}
+                                    className="banner-dismiss-btn"
+                                    title={lang === 'tr' ? 'Kapat' : 'Close'}
+                                >
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    )
+                )
             )}
 
             {/* Mobile Breaking Ticker: Real-Time Social Proof & In-Play Feed */}
@@ -4876,6 +4980,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 AttackMomentumGraph={AttackMomentumGraph}
                                 MatchIncidentsTimeline={MatchIncidentsTimeline}
                                 mobileTableMode={terminalMobileSubView === 'TABLE'}
+                                userProfile={userProfile}
+                                onOpenUpgrade={() => setShowPlanComparison(true)}
                             />
 
                             <LiveTerminalMobile
@@ -4894,6 +5000,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 AttackMomentumGraph={AttackMomentumGraph}
                                 MatchIncidentsTimeline={MatchIncidentsTimeline}
                                 hideInTableMode={terminalMobileSubView === 'TABLE'}
+                                userProfile={userProfile}
+                                onOpenUpgrade={() => setShowPlanComparison(true)}
                             />
 
                             {/* Global AI Section */}
@@ -6138,14 +6246,22 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <div style={{ fontWeight: 800, color: PLAN_COLORS[userProfile?.plan || 'trial'] }}>{t[(userProfile?.plan || 'trial') + '_badge']}</div>
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase' }}>{t.expiry_date}</div>
-                                        <div style={{ fontWeight: 800 }}>{userProfile?.subscription_end ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US') : '-'}</div>
+                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase' }}>
+                                            {userProfile?.plan === 'trial' ? (lang === 'tr' ? 'Kalan Süre' : 'Time Remaining') : t.expiry_date}
+                                        </div>
+                                        <div style={{ fontWeight: 800, color: userProfile?.plan === 'trial' ? '#38bdf8' : 'inherit' }}>
+                                            {userProfile?.plan === 'trial'
+                                                ? (remainingTrialSeconds > 0 ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)}` : (lang === 'tr' ? 'Süre Doldu' : 'Expired'))
+                                                : (userProfile?.subscription_end ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US') : '-')}
+                                        </div>
                                     </div>
                                 </div>
                                 <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(56, 189, 248, 0.05)', borderRadius: '8px', fontSize: '0.75rem', color: '#94a3b8', borderLeft: '3px solid var(--accent-color)' }}>
                                     <div>{t.extend_info}</div>
                                     <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        <div style={{ opacity: 0.6, fontSize: '0.65rem' }}>{userProfile?.plan === 'trial' ? t.plan_features_trial : t.plan_features_pro}</div>
+                                        <div style={{ opacity: 0.8, fontSize: '0.7rem', color: userProfile?.plan === 'trial' ? '#38bdf8' : 'inherit' }}>
+                                            {userProfile?.plan === 'trial' ? t.plan_features_trial : t.plan_features_pro}
+                                        </div>
                                         <button
                                             onClick={() => setShowPlanComparison(true)}
                                             style={{
@@ -6168,6 +6284,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         >
                                             <span style={{ fontSize: '1.1rem' }}>🏆</span> {t.compare_plans}
                                         </button>
+                                        <a
+                                            href={settings?.shopier_link || 'https://shopier.com/livebetmentor'}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            style={{
+                                                marginTop: '0.2rem',
+                                                background: 'linear-gradient(135deg, #10b981, #059669)',
+                                                color: '#fff',
+                                                textDecoration: 'none',
+                                                border: 'none',
+                                                padding: '0.65rem',
+                                                borderRadius: '8px',
+                                                fontWeight: 800,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem',
+                                                fontSize: '0.75rem',
+                                                boxShadow: '0 2px 10px rgba(16, 185, 129, 0.25)'
+                                            }}
+                                        >
+                                            <span>💳</span> {lang === 'tr' ? 'Kredi Kartı ile VIP Satın Al (Shopier)' : 'Pay with Card (Shopier)'}
+                                        </a>
                                         <button
                                             onClick={() => {
                                                 const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');

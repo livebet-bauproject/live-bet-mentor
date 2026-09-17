@@ -182,16 +182,16 @@ export const translations = {
         pro_badge: "PROFESYONEL",
         premium_badge: "PREMIUM",
         extend_info: "Üyeliğinizi uzatmak veya plan değiştirmek için yöneticinizle iletişime geçin.",
-        trial_banner_title: "DENEME SÜRÜMÜ",
-        trial_banner_desc: "Sınırlı analiz havuzundasınız. Tüm liglere ve AI raporlarına tam erişim için Pro'ya yükseltin.",
+        trial_banner_title: "24 SAATLİK PRO DENEME",
+        trial_banner_desc: "Tüm VIP xG Radarı, Alevli Maçlar ve Canlı Sinyaller 24 saat boyunca sınırsız açıktır.",
         expiry_warning: "Üyeliğiniz kısa süre içinde sona erecektir!",
         telegram_upgrade: "Telegram ile Hemen Yükselt",
         plan_features_pro: "Pro Plan Avantajları: Tüm Ligler, Sınırsız AI Raporu, Akıllı Alarmlar.",
-        plan_features_trial: "Trial Plan: 7 gün sınırlı erişim, temel analizler.",
+        plan_features_trial: "24 Saatlik PRO Deneme: Canlı xG radarı, alevli maçlar ve VIP sinyallere tam erişim.",
 
         // Plan Comparison (Honest Set)
-        plan_trial_price: "7 Gün Ücretsiz",
-        plan_trial_subtext: "deneme erişimi",
+        plan_trial_price: "24 Saat Ücretsiz",
+        plan_trial_subtext: "anında tam erişim",
         plan_pro_price: "{price} {curr}",
         plan_premium_price: "{price} {curr}",
         per_month: "/ay",
@@ -200,12 +200,12 @@ export const translations = {
         billing_yearly: "Yıllık (%25 İndirim)",
         annual_discount_badge: "%25 İNDİRİM / 2 AY HEDİYE",
         plan_trial_features: [
-            "7 Gün Boyunca Tam Deneme Erişimi",
-            "Temel DQS Analiz Motoru",
-            "En İyi 3 Konsensus Kaynağı",
-            "Günlük 3 AI Uzman Raporu",
-            "Günlük 5 Akıllı Alarm (Fire Mode)",
-            "Sadece Ana Ligler (Tier 1)"
+            "24 Saat Kesintisiz PRO Deneme Erişimi",
+            "Canlı xG Radarı & Alevli Maç Alarmları",
+            "Tüm Konsensus Kaynakları & Sinyaller",
+            "Canlı Baskı & Momentum Grafikleri",
+            "Piyasa Akışı & Akıllı Para Tespiti",
+            "Kredi Kartsız Anında Aktivasyon"
         ],
         plan_pro_features: [
             "Tam Kapsamlı Analiz & DQS Motoru",
@@ -1445,16 +1445,16 @@ export const translations = {
         pro_badge: "PRO",
         premium_badge: "PREMIUM",
         extend_info: "Contact your account manager to extend your membership or change your plan.",
-        trial_banner_title: "TRIAL VERSION",
-        trial_banner_desc: "You are on a limited analysis pool. Upgrade to Pro for full access to all leagues and AI reports.",
+        trial_banner_title: "24H PRO TRIAL",
+        trial_banner_desc: "All VIP xG Radar, Hot Matches and Live Signals are unrestricted for 24 hours.",
         expiry_warning: "Your membership is expiring soon!",
         telegram_upgrade: "Upgrade Now via Telegram",
         plan_features_pro: "Pro Plan Benefits: All Leagues, Unlimited AI Reports, Smart Alerts.",
-        plan_features_trial: "Trial Plan: 7 days limited access, basic analysis.",
+        plan_features_trial: "24h PRO Trial: Full access to live xG radar, flame matches and VIP signals.",
 
         // Plan Comparison (Honest Set)
-        plan_trial_price: "7 Days Free",
-        plan_trial_subtext: "trial access",
+        plan_trial_price: "24 Hours Free",
+        plan_trial_subtext: "instant full access",
         plan_pro_price: "{price} {curr}",
         plan_premium_price: "{price} {curr}",
         per_month: "/mo",
@@ -1463,12 +1463,12 @@ export const translations = {
         billing_yearly: "Yearly (Save 25%)",
         annual_discount_badge: "SAVE 25% / 2 MONTHS FREE",
         plan_trial_features: [
-            "7 Days Full Trial Access",
-            "Basic DQS Analysis Engine",
-            "Top 3 Consensus Sources",
-            "3 Daily AI Expert Reports",
-            "5 Daily Smart Alerts (Fire Mode)",
-            "Core Leagues Only (Tier 1)"
+            "24-Hour Unrestricted PRO Trial Access",
+            "Live xG Radar & Flame Match Alerts",
+            "All Consensus Sources & Value Signals",
+            "Live Attack Momentum & Pressure Graphs",
+            "Market Influx & Smart Money Detection",
+            "Instant Activation Without Credit Card"
         ],
         plan_pro_features: [
             "Full Stack Analysis & DQS Engine",

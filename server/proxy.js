@@ -83,6 +83,36 @@ const REQUEST_QUEUE = path.join(__dirname, 'stats_request.json');
 const ODDS_FILE = path.join(__dirname, 'live_odds.json');
 const MEMBERS_FILE = path.join(__dirname, 'web_members.json');
 const UPGRADE_REQUESTS_FILE = path.join(__dirname, 'upgrade_requests.json');
+const DEVICE_TRIALS_FILE = path.join(__dirname, 'device_trials.json');
+
+const BLOCKED_DISPOSABLE_DOMAINS = new Set([
+    'tempmail.com', '10minutemail.com', 'guerrillamail.com', 'mailinator.com',
+    'yopmail.com', 'dispostable.com', 'sharklasers.com', 'throwawaymail.com',
+    'getairmail.com', 'fakeinbox.com', 'trashmail.com', 'temp-mail.org',
+    'mohmal.com', 'crazymailing.com', 'generator.email', 'dropmail.me',
+    'temp-mail.io', 'mytemp.email', 'nada.ltd', 'burnermail.io'
+]);
+
+function loadDeviceTrials() {
+    try {
+        if (fs.existsSync(DEVICE_TRIALS_FILE)) {
+            return JSON.parse(fs.readFileSync(DEVICE_TRIALS_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('[DEVICE_TRIALS] Error reading device_trials.json:', e.message);
+    }
+    return {};
+}
+
+function saveDeviceTrials(trials) {
+    try {
+        fs.writeFileSync(DEVICE_TRIALS_FILE, JSON.stringify(trials, null, 2), 'utf8');
+        return true;
+    } catch (e) {
+        console.error('[DEVICE_TRIALS] Error saving device_trials.json:', e.message);
+        return false;
+    }
+}
 
 function loadUpgradeRequests() {
     try {
@@ -1069,12 +1099,37 @@ app.get('/api/members', (req, res) => {
 // 2. Register new member
 app.post('/api/members/register', async (req, res) => {
     try {
-        const { email, password, fullName, phone, plan } = req.body || {};
+        const { email, password, fullName, phone, plan, deviceId } = req.body || {};
         if (!email) {
             return res.status(400).json({ error: 'E-posta zorunludur.' });
         }
         const cleanEmail = email.trim().toLowerCase();
+
+        // 1. Anti-Abuse: Block Disposable / Temp-Mail Providers
+        const domain = cleanEmail.split('@')[1];
+        if (domain && BLOCKED_DISPOSABLE_DOMAINS.has(domain)) {
+            return res.status(400).json({
+                error: 'Geçici veya sahte e-posta adresleri kabul edilmemektedir. Lütfen geçerli bir e-posta (Gmail, Hotmail, Outlook vb.) kullanınız.'
+            });
+        }
+
+        // 2. Anti-Abuse: Prevent Multi-Account Device Trial Farming
+        const deviceTrials = loadDeviceTrials();
+        if (deviceId && deviceTrials[deviceId]) {
+            const existingTrial = deviceTrials[deviceId];
+            // If another email already used trial on this device
+            if (existingTrial.email !== cleanEmail) {
+                return res.status(403).json({
+                    error: '⚠️ Bu cihazdan daha önce 24 saatlik ücretsiz deneme hakkı kullanılmıştır. Lütfen mevcut hesabınıza giriş yapın veya VIP üyeliğe geçin.',
+                    deviceUsed: true
+                });
+            }
+        }
+
         const members = loadMembers();
+
+        const now = new Date();
+        const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24-hour Instant PRO Trial
 
         let member = members.find(m => m.email === cleanEmail);
         if (member) {
@@ -1082,6 +1137,12 @@ app.post('/api/members/register', async (req, res) => {
             if (fullName) member.full_name = fullName;
             if (phone) member.phone = phone;
             if (plan) member.plan = plan;
+            // If expired or pending, re-activate if first trial
+            if (!member.subscription_end) {
+                member.status = 'approved';
+                member.subscription_start = now.toISOString();
+                member.subscription_end = trialEnd.toISOString();
+            }
         } else {
             member = {
                 id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
@@ -1089,25 +1150,36 @@ app.post('/api/members/register', async (req, res) => {
                 password: password || '',
                 full_name: fullName || '',
                 phone: phone || '',
-                status: 'pending',
+                status: 'approved', // Auto-approved for 24h trial
                 plan: plan || 'trial',
-                created_at: new Date().toISOString(),
-                subscription_start: null,
-                subscription_end: null
+                deviceId: deviceId || null,
+                created_at: now.toISOString(),
+                subscription_start: now.toISOString(),
+                subscription_end: trialEnd.toISOString()
             };
             members.unshift(member);
+
+            // Record device trial mapping
+            if (deviceId) {
+                deviceTrials[deviceId] = {
+                    email: cleanEmail,
+                    registeredAt: now.toISOString(),
+                    trialEnd: trialEnd.toISOString()
+                };
+                saveDeviceTrials(deviceTrials);
+            }
         }
         saveMembers(members);
 
-        // Telegram Notification to Hamza
-        const dateStr = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-        const msg = `🔔 *YENİ ÜYELİK BAŞVURUSU!*\n\n` +
+        // Telegram Notification to Admin (Hamza)
+        const dateStr = now.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
+        const msg = `🎉 *YENİ ÜYE KAYDOLDU (24 Saatlik Deneme Başladı!)*\n\n` +
                     `📧 *E-posta:* \`${cleanEmail}\`\n` +
                     (fullName ? `👤 *İsim:* ${fullName}\n` : '') +
                     (phone ? `📞 *Telefon:* ${phone}\n` : '') +
-                    `⭐ *Paket:* ${plan || 'Trial (Deneme)'}\n` +
+                    `⭐ *Paket:* ${plan || '24h PRO Trial'}\n` +
                     `📅 *Tarih:* ${dateStr}\n\n` +
-                    `👉 _LiveBet Mentor Admin Paneli > 'ONAY BEKLİYOR' sekmesinden hemen onaylayabilirsiniz._`;
+                    `⚡ _Kullanıcıya 24 saatlik deneme süresi tanımlandı ve doğrudan dashboard'a yönlendirildi._`;
 
         if (telegramBot) {
             const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
@@ -1126,7 +1198,7 @@ app.post('/api/members/register', async (req, res) => {
             }
         }
 
-        res.json({ success: true, member, members });
+        res.json({ success: true, user: member, member, members });
     } catch (e) {
         console.error('[MEMBERS] Register error:', e.message);
         res.status(500).json({ error: e.message });
@@ -1139,8 +1211,10 @@ app.post('/api/members/login', (req, res) => {
         const { email, password } = req.body || {};
         const cleanEmail = (email || '').trim().toLowerCase();
         
-        // Super Admin Master Credentials
-        if ((cleanEmail === 'admin@livebetmentor.com' || cleanEmail === 'admin' || cleanEmail === 'karabulut.hamza@gmail.com') && (password === 'Hamza123!' || password === 'admin123' || password === 'Hamza2026!' || password === 'admin')) {
+        // Super Admin Master Credentials (Configurable via ENV with fallback)
+        const adminPass = process.env.ADMIN_PASSWORD || 'Hamza2026!';
+        const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com'];
+        if (allowedAdmins.includes(cleanEmail) && (password === adminPass || password === 'Hamza2026!' || password === 'admin123' || password === 'Hamza123!')) {
             return res.json({
                 success: true,
                 user: {
@@ -1189,6 +1263,104 @@ app.post('/api/members/login', (req, res) => {
         return res.json({ success: true, status: 'approved', user: member });
     } catch (e) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+// 3.1 Automated Payment Webhook (Shopier, CryptoBot, PayTR)
+app.post('/api/payment/webhook', async (req, res) => {
+    try {
+        const payload = req.body || {};
+        console.log('[PAYMENT_WEBHOOK] Received payment notification:', JSON.stringify(payload));
+
+        const userEmail = (payload.user_email || payload.email || '').trim().toLowerCase();
+        const chatId = payload.chat_id || payload.chatId || payload.telegram_id;
+        const plan = (payload.plan || 'pro').toLowerCase();
+        const days = parseInt(payload.days || 30, 10);
+        const amount = payload.amount || payload.total || 'N/A';
+        const provider = payload.payment_provider || payload.provider || 'Shopier/Crypto';
+
+        let activated = false;
+        let inviteLink = null;
+
+        // 1. Activate Telegram VIP if chatId exists
+        if (chatId) {
+            try {
+                const { vipManager } = await import('./vipManager.js');
+                vipManager.addVip(chatId, days, payload.username || 'Subscriber', plan.toUpperCase());
+                
+                if (telegramBot && typeof telegramBot.createInviteLink === 'function') {
+                    inviteLink = await telegramBot.createInviteLink(payload.username || 'VIP', days * 24);
+                }
+
+                if (telegramBot && inviteLink) {
+                    const notifyUser = `🎉 *ÖDEMENİZ ONAYLANDI! VIP ERİŞİMİNİZ HAZIR!*\n━━━━━━━━━━━━━━━━━━\n` +
+                        `Paket: *${plan.toUpperCase()} (${days} Gün)*\n` +
+                        `Ödeme: *${amount}*\n\n` +
+                        `💎 *Tek Kullanımlık VIP Grubuna Katılım Linkiniz:*\n👉 ${inviteLink}\n\n` +
+                        `_Bol kazançlar dileriz!_`;
+                    await telegramBot.sendMessage(chatId, notifyUser, { parse_mode: 'Markdown' });
+                }
+                activated = true;
+            } catch (tgErr) {
+                console.error('[PAYMENT_WEBHOOK] Telegram activation error:', tgErr.message);
+            }
+        }
+
+        // 2. Activate Web Member if email exists
+        if (userEmail) {
+            try {
+                const members = loadMembers();
+                let member = members.find(m => m.email === userEmail);
+                const now = new Date();
+                const newEnd = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+
+                if (member) {
+                    member.status = 'approved';
+                    member.plan = plan;
+                    member.subscription_end = newEnd.toISOString();
+                } else {
+                    member = {
+                        id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                        email: userEmail,
+                        password: '',
+                        full_name: payload.full_name || userEmail.split('@')[0],
+                        status: 'approved',
+                        plan: plan,
+                        created_at: now.toISOString(),
+                        subscription_start: now.toISOString(),
+                        subscription_end: newEnd.toISOString()
+                    };
+                    members.unshift(member);
+                }
+                saveMembers(members);
+                activated = true;
+            } catch (mErr) {
+                console.error('[PAYMENT_WEBHOOK] Web member activation error:', mErr.message);
+            }
+        }
+
+        // 3. Notify Admin (Hamza) of New Revenue!
+        if (telegramBot) {
+            const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
+            const alertMsg = `💰 *YENİ ÖDEME TAHSİL EDİLDİ!*\n━━━━━━━━━━━━━━━━━━\n` +
+                `Sağlayıcı: *${provider}*\n` +
+                `Tutar: *${amount}*\n` +
+                `Paket: *${plan.toUpperCase()} (${days} Gün)*\n` +
+                (userEmail ? `E-posta: \`${userEmail}\`\n` : '') +
+                (chatId ? `Telegram ID: \`${chatId}\`\n` : '') +
+                `Durum: *Otomatik VIP Tanımlandı ✅*`;
+
+            for (const adminId of adminIds) {
+                try {
+                    await telegramBot.sendMessage(adminId, alertMsg, { parse_mode: 'Markdown' });
+                } catch (e) {}
+            }
+        }
+
+        return res.json({ success: true, activated, inviteLink });
+    } catch (err) {
+        console.error('[PAYMENT_WEBHOOK] Error handling payment:', err);
+        return res.status(500).json({ error: err.message });
     }
 });
 

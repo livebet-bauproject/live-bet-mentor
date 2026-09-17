@@ -18,7 +18,9 @@ export const LiveTerminalMobile = ({
     togglePinMatch = () => {},
     AttackMomentumGraph = null,
     MatchIncidentsTimeline = null,
-    hideInTableMode = false
+    hideInTableMode = false,
+    userProfile = null,
+    onOpenUpgrade = () => {}
 }) => {
     const [expandedMatchId, setExpandedMatchId] = useState(null);
 
@@ -287,38 +289,71 @@ export const LiveTerminalMobile = ({
 
                             {/* Line 6: AI Signal & DQS Footer */}
                             <div className="tb-m-footer">
-                                {isLateOrFinished ? (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
-                                        <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
-                                        <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px', opacity: 0.6 }}>
-                                            {minStr === 'MS' || minStr.includes('FT') ? 'MS' : 'KİLİTLİ (88+)'}
-                                        </span>
-                                    </div>
-                                ) : isBetReady ? (
-                                    <span className="tb-signal-badge tb-signal-bet" style={{ width: '100%', justifyContent: 'center' }}>
-                                        ✓ {predDisplay}
-                                    </span>
-                                ) : isHot ? (
-                                    <span className="tb-signal-badge tb-signal-hot" style={{ width: '100%', justifyContent: 'center' }}>
-                                        🔥 {lang === 'tr' ? `ALEV BASKI (%${heat})` : `BURNING PRESSURE (%${heat})`}
-                                    </span>
-                                ) : (m.dqs || 0) >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60) ? (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.7rem' }}>
-                                        <span style={{ color: 'var(--tb-text-muted)' }}>
-                                            AI DQS: <strong style={{ color: '#38bdf8' }}>{(m.dqs || 0).toFixed(2)}</strong>
-                                        </span>
-                                        <span style={{ color: '#34d399', fontWeight: 700, fontSize: '0.68rem' }}>
-                                            ● {lang === 'tr' ? 'Tempolu' : 'Active'}
-                                        </span>
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
-                                        <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
-                                        <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
-                                            {t?.verdict_pass || 'PAS'}
-                                        </span>
-                                    </div>
-                                )}
+                                {(() => {
+                                    const isAdmin = userProfile?.plan === 'admin' || userProfile?.role === 'admin';
+                                    const isExpired = !isAdmin && userProfile && (userProfile?.status === 'expired' || (userProfile?.subscription_end && new Date(userProfile.subscription_end) < new Date()));
+
+                                    if (isExpired && (isBetReady || isHot)) {
+                                        return (
+                                            <span
+                                                className="tb-signal-badge tb-signal-bet"
+                                                onClick={(e) => { e.stopPropagation(); onOpenUpgrade(); }}
+                                                style={{ width: '100%', justifyContent: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #a78bfa, #38bdf8)', color: '#000', fontWeight: 900, boxShadow: '0 0 12px rgba(167, 139, 250, 0.4)' }}
+                                            >
+                                                🔒 VIP SİNYAL KİLİDİNİ AÇ
+                                            </span>
+                                        );
+                                    }
+
+                                    if (isLateOrFinished) {
+                                        return (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
+                                                <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
+                                                <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px', opacity: 0.6 }}>
+                                                    {minStr === 'MS' || minStr.includes('FT') ? 'MS' : 'KİLİTLİ (88+)'}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+
+                                    if (isBetReady) {
+                                        return (
+                                            <span className="tb-signal-badge tb-signal-bet" style={{ width: '100%', justifyContent: 'center' }}>
+                                                ✓ {predDisplay}
+                                            </span>
+                                        );
+                                    }
+
+                                    if (isHot) {
+                                        return (
+                                            <span className="tb-signal-badge tb-signal-hot" style={{ width: '100%', justifyContent: 'center' }}>
+                                                🔥 {lang === 'tr' ? `ALEV BASKI (%${heat})` : `BURNING PRESSURE (%${heat})`}
+                                            </span>
+                                        );
+                                    }
+
+                                    if ((m.dqs || 0) >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60)) {
+                                        return (
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.7rem' }}>
+                                                <span style={{ color: 'var(--tb-text-muted)' }}>
+                                                    AI DQS: <strong style={{ color: '#38bdf8' }}>{(m.dqs || 0).toFixed(2)}</strong>
+                                                </span>
+                                                <span style={{ color: '#34d399', fontWeight: 700, fontSize: '0.68rem' }}>
+                                                    ● {lang === 'tr' ? 'Tempolu' : 'Active'}
+                                                </span>
+                                            </div>
+                                        );
+                                    }
+
+                                    return (
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
+                                            <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
+                                            <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                {t?.verdict_pass || 'PAS'}
+                                            </span>
+                                        </div>
+                                    );
+                                })()}
                             </div>
 
                             {/* Mobile Drawer on Click */}

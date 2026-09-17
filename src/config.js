@@ -148,8 +148,8 @@ export const CONFIG = {
   },
   MEMBERSHIP_PRICING: {
     trial: 0,
-    pro: 29,
-    premium: 79,
+    pro: 14.90,
+    premium: 34.90,
     currency: '€'
   }
 };

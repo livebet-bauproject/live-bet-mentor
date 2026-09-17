@@ -1,5 +1,18 @@
 [
   {
+    "id": "user_1789636101149_060tk6",
+    "email": "legituser_1789636100967@gmail.com",
+    "password": "password123",
+    "full_name": "Legit User",
+    "phone": "",
+    "status": "approved",
+    "plan": "pro",
+    "deviceId": "dev_hash_1789636100967_abc",
+    "created_at": "2026-09-17T09:08:21.149Z",
+    "subscription_start": "2026-09-17T09:08:21.149Z",
+    "subscription_end": "2026-10-17T09:08:21.915Z"
+  },
+  {
     "id": "user_totdfdd_approved",
     "email": "totdfdd@hotmail.com",
     "password": "",

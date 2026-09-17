@@ -1,4 +1,15 @@
 {
+  "12345678": {
+    "chatId": "12345678",
+    "username": "Subscriber",
+    "plan": "PRO",
+    "status": "ACTIVE",
+    "hadTrial": false,
+    "startedAt": 1789636101638,
+    "expiresAt": 1792228101638,
+    "reminderSent": false,
+    "lastRenewedAt": 1789636101638
+  },
   "99999999": {
     "chatId": "99999999",
     "username": "User",

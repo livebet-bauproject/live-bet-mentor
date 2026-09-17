@@ -860,6 +860,12 @@ _Average activation time: 2–5 minutes._
                 break;
 
             case '/vip':
+            case '/satinal':
+            case '/fiyat':
+            case '/paket':
+            case '/paketler':
+            case '/odeme':
+            case '/ucret':
                 await this.sendMessage(chatId, formatVIPInfo({}, userLang));
                 break;
 

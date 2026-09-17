@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../backend/supabaseClient';
 import { translations } from '../locales/translations';
 import { LegalModal } from './LegalModal';
+import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import '../styles/global.css';
 
 export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
@@ -38,23 +39,6 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
         const cleanEmail = (email || '').trim().toLowerCase();
         const isAdmin = cleanEmail === 'admin@livebetmentor.com' || cleanEmail === 'admin';
 
-        // Super Admin Master Login
-        if (isAdmin && (password === 'Hamza123!' || password === 'admin123' || password === 'Hamza2026!' || password === 'admin')) {
-            const adminSession = {
-                user: {
-                    id: 'admin-super',
-                    email: 'admin@livebetmentor.com',
-                    user_metadata: { display_name: 'LiveBet Admin' }
-                },
-                access_token: 'master-admin-token',
-                expires_at: 9999999999
-            };
-            localStorage.setItem('lbm_admin_session', JSON.stringify(adminSession));
-            onLoginSuccess(adminSession);
-            setLoading(false);
-            return;
-        }
-
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
             : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
@@ -70,6 +54,23 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     });
                     const resData = await res.json();
                     if (res.ok && resData.success && resData.user) {
+                        if (resData.user.plan === 'admin') {
+                            const adminSession = {
+                                user: {
+                                    id: 'admin-super',
+                                    email: 'admin@livebetmentor.com',
+                                    plan: 'admin',
+                                    user_metadata: { display_name: 'LiveBet Admin' }
+                                },
+                                access_token: 'master-admin-token',
+                                expires_at: 9999999999
+                            };
+                            localStorage.setItem('lbm_admin_session', JSON.stringify(adminSession));
+                            onLoginSuccess(adminSession);
+                            setLoading(false);
+                            return;
+                        }
+
                         if (resData.status === 'pending') {
                             setError(lang === 'tr' 
                                 ? '⏳ Üyeliğiniz onay beklemektedir. Yönetici onayından sonra giriş yapabilirsiniz.' 
@@ -124,39 +125,62 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     return;
                 }
 
-                // REGISTER
-                // 1. Submit to Backend Members API
+                // REGISTER: Auto-activate 24-hour instant PRO trial with Device Anti-Abuse
+                let registeredUser = null;
+                const deviceId = getDeviceFingerprint();
                 try {
-                    await fetch(`${proxyBase}/api/members/register`, {
+                    const regRes = await fetch(`${proxyBase}/api/members/register`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: cleanEmail, password, plan: 'trial' })
+                        body: JSON.stringify({ email: cleanEmail, password, plan: 'trial', deviceId })
                     });
+                    const regData = await regRes.json();
+                    if (regRes.ok && regData.success && regData.user) {
+                        registeredUser = regData.user;
+                    } else if (regData.error) {
+                        setError(regData.error);
+                        if (regData.deviceUsed) {
+                            setTimeout(() => {
+                                setView('login');
+                            }, 4500);
+                        }
+                        setLoading(false);
+                        return;
+                    }
                 } catch (beErr) {
                     console.warn('Backend register failed:', beErr);
                 }
 
-                // 2. Also attempt Supabase if available
+                // Fallback Supabase registration
                 try {
-                    const { error: sbSignUpErr } = await supabase.auth.signUp({ email: cleanEmail, password });
-                    if (sbSignUpErr) {
-                        console.warn('Supabase auth notice:', sbSignUpErr.message);
-                    }
+                    await supabase.auth.signUp({ email: cleanEmail, password });
                 } catch (supErr) {
-                    console.warn('Supabase signup error:', supErr);
+                    console.warn('Supabase signup notice:', supErr);
                 }
 
-                setError(lang === 'tr' 
-                    ? '✅ Kayıt başvurunuz alındı! Yönetici onayı sonrası hesabınız aktifleşecektir. Lütfen Telegram üzerinden iletişime geçin.' 
-                    : '✅ Registration received! Your account will be activated after admin approval. Please contact us via Telegram.');
+                if (registeredUser) {
+                    const userSession = {
+                        user: {
+                            id: registeredUser.id,
+                            email: registeredUser.email,
+                            user_metadata: { display_name: registeredUser.full_name || registeredUser.email.split('@')[0] }
+                        },
+                        memberProfile: registeredUser,
+                        access_token: 'member-token-' + registeredUser.id
+                    };
+                    localStorage.setItem('lbm_member_session', JSON.stringify(userSession));
+                    onLoginSuccess(userSession);
+                    return;
+                }
+
+                // Fallback if backend returned without user
+                setError(lang === 'tr'
+                    ? '✅ Kayıt tamamlandı! Lütfen giriş yapınız.'
+                    : '✅ Registration complete! Please log in.');
                 setView('login');
             }
         } catch (err) {
-            if (isAdmin) {
-                setError(lang === 'tr' ? '❌ Hatalı yönetici şifresi.' : '❌ Invalid admin password.');
-            } else {
-                setError(err.message || (lang === 'tr' ? 'Giriş yapılamadı.' : 'Login failed.'));
-            }
+            setError(err.message || (lang === 'tr' ? 'İşlem gerçekleştirilemedi.' : 'Operation failed.'));
         } finally {
             setLoading(false);
         }
@@ -280,9 +304,30 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         <h2 style={{ fontSize: '2rem', fontWeight: 900, marginBottom: '0.5rem', textAlign: 'center' }}>
                             {view === 'login' ? t.landing_cta_login : t.landing_cta_main}
                         </h2>
-                        <p style={{ color: '#64748b', textAlign: 'center', marginBottom: '2.5rem', fontSize: '0.9rem' }}>
+                        <p style={{ color: '#64748b', textAlign: 'center', marginBottom: view === 'register' ? '1.2rem' : '2.5rem', fontSize: '0.9rem' }}>
                             {view === 'login' ? t.login_to_panel : (t.register_subtitle || (lang === 'tr' ? 'LIVE BET MENTOR topluluğuna katılın' : 'Join the LIVE BET MENTOR community'))}
                         </p>
+
+                        {view === 'register' && (
+                            <div style={{
+                                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(168, 85, 247, 0.15))',
+                                border: '1px solid rgba(56, 189, 248, 0.35)',
+                                borderRadius: '12px',
+                                padding: '0.65rem 0.9rem',
+                                marginBottom: '1.8rem',
+                                textAlign: 'center',
+                                fontSize: '0.8rem',
+                                color: '#38bdf8',
+                                fontWeight: 800,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                            }}>
+                                <span>⚡</span>
+                                <span>{lang === 'tr' ? '24 Saatlik Ücretsiz PRO Deneme (Anında Erişim & Kartsız)' : '24h Instant Free PRO Trial (No Card Needed)'}</span>
+                            </div>
+                        )}
 
                         <form onSubmit={handleAuth} style={{ display: 'grid', gap: '1.5rem' }}>
                             <div>

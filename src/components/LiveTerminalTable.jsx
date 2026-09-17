@@ -18,7 +18,9 @@ export const LiveTerminalTable = ({
     togglePinMatch = () => {},
     AttackMomentumGraph = null,
     MatchIncidentsTimeline = null,
-    mobileTableMode = false
+    mobileTableMode = false,
+    userProfile = null,
+    onOpenUpgrade = () => {}
 }) => {
     const [expandedMatchId, setExpandedMatchId] = useState(null);
 
@@ -294,6 +296,22 @@ export const LiveTerminalTable = ({
                                                     return (
                                                         <span className="tb-signal-badge tb-signal-pass" style={{ opacity: 0.6 }}>
                                                             {minStr === 'MS' || minStr.includes('FT') ? 'MS' : 'KİLİTLİ (88+)'}
+                                                        </span>
+                                                    );
+                                                }
+
+                                                const isAdmin = userProfile?.plan === 'admin' || userProfile?.role === 'admin';
+                                                const isExpired = !isAdmin && userProfile && (userProfile?.status === 'expired' || (userProfile?.subscription_end && new Date(userProfile.subscription_end) < new Date()));
+
+                                                if (isExpired && (signal?.verdict === 'BET' || heat >= 75)) {
+                                                    return (
+                                                        <span
+                                                            className="tb-signal-badge tb-signal-bet"
+                                                            onClick={(e) => { e.stopPropagation(); onOpenUpgrade(); }}
+                                                            style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #a78bfa, #38bdf8)', color: '#000', fontWeight: 900, boxShadow: '0 0 10px rgba(167, 139, 250, 0.4)' }}
+                                                            title={lang === 'tr' ? 'VIP Sinyal Kilidini Aç' : 'Unlock VIP Signal'}
+                                                        >
+                                                            🔒 VIP KİLİDİ
                                                         </span>
                                                     );
                                                 }
