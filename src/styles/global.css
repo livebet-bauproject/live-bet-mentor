@@ -492,6 +492,12 @@ body {
   overflow-x: clip;
 }
 
+/* In DASHBOARD live radar view, hide heavy configuration panels (Bankroll & Health) so live matches are immediately visible at the top without scrolling */
+.dashboard-live-mode .bankroll-binding-panel,
+.dashboard-live-mode .health-monitor {
+  display: none !important;
+}
+
 /* Mobile Responsive Optimization (Phase 15) */
 @media (max-width: 768px) {
   :root {

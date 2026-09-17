@@ -73,7 +73,7 @@ export const LiveTerminalTable = ({
                     <tr>
                         <th style={{ width: '28px', textAlign: 'center' }}>★</th>
                         <th style={{ width: '46px' }}>{t?.minute_short || 'DK'}</th>
-                        <th style={{ width: '88px' }}>{t?.league_label || 'LİG'}</th>
+                        <th style={{ width: '100px' }}>{t?.league_label || 'LİG'}</th>
                         <th style={{ minWidth: '170px' }}>{t?.match_label || 'MAÇ'}</th>
                         <th style={{ width: '50px', textAlign: 'center' }}>{t?.score_label || 'SKOR'}</th>
                         <th style={{ width: '78px', textAlign: 'center' }}>{lang === 'tr' ? 'ISI / DURUM' : 'HEAT'}</th>
@@ -82,7 +82,7 @@ export const LiveTerminalTable = ({
                         <th style={{ width: '56px', textAlign: 'center' }}>ŞUT (ISB)</th>
                         <th style={{ width: '54px', textAlign: 'center' }}>T.ATAK</th>
                         <th style={{ width: '56px', textAlign: 'center' }}>xG</th>
-                        <th style={{ width: '110px', textAlign: 'center' }}>AI SİNYAL</th>
+                        <th style={{ width: '150px', textAlign: 'center' }}>AI SİNYAL</th>
                         <th style={{ width: '36px', textAlign: 'center' }}>DETAY</th>
                     </tr>
                 </thead>
