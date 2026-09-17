@@ -1802,14 +1802,14 @@ app.get('/api/telegram/status', (req, res) => {
     res.json(telegramBot.getStatus());
 });
 
-// Update Telegram bot configuration (language, etc.)
+// Update Telegram bot configuration (language, channels, etc.)
 app.post('/api/telegram/config', (req, res) => {
     try {
         if (!isAdminRequest(req)) {
             return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler Telegram bot ayarlarını değiştirebilir.' });
         }
-        const { lang, enabled, minLevel } = req.body;
-        if (lang && (lang === 'tr' || lang === 'en')) {
+        const { lang, enabled, minLevel, vipChannels, publicChannels } = req.body;
+        if (lang && (lang === 'tr' || lang === 'en' || lang === 'de')) {
             telegramBot.lang = lang;
             process.env.TELEGRAM_LANG = lang;
         }
@@ -1818,6 +1818,18 @@ app.post('/api/telegram/config', (req, res) => {
         }
         if (minLevel) {
             telegramBot.minLevel = minLevel;
+        }
+        if (vipChannels && typeof vipChannels === 'object') {
+            telegramBot.vipChannels = {
+                ...telegramBot.vipChannels,
+                ...vipChannels
+            };
+        }
+        if (publicChannels && typeof publicChannels === 'object') {
+            telegramBot.publicChannels = {
+                ...telegramBot.publicChannels,
+                ...publicChannels
+            };
         }
         res.json({ success: true, status: telegramBot.getStatus() });
     } catch (e) {

@@ -7827,7 +7827,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center' }}>
                     <a
-                        href="https://t.me/Livebetdeskbot"
+                        href={`https://t.me/Livebetdeskbot?start=lang_${lang || 'tr'}`}
                         target="_blank"
                         rel="noreferrer"
                         style={{

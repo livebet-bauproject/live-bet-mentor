@@ -150,7 +150,7 @@ export class VipManager {
     }
 
     /**
-     * Get user's preferred language ('tr' or 'en')
+     * Get user's preferred language ('tr', 'en', or 'de')
      */
     getUserLang(chatId) {
         const user = this.getUser(chatId);
@@ -158,11 +158,11 @@ export class VipManager {
     }
 
     /**
-     * Set user's preferred language ('tr' or 'en')
+     * Set user's preferred language ('tr', 'en', or 'de')
      */
     setUserLang(chatId, lang) {
         const id = String(chatId);
-        const validLang = (lang === 'en') ? 'en' : 'tr';
+        const validLang = ['tr', 'en', 'de'].includes(lang) ? lang : 'tr';
         if (!this.users[id]) {
             this.users[id] = {
                 chatId: id,
@@ -186,19 +186,24 @@ export class VipManager {
         if (!user) return null;
 
         const isTr = lang === 'tr';
+        const isDe = lang === 'de';
         const diffMs = user.expiresAt - Date.now();
         if (diffMs <= 0) {
-            return { active: false, text: isTr ? 'Süresi Doldu' : 'Expired' };
+            return { active: false, text: isTr ? 'Süresi Doldu' : isDe ? 'Abgelaufen' : 'Expired' };
         }
 
         const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
         const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
 
+        let text = `${days} Days ${hours} Hours`;
+        if (isTr) text = `${days} Gün ${hours} Saat`;
+        if (isDe) text = `${days} Tage ${hours} Std.`;
+
         return {
             active: true,
             days,
             hours,
-            text: isTr ? `${days} Gün ${hours} Saat` : `${days} Days ${hours} Hours`
+            text
         };
     }
 

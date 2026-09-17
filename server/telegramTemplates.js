@@ -216,10 +216,11 @@ export function cleanLeague(rawLeague, lang = 'tr') {
 
 export function formatVIPSignal(alert, lang = 'tr') {
     const isTr = lang === 'tr';
-    const home = cleanMd(alert.homeTeam || 'Ev');
-    const away = cleanMd(alert.awayTeam || 'Dep');
+    const isDe = lang === 'de';
+    const home = cleanMd(alert.homeTeam || (isTr ? 'Ev' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(alert.awayTeam || (isTr ? 'Dep' : isDe ? 'Auswärts' : 'Away'));
 
-    const badge = alert.level === 'ALPHA' ? '💎 ALFA SİNYAL' : '🔥 CANLI ALARM';
+    const badge = alert.level === 'ALPHA' ? (isTr ? '💎 ALFA SİNYAL' : isDe ? '💎 ALPHA-SIGNAL' : '💎 ALPHA SIGNAL') : (isTr ? '🔥 CANLI ALARM' : isDe ? '🔥 LIVE-ALARM' : '🔥 LIVE ALERT');
     const marketText = resolveMarketText(alert, lang);
     const oddsVal = alert.recommendation?.odds || alert.odds || '1.80';
     const conf = alert.recommendation?.confidence || 82;
@@ -233,6 +234,14 @@ export function formatVIPSignal(alert, lang = 'tr') {
 👉 *Canlı Radar:* https://live-bet-mentor-brown.vercel.app`;
     }
 
+    if (isDe) {
+        return `${badge} · *${alert.minute}'* [*${alert.score || '0-0'}*]
+⚽ *${home} - ${away}*
+🎯 *Tipp:* *${marketText}*
+📊 *Konfidenz:* ${conf}% | *Quote:* ${oddsVal} | *Einsatz:* ${stake}%
+👉 *Live-Radar:* https://live-bet-mentor-brown.vercel.app`;
+    }
+
     return `${badge} · *${alert.minute}'* [*${alert.score || '0-0'}*]
 ⚽ *${home} - ${away}*
 🎯 *Pick:* *${marketText}*
@@ -242,8 +251,9 @@ export function formatVIPSignal(alert, lang = 'tr') {
 
 export function formatPublicTeaser(alert, lang = 'tr') {
     const isTr = lang === 'tr';
-    const home = cleanMd(alert.homeTeam || 'Ev');
-    const away = cleanMd(alert.awayTeam || 'Dep');
+    const isDe = lang === 'de';
+    const home = cleanMd(alert.homeTeam || (isTr ? 'Ev' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(alert.awayTeam || (isTr ? 'Dep' : isDe ? 'Auswärts' : 'Away'));
     const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetdeskbot';
 
     if (isTr) {
@@ -255,6 +265,17 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 💎 *Sinyalleri 0 saniye gecikmeyle yakalamak için:*
 👉 @${botUser} bota /deneme yazarak *3 Günlük Ücretsiz VIP* başlatın veya /vip ile katılın!
 🌐 *Web Terminali:* https://live-bet-mentor-brown.vercel.app`;
+    }
+
+    if (isDe) {
+        return `⚡ *LIVE-TORDRUCK ALARM* · *${alert.minute}'* [*${alert.score || '0-0'}*]
+⚽ *${home} - ${away}*
+🔥 *Hoher Spieldruck & xG-Momentum erkannt!*
+🔒 _Vollständiger Tipp & faire Quote im VIP-Kanal geteilt._
+
+💎 *Signale ohne Verzögerung (0s Latenz) erhalten:*
+👉 Sende /trial oder /test an @${botUser} für einen *3-Tage VIP-Pass* oder /vip zum Beitreten!
+🌐 *Web-Terminal:* https://live-bet-mentor-brown.vercel.app`;
     }
 
     return `⚡ *IN-PLAY PRESSURE ALERT* · *${alert.minute}'* [*${alert.score || '0-0'}*]
@@ -271,22 +292,52 @@ export function resolveConsensusPredName(pred, lang = 'tr') {
     if (!pred) return 'N/A';
     const p = String(pred).trim();
     const isTr = lang === 'tr';
+    const isDe = lang === 'de';
 
-    if (p === '1') return isTr ? 'Ev Sahibi (MS 1)' : 'Home Win (1)';
-    if (p === 'X' || p === 'x') return isTr ? 'Beraberlik (MS X)' : 'Draw (X)';
-    if (p === '2') return isTr ? 'Deplasman (MS 2)' : 'Away Win (2)';
-    if (p === '1X' || p === '1x') return isTr ? 'Çifte Şans (1X)' : 'Double Chance (1X)';
-    if (p === 'X2' || p === 'x2') return isTr ? 'Çifte Şans (X2)' : 'Double Chance (X2)';
-    if (p === '12') return isTr ? 'Çifte Şans (12)' : 'Double Chance (12)';
-    if (p.toLowerCase().includes('üst') || p.toLowerCase().includes('over')) return isTr ? '2.5 Gol Üstü' : 'Over 2.5 Goals';
-    if (p.toLowerCase().includes('alt') || p.toLowerCase().includes('under')) return isTr ? '2.5 Gol Altı' : 'Under 2.5 Goals';
-    if (p.toLowerCase().includes('var') || p.toLowerCase().includes('yes') || p.toLowerCase().includes('btts')) return isTr ? 'Karşılıklı Gol Var (KG Var)' : 'Both Teams To Score (BTTS: Yes)';
-    if (p.toLowerCase().includes('yok') || p.toLowerCase().includes('no')) return isTr ? 'Karşılıklı Gol Yok' : 'Both Teams To Score (BTTS: No)';
+    if (isTr) {
+        if (p === '1') return 'Ev Sahibi (MS 1)';
+        if (p === 'X' || p === 'x') return 'Beraberlik (MS X)';
+        if (p === '2') return 'Deplasman (MS 2)';
+        if (p === '1X' || p === '1x') return 'Çifte Şans (1X)';
+        if (p === 'X2' || p === 'x2') return 'Çifte Şans (X2)';
+        if (p === '12') return 'Çifte Şans (12)';
+        if (p.toLowerCase().includes('üst') || p.toLowerCase().includes('over')) return '2.5 Gol Üstü';
+        if (p.toLowerCase().includes('alt') || p.toLowerCase().includes('under')) return '2.5 Gol Altı';
+        if (p.toLowerCase().includes('var') || p.toLowerCase().includes('yes') || p.toLowerCase().includes('btts')) return 'Karşılıklı Gol Var (KG Var)';
+        if (p.toLowerCase().includes('yok') || p.toLowerCase().includes('no')) return 'Karşılıklı Gol Yok';
+        return p;
+    }
+
+    if (isDe) {
+        if (p === '1') return 'Heimsieg (MS 1)';
+        if (p === 'X' || p === 'x') return 'Unentschieden (MS X)';
+        if (p === '2') return 'Auswärtssieg (MS 2)';
+        if (p === '1X' || p === '1x') return 'Doppelte Chance (1X)';
+        if (p === 'X2' || p === 'x2') return 'Doppelte Chance (X2)';
+        if (p === '12') return 'Doppelte Chance (12)';
+        if (p.toLowerCase().includes('üst') || p.toLowerCase().includes('over') || p.toLowerCase().includes('über')) return 'Über 2.5 Tore';
+        if (p.toLowerCase().includes('alt') || p.toLowerCase().includes('under') || p.toLowerCase().includes('unter')) return 'Unter 2.5 Tore';
+        if (p.toLowerCase().includes('var') || p.toLowerCase().includes('yes') || p.toLowerCase().includes('btts')) return 'Beide Teams treffen (BTTS: Ja)';
+        if (p.toLowerCase().includes('yok') || p.toLowerCase().includes('no')) return 'Beide Teams treffen: Nein';
+        return p;
+    }
+
+    if (p === '1') return 'Home Win (1)';
+    if (p === 'X' || p === 'x') return 'Draw (X)';
+    if (p === '2') return 'Away Win (2)';
+    if (p === '1X' || p === '1x') return 'Double Chance (1X)';
+    if (p === 'X2' || p === 'x2') return 'Double Chance (X2)';
+    if (p === '12') return 'Double Chance (12)';
+    if (p.toLowerCase().includes('üst') || p.toLowerCase().includes('over')) return 'Over 2.5 Goals';
+    if (p.toLowerCase().includes('alt') || p.toLowerCase().includes('under')) return 'Under 2.5 Goals';
+    if (p.toLowerCase().includes('var') || p.toLowerCase().includes('yes') || p.toLowerCase().includes('btts')) return 'Both Teams To Score (BTTS: Yes)';
+    if (p.toLowerCase().includes('yok') || p.toLowerCase().includes('no')) return 'Both Teams To Score (BTTS: No)';
     return p;
 }
 
 export function formatRadarPick(match, lang = 'tr') {
     const isTr = lang === 'tr';
+    const isDe = lang === 'de';
     const agreement = match.agreement || {};
     const topPrediction = Object.entries(agreement).sort((a, b) => b[1] - a[1])[0];
     
@@ -296,9 +347,9 @@ export function formatRadarPick(match, lang = 'tr') {
     const agreePercent = totalSources > 0 ? Math.round((topCount / totalSources) * 100) : (match.agreementPercent || 0);
     const topPredText = resolveConsensusPredName(rawTopPred, lang);
 
-    const home = cleanMd(match.home || match.homeTeam || (isTr ? 'Ev Sahibi' : 'Home'));
-    const away = cleanMd(match.away || match.awayTeam || (isTr ? 'Deplasman' : 'Away'));
-    const league = isTr ? cleanLeagueTr(match.league) : cleanMd(match.league);
+    const home = cleanMd(match.home || match.homeTeam || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(match.away || match.awayTeam || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
+    const league = cleanLeague(match.league, lang);
     const leagueTag = league ? ` (${league})` : '';
     const timeStr = match.time ? ` · ⏰ ${match.time}` : '';
 
@@ -310,6 +361,14 @@ export function formatRadarPick(match, lang = 'tr') {
 💰 *Kasa:* %2 · 💎 _Live Bet Mentor VIP_`;
     }
 
+    if (isDe) {
+        return `🎯 *TIPP DES TAGES*${timeStr}
+⚽ *${home} - ${away}*${leagueTag}
+🔥 *Tipp:* *${topPredText}*
+📊 *Modell-Konsens:* *${agreePercent}%* (${topCount}/${totalSources} Quellen)
+💰 *Einsatz:* 2% · 💎 _Live Bet Mentor VIP_`;
+    }
+
     return `🎯 *TOP CONSENSUS PICK*${timeStr}
 ⚽ *${home} - ${away}*${leagueTag}
 🔥 *Pick:* *${topPredText}*
@@ -319,14 +378,15 @@ export function formatRadarPick(match, lang = 'tr') {
 
 export function formatRadarTeaser(match, lang = 'tr') {
     const isTr = lang === 'tr';
+    const isDe = lang === 'de';
     const agreement = match.agreement || {};
     const topPrediction = Object.entries(agreement).sort((a, b) => b[1] - a[1])[0];
     const topCount = topPrediction ? topPrediction[1] : (match.topCount || 0);
     const totalSources = match.totalSources || 10;
     const agreePercent = totalSources > 0 ? Math.round((topCount / totalSources) * 100) : (match.agreementPercent || 0);
 
-    const home = cleanMd(match.home || match.homeTeam || (isTr ? 'Ev Sahibi' : 'Home'));
-    const away = cleanMd(match.away || match.awayTeam || (isTr ? 'Deplasman' : 'Away'));
+    const home = cleanMd(match.home || match.homeTeam || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(match.away || match.awayTeam || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
     const timeStr = match.time ? ` (⏰ ${match.time})` : '';
 
     if (isTr) {
@@ -335,6 +395,14 @@ export function formatRadarTeaser(match, lang = 'tr') {
 ⚡ *10 Analiz Modelinden %${agreePercent} Ortak Onay!*
 🔒 _Tahmin & kasa yönetimi VIP grupta paylaşıldı._
 👉 *Canlı Terminal:* https://live-bet-mentor-brown.vercel.app`;
+    }
+
+    if (isDe) {
+        return `📡 *KONSENS-RADAR ALARM*${timeStr}
+⚽ *${home} - ${away}*
+⚡ *10 KI-Modelle erzielen ${agreePercent}% Übereinstimmung!*
+🔒 _Tipp & Bankroll-Einsatz im VIP-Kanal freigeschaltet._
+👉 *Live-Terminal:* https://live-bet-mentor-brown.vercel.app`;
     }
 
     return `📡 *CONSENSUS RADAR ALERT*${timeStr}
@@ -346,11 +414,15 @@ export function formatRadarTeaser(match, lang = 'tr') {
 
 export function formatSignalResult(signal, result, finalScore, currentStats = {}, lang = 'tr') {
     const isTr = lang === 'tr';
+    const isDe = lang === 'de';
     const isWon = result === 'WON';
-    const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || 'Ev');
-    const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || 'Dep');
-    const market = cleanMd(resolveMarketText(signal, lang) || signal.market || 'Tahmin');
+    const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || (isTr ? 'Ev' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || (isTr ? 'Dep' : isDe ? 'Auswärts' : 'Away'));
+    const market = cleanMd(resolveMarketText(signal, lang) || signal.market || (isTr ? 'Tahmin' : isDe ? 'Tipp' : 'Pick'));
     const scoreStr = finalScore ? (typeof finalScore === 'object' ? `${finalScore.home}-${finalScore.away}` : finalScore) : '';
+
+    const totalResolved = (currentStats.won || 0) + (currentStats.lost || 0);
+    const winRate = totalResolved > 0 ? (((currentStats.won || 0) / totalResolved) * 100).toFixed(1) : '0.0';
 
     if (isTr) {
         if (isWon) {
@@ -363,6 +435,22 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 ⚽ *${home} - ${away}*
 🎯 *Tahmin:* *${market}*
 🛡️ *Sermaye koruma devrede, kasa yönetimine sadık kalın.*`;
+        }
+    }
+
+    if (isDe) {
+        if (isWon) {
+            return `🟢 *GEWONNEN!* ${scoreStr ? `[${scoreStr}]` : ''}
+⚽ *${home} vs ${away}*
+🎯 *Tipp:* *${market}* ✅
+📈 *Heute:* %${winRate} (${currentStats.won || 1}/${totalResolved || 1} Treffer)
+💰 *Gewinn zur Bankroll hinzugefügt!* · 💎 _Live Bet Mentor VIP_`;
+        } else {
+            return `🔴 *VERLOREN* ${scoreStr ? `[${scoreStr}]` : ''}
+⚽ *${home} vs ${away}*
+🎯 *Tipp:* *${market}*
+📈 *Heute:* %${winRate} (${currentStats.won || 0}/${totalResolved || 1})
+🛡️ *Kapitalschutz aktiv, diszipliniert im Bankroll-Plan bleiben.*`;
         }
     }
 
@@ -383,10 +471,11 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 
 export function formatCashOutAlert(cashOut, lang = 'tr') {
     const isTr = lang === 'tr';
-    const home = cleanMd(cashOut.matchTitle?.split(' vs ')[0] || (isTr ? 'Ev Sahibi' : 'Home'));
-    const away = cleanMd(cashOut.matchTitle?.split(' vs ')[1] || (isTr ? 'Deplasman' : 'Away'));
-    const market = cleanMd(cashOut.market || (isTr ? 'Aktif Bahis' : 'Active Market'));
-    const reason = cleanMd(cashOut.reason || (isTr ? 'Hücum temposu düştü' : 'Momentum decline'));
+    const isDe = lang === 'de';
+    const home = cleanMd(cashOut.matchTitle?.split(' vs ')[0] || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(cashOut.matchTitle?.split(' vs ')[1] || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
+    const market = cleanMd(cashOut.market || (isTr ? 'Aktif Bahis' : isDe ? 'Aktiver Tipp' : 'Active Market'));
+    const reason = cleanMd(cashOut.reason || (isTr ? 'Hücum temposu düştü' : isDe ? 'Spieltempo verlangsamt' : 'Momentum decline'));
 
     if (isTr) {
         return `🚨 *BAHİS BOZDUR / STOP-LOSS UYARISI* 🚨
@@ -396,6 +485,16 @@ export function formatCashOutAlert(cashOut, lang = 'tr') {
 
 💡 *Aksiyon:* Kârı kilitleyin veya sermayeyi korumak için bahsi bozdurun!
 🛡️ *Live Bet Mentor Kasa Koruma*`;
+    }
+
+    if (isDe) {
+        return `🚨 *CASHOUT / STOP-LOSS WARNUNG* 🚨
+⚽ *${home} vs ${away}* (${cashOut.minute}' · [*${cashOut.score}*])
+🎯 *Aktiver Tipp:* ${market}
+⚠️ *Status:* ${reason}
+
+💡 *Aktion:* Gewinne sichern oder Stop-Loss ausführen zum Kapitalschutz!
+🛡️ *Live Bet Mentor Kapitalschutz*`;
     }
 
     return `🚨 *CASHOUT / STOP-LOSS ALERT* 🚨
@@ -410,6 +509,7 @@ export function formatCashOutAlert(cashOut, lang = 'tr') {
 export function formatGoldenCombo(combo, lang = 'tr') {
     if (!combo || !combo.picks || combo.picks.length === 0) return '';
     const isTr = lang === 'tr';
+    const isDe = lang === 'de';
 
     const picksText = combo.picks.map((p, i) => {
         const matchTitle = cleanMd(p.matchTitle);
@@ -417,7 +517,8 @@ export function formatGoldenCombo(combo, lang = 'tr') {
         const odds = p.odds || '1.50';
         const minClean = cleanMd(String(p.minute || '').replace(/['’]/g, ''));
         const minDisplay = minClean ? ` (${minClean}')` : '';
-        return `${i + 1}️⃣ *${matchTitle}*${minDisplay} ➔ *${market}* (Oran: ${odds})`;
+        const oddsTag = isTr ? `Oran: ${odds}` : isDe ? `Quote: ${odds}` : `Odds: ${odds}`;
+        return `${i + 1}️⃣ *${matchTitle}*${minDisplay} ➔ *${market}* (${oddsTag})`;
     }).join('\n');
 
     if (isTr) {
@@ -427,6 +528,16 @@ export function formatGoldenCombo(combo, lang = 'tr') {
 ${picksText}
 
 💡 *Kasa Tavsiyesi:* %2.0 (Dengeli Değer İkilisi)
+💎 *Live Bet Mentor VIP*`;
+    }
+
+    if (isDe) {
+        return `🔥 *LIVE GOLD-KOMBI (TIPP DES TAGES)* 🔥
+💰 *Gesamtquote:* *${combo.totalOdds || '2.25'}* | *Konfidenz:* ${combo.averageConfidence || 82}%
+
+${picksText}
+
+💡 *Einsatz-Empfehlung:* 2.0% Bankroll (Value-Doppel)
 💎 *Live Bet Mentor VIP*`;
     }
 
@@ -441,9 +552,10 @@ ${picksText}
 
 export function formatLatencyArbitrageAlert(arb, lang = 'tr') {
     const isTr = lang === 'tr';
-    const home = cleanMd(arb.homeTeam || (isTr ? 'Ev Sahibi' : 'Home'));
-    const away = cleanMd(arb.awayTeam || (isTr ? 'Deplasman' : 'Away'));
-    const defaultMarket = isTr ? 'Sıradaki Gol / Üst' : 'Next Goal / Over';
+    const isDe = lang === 'de';
+    const home = cleanMd(arb.homeTeam || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(arb.awayTeam || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
+    const defaultMarket = isTr ? 'Sıradaki Gol / Üst' : isDe ? 'Nächstes Tor / Über' : 'Next Goal / Over';
 
     if (isTr) {
         return `⚡ *BÜRO ORAN AÇIĞI (GECİKME ARBİTRAJI)* ⚡
@@ -451,6 +563,16 @@ export function formatLatencyArbitrageAlert(arb, lang = 'tr') {
 🎯 *Bahis:* ${cleanMd(arb.market || defaultMarket)}
 📊 *Büro Oranı:* *${arb.bookmakerOdds || '1.75'}* | *Adil Piyasa:* *${arb.fairOdds || '1.45'}* (+%${arb.discrepancyPct || 20} Değer!)
 ⚡ Büro oranı güncellemeden önce değerlendirin!
+
+💎 *Live Bet Mentor VIP*`;
+    }
+
+    if (isDe) {
+        return `⚡ *LATENZ-ARBITRAGE ALARM (QUOTEN-VORTEIL)* ⚡
+⚽ *${home} vs ${away}* (${arb.minute}')
+🎯 *Tipp:* ${cleanMd(arb.market || defaultMarket)}
+📊 *Buchmacher-Quote:* *${arb.bookmakerOdds || '1.75'}* | *Faire Quote:* *${arb.fairOdds || '1.45'}* (+${arb.discrepancyPct || 20}% Vorteil!)
+⚡ Nutzen, bevor der Buchmacher die Quoten korrigiert!
 
 💎 *Live Bet Mentor VIP*`;
     }
@@ -466,7 +588,8 @@ export function formatLatencyArbitrageAlert(arb, lang = 'tr') {
 
 export function formatDailyReport(stats, lang = 'tr') {
     const isTr = lang === 'tr';
-    const date = new Date().toLocaleDateString(isTr ? 'tr-TR' : 'en-GB', {
+    const isDe = lang === 'de';
+    const date = new Date().toLocaleDateString(isTr ? 'tr-TR' : isDe ? 'de-DE' : 'en-GB', {
         day: '2-digit',
         month: 'short'
     });
@@ -486,6 +609,19 @@ ${stats.bestPick ? `🏆 En İyi Tahmin: ${cleanMd(stats.bestPick)}\n` : ''}━�
 💎 *Live Bet Mentor Quant Labs*`;
     }
 
+    if (isDe) {
+        return `📊 *TÄGLICHER QUANT-BERICHT (${date})*
+━━━━━━━━━━━━━━━━━━
+✅ Gewonnen: *${stats.won || 0}*
+❌ Verloren: *${stats.lost || 0}*
+⏳ Offen: *${stats.pending || 0}*
+
+📈 *Trefferquote: ${winRate}%*
+🔥 Gesamt-Signale: ${stats.total || 0}
+${stats.bestPick ? `🏆 Bester Tipp: ${cleanMd(stats.bestPick)}\n` : ''}━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor Quant Labs*`;
+    }
+
     return `📊 *DAILY QUANT REPORT (${date})*
 ━━━━━━━━━━━━━━━━━━
 ✅ Won: *${stats.won || 0}*
@@ -500,6 +636,8 @@ ${stats.bestPick ? `🏆 Top Pick: ${cleanMd(stats.bestPick)}\n` : ''}━━━�
 
 export function formatWelcome(lang = 'tr') {
     const isTr = lang === 'tr';
+    const isDe = lang === 'de';
+
     if (isTr) {
         return `🏆 *LIVE BET MENTOR BOT*
 Yapay zeka destekli canlı analiz ve otonom değer sinyalleri servisi.
@@ -520,7 +658,34 @@ Yapay zeka destekli canlı analiz ve otonom değer sinyalleri servisi.
 /kupon — Günün canlı altın kombinesi
 /stats — Günlük performans tablosu
 /vip — VIP üyelik paketleri
+/dil — Dil seçimi (TR / EN / DE)
 /id — Telegram Chat ID bilginiz
+━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor Quant Engine*`;
+    }
+
+    if (isDe) {
+        return `🏆 *LIVE BET MENTOR BOT*
+KI-gestützter Live-Fußballanalyse- und Value-Signal-Service.
+
+📊 *Funktionen:*
+• Live-Value-Signale (HOT / FLAME / ALPHA)
+• 🛡️ Cash-Out & Stop-Loss Kapitalschutz-Radar
+• 🎟️ Tägliche Gold-Kombi (Kombi-Assistent)
+• ⚡ Buchmacher-Latenz & Quoten-Arbitrage
+• Transparente tägliche Erfolgsbilanz
+
+🎁 *Kostenlose Testphase:*
+/trial oder /test — Starten Sie sofort Ihren *3-Tage VIP-Pass*!
+
+📩 *Befehle:*
+/trial oder /test — 3 Tage kostenloser VIP-Zugang
+/profil — Abonnement-Status prüfen
+/kombi — Tägliche Gold-Kombi
+/stats — Tagesperformance
+/vip — VIP-Mitgliedschaften
+/sprache — Sprache wählen (TR / EN / DE)
+/id — Ihre Telegram Chat-ID
 ━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor Quant Engine*`;
     }
@@ -543,6 +708,7 @@ AI-powered live football analysis & value signal service.
 /combo — Daily Golden Double
 /stats — Performance ledger
 /vip — VIP membership tiers
+/lang — Choose language (TR / EN / DE)
 /id — Your Telegram Chat ID
 ━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor Quant Engine*`;
@@ -550,6 +716,7 @@ AI-powered live football analysis & value signal service.
 
 export function formatVIPInfo(settings = {}, lang = 'tr') {
     const isTr = lang === 'tr';
+    const isDe = lang === 'de';
     const usdtAddress = process.env.TELEGRAM_USDT_ADDRESS || 'TXDCxXx5XjNWFRLQmNZeHVcwjpHjDDPrvd';
     const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://shopier.com/livebetmentor';
     
@@ -573,6 +740,30 @@ _(Kopyalamak için adrese dokunun)_
 
 🎁 *Sistemi 3 Gün Boyunca Ücretsiz Test Etmek İçin:*
 👉 /deneme yazarak *3 Günlük Ücretsiz VIP Erişiminizi* hemen başlatabilirsiniz!
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor Quant Syndicate*`;
+    }
+
+    if (isDe) {
+        return `💎 *VIP QUANT SYNDICATE MITGLIEDSCHAFT*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Zugriff ohne Verzögerung auf In-Play Quant-Signale, +EV Value-Wetten und Latenz-Arbitrage.
+
+🎟️ *Abonnement-Pässe:*
+1️⃣ *Wöchentlicher Pass:* *9.90 €* (oder 11 USDT) (7 Tage voller Zugriff)
+2️⃣ *Monatlicher Pro-Pass (Beliebt):* *14.90 €* (oder 16 USDT) (30 Tage uneingeschränkt)
+3️⃣ *Premium-Pass:* *34.90 €* (oder 38 USDT) (Alle Module + VIP-Bot)
+
+💳 *1. Zahlungsmethode (Kreditkarte / Sofort-Aktivierung):*
+👉 [Sicher mit Karte bezahlen](${shopierLink})
+
+💰 *2. Zahlungsmethode (Krypto - USDT TRC-20):*
+\`${usdtAddress}\`
+_(Tippen zum Kopieren der Adresse)_
+Senden Sie nach der Überweisung einfach die TXID oder einen Screenshot hierher für die sofortige VIP-Freischaltung.
+
+🎁 *3 Tage kostenlos testen:*
+👉 Senden Sie /trial oder /test, um Ihren *3-Tage kostenlosen VIP-Pass* sofort zu aktivieren!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor Quant Syndicate*`;
     }

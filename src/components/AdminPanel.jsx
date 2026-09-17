@@ -350,7 +350,12 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             const data = await res.json();
             if (data.success && data.status) {
                 setTelegramStatus(data.status);
-                setStatus({ type: 'success', message: newLang === 'tr' ? 'Telegram dili Türkçe yapıldı! 🇹🇷' : 'Telegram language set to English! 🇬🇧' });
+                const msg = newLang === 'tr' 
+                    ? 'Telegram dili Türkçe yapıldı! 🇹🇷' 
+                    : newLang === 'de' 
+                    ? 'Telegram-Sprache auf Deutsch gesetzt! 🇩🇪' 
+                    : 'Telegram language set to English! 🇬🇧';
+                setStatus({ type: 'success', message: msg });
             }
         } catch (e) {
             console.error('Error updating telegram language:', e);
@@ -1278,12 +1283,24 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                                 <div>
                                     <div style={{ marginBottom: '1rem' }}>
-                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{t.vipGroupId}</div>
-                                        <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{telegramStatus?.vipGroup || '-'}</div>
+                                        <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{t.vipGroupId} (TR / EN / DE)</div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                                            🇹🇷 {telegramStatus?.vipChannels?.tr || telegramStatus?.vipGroup || '-'}
+                                        </div>
+                                        {telegramStatus?.vipChannels?.en && (
+                                            <div style={{ fontSize: '0.8rem', color: '#38bdf8', marginTop: '2px' }}>
+                                                🇬🇧 {telegramStatus.vipChannels.en}
+                                            </div>
+                                        )}
+                                        {telegramStatus?.vipChannels?.de && (
+                                            <div style={{ fontSize: '0.8rem', color: '#f59e0b', marginTop: '2px' }}>
+                                                🇩🇪 {telegramStatus.vipChannels.de}
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.2rem' }}>{t.publicChannel}</div>
-                                        <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>{telegramStatus?.publicChannel || 'Ayarlanmadı'}</div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>{telegramStatus?.publicChannel || 'Ayarlanmadı'}</div>
                                     </div>
                                 </div>
                                 <div>
@@ -1295,9 +1312,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                     </div>
                                     <div>
                                         <div style={{ fontSize: '0.65rem', opacity: 0.5, marginBottom: '0.4rem' }}>
-                                            {lang === 'tr' ? 'Telegram Yayın Dili' : 'Telegram Broadcast Language'}
+                                            {lang === 'tr' ? 'Telegram Yayın Dili' : lang === 'de' ? 'Telegram Übertragungssprache' : 'Telegram Broadcast Language'}
                                         </div>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <button
                                                 type="button"
                                                 onClick={() => handleUpdateTelegramLang('tr')}
@@ -1329,6 +1346,22 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                 }}
                                             >
                                                 🇬🇧 English
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleUpdateTelegramLang('de')}
+                                                style={{
+                                                    padding: '5px 12px',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 800,
+                                                    border: telegramStatus?.lang === 'de' ? '1px solid #f59e0b' : '1px solid rgba(255,255,255,0.1)',
+                                                    background: telegramStatus?.lang === 'de' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.02)',
+                                                    color: telegramStatus?.lang === 'de' ? '#f59e0b' : '#94a3b8',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                🇩🇪 Deutsch
                                             </button>
                                         </div>
                                     </div>

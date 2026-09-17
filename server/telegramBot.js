@@ -43,6 +43,21 @@ class TelegramBot {
             pId = '-1003660350476';
         }
         this.publicChannelId = pId;
+
+        // Multi-language VIP channel destinations (TR, EN, DE)
+        this.vipChannels = {
+            tr: process.env.TELEGRAM_VIP_TR || this.vipGroupId,
+            en: process.env.TELEGRAM_VIP_EN || null,
+            de: process.env.TELEGRAM_VIP_DE || null
+        };
+
+        // Multi-language Public channel destinations (TR, EN, DE)
+        this.publicChannels = {
+            tr: process.env.TELEGRAM_PUBLIC_TR || this.publicChannelId,
+            en: process.env.TELEGRAM_PUBLIC_EN || null,
+            de: process.env.TELEGRAM_PUBLIC_DE || null
+        };
+
         this.enabled = process.env.TELEGRAM_ENABLED !== 'false';
         this.minLevel = process.env.TELEGRAM_MIN_LEVEL || 'SICAK';
         this.publicDelay = parseInt(process.env.TELEGRAM_PUBLIC_DELAY_MIN || '15') * 60 * 1000;
@@ -65,6 +80,47 @@ class TelegramBot {
 
         // Compatibility self-reference
         this.bot = this;
+    }
+
+    /**
+     * Get active VIP destinations with their respective language.
+     * Deduplicates so the same channel ID is never messaged twice per event.
+     */
+    getActiveVipChannels() {
+        const list = [];
+        const seen = new Set();
+        for (const lang of ['tr', 'en', 'de']) {
+            const chId = this.vipChannels ? this.vipChannels[lang] : null;
+            if (chId && !seen.has(chId)) {
+                seen.add(chId);
+                list.push({ lang, channelId: chId });
+            }
+        }
+        // Fallback: If no language-specific channels registered, fall back to vipGroupId
+        if (list.length === 0 && this.vipGroupId && !seen.has(this.vipGroupId)) {
+            list.push({ lang: this.lang || 'tr', channelId: this.vipGroupId });
+        }
+        return list;
+    }
+
+    /**
+     * Get active Public destinations with their respective language.
+     */
+    getActivePublicChannels() {
+        const list = [];
+        const seen = new Set();
+        for (const lang of ['tr', 'en', 'de']) {
+            const chId = this.publicChannels ? this.publicChannels[lang] : null;
+            if (chId && !seen.has(chId)) {
+                seen.add(chId);
+                list.push({ lang, channelId: chId });
+            }
+        }
+        // Fallback: If no language-specific channels registered, fall back to publicChannelId
+        if (list.length === 0 && this.publicChannelId && !seen.has(this.publicChannelId)) {
+            list.push({ lang: this.lang || 'tr', channelId: this.publicChannelId });
+        }
+        return list;
     }
 
     loadHistory() {
@@ -296,21 +352,29 @@ class TelegramBot {
         cashOutEngine.registerSignal(signalData);
         this.saveHistory();
 
-        const results = { vip: null, public: null };
+        const results = { vip: null, public: null, vipDeliveries: [], publicDeliveries: [] };
 
-        // 1. Send to VIP group (immediate)
-        if (this.vipGroupId) {
-            const vipMessage = formatVIPSignal(alert, this.lang);
-            results.vip = await this.sendMessage(this.vipGroupId, vipMessage);
-            console.log(`[TELEGRAM] 💎 VIP signal sent: ${alert.homeTeam} vs ${alert.awayTeam} [${alert.level}]`);
+        // 1. Send to all configured VIP channels in their matching language (0s latency)
+        const activeVips = this.getActiveVipChannels();
+        for (const dest of activeVips) {
+            const vipMessage = formatVIPSignal(alert, dest.lang);
+            const res = await this.sendMessage(dest.channelId, vipMessage);
+            results.vipDeliveries.push({ lang: dest.lang, channelId: dest.channelId, ok: !!res });
+            if (!results.vip) results.vip = res;
+            console.log(`[TELEGRAM] 💎 VIP signal sent [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} [${alert.level}] -> ${dest.channelId}`);
         }
 
-        // 2. Send to public channel (delayed teaser)
-        if (this.publicChannelId) {
+        // 2. Send to all configured public channels (delayed teaser)
+        const activePubs = this.getActivePublicChannels();
+        if (activePubs.length > 0) {
             setTimeout(async () => {
-                const publicMessage = formatPublicTeaser(alert, this.lang);
-                results.public = await this.sendMessage(this.publicChannelId, publicMessage);
-                console.log(`[TELEGRAM] 📢 Public teaser sent (delayed): ${alert.homeTeam} vs ${alert.awayTeam}`);
+                for (const dest of activePubs) {
+                    const publicMessage = formatPublicTeaser(alert, dest.lang);
+                    const res = await this.sendMessage(dest.channelId, publicMessage);
+                    results.publicDeliveries.push({ lang: dest.lang, channelId: dest.channelId, ok: !!res });
+                    if (!results.public) results.public = res;
+                    console.log(`[TELEGRAM] 📢 Public teaser sent (delayed) [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} -> ${dest.channelId}`);
+                }
             }, this.publicDelay);
         }
 
@@ -321,21 +385,29 @@ class TelegramBot {
      * Send a pre-match RADAR pick to VIP (and optional teaser to public)
      */
     async sendRadarPick(match, options = {}) {
-        if (!this.enabled || !this.vipGroupId) return null;
+        if (!this.enabled) return null;
 
-        const results = {};
-        const message = formatRadarPick(match, this.lang);
-        results.vip = await this.sendMessage(this.vipGroupId, message);
-        console.log(`[TELEGRAM] 🎯 Radar pick sent to VIP: ${match.home} vs ${match.away}`);
+        const results = { vip: null, public: null };
+        const activeVips = this.getActiveVipChannels();
+        for (const dest of activeVips) {
+            const message = formatRadarPick(match, dest.lang);
+            const res = await this.sendMessage(dest.channelId, message);
+            if (!results.vip) results.vip = res;
+            console.log(`[TELEGRAM] 🎯 Radar pick sent [${dest.lang.toUpperCase()}] to VIP (${dest.channelId}): ${match.home} vs ${match.away}`);
+        }
 
         // If public teaser requested (or by default for top consensus)
-        if (options.sendTeaser && this.publicChannelId) {
-            try {
-                const teaser = formatRadarTeaser(match, this.lang);
-                results.public = await this.sendMessage(this.publicChannelId, teaser);
-                console.log(`[TELEGRAM] 📡 Radar teaser sent to Public Channel: ${match.home} vs ${match.away}`);
-            } catch (te) {
-                console.error('[TELEGRAM] Error sending public radar teaser:', te.message);
+        if (options.sendTeaser) {
+            const activePubs = this.getActivePublicChannels();
+            for (const dest of activePubs) {
+                try {
+                    const teaser = formatRadarTeaser(match, dest.lang);
+                    const res = await this.sendMessage(dest.channelId, teaser);
+                    if (!results.public) results.public = res;
+                    console.log(`[TELEGRAM] 📡 Radar teaser sent [${dest.lang.toUpperCase()}] to Public Channel (${dest.channelId}): ${match.home} vs ${match.away}`);
+                } catch (te) {
+                    console.error('[TELEGRAM] Error sending public radar teaser:', te.message);
+                }
             }
         }
 
@@ -380,18 +452,24 @@ class TelegramBot {
                     continue;
                 }
 
-                // 1. Send full institutional analysis to VIP Syndicate Group
+                // 1. Send full institutional analysis to all VIP channels in their matching language
                 let vipRes = null;
-                if (this.vipGroupId) {
-                    const vipMsg = formatRadarPick(match, this.lang);
-                    vipRes = await this.sendMessage(this.vipGroupId, vipMsg);
+                const activeVips = this.getActiveVipChannels();
+                for (const dest of activeVips) {
+                    const vipMsg = formatRadarPick(match, dest.lang);
+                    const res = await this.sendMessage(dest.channelId, vipMsg);
+                    if (!vipRes) vipRes = res;
                 }
 
-                // 2. Send public teaser for the #1 pick to Public Channel
+                // 2. Send public teaser for the #1 pick to all Public channels in their matching language
                 let pubRes = null;
-                if (i === 0 && this.publicChannelId) {
-                    const publicMsg = formatRadarTeaser(match, this.lang);
-                    pubRes = await this.sendMessage(this.publicChannelId, publicMsg);
+                if (i === 0) {
+                    const activePubs = this.getActivePublicChannels();
+                    for (const dest of activePubs) {
+                        const publicMsg = formatRadarTeaser(match, dest.lang);
+                        const res = await this.sendMessage(dest.channelId, publicMsg);
+                        if (!pubRes) pubRes = res;
+                    }
                 }
 
                 results.push({ match: match.match, vip: vipRes, public: pubRes });
@@ -445,17 +523,22 @@ class TelegramBot {
      * Send daily performance report
      */
     async sendDailyReport(reset = false) {
-        const report = formatDailyReport(this.dailyStats, this.lang);
-
-        const results = {};
-        if (this.vipGroupId) {
-            results.vip = await this.sendMessage(this.vipGroupId, report);
-        }
-        if (this.publicChannelId) {
-            results.public = await this.sendMessage(this.publicChannelId, report);
+        const results = { vip: null, public: null };
+        const activeVips = this.getActiveVipChannels();
+        for (const dest of activeVips) {
+            const report = formatDailyReport(this.dailyStats, dest.lang);
+            const res = await this.sendMessage(dest.channelId, report);
+            if (!results.vip) results.vip = res;
         }
 
-        console.log('[TELEGRAM] 📊 Daily report sent');
+        const activePubs = this.getActivePublicChannels();
+        for (const dest of activePubs) {
+            const report = formatDailyReport(this.dailyStats, dest.lang);
+            const res = await this.sendMessage(dest.channelId, report);
+            if (!results.public) results.public = res;
+        }
+
+        console.log('[TELEGRAM] 📊 Daily report sent across all active language channels');
 
         if (reset) {
             this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
@@ -469,20 +552,21 @@ class TelegramBot {
      * Send Golden Double Combo to VIP
      */
     async sendGoldenCombo(combo) {
-        if (!this.enabled || !this.vipGroupId || !combo) {
-            console.warn(`[TELEGRAM] ⚠️ sendGoldenCombo skipped: enabled=${this.enabled}, vipGroupId=${this.vipGroupId}, hasCombo=${!!combo}`);
+        if (!this.enabled || !combo) {
+            console.warn(`[TELEGRAM] ⚠️ sendGoldenCombo skipped: enabled=${this.enabled}, hasCombo=${!!combo}`);
             return null;
         }
-        const message = formatGoldenCombo(combo, this.lang);
-        if (!message) {
-            console.warn('[TELEGRAM] ⚠️ formatGoldenCombo returned empty message');
-            return null;
-        }
-        const result = await this.sendMessage(this.vipGroupId, message);
-        if (result) {
-            console.log(`[TELEGRAM] 🎟️ Golden Double Combo sent to VIP successfully`);
-        } else {
-            console.error(`[TELEGRAM] ❌ Failed to send Golden Double Combo to VIP (${this.vipGroupId})`);
+
+        const activeVips = this.getActiveVipChannels();
+        let result = null;
+        for (const dest of activeVips) {
+            const message = formatGoldenCombo(combo, dest.lang);
+            if (!message) continue;
+            const res = await this.sendMessage(dest.channelId, message);
+            if (!result) result = res;
+            if (res) {
+                console.log(`[TELEGRAM] 🎟️ Golden Double Combo sent [${dest.lang.toUpperCase()}] to VIP (${dest.channelId})`);
+            }
         }
         return result;
     }
@@ -491,11 +575,17 @@ class TelegramBot {
      * Send Latency Arbitrage Alert to VIP
      */
     async sendLatencyArbitrage(arb) {
-        if (!this.enabled || !this.vipGroupId || !arb) return null;
-        const message = formatLatencyArbitrageAlert(arb, this.lang);
-        if (!message) return null;
-        const result = await this.sendMessage(this.vipGroupId, message);
-        console.log(`[TELEGRAM] ⚡ Latency Arbitrage alert sent to VIP: ${arb.homeTeam} vs ${arb.awayTeam}`);
+        if (!this.enabled || !arb) return null;
+
+        const activeVips = this.getActiveVipChannels();
+        let result = null;
+        for (const dest of activeVips) {
+            const message = formatLatencyArbitrageAlert(arb, dest.lang);
+            if (!message) continue;
+            const res = await this.sendMessage(dest.channelId, message);
+            if (!result) result = res;
+            console.log(`[TELEGRAM] ⚡ Latency Arbitrage alert sent [${dest.lang.toUpperCase()}] to VIP (${dest.channelId}): ${arb.homeTeam} vs ${arb.awayTeam}`);
+        }
         return result;
     }
 
@@ -546,16 +636,23 @@ class TelegramBot {
         // Send Telegram notification
         if (sendNotification) {
             try {
-                const message = formatSignalResult(signal, result, score, this.dailyStats, this.lang);
+                const activeVips = this.getActiveVipChannels();
+                const activePubs = this.getActivePublicChannels();
+
                 if (result === 'WON') {
-                    if (this.vipGroupId) {
-                        await this.sendMessage(this.vipGroupId, message);
+                    for (const dest of activeVips) {
+                        const message = formatSignalResult(signal, result, score, this.dailyStats, dest.lang);
+                        await this.sendMessage(dest.channelId, message);
                     }
-                    if (this.publicChannelId) {
-                        await this.sendMessage(this.publicChannelId, message);
+                    for (const dest of activePubs) {
+                        const message = formatSignalResult(signal, result, score, this.dailyStats, dest.lang);
+                        await this.sendMessage(dest.channelId, message);
                     }
-                } else if (result === 'LOST' && this.vipGroupId) {
-                    await this.sendMessage(this.vipGroupId, message);
+                } else if (result === 'LOST') {
+                    for (const dest of activeVips) {
+                        const message = formatSignalResult(signal, result, score, this.dailyStats, dest.lang);
+                        await this.sendMessage(dest.channelId, message);
+                    }
                 }
             } catch (e) {
                 console.error('[TELEGRAM] Error sending resolution notification:', e.message);
@@ -687,12 +784,13 @@ class TelegramBot {
         // 5. Evaluate Cash-Out & Stop-Loss Radar for active signals
         try {
             const cashOuts = cashOutEngine.evaluateCashOuts(liveEvents);
+            const activeVips = this.getActiveVipChannels();
             for (const co of cashOuts) {
-                if (this.vipGroupId) {
-                    const coMsg = formatCashOutAlert(co, this.lang);
-                    await this.sendMessage(this.vipGroupId, coMsg);
-                    console.log(`[TELEGRAM] ⚠️ Cash-out alert dispatched for ${co.matchTitle}: ${co.reason}`);
+                for (const dest of activeVips) {
+                    const coMsg = formatCashOutAlert(co, dest.lang);
+                    await this.sendMessage(dest.channelId, coMsg);
                 }
+                console.log(`[TELEGRAM] ⚠️ Cash-out alert dispatched for ${co.matchTitle}: ${co.reason}`);
             }
         } catch (err) {
             console.error('[TELEGRAM] Error evaluating cash-outs:', err.message);
@@ -771,6 +869,10 @@ class TelegramBot {
             vipManager.setUserLang(chatId, 'en');
             await this.answerCallbackQuery(cq.id, 'Language set to English! 🇬🇧');
             await this.sendMessage(chatId, `🇬🇧 *Language Preference Saved: English*\n━━━━━━━━━━━━━━━━━━\nAll quant alerts, analytical breakdowns, and bot commands will now be displayed in English.\n\nYou can change it anytime with \`/lang\` or \`/dil\`.`);
+        } else if (data === 'set_lang_de') {
+            vipManager.setUserLang(chatId, 'de');
+            await this.answerCallbackQuery(cq.id, 'Sprache auf Deutsch eingestellt! 🇩🇪');
+            await this.sendMessage(chatId, `🇩🇪 *Spracheinstellung gespeichert: Deutsch*\n━━━━━━━━━━━━━━━━━━\nAlle Quant-Alarme, Analysen und Bot-Befehle werden nun auf Deutsch angezeigt.\n\nSie können dies jederzeit mit \`/sprache\` oder \`/lang\` ändern.`);
         }
     }
 
@@ -845,8 +947,7 @@ _Average activation time: 2–5 minutes._
 
         console.log(`[TELEGRAM] Command from ${username}: ${text}`);
 
-        const userLang = vipManager.getUserLang(chatId);
-        const isTr = userLang === 'tr';
+        let userLang = vipManager.getUserLang(chatId);
 
         const parts = text.split(/\s+/);
         const cmd = parts[0].toLowerCase();
@@ -856,8 +957,31 @@ _Average activation time: 2–5 minutes._
         switch (cmd) {
             case '/start':
             case '/help':
+            case '/hilfe': {
+                // Check deep link parameter (e.g. /start lang_de, /start lang_en, /start lang_tr)
+                if (arg1) {
+                    const deepLang = arg1.replace('lang_', '').toLowerCase();
+                    if (['tr', 'en', 'de'].includes(deepLang)) {
+                        vipManager.setUserLang(chatId, deepLang);
+                        userLang = deepLang;
+                    }
+                } else if (!vipManager.getUser(chatId)?.lang && msg.from?.language_code) {
+                    // Auto-detect Telegram app language if user has not explicitly set a language
+                    const code = msg.from.language_code.toLowerCase();
+                    if (code.startsWith('de')) {
+                        vipManager.setUserLang(chatId, 'de');
+                        userLang = 'de';
+                    } else if (code.startsWith('tr')) {
+                        vipManager.setUserLang(chatId, 'tr');
+                        userLang = 'tr';
+                    } else if (code.startsWith('en')) {
+                        vipManager.setUserLang(chatId, 'en');
+                        userLang = 'en';
+                    }
+                }
                 await this.sendMessage(chatId, formatWelcome(userLang));
                 break;
+            }
 
             case '/vip':
             case '/satinal':
@@ -870,23 +994,33 @@ _Average activation time: 2–5 minutes._
                 break;
 
             case '/trial':
-            case '/deneme': {
+            case '/deneme':
+            case '/test': {
                 const trialRes = vipManager.startTrial(chatId, username);
+                const isTr = userLang === 'tr';
+                const isDe = userLang === 'de';
                 if (trialRes.success) {
                     const inviteLink = await this.createInviteLink(username, 72);
-                    const msg = isTr
-                        ? `🎉 *3 GÜNLÜK ÜCRETSİZ VIP DENEME BAŞLATILDI!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n72 saat boyunca tüm canlı quant sinyallerimize ve kasa koruma bildirimlerimize ücretsiz erişim tanımlandı.\n\n⏰ *Süre:* 3 Gün (72 Saat)\n💎 *Paket:* Ücretsiz VIP Deneme Paketi\n\n🎟️ *Tek Kullanımlık VIP Giriş Bağlantınız:* \n👉 ${inviteLink || 'VIP erişimi hazırlanıyor...'}\n\n_Sürenizi uzatmak veya paketleri incelemek için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`
-                        : `🎉 *3-DAY VIP TRIAL PASS ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\nYou have been granted full institutional access to our quantitative live signal feed for 72 hours.\n\n⏰ *Duration:* 3 Days (72 Hours)\n💎 *Tier:* Complimentary VIP Trial Pass\n\n🎟️ *Your One-Time VIP Access Link:* \n👉 ${inviteLink || 'Direct VIP access in progress...'}\n\n_To extend your pass or subscribe, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    let msg = `🎉 *3-DAY VIP TRIAL PASS ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\nYou have been granted full institutional access to our quantitative live signal feed for 72 hours.\n\n⏰ *Duration:* 3 Days (72 Hours)\n💎 *Tier:* Complimentary VIP Trial Pass\n\n🎟️ *Your One-Time VIP Access Link:* \n👉 ${inviteLink || 'Direct VIP access in progress...'}\n\n_To extend your pass or subscribe, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    if (isTr) {
+                        msg = `🎉 *3 GÜNLÜK ÜCRETSİZ VIP DENEME BAŞLATILDI!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n72 saat boyunca tüm canlı quant sinyallerimize ve kasa koruma bildirimlerimize ücretsiz erişim tanımlandı.\n\n⏰ *Süre:* 3 Gün (72 Saat)\n💎 *Paket:* Ücretsiz VIP Deneme Paketi\n\n🎟️ *Tek Kullanımlık VIP Giriş Bağlantınız:* \n👉 ${inviteLink || 'VIP erişimi hazırlanıyor...'}\n\n_Sürenizi uzatmak veya paketleri incelemek için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    } else if (isDe) {
+                        msg = `🎉 *3-TAGE KOSTENLOSER VIP-PASS AKTIVIERT!* 🎉\n━━━━━━━━━━━━━━━━━━\nWillkommen @${username},\nSie haben 72 Stunden lang vollen Zugriff auf unseren quantitativen Live-Signal-Feed und Kapitalschutz.\n\n⏰ *Dauer:* 3 Tage (72 Stunden)\n💎 *Paket:* Kostenloser VIP-Testpass\n\n🎟️ *Ihr persönlicher VIP-Zugangslink:* \n👉 ${inviteLink || 'VIP-Zugang wird vorbereitet...'}\n\n_Um den Pass zu verlängern, schreiben Sie /vip._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    }
                     await this.sendMessage(chatId, msg);
                 } else if (trialRes.reason === 'ACTIVE_TRIAL') {
                     const rem = vipManager.getRemainingTime(chatId, userLang);
                     const msg = isTr
                         ? `⏳ *Aktif Deneme Süreniz Devam Ediyor!*\n\n• Kalan Süre: *${rem?.text || 'Aktif'}*\n\nVIP kanalımızdaki tüm canlı sinyal ve analizlerden yararlanmaya devam edebilirsiniz.`
+                        : isDe
+                        ? `⏳ *Aktive Testphase läuft bereits!*\n\n• Verbleibende Zeit: *${rem?.text || 'Aktiv'}*\n\nSie können weiterhin alle Signale und Alarme im VIP-Kanal nutzen.`
                         : `⏳ *Active Trial in Progress!*\n\n• Remaining Time: *${rem?.text || 'Active'}*\n\nYou can continue accessing all signals and real-time alerts in our VIP channel.`;
                     await this.sendMessage(chatId, msg);
                 } else {
                     const msg = isTr
                         ? `ℹ️ *Ücretsiz Deneme Hakkı Daha Önce Kullanılmış.*\n\nDaha önce 3 günlük deneme hakkınızı kullandınız. VIP grubumuza sınırsız erişmek için paketleri /vip yazarak inceleyebilirsiniz.`
+                        : isDe
+                        ? `ℹ️ *Testpass bereits eingelöst.*\n\nSie haben Ihre 3 kostenlosen Testtage bereits genutzt. Um dauerhaften Zugriff zu erhalten, tippen Sie /vip.`
                         : `ℹ️ *Trial Pass Already Used.*\n\nYou have already claimed your 3-day trial. To unlock permanent access to our VIP Quant Syndicate, type /vip.`;
                     await this.sendMessage(chatId, msg);
                 }
@@ -898,22 +1032,34 @@ _Average activation time: 2–5 minutes._
             case '/kalan': {
                 const rem = vipManager.getRemainingTime(chatId, userLang);
                 const userObj = vipManager.getUser(chatId);
+                const isTr = userLang === 'tr';
+                const isDe = userLang === 'de';
+
                 if (rem && rem.active) {
                     const planName = isTr
                         ? (userObj?.plan === 'TRIAL' ? '3 Günlük Ücretsiz Deneme' : 'VIP Quant Aboneliği')
+                        : isDe
+                        ? (userObj?.plan === 'TRIAL' ? '3-Tage Kostenlose Testphase' : 'VIP Quant-Abonnement')
                         : (userObj?.plan === 'TRIAL' ? '3-Day Free Trial' : 'VIP Quant Subscription');
+
                     const msg = isTr
                         ? `👑 *VIP Abonelik & Profil Durumu:*\n━━━━━━━━━━━━━━━━━━\n• Kullanıcı: @${username}\n• Chat ID: \`${chatId}\`\n• Paket: *${planName}*\n• Durum: *AKTİF*\n• Kalan Süre: *${rem.text}*\n• Tercih Edilen Dil: *${userLang.toUpperCase()}*\n• Ayrıcalıklar: Canlı Sinyaller + Stop-Loss + Arbitraj Radarı\n━━━━━━━━━━━━━━━━━━\n_Yenilemek veya yükseltmek için /vip yazabilirsiniz._`
+                        : isDe
+                        ? `👑 *VIP-Abonnement & Profilstatus:*\n━━━━━━━━━━━━━━━━━━\n• Benutzer: @${username}\n• Chat ID: \`${chatId}\`\n• Paket: *${planName}*\n• Status: *AKTIV*\n• Verbleibende Zeit: *${rem.text}*\n• Bevorzugte Sprache: *${userLang.toUpperCase()}*\n• Privilegien: Live-Signale + Stop-Loss + Latenz-Radar\n━━━━━━━━━━━━━━━━━━\n_Zur Verlängerung schreiben Sie /vip._`
                         : `👑 *VIP Subscription & Profile Status:*\n━━━━━━━━━━━━━━━━━━\n• User: @${username}\n• Chat ID: \`${chatId}\`\n• Tier: *${planName}*\n• Status: *ACTIVE*\n• Time Remaining: *${rem.text}*\n• Preferred Language: *${userLang.toUpperCase()}*\n• Privileges: Real-time Signals + Stop-Loss + Latency Radar\n━━━━━━━━━━━━━━━━━━\n_To renew or upgrade, type /vip._`;
                     await this.sendMessage(chatId, msg);
                 } else if (userObj && !rem.active) {
                     const msg = isTr
                         ? `⚠️ *VIP Abonelik Süreniz Sona Erdi.*\n━━━━━━━━━━━━━━━━━━\nSayın @${username}, VIP süreniz tamamlandı. Yenilemek için /vip yazabilirsiniz.`
+                        : isDe
+                        ? `⚠️ *VIP-Abonnement abgelaufen.*\n━━━━━━━━━━━━━━━━━━\nLiebe(r) @${username}, Ihr VIP-Pass ist beendet. Schreiben Sie /vip zur Verlängerung.`
                         : `⚠️ *VIP Subscription Expired.*\n━━━━━━━━━━━━━━━━━━\nDear @${username}, your VIP pass has ended. Type /vip to renew.`;
                     await this.sendMessage(chatId, msg);
                 } else {
                     const msg = isTr
                         ? `ℹ️ *Aktif Bir VIP Aboneliği Bulunamadı.*\n━━━━━━━━━━━━━━━━━━\n• 3 Günlük *Ücretsiz* deneme başlat: /deneme\n• VIP Paketlerini incele: /vip\n• Dil tercihi: /dil`
+                        : isDe
+                        ? `ℹ️ *Kein aktives VIP-Abonnement gefunden.*\n━━━━━━━━━━━━━━━━━━\n• 3-Tage *KOSTENLOSE* Testphase: /test\n• VIP-Pakete ansehen: /vip\n• Sprache ändern: /sprache`
                         : `ℹ️ *No Active VIP Subscription Found.*\n━━━━━━━━━━━━━━━━━━\n• Start 3-day *FREE* trial: /trial\n• Explore VIP Syndicate tiers: /vip\n• Change language: /lang`;
                     await this.sendMessage(chatId, msg);
                 }
@@ -922,9 +1068,14 @@ _Average activation time: 2–5 minutes._
 
             case '/combo':
             case '/kupon':
-            case '/kombine': {
+            case '/kombine':
+            case '/kombi': {
+                const isTr = userLang === 'tr';
+                const isDe = userLang === 'de';
                 const msg = isTr
                     ? `🎟️ *Canlı Altın Çifte (Kombine Sihirbazı):*\n\nQuant algoritmalarımız devam eden canlı maçları analiz eder ve en yüksek olasılıklı iki değeri tek bir yüksek +EV kuponunda birleştirir.\n\n_Özel canlı kombine alarmları doğrudan VIP kanalımızda paylaşılmaktadır._\n\n👉 VIP Deneme Başlat: /deneme`
+                    : isDe
+                    ? `🎟️ *Live Gold-Kombi (Kombi-Assistent):*\n\nUnsere Algorithmen scannen laufende Spiele und kombinieren die beiden stärksten Value-Picks zu einer mathematisch optimierten Doppelwette (+EV).\n\n_Exklusive Gold-Kombi-Alarme werden direkt im VIP-Kanal geteilt._\n\n👉 VIP-Test starten: /test`
                     : `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n_Curated golden double alerts are dispatched directly into our private VIP Syndicate._\n\n👉 Access VIP: /trial`;
                 await this.sendMessage(chatId, msg);
                 break;
@@ -1037,14 +1188,22 @@ _Average activation time: 2–5 minutes._
                 }
                 break;
 
-            case '/id':
-                await this.sendMessage(chatId, isTr
-                    ? `🆔 *Telegram Bilgileriniz:*\n\n• Chat ID: \`${chatId}\`\n• Kullanıcı: @${username}\n• Tercih Edilen Dil: *Türkçe* 🇹🇷\n\n_Bu ID numarasını yöneticiye ileterek VIP üyeliğinizi hemen tanımlatabilirsiniz._`
-                    : `🆔 *Your Telegram Information:*\n\n• Chat ID: \`${chatId}\`\n• Username: @${username}\n• Preferred Language: *English* 🇬🇧\n\n_Provide this Chat ID to admin to activate your VIP membership._`);
+            case '/id': {
+                const isTr = userLang === 'tr';
+                const isDe = userLang === 'de';
+                let idMsg = `🆔 *Your Telegram Information:*\n\n• Chat ID: \`${chatId}\`\n• Username: @${username}\n• Preferred Language: *English* 🇬🇧\n\n_Provide this Chat ID to admin to activate your VIP membership._`;
+                if (isTr) {
+                    idMsg = `🆔 *Telegram Bilgileriniz:*\n\n• Chat ID: \`${chatId}\`\n• Kullanıcı: @${username}\n• Tercih Edilen Dil: *Türkçe* 🇹🇷\n\n_Bu ID numarasını yöneticiye ileterek VIP üyeliğinizi hemen tanımlatabilirsiniz._`;
+                } else if (isDe) {
+                    idMsg = `🆔 *Ihre Telegram-Informationen:*\n\n• Chat ID: \`${chatId}\`\n• Benutzer: @${username}\n• Bevorzugte Sprache: *Deutsch* 🇩🇪\n\n_Senden Sie diese Chat ID an den Administrator, um Ihre VIP-Mitgliedschaft zu aktivieren._`;
+                }
+                await this.sendMessage(chatId, idMsg);
                 break;
+            }
 
             case '/lang':
-            case '/dil': {
+            case '/dil':
+            case '/sprache': {
                 const newLang = (arg1 || '').toLowerCase();
                 if (newLang === 'tr' || newLang === 'turkce' || newLang === 'türkçe') {
                     vipManager.setUserLang(chatId, 'tr');
@@ -1052,17 +1211,26 @@ _Average activation time: 2–5 minutes._
                 } else if (newLang === 'en' || newLang === 'english' || newLang === 'ingilizce') {
                     vipManager.setUserLang(chatId, 'en');
                     await this.sendMessage(chatId, `🇬🇧 *Language preference set to English.*\n\nBot notifications, quantitative analysis, and command responses will now be in English.`);
+                } else if (newLang === 'de' || newLang === 'deutsch' || newLang === 'german' || newLang === 'almanca') {
+                    vipManager.setUserLang(chatId, 'de');
+                    await this.sendMessage(chatId, `🇩🇪 *Spracheinstellung auf Deutsch aktualisiert.*\n\nBot-Benachrichtigungen, Analysen und Befehlsantworten erfolgen jetzt auf Deutsch.`);
                 } else {
+                    const isTr = userLang === 'tr';
+                    const isDe = userLang === 'de';
+                    const curLangName = isTr ? 'Türkçe 🇹🇷' : isDe ? 'Deutsch 🇩🇪' : 'English 🇬🇧';
                     const promptText = isTr
-                        ? `🌐 *Dil Tercihi / Language Selection*\n\nMevcut diliniz: *Türkçe* 🇹🇷\n\nAşağıdaki butonlardan seçebilir veya doğrudan komut yazabilirsiniz:\n• \`/dil tr\` (Türkçe)\n• \`/dil en\` (English)`
-                        : `🌐 *Language Selection / Dil Tercihi*\n\nCurrent language: *English* 🇬🇧\n\nSelect an option below or use commands:\n• \`/lang en\` (English)\n• \`/lang tr\` (Türkçe)`;
+                        ? `🌐 *Dil Tercihi / Language Selection / Sprachauswahl*\n\nMevcut diliniz: *${curLangName}*\n\nAşağıdaki butonlardan seçebilir veya doğrudan komut yazabilirsiniz:\n• \`/dil tr\` (Türkçe)\n• \`/lang en\` (English)\n• \`/sprache de\` (Deutsch)`
+                        : isDe
+                        ? `🌐 *Sprachauswahl / Language Selection / Dil Tercihi*\n\nAktuelle Sprache: *${curLangName}*\n\nWählen Sie eine Option unten oder verwenden Sie die Befehle:\n• \`/sprache de\` (Deutsch)\n• \`/lang en\` (English)\n• \`/dil tr\` (Türkçe)`
+                        : `🌐 *Language Selection / Dil Tercihi / Sprachauswahl*\n\nCurrent language: *${curLangName}*\n\nSelect an option below or use commands:\n• \`/lang en\` (English)\n• \`/dil tr\` (Türkçe)\n• \`/sprache de\` (Deutsch)`;
 
                     await this.sendMessage(chatId, promptText, {
                         reply_markup: {
                             inline_keyboard: [
                                 [
                                     { text: '🇹🇷 Türkçe', callback_data: 'set_lang_tr' },
-                                    { text: '🇬🇧 English', callback_data: 'set_lang_en' }
+                                    { text: '🇬🇧 English', callback_data: 'set_lang_en' },
+                                    { text: '🇩🇪 Deutsch', callback_data: 'set_lang_de' }
                                 ]
                             ]
                         }
@@ -1231,8 +1399,11 @@ _Average activation time: 2–5 minutes._
             token: this.token ? '***' + this.token.slice(-8) : 'NOT SET',
             vipGroup: this.vipGroupId || 'NOT SET',
             publicChannel: this.publicChannelId || 'NOT SET',
+            vipChannels: this.vipChannels || { tr: this.vipGroupId, en: null, de: null },
+            publicChannels: this.publicChannels || { tr: this.publicChannelId, en: null, de: null },
             minLevel: this.minLevel,
             lang: this.lang,
+            supportedLanguages: ['tr', 'en', 'de'],
             todaySignals: this.dailyStats.total,
             todayStats: this.dailyStats,
             sentSignalsCache: this.sentSignals.size,

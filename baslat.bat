@@ -29,8 +29,14 @@ if exist "node_modules\.vite" (
 REM 3. Modul Kontrolu
 echo [3/4] Bagimliliklar kontrol ediliyor...
 if not exist node_modules (
-    echo [BILGI] Moduller yukleniyor, lutfen bekleyin...
+    echo [BILGI] Node modulleri yukleniyor, lutfen bekleyin...
     call npm install
+)
+
+python -c "import undetected_chromedriver, selenium, curl_cffi, requests" >nul 2>&1
+if errorlevel 1 (
+    echo [BILGI] Gerekli Python kutuphaneleri yukleniyor (bu ilk seferde 1-2 dk surebilir)...
+    pip install undetected-chromedriver selenium curl_cffi requests python-dotenv
 )
 
 REM 4. Sunucuyu Baslat
