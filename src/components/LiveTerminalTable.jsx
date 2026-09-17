@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { calculateMatchHeatScore, formatMarketPrediction } from '../logic/liveSortEngine';
+import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
 import { CONFIG } from '../config';
@@ -111,6 +111,7 @@ export const LiveTerminalTable = ({
                             const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
                             const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
                             const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
+                            const last20 = calculateLast20MinMetrics(m);
 
                             const sogHome = m.stats?.shotsOnGoal?.home || 0;
                             const sogAway = m.stats?.shotsOnGoal?.away || 0;
@@ -287,6 +288,23 @@ export const LiveTerminalTable = ({
                                             <span className={`tb-pill-stat ${heatAlertClass}`}>
                                                 %{heat}
                                             </span>
+                                            {last20.isSurging && (
+                                                <div style={{ marginTop: '3px' }}>
+                                                    <span style={{
+                                                        fontSize: '0.62rem',
+                                                        fontWeight: 800,
+                                                        color: '#fbbf24',
+                                                        background: 'rgba(245, 158, 11, 0.15)',
+                                                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                                                        borderRadius: '4px',
+                                                        padding: '1px 4px',
+                                                        display: 'inline-block',
+                                                        whiteSpace: 'nowrap'
+                                                    }} title={`Son 20 Dakika İvmesi: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Şut (İvme: %${last20.surgeScore})`}>
+                                                        ⚡ 20': +{last20.deltaDA}A
+                                                    </span>
+                                                </div>
+                                            )}
                                         </td>
 
                                         {/* Shots on Goal */}
@@ -299,6 +317,11 @@ export const LiveTerminalTable = ({
                                             <span className={`tb-pill-stat ${daAlertClass}`}>
                                                 {daHome} - {daAway}
                                             </span>
+                                            {last20.deltaDA > 0 && (
+                                                <div style={{ fontSize: '0.62rem', color: last20.deltaDA >= 14 ? '#fbbf24' : 'var(--tb-text-muted)', marginTop: '2px', fontWeight: 700 }} title="Son 20 dakikadaki tehlikeli atak artışı">
+                                                    (20': +{last20.deltaDA})
+                                                </div>
+                                            )}
                                         </td>
 
                                         {/* xG */}
@@ -359,6 +382,23 @@ export const LiveTerminalTable = ({
                                                     return (
                                                         <span className="tb-signal-badge tb-signal-hot">
                                                             🔥 ALEV
+                                                        </span>
+                                                    );
+                                                }
+
+                                                if (last20.isSurging) {
+                                                    return (
+                                                        <span
+                                                            className="tb-signal-badge"
+                                                            style={{
+                                                                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 88, 12, 0.25))',
+                                                                color: '#fbbf24',
+                                                                border: '1px solid #f59e0b',
+                                                                boxShadow: '0 0 8px rgba(245, 158, 11, 0.25)'
+                                                            }}
+                                                            title={`Son 20 Dakika: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Şut (İvme: %${last20.surgeScore})`}
+                                                        >
+                                                            ⚡ 20' BASKISI
                                                         </span>
                                                     );
                                                 }

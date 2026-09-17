@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { calculateMatchHeatScore, formatMarketPrediction } from '../logic/liveSortEngine';
+import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
 import { CONFIG } from '../config';
@@ -109,6 +109,7 @@ export const LiveTerminalMobile = ({
                 const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
                 const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
                 const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
+                const last20 = calculateLast20MinMetrics(m);
 
                     const sogHome = m.stats?.shotsOnGoal?.home || 0;
                     const sogAway = m.stats?.shotsOnGoal?.away || 0;
@@ -291,7 +292,14 @@ export const LiveTerminalMobile = ({
                                 {/* Column 1: BASKI / İVME */}
                                 <div className={`tb-m-stat-cell ${heatAlertClass}`}>
                                     <span className="tb-m-stat-label">{lang === 'tr' ? 'BASKI/İVME' : 'PRESSURE'}</span>
-                                    <span className="tb-m-stat-value">%{heat}</span>
+                                    <span className="tb-m-stat-value">
+                                        %{heat}
+                                        {last20.isSurging && (
+                                            <span style={{ display: 'block', fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800, marginTop: '2px' }}>
+                                                ⚡ 20': +{last20.deltaDA}A
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
 
                                 {/* Column 2: ŞUT (İSB) */}
@@ -303,7 +311,14 @@ export const LiveTerminalMobile = ({
                                 {/* Column 3: T.ATAK */}
                                 <div className={`tb-m-stat-cell ${daAlertClass}`}>
                                     <span className="tb-m-stat-label">{lang === 'tr' ? 'T.ATAK' : 'D.ATTACK'}</span>
-                                    <span className="tb-m-stat-value">{daHome} - {daAway}</span>
+                                    <span className="tb-m-stat-value">
+                                        {daHome} - {daAway}
+                                        {last20.deltaDA > 0 && (
+                                            <span style={{ display: 'block', fontSize: '0.62rem', color: last20.deltaDA >= 14 ? '#fbbf24' : 'var(--tb-text-muted)', fontWeight: 700, marginTop: '2px' }}>
+                                                (+{last20.deltaDA})
+                                            </span>
+                                        )}
+                                    </span>
                                 </div>
 
                                 {/* Column 4: xG */}
@@ -356,6 +371,24 @@ export const LiveTerminalMobile = ({
                                         return (
                                             <span className="tb-signal-badge tb-signal-hot" style={{ width: '100%', justifyContent: 'center' }}>
                                                 🔥 {lang === 'tr' ? `ALEV BASKI (%${heat})` : `BURNING PRESSURE (%${heat})`}
+                                            </span>
+                                        );
+                                    }
+
+                                    if (last20.isSurging) {
+                                        return (
+                                            <span
+                                                className="tb-signal-badge"
+                                                style={{
+                                                    width: '100%',
+                                                    justifyContent: 'center',
+                                                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 88, 12, 0.25))',
+                                                    color: '#fbbf24',
+                                                    border: '1px solid #f59e0b',
+                                                    boxShadow: '0 0 8px rgba(245, 158, 11, 0.25)'
+                                                }}
+                                            >
+                                                ⚡ {lang === 'tr' ? `SON 20' BASKISI (+${last20.deltaDA} Atak)` : `LAST 20m SURGE (+${last20.deltaDA} Att)`}
                                             </span>
                                         );
                                     }

@@ -9,6 +9,7 @@ import { consensusAdapter } from '../backend/consensusAdapter.js';
 
 export const SORT_CRITERIA = {
     MOMENTUM: 'MOMENTUM',       // Dynamic: High pressure, hot attacks, active momentum bubble to top
+    LAST_20_MIN: 'LAST_20_MIN', // Dynamic: High surge and acceleration in the last 20 minutes
     DQS: 'DQS',                 // AI Conviction & Data Quality Score
     MINUTE_DESC: 'MINUTE_DESC', // Late game first (90' -> 1')
     MINUTE_ASC: 'MINUTE_ASC',   // Early game first (1' -> 90')
@@ -159,6 +160,153 @@ export const isMatchHot = (match, signal = null) => {
 };
 
 /**
+ * Calculate metrics and momentum specifically for the last 20 minutes of play.
+ * Uses match.minuteHistory (rolling snapshots) and match.graphPoints (SofaScore minute-by-minute momentum),
+ * with rate-based fallbacks for newly tracked matches.
+ */
+export const calculateLast20MinMetrics = (match) => {
+    if (!match) return {
+        surgeScore: 0,
+        deltaDA: 0,
+        deltaShots: 0,
+        deltaCorners: 0,
+        isSurging: false,
+        source: 'NONE'
+    };
+
+    const currentMinute = parseNumericMinute(match.minute);
+    const stats = match.stats || {};
+    const curSog = (Number(stats.shotsOnGoal?.home) || 0) + (Number(stats.shotsOnGoal?.away) || 0);
+    const curTotalShots = (Number(stats.totalShots?.home) || 0) + (Number(stats.totalShots?.away) || 0);
+    const curDA = (Number(stats.dangerousAttacks?.home) || 0) + (Number(stats.dangerousAttacks?.away) || 0);
+    const curCorners = (Number(stats.corners?.home) || 0) + (Number(stats.corners?.away) || 0);
+
+    let deltaDA = 0;
+    let deltaShots = 0;
+    let deltaCorners = 0;
+    let source = 'ESTIMATE';
+
+    // 1. Try Minute-Sampled History (from dataWorker)
+    const history = (Array.isArray(match.minuteHistory) && match.minuteHistory.length > 0)
+        ? match.minuteHistory
+        : (Array.isArray(match.history) ? match.history : []);
+
+    if (history.length > 1) {
+        const now = Date.now();
+        const targetMs = 20 * 60 * 1000;
+        
+        // Find snapshot closest to 20 minutes ago
+        let bestSnap = null;
+        let minDiff = Infinity;
+        for (const snap of history) {
+            const age = now - snap.timestamp;
+            const diff = Math.abs(age - targetMs);
+            if (diff < minDiff) {
+                minDiff = diff;
+                bestSnap = snap;
+            }
+        }
+
+        if (bestSnap && bestSnap.stats) {
+            const snapAgeMin = Math.max(1, Math.round((now - bestSnap.timestamp) / 60000));
+            const oldSog = (Number(bestSnap.stats.shotsOnGoal?.home) || 0) + (Number(bestSnap.stats.shotsOnGoal?.away) || 0);
+            const oldTotalShots = (Number(bestSnap.stats.totalShots?.home) || 0) + (Number(bestSnap.stats.totalShots?.away) || 0);
+            const oldDA = (Number(bestSnap.stats.dangerousAttacks?.home) || 0) + (Number(bestSnap.stats.dangerousAttacks?.away) || 0);
+            const oldCorners = (Number(bestSnap.stats.corners?.home) || 0) + (Number(bestSnap.stats.corners?.away) || 0);
+
+            const rawDeltaDA = Math.max(0, curDA - oldDA);
+            const rawDeltaShots = Math.max(0, (curTotalShots || curSog) - (oldTotalShots || oldSog));
+            const rawDeltaCorners = Math.max(0, curCorners - oldCorners);
+
+            // Scale to 20-minute equivalent if history is shorter (e.g. 5-15 mins)
+            const scale = snapAgeMin < 20 ? (20 / snapAgeMin) : 1.0;
+            deltaDA = Math.round(rawDeltaDA * scale);
+            deltaShots = Math.round(rawDeltaShots * scale);
+            deltaCorners = Math.round(rawDeltaCorners * scale);
+            source = 'HISTORY';
+        }
+    }
+
+    // 2. Try SofaScore minute-by-minute momentum graphPoints
+    let graphMomentumActivity = 0;
+    if (Array.isArray(match.graphPoints) && match.graphPoints.length > 5) {
+        const minStart = Math.max(1, currentMinute - 20);
+        const last20Points = match.graphPoints.filter(p => p.minute >= minStart && p.minute <= currentMinute);
+        if (last20Points.length > 0) {
+            const totalAbsMomentum = last20Points.reduce((acc, p) => acc + Math.abs(p.value || 0), 0);
+            graphMomentumActivity = Math.min(100, Math.round(totalAbsMomentum / (last20Points.length || 1) * 2));
+            if (source === 'ESTIMATE') {
+                source = 'GRAPH';
+                deltaDA = Math.round((graphMomentumActivity / 100) * 22);
+            }
+        }
+    }
+
+    // 3. Fallback: Normalized rate-based calculation
+    if (source === 'ESTIMATE') {
+        const minDivisor = Math.max(20, currentMinute);
+        const daRate = curDA / minDivisor;
+        const shotRate = (curTotalShots || curSog) / minDivisor;
+        const cornerRate = curCorners / minDivisor;
+
+        // Current live pressure weight
+        const pressure = (typeof match.observations?.pressure?.total === 'number')
+            ? match.observations.pressure.total
+            : (typeof match.pressureIndex === 'number' ? match.pressureIndex : 50);
+
+        const pressureBoost = Math.max(0.6, pressure / 50);
+        deltaDA = Math.round(daRate * 20 * pressureBoost);
+        deltaShots = Math.round(shotRate * 20 * pressureBoost);
+        deltaCorners = Math.round(cornerRate * 20 * pressureBoost);
+    }
+
+    // Calculate 0 - 100 Surge Score
+    // Benchmarks for a high-intensity 20-minute window:
+    // - 20+ dangerous attacks (1+ per min) -> 40 pts
+    // - 3+ shots -> 25 pts
+    // - 2+ corners -> 10 pts
+    // - Pressure/Momentum score contribution -> 25 pts
+    let score = 0;
+    score += Math.min(40, (deltaDA / 22) * 40);
+    score += Math.min(25, (deltaShots / 4) * 25);
+    score += Math.min(10, (deltaCorners / 3) * 10);
+
+    const livePressure = (typeof match.observations?.pressure?.total === 'number')
+        ? match.observations.pressure.total
+        : (typeof match.pressureIndex === 'number' ? match.pressureIndex : 50);
+    score += Math.min(25, (livePressure / 100) * 25);
+
+    if (graphMomentumActivity > 60) {
+        score += 8;
+    }
+
+    const surgeScore = Math.max(0, Math.min(100, Math.round(score)));
+
+    // Condition to be considered "Surging":
+    // Match played at least 20 minutes, not finished, and surgeScore >= 52 or (deltaDA >= 14 and deltaShots >= 1)
+    const isLateOrFinished = currentMinute >= 88 || String(match.minute || '').includes('MS') || String(match.minute || '').includes('FT');
+    const isSurging = !isLateOrFinished && currentMinute >= 20 && (surgeScore >= 52 || (deltaDA >= 14 && deltaShots >= 1));
+
+    return {
+        surgeScore,
+        deltaDA,
+        deltaShots,
+        deltaCorners,
+        isSurging,
+        source
+    };
+};
+
+/**
+ * Determines if a match is surging in the last 20 minutes
+ */
+export const isMatchSurgingLast20 = (match) => {
+    if (!match) return false;
+    const metrics = calculateLast20MinMetrics(match);
+    return metrics.isSurging;
+};
+
+/**
  * Sorts matches dynamically based on criteria and lock state
  */
 export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, signals = {}, isLocked = false, lockedOrderMap = null, trendingBets = []) => {
@@ -186,6 +334,17 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
                 if (b.heat !== a.heat) return b.heat - a.heat;
                 // Secondary tie breaker: DQS
                 return (b.match.dqs || 0) - (a.match.dqs || 0);
+            });
+            break;
+
+        case SORT_CRITERIA.LAST_20_MIN:
+            list.sort((a, b) => {
+                const metricsA = calculateLast20MinMetrics(a.match);
+                const metricsB = calculateLast20MinMetrics(b.match);
+                if (metricsB.surgeScore !== metricsA.surgeScore) {
+                    return metricsB.surgeScore - metricsA.surgeScore;
+                }
+                return b.heat - a.heat;
             });
             break;
 

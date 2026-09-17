@@ -23,7 +23,7 @@ import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, formatMarketPrediction } from '../logic/liveSortEngine';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -2068,6 +2068,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         // Category filter
         if (terminalCategoryFilter === 'HOT') {
             list = list.filter(m => isMatchHot(m, signals[m.id]));
+        } else if (terminalCategoryFilter === 'SURGE_20') {
+            list = list.filter(m => isMatchSurgingLast20(m));
         } else if (terminalCategoryFilter === 'BET') {
             list = list.filter(m => signals[m.id]?.verdict === 'BET');
         } else if (terminalCategoryFilter === 'SECOND_HALF') {
@@ -4881,6 +4883,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         onChange={(e) => setTerminalSortCriteria(e.target.value)}
                                     >
                                         <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme' : 'Live Momentum'}</option>
+                                        <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : 'Last 20m Momentum'}</option>
                                         <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Kupon Hacmi' : 'Market Volume'}</option>
                                         <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Dakika' : 'Minute'}</option>
                                         <option value={SORT_CRITERIA.DQS}>🎯 {lang === 'tr' ? 'AI DQS' : 'AI DQS'}</option>
@@ -4915,6 +4918,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
                                         <span className="tb-chip-count">
                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`tb-chip chip-surge ${terminalCategoryFilter === 'SURGE_20' ? 'active' : ''}`}
+                                        onClick={() => setTerminalCategoryFilter('SURGE_20')}
+                                        title={lang === 'tr' ? 'Son 20 dakikada hücum temposu ve tehlike ivmesi tavan yapan canlı maçlar' : 'Matches with surging offensive momentum in the last 20 minutes'}
+                                    >
+                                        <span>⚡</span>
+                                        <span>{lang === 'tr' ? 'Son 20 Dk Baskısı' : 'Last 20m Surge'}</span>
+                                        <span className="tb-chip-count">
+                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m)).length}
                                         </span>
                                     </button>
                                     <button
