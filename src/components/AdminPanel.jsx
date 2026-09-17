@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../backend/supabaseClient';
 import { bankrollManager } from '../logic/bankrollManager';
+import { AnalyticsDashboard } from './AnalyticsDashboard';
 
 export const AdminPanel = ({ lang = 'tr' }) => {
     const [profiles, setProfiles] = useState([]);
@@ -98,6 +99,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         stratCorners: 'Korner Baskısı',
         stratBTTS: 'KG Var',
         stratRedCard: 'Sayısal Üstünlük (Kırmızı Kart)',
+        tabWebAnalytics: 'ZİYARETÇİ & SİTE ANALİTİĞİ',
         tabAnalytics: 'STRATEJİ KARNESİ (ROI)',
         strategyScorecardTitle: '🎯 STRATEJİ BAŞARI & ROI KARNESİ',
         strategyScorecardDesc: 'Sistemin kullandığı algoritmaların canlı bahis performansı, kazanma oranları ve getiri (ROI) karnesi.',
@@ -192,6 +194,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         stratCorners: 'Corner Pressure',
         stratBTTS: 'BTTS Dynamic',
         stratRedCard: 'Numerical Advantage (Red Card)',
+        tabWebAnalytics: 'VISITOR & WEB ANALYTICS',
         tabAnalytics: 'STRATEGY SCORECARD (ROI)',
         strategyScorecardTitle: '🎯 STRATEGY PERFORMANCE & ROI SCORECARD',
         strategyScorecardDesc: 'Live betting algorithm performance, win rates, and return on investment (ROI) breakdown.',
@@ -277,17 +280,39 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         ? 'http://localhost:3001'
         : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
-    const getAdminHeaders = () => ({
-        'Content-Type': 'application/json',
-        'x-admin-sender': 'admin@livebetmentor.com',
-        'x-admin-token': 'master-admin-token'
-    });
+    const getAdminHeaders = () => {
+        let token = '';
+        try {
+            const adminStored = localStorage.getItem('lbm_admin_session');
+            if (adminStored) {
+                const parsed = JSON.parse(adminStored);
+                token = parsed.token || parsed.access_token || '';
+            }
+            if (!token) {
+                const memberStored = localStorage.getItem('lbm_member_session');
+                if (memberStored) {
+                    const parsed = JSON.parse(memberStored);
+                    token = parsed.token || parsed.access_token || '';
+                }
+            }
+        } catch (e) {}
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'x-admin-sender': 'admin@livebetmentor.com'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+            headers['x-admin-token'] = token;
+        }
+        return headers;
+    };
 
     const fetchTelegramStatus = async () => {
         try {
             const proxyBase = getProxyBase();
             const res = await fetch(`${proxyBase}/api/telegram/status`, {
-                headers: { 'x-admin-sender': 'admin@livebetmentor.com' }
+                headers: getAdminHeaders()
             });
             const data = await res.json();
             setTelegramStatus(data);
@@ -364,7 +389,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
         // 2. Fetch from Backend proxy and merge any missing
         try {
-            const res = await fetch(`${proxyBase}/api/members`);
+            const res = await fetch(`${proxyBase}/api/members`, {
+                headers: getAdminHeaders()
+            });
             if (res.ok) {
                 const data = await res.json();
                 if (data && Array.isArray(data.members)) {
@@ -391,7 +418,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
         // 1. Fetch from Backend Proxy
         try {
-            const res = await fetch(`${proxyBase}/api/members/upgrade-requests`);
+            const res = await fetch(`${proxyBase}/api/members/upgrade-requests`, {
+                headers: getAdminHeaders()
+            });
             if (res.ok) {
                 const data = await res.json();
                 if (data?.requests && Array.isArray(data.requests)) {
@@ -434,10 +463,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             try {
                 await fetch(`${proxyBase}/api/members/resolve-upgrade`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-sender': 'admin@livebetmentor.com'
-                    },
+                    headers: getAdminHeaders(),
                     body: JSON.stringify({ id: request.id, action: 'approved' })
                 });
             } catch (beErr) {
@@ -487,10 +513,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             try {
                 await fetch(`${proxyBase}/api/members/resolve-upgrade`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-sender': 'admin@livebetmentor.com'
-                    },
+                    headers: getAdminHeaders(),
                     body: JSON.stringify({ id: requestId, action: 'rejected' })
                 });
             } catch (beErr) {
@@ -1016,6 +1039,24 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                     📱 {t.tabTelegram}
                 </button>
                 <button
+                    onClick={() => setActiveTab('web_analytics')}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'web_analytics' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'web_analytics' ? '#38bdf8' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'web_analytics' ? '#38bdf8' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}
+                >
+                    📊 {t.tabWebAnalytics}
+                </button>
+                <button
                     onClick={() => { setActiveTab('analytics'); loadStrategyAnalytics(); }}
                     style={{
                         padding: '0.8rem 1.5rem',
@@ -1058,11 +1099,15 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                         </span>
                     </div>
                 )}
-                <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', fontWeight: 800 }}>
-                    {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : activeTab === 'analytics' ? t.strategyScorecardTitle : t.memberList}
-                </h3>
+                {activeTab !== 'web_analytics' && (
+                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', fontWeight: 800 }}>
+                        {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : activeTab === 'analytics' ? t.strategyScorecardTitle : t.memberList}
+                    </h3>
+                )}
 
-                {loading ? (
+                {activeTab === 'web_analytics' ? (
+                    <AnalyticsDashboard lang={lang} />
+                ) : loading ? (
                     <p>{t.loading}</p>
                 ) : activeTab === 'upgrades' ? (
                     upgradeRequests.length === 0 ? (

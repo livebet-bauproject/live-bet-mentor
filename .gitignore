@@ -22,6 +22,13 @@ server/*_stats.json
 server/stats_request.json
 src/data/mock_matches.json
 
+# Sensitive User Credentials & Local Data (Do NOT commit to git)
+server/web_members.json
+server/vip_users.json
+server/device_trials.json
+server/upgrade_requests.json
+server/telegram_signal_history.json
+
 # Environment
 .env
 .env.local

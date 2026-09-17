@@ -10,8 +10,9 @@ export function cleanMd(str) {
 
 export function resolveMarketText(alert, lang = 'tr') {
     const isTr = lang === 'tr';
-    const home = cleanMd(alert.homeTeam || (isTr ? 'Ev Sahibi' : 'Home'));
-    const away = cleanMd(alert.awayTeam || (isTr ? 'Deplasman' : 'Away'));
+    const isDe = lang === 'de';
+    const home = cleanMd(alert.homeTeam || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(alert.awayTeam || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
     const rec = alert.recommendation || {};
     const key = rec.marketKey || '';
     let label = cleanMd(rec.marketLabel || rec.market || '');
@@ -20,8 +21,8 @@ export function resolveMarketText(alert, lang = 'tr') {
     if (team.toLowerCase() === 'away') team = away;
 
     const oddsVal = rec.odds || alert.odds;
-    const hasExistingOdds = /\(Oran:|\(Odds:/i.test(label || '') || /\(Oran:|\(Odds:/i.test(rec.predictionText || '');
-    const oddsStr = (oddsVal && !hasExistingOdds) ? (isTr ? ` (Oran: ${oddsVal})` : ` (Odds: ${oddsVal})`) : '';
+    const hasExistingOdds = /\(Oran:|\(Odds:|\(Quote:/i.test(label || '') || /\(Oran:|\(Odds:|\(Quote:/i.test(rec.predictionText || '');
+    const oddsStr = (oddsVal && !hasExistingOdds) ? (isTr ? ` (Oran: ${oddsVal})` : isDe ? ` (Quote: ${oddsVal})` : ` (Odds: ${oddsVal})`) : '';
 
     // Direct explicit prediction if provided
     if (rec.predictionText) {
@@ -35,66 +36,85 @@ export function resolveMarketText(alert, lang = 'tr') {
                    .replace(/\bMatch Winner:\s*/gi, 'Maç Sonucu: ')
                    .replace(/\(Odds:\s*([0-9.]+)\)/gi, '(Oran: $1)')
                    .replace(/\(Oran:\s*([0-9.]+)\)/gi, '(Oran: $1)');
+        } else if (isDe) {
+            pt = pt.replace(/\bNext Goal:\s*/gi, 'Nächstes Tor: ')
+                   .replace(/\bOver\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Über $1 Tore')
+                   .replace(/\bUnder\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Unter $1 Tore')
+                   .replace(/\bBoth Teams To Score\s*\(BTTS:\s*Yes\)\b/gi, 'Beide Teams treffen (BTTS: Ja)')
+                   .replace(/\bBoth Teams To Score\s*\(BTTS:\s*No\)\b/gi, 'Beide Teams treffen: Nein')
+                   .replace(/\bMatch Winner:\s*/gi, 'Spielgewinner: ')
+                   .replace(/\(Odds:\s*([0-9.]+)\)/gi, '(Quote: $1)')
+                   .replace(/\(Quote:\s*([0-9.]+)\)/gi, '(Quote: $1)');
         }
         return pt;
     }
 
     // 1. Latency Arbitrage
     if (key === 'market_latency_arbitrage' || rec.edgeType === 'LATENCY') {
-        const target = team ? `${team} (Sıradaki Gol)` : 'Sıradaki Gol';
-        return isTr ? `Gecikme Arbitrajı: ${target}${oddsStr}` : `Latency Arbitrage: ${target}${oddsStr}`;
+        const target = team ? `${team} (${isTr ? 'Sıradaki Gol' : isDe ? 'Nächstes Tor' : 'Next Goal'})` : (isTr ? 'Sıradaki Gol' : isDe ? 'Nächstes Tor' : 'Next Goal');
+        return isTr ? `Gecikme Arbitrajı: ${target}${oddsStr}` : isDe ? `Latenz-Arbitrage: ${target}${oddsStr}` : `Latency Arbitrage: ${target}${oddsStr}`;
     }
 
     // 2. Mathematical Value (+EV)
     if (key === 'market_plus_ev' || rec.edgeType === 'PLUS_EV') {
-        return isTr ? `Değer Oran (+EV): ${label || 'Üst Gol'}${oddsStr}` : `Value Edge (+EV): ${label || 'Over Goals'}${oddsStr}`;
+        return isTr ? `Değer Oran (+EV): ${label || 'Üst Gol'}${oddsStr}` : isDe ? `Mathematischer Value (+EV): ${label || 'Über Tore'}${oddsStr}` : `Value Edge (+EV): ${label || 'Over Goals'}${oddsStr}`;
     }
 
     // 3. Next Goal - Home / Away
     if (key === 'market_next_goal_home' || key === 'HOME_NEXT_GOAL' || (label.toLowerCase().includes('next goal') && label.includes(home))) {
-        return isTr ? `Sıradaki Gol: ${home}${oddsStr}` : `Next Goal: ${home}${oddsStr}`;
+        return isTr ? `Sıradaki Gol: ${home}${oddsStr}` : isDe ? `Nächstes Tor: ${home}${oddsStr}` : `Next Goal: ${home}${oddsStr}`;
     }
     if (key === 'market_next_goal_away' || key === 'AWAY_NEXT_GOAL' || (label.toLowerCase().includes('next goal') && label.includes(away))) {
-        return isTr ? `Sıradaki Gol: ${away}${oddsStr}` : `Next Goal: ${away}${oddsStr}`;
+        return isTr ? `Sıradaki Gol: ${away}${oddsStr}` : isDe ? `Nächstes Tor: ${away}${oddsStr}` : `Next Goal: ${away}${oddsStr}`;
     }
 
     // 4. Over / Under Goals
-    if (key === 'market_over_goals' || key === 'OVER_NEXT_DYNAMIC' || label.toLowerCase().includes('over') || label.includes('Üst')) {
+    if (key === 'market_over_goals' || key === 'OVER_NEXT_DYNAMIC' || label.toLowerCase().includes('over') || label.includes('Üst') || label.includes('Über')) {
         const goalsMatch = label.match(/(\d+\.?\d*)/);
         const goals = rec.marketParams?.goals || rec.target || (goalsMatch ? goalsMatch[1] : '2.5');
-        return isTr ? `Maçta ${goals} Üst Gol${oddsStr}` : `Over ${goals} Match Goals${oddsStr}`;
+        return isTr ? `Maçta ${goals} Üst Gol${oddsStr}` : isDe ? `Über ${goals} Tore im Spiel${oddsStr}` : `Over ${goals} Match Goals${oddsStr}`;
     }
 
     // 5. BTTS
-    if (key === 'market_btts' || key === 'btts' || label.toLowerCase().includes('btts') || label.toLowerCase().includes('both teams') || label.includes('KG')) {
-        return isTr ? `Karşılıklı Gol Var (KG Var)${oddsStr}` : `Both Teams To Score (BTTS: Yes)${oddsStr}`;
+    if (key === 'market_btts' || key === 'btts' || label.toLowerCase().includes('btts') || label.toLowerCase().includes('both teams') || label.includes('KG') || label.includes('Beide Teams')) {
+        return isTr ? `Karşılıklı Gol Var (KG Var)${oddsStr}` : isDe ? `Beide Teams treffen (BTTS: Ja)${oddsStr}` : `Both Teams To Score (BTTS: Yes)${oddsStr}`;
     }
 
     // 6. First Half
-    if (key === 'market_fh_over05' || label.toLowerCase().includes('first half') || label.includes('İY 0.5') || label.includes('İlk Yarı')) {
-        return isTr ? `İlk Yarı 0.5 Üst${oddsStr}` : `First Half Over 0.5 Goals${oddsStr}`;
+    if (key === 'market_fh_over05' || label.toLowerCase().includes('first half') || label.includes('İY 0.5') || label.includes('İlk Yarı') || label.includes('1. Halbzeit')) {
+        return isTr ? `İlk Yarı 0.5 Üst${oddsStr}` : isDe ? `1. Halbzeit Über 0.5 Tore${oddsStr}` : `First Half Over 0.5 Goals${oddsStr}`;
     }
 
     // 7. Match Winner
     if (key === 'HOME_WIN_NEXT' || label.toLowerCase().includes('home win')) {
-        return isTr ? `Maç Sonucu: ${home}${oddsStr}` : `Match Winner: ${home}${oddsStr}`;
+        return isTr ? `Maç Sonucu: ${home}${oddsStr}` : isDe ? `Spielgewinner: ${home}${oddsStr}` : `Match Winner: ${home}${oddsStr}`;
     }
     if (key === 'AWAY_WIN_NEXT' || label.toLowerCase().includes('away win')) {
-        return isTr ? `Maç Sonucu: ${away}${oddsStr}` : `Match Winner: ${away}${oddsStr}`;
+        return isTr ? `Maç Sonucu: ${away}${oddsStr}` : isDe ? `Spielgewinner: ${away}${oddsStr}` : `Match Winner: ${away}${oddsStr}`;
     }
 
     // Fallback translation of English labels
     if (label) {
-        let cleanL = label
-            .replace(/\bNext Goal:\s*/gi, 'Sıradaki Gol: ')
-            .replace(/\bOver\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Maçta $1 Üst Gol')
-            .replace(/\bUnder\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Maçta $1 Alt Gol')
-            .replace(/\bBoth Teams To Score\s*\(BTTS:\s*Yes\)\b/gi, 'Karşılıklı Gol Var (KG Var)')
-            .replace(/\(Odds:\s*([0-9.]+)\)/gi, '(Oran: $1)');
+        let cleanL = label;
+        if (isTr) {
+            cleanL = cleanL
+                .replace(/\bNext Goal:\s*/gi, 'Sıradaki Gol: ')
+                .replace(/\bOver\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Maçta $1 Üst Gol')
+                .replace(/\bUnder\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Maçta $1 Alt Gol')
+                .replace(/\bBoth Teams To Score\s*\(BTTS:\s*Yes\)\b/gi, 'Karşılıklı Gol Var (KG Var)')
+                .replace(/\(Odds:\s*([0-9.]+)\)/gi, '(Oran: $1)');
+        } else if (isDe) {
+            cleanL = cleanL
+                .replace(/\bNext Goal:\s*/gi, 'Nächstes Tor: ')
+                .replace(/\bOver\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Über $1 Tore')
+                .replace(/\bUnder\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Unter $1 Tore')
+                .replace(/\bBoth Teams To Score\s*\(BTTS:\s*Yes\)\b/gi, 'Beide Teams treffen (BTTS: Ja)')
+                .replace(/\(Odds:\s*([0-9.]+)\)/gi, '(Quote: $1)');
+        }
         return `${cleanL}${oddsStr}`;
     }
 
-    return isTr ? `Sıradaki Gol: ${team || home}${oddsStr}` : `Next Goal: ${team || home}${oddsStr}`;
+    return isTr ? `Sıradaki Gol: ${team || home}${oddsStr}` : isDe ? `Nächstes Tor: ${team || home}${oddsStr}` : `Next Goal: ${team || home}${oddsStr}`;
 }
 
 export function cleanLeagueTr(rawLeague) {
@@ -142,6 +162,56 @@ export function cleanLeagueTr(rawLeague) {
              .replace(/\bFriendly\b/gi, 'Hazırlık');
     if (str.toLowerCase() === 'genel' || str.toLowerCase() === 'fixture') return '';
     return str.trim();
+}
+
+export function cleanLeagueDe(rawLeague) {
+    if (!rawLeague) return '';
+    let str = cleanMd(rawLeague);
+    const countryMap = {
+        'Spain:': 'Spanien',
+        'England:': 'England',
+        'Germany:': 'Deutschland',
+        'Italy:': 'Italien',
+        'France:': 'Frankreich',
+        'Turkey:': 'Türkei',
+        'Netherlands:': 'Niederlande',
+        'Portugal:': 'Portugal',
+        'Belgium:': 'Belgien',
+        'Brazil:': 'Brasilien',
+        'Argentina:': 'Argentinien',
+        'World:': 'Welt',
+        'Europe:': 'Europa',
+        'Scotland:': 'Schottland',
+        'Czech Republic:': 'Tschechien',
+        'Croatia:': 'Kroatien',
+        'Serbia:': 'Serbien',
+        'Greece:': 'Griechenland',
+        'Austria:': 'Österreich',
+        'Switzerland:': 'Schweiz',
+        'Poland:': 'Polen',
+        'Denmark:': 'Dänemark',
+        'Sweden:': 'Schweden',
+        'Norway:': 'Norwegen'
+    };
+    for (const [en, de] of Object.entries(countryMap)) {
+        if (str.startsWith(en)) {
+            str = str.replace(en, de + ' -');
+        }
+    }
+    str = str.replace(/\bPremier League\b/gi, 'Premier League')
+             .replace(/\bChampions League\b/gi, 'Champions League')
+             .replace(/\bEuropa League\b/gi, 'Europa League')
+             .replace(/\bConference League\b/gi, 'Conference League')
+             .replace(/\bCup\b/gi, 'Pokal')
+             .replace(/\bFriendly\b/gi, 'Freundschaftsspiel');
+    if (str.toLowerCase() === 'genel' || str.toLowerCase() === 'fixture') return '';
+    return str.trim();
+}
+
+export function cleanLeague(rawLeague, lang = 'tr') {
+    if (lang === 'tr') return cleanLeagueTr(rawLeague);
+    if (lang === 'de') return cleanLeagueDe(rawLeague);
+    return cleanMd(rawLeague);
 }
 
 export function formatVIPSignal(alert, lang = 'tr') {

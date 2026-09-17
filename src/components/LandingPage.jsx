@@ -3,6 +3,7 @@ import { supabase } from '../backend/supabaseClient';
 import { translations } from '../locales/translations';
 import { LegalModal } from './LegalModal';
 import { getDeviceFingerprint } from '../utils/deviceFingerprint';
+import { trackAnalyticsEvent } from '../utils/analyticsTracker';
 import '../styles/global.css';
 
 export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
@@ -54,6 +55,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     });
                     const resData = await res.json();
                     if (res.ok && resData.success && resData.user) {
+                        const signedToken = resData.token || resData.access_token || '';
                         if (resData.user.plan === 'admin') {
                             const adminSession = {
                                 user: {
@@ -62,7 +64,8 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                     plan: 'admin',
                                     user_metadata: { display_name: 'LiveBet Admin' }
                                 },
-                                access_token: 'master-admin-token',
+                                token: signedToken,
+                                access_token: signedToken || 'master-admin-token',
                                 expires_at: 9999999999
                             };
                             localStorage.setItem('lbm_admin_session', JSON.stringify(adminSession));
@@ -92,9 +95,11 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                 user_metadata: { display_name: resData.user.full_name || resData.user.email.split('@')[0] }
                             },
                             memberProfile: resData.user,
-                            access_token: 'member-token-' + resData.user.id
+                            token: signedToken,
+                            access_token: signedToken || ('member-token-' + resData.user.id)
                         };
                         localStorage.setItem('lbm_member_session', JSON.stringify(userSession));
+                        trackAnalyticsEvent('login_success', { email: cleanEmail, plan: resData.user?.plan || 'member' });
                         onLoginSuccess(userSession);
                         return;
                     } else if (resData.error) {
@@ -128,6 +133,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                 // REGISTER: Auto-activate 24-hour instant PRO trial with Device Anti-Abuse
                 let registeredUser = null;
                 const deviceId = getDeviceFingerprint();
+                let registeredToken = '';
                 try {
                     const regRes = await fetch(`${proxyBase}/api/members/register`, {
                         method: 'POST',
@@ -137,6 +143,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     const regData = await regRes.json();
                     if (regRes.ok && regData.success && regData.user) {
                         registeredUser = regData.user;
+                        registeredToken = regData.token || regData.access_token || '';
                     } else if (regData.error) {
                         setError(regData.error);
                         if (regData.deviceUsed) {
@@ -189,9 +196,11 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         user_metadata: { display_name: registeredUser.full_name || registeredUser.email.split('@')[0] }
                     },
                     memberProfile: registeredUser,
-                    access_token: 'member-token-' + registeredUser.id
+                    token: registeredToken,
+                    access_token: registeredToken || ('member-token-' + registeredUser.id)
                 };
                 localStorage.setItem('lbm_member_session', JSON.stringify(userSession));
+                trackAnalyticsEvent('register_success', { email: cleanEmail, plan: registeredUser.plan || 'trial' });
                 onLoginSuccess(userSession);
                 return;
 

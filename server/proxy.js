@@ -3,20 +3,77 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import { spawn, spawnSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
 import { learningEngine } from './learningEngine.js';
 import { autonomousSignalEngine } from './autonomousSignalEngine.js';
+import { 
+    hashPassword, 
+    verifyPassword, 
+    generateSecureToken, 
+    verifySecureToken, 
+    isValidNumericId, 
+    createRateLimiter 
+} from './securityUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_SECRET || 'lbm_sec_vault_2026_981aed67_prod_shield';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Hamza2026!';
 
-app.use(cors());
+// 1. Enterprise Security Headers (OWASP Hardening)
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+
+// 2. Strict CORS Configuration
+const ALLOWED_ORIGINS = new Set([
+    'https://live-bet-mentor-brown.vercel.app',
+    'https://livebetmentor.com',
+    'https://www.livebetmentor.com',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+    'http://localhost:3001'
+]);
+
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow mobile apps, curl, server-to-server or requests without origin
+        if (!origin) return callback(null, true);
+        if (ALLOWED_ORIGINS.has(origin) || origin.endsWith('.vercel.app')) {
+            return callback(null, true);
+        }
+        if (process.env.NODE_ENV !== 'production') {
+            return callback(null, true);
+        }
+        callback(new Error('CORS policy: Not allowed by CORS'));
+    },
+    credentials: true
+}));
+
+// 3. Brute-Force & DoS Protection Rate Limiters
+const authRateLimiter = createRateLimiter({
+    windowMs: 15 * 60 * 1000,
+    maxRequests: 20,
+    message: 'Güvenlik Kalkanı: Çok fazla giriş veya kayıt denemesi yapıldı. Lütfen 15 dakika sonra tekrar deneyin.'
+});
+
+const generalApiLimiter = createRateLimiter({
+    windowMs: 60 * 1000,
+    maxRequests: 300,
+    message: 'Sistem Koruması: İstek kotası aşıldı, lütfen biraz bekleyiniz.'
+});
 
 // Ultra-fast gzip compression middleware (Shrinks /api/sofascore/live from 540KB to ~45KB)
 app.use((req, res, next) => {
@@ -84,6 +141,7 @@ const ODDS_FILE = path.join(__dirname, 'live_odds.json');
 const MEMBERS_FILE = path.join(__dirname, 'web_members.json');
 const UPGRADE_REQUESTS_FILE = path.join(__dirname, 'upgrade_requests.json');
 const DEVICE_TRIALS_FILE = path.join(__dirname, 'device_trials.json');
+const ANALYTICS_FILE = path.join(__dirname, 'analytics_events.json');
 
 const BLOCKED_DISPOSABLE_DOMAINS = new Set([
     'tempmail.com', '10minutemail.com', 'guerrillamail.com', 'mailinator.com',
@@ -156,9 +214,20 @@ function saveMembers(members) {
     }
 }
 
-if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
+function sanitizeMember(m) {
+    if (!m || typeof m !== 'object') return m;
+    const copy = { ...m };
+    delete copy.password;
+    delete copy.salt;
+    return copy;
+}
 
-app.use('/data', express.static(__dirname));
+function sanitizeMemberList(members) {
+    if (!Array.isArray(members)) return [];
+    return members.map(sanitizeMember);
+}
+
+if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
 // Root Status Page
 app.get('/', (req, res) => {
@@ -520,8 +589,11 @@ app.get('/api/consensus', (req, res) => {
 });
 
 // 3. Match Details (with freshness check)
-app.get('/api/sofascore/event/:id', (req, res) => {
+app.get('/api/sofascore/event/:id', generalApiLimiter, (req, res) => {
     const id = req.params.id;
+    if (!isValidNumericId(id)) {
+        return res.status(400).json({ error: 'Geçersiz maç ID formatı.' });
+    }
     let detailJson = null;
 
     if (memoryStatsCache[id]?.data?.detail) {
@@ -571,8 +643,11 @@ app.get('/api/sofascore/event/:id', (req, res) => {
 });
 
 // 4. Match Statistics (with freshness check)
-app.get('/api/sofascore/event/:id/statistics', (req, res) => {
+app.get('/api/sofascore/event/:id/statistics', generalApiLimiter, (req, res) => {
     const id = req.params.id;
+    if (!isValidNumericId(id)) {
+        return res.status(400).json({ error: 'Geçersiz maç ID formatı.' });
+    }
     if (memoryStatsCache[id]?.data?.stats) {
         const cacheAge = (Date.now() - (memoryStatsCache[id].time || 0)) / 1000;
         if (cacheAge >= 30) queueRequest(id);
@@ -632,6 +707,8 @@ function getActiveProxy() {
 }
 
 function fetchGraphViaCurlCffi(eventId) {
+    if (!isValidNumericId(eventId)) return Promise.resolve({ error: true });
+    const cleanEventId = String(parseInt(eventId, 10));
     const pyCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
     const proxy = getActiveProxy();
     return new Promise((resolve) => {
@@ -641,7 +718,7 @@ try:
     from curl_cffi import requests
     proxy = ${proxy ? JSON.stringify(proxy) : 'None'}
     proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
-    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/graph', impersonate='chrome120', proxies=proxies, timeout=3.0)
+    r = requests.get('https://api.sofascore.com/api/v1/event/${cleanEventId}/graph', impersonate='chrome120', proxies=proxies, timeout=3.0)
     if r.status_code == 200:
         print(r.text)
     elif r.status_code == 404:
@@ -670,8 +747,11 @@ except Exception as e:
     });
 }
 
-app.get('/api/sofascore/event/:id/graph', async (req, res) => {
+app.get('/api/sofascore/event/:id/graph', generalApiLimiter, async (req, res) => {
     const id = req.params.id;
+    if (!isValidNumericId(id)) {
+        return res.status(400).json({ error: 'Geçersiz maç ID formatı.' });
+    }
     const now = Date.now();
     if (memoryGraphCache[id] && (now - memoryGraphCache[id].time) < 45000) {
         return res.json(memoryGraphCache[id].data);
@@ -735,6 +815,8 @@ app.get('/api/sofascore/event/:id/graph', async (req, res) => {
 const memoryIncidentsCache = {};
 
 function fetchIncidentsViaCurlCffi(eventId) {
+    if (!isValidNumericId(eventId)) return Promise.resolve({ error: true });
+    const cleanEventId = String(parseInt(eventId, 10));
     const pyCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
     const proxy = getActiveProxy();
     return new Promise((resolve) => {
@@ -744,7 +826,7 @@ try:
     from curl_cffi import requests
     proxy = ${proxy ? JSON.stringify(proxy) : 'None'}
     proxies = {"http": f"http://{proxy}", "https": f"http://{proxy}"} if proxy else None
-    r = requests.get('https://api.sofascore.com/api/v1/event/${eventId}/incidents', impersonate='chrome120', proxies=proxies, timeout=3.0)
+    r = requests.get('https://api.sofascore.com/api/v1/event/${cleanEventId}/incidents', impersonate='chrome120', proxies=proxies, timeout=3.0)
     if r.status_code == 200:
         print(r.text)
     elif r.status_code == 404:
@@ -773,8 +855,11 @@ except Exception as e:
     });
 }
 
-app.get('/api/sofascore/event/:id/incidents', async (req, res) => {
+app.get('/api/sofascore/event/:id/incidents', generalApiLimiter, async (req, res) => {
     const id = req.params.id;
+    if (!isValidNumericId(id)) {
+        return res.status(400).json({ error: 'Geçersiz maç ID formatı.' });
+    }
     const now = Date.now();
     if (memoryIncidentsCache[id] && (now - memoryIncidentsCache[id].time) < 30000) {
         return res.json(memoryIncidentsCache[id].data);
@@ -835,8 +920,11 @@ app.get('/api/sofascore/event/:id/incidents', async (req, res) => {
 });
 
 // 4d. Team Crest / Logo Proxy with 24-hour cache
-app.get(['/api/team/:id/image', '/api/sofascore/team/:id/image'], async (req, res) => {
+app.get(['/api/team/:id/image', '/api/sofascore/team/:id/image'], generalApiLimiter, async (req, res) => {
     const id = req.params.id;
+    if (!isValidNumericId(id)) {
+        return res.status(400).send('Invalid team ID');
+    }
     try {
         const upstreamUrl = `https://img.sofascore.com/api/v1/team/${id}/image`;
         const resp = await fetch(upstreamUrl, {
@@ -858,8 +946,11 @@ app.get(['/api/team/:id/image', '/api/sofascore/team/:id/image'], async (req, re
 });
 
 // 5. Match Odds API (Supports both SofaScore market structure and direct 1X2 odds)
-app.get(['/api/sofascore/event/:id/odds/1/all', '/api/sofascore/event/:id/odds/:marketId?/:sub?'], (req, res) => {
+app.get(['/api/sofascore/event/:id/odds/1/all', '/api/sofascore/event/:id/odds/:marketId?/:sub?'], generalApiLimiter, (req, res) => {
     const id = req.params.id;
+    if (!isValidNumericId(id)) {
+        return res.status(400).json({ error: 'Geçersiz maç ID formatı.' });
+    }
     if (memoryStatsCache[id]?.data?.odds) {
         return res.json(memoryStatsCache[id].data.odds);
     }
@@ -921,24 +1012,36 @@ app.get('/api/odds/live', (req, res) => {
     }
 });
 
-// --- ADMIN AUTHORIZATION HELPER ---
+// --- SECURE ADMIN AUTHORIZATION HELPER ---
 const isAdminRequest = (req) => {
-    const adminSender = req.headers['x-admin-sender'] || req.headers['x-admin-email'] || req.body?.adminEmail;
-    const adminToken = req.headers['x-admin-token'] || req.headers['authorization'];
-    const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com', 'admin@local.dev'];
+    const rawToken = req.headers['x-admin-token'] || req.headers['authorization'];
+    if (rawToken) {
+        const payload = verifySecureToken(rawToken, JWT_SECRET);
+        if (payload && payload.role === 'admin') {
+            return true;
+        }
+        if (process.env.ADMIN_API_KEY && rawToken === process.env.ADMIN_API_KEY) {
+            return true;
+        }
+    }
 
-    if (adminSender && allowedAdmins.includes(String(adminSender).trim().toLowerCase())) {
+    // Machine-to-machine sync secret
+    const syncSecret = req.headers['x-sync-secret'] || req.headers['x-api-key'];
+    if (syncSecret && (syncSecret === (process.env.ADMIN_API_KEY || RENDER_UPLOAD_SECRET))) {
         return true;
     }
-    if (adminToken && (String(adminToken).includes('master-admin-token') || String(adminToken).includes('admin'))) {
-        return true;
-    }
 
+    // In local development mode ONLY, allow trusted local admin email
     const ip = req.ip || req.connection?.remoteAddress || '';
     const isLocalhost = ip.includes('127.0.0.1') || ip === '::1' || ip.includes('localhost');
-    if (isLocalhost && !adminSender) {
-        return true;
+    if (isLocalhost && process.env.NODE_ENV !== 'production') {
+        const adminSender = req.headers['x-admin-sender'] || req.headers['x-admin-email'];
+        const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com', 'admin@local.dev'];
+        if (adminSender && allowedAdmins.includes(String(adminSender).trim().toLowerCase())) {
+            return true;
+        }
     }
+
     return false;
 };
 
@@ -1086,18 +1189,27 @@ app.post('/api/telegram/notify-admin', async (req, res) => {
 
 // ==================== WEB MEMBER MANAGEMENT API ====================
 
-// 1. Get all members
+// 1. Get all members (Protected: Admin Only, Passwords Stripped)
 app.get('/api/members', (req, res) => {
     try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yetkili yöneticiler üye listesine erişebilir.' });
+        }
         const members = loadMembers();
-        res.json({ success: true, members });
+        const sanitizedMembers = members.map(m => {
+            const copy = { ...m };
+            delete copy.password;
+            delete copy.salt;
+            return copy;
+        });
+        res.json({ success: true, members: sanitizedMembers });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// 2. Register new member
-app.post('/api/members/register', async (req, res) => {
+// 2. Register new member (Rate Limited, PBKDF2 Salted Hashing)
+app.post('/api/members/register', authRateLimiter, async (req, res) => {
     try {
         const { email, password, fullName, phone, plan, deviceId } = req.body || {};
         if (!email) {
@@ -1117,7 +1229,6 @@ app.post('/api/members/register', async (req, res) => {
         const deviceTrials = loadDeviceTrials();
         if (deviceId && deviceTrials[deviceId]) {
             const existingTrial = deviceTrials[deviceId];
-            // If another email already used trial on this device
             if (existingTrial.email !== cleanEmail) {
                 return res.status(403).json({
                     error: '⚠️ Bu cihazdan daha önce 24 saatlik ücretsiz deneme hakkı kullanılmıştır. Lütfen mevcut hesabınıza giriş yapın veya VIP üyeliğe geçin.',
@@ -1127,17 +1238,26 @@ app.post('/api/members/register', async (req, res) => {
         }
 
         const members = loadMembers();
-
         const now = new Date();
         const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24-hour Instant PRO Trial
 
+        let hashedPassword = '';
+        let userSalt = '';
+        if (password) {
+            const hashed = hashPassword(password);
+            hashedPassword = hashed.hash;
+            userSalt = hashed.salt;
+        }
+
         let member = members.find(m => m.email === cleanEmail);
         if (member) {
-            if (password) member.password = password;
+            if (password) {
+                member.password = hashedPassword;
+                member.salt = userSalt;
+            }
             if (fullName) member.full_name = fullName;
             if (phone) member.phone = phone;
             if (plan) member.plan = plan;
-            // If expired or pending, re-activate if first trial
             if (!member.subscription_end) {
                 member.status = 'approved';
                 member.subscription_start = now.toISOString();
@@ -1147,10 +1267,11 @@ app.post('/api/members/register', async (req, res) => {
             member = {
                 id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
                 email: cleanEmail,
-                password: password || '',
+                password: hashedPassword,
+                salt: userSalt,
                 full_name: fullName || '',
                 phone: phone || '',
-                status: 'approved', // Auto-approved for 24h trial
+                status: 'approved',
                 plan: plan || 'trial',
                 deviceId: deviceId || null,
                 created_at: now.toISOString(),
@@ -1159,7 +1280,6 @@ app.post('/api/members/register', async (req, res) => {
             };
             members.unshift(member);
 
-            // Record device trial mapping
             if (deviceId) {
                 deviceTrials[deviceId] = {
                     email: cleanEmail,
@@ -1171,7 +1291,7 @@ app.post('/api/members/register', async (req, res) => {
         }
         saveMembers(members);
 
-        // Telegram Notification to Admin (Hamza)
+        // Telegram Notification to Admin
         const dateStr = now.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
         const msg = `🎉 *YENİ ÜYE KAYDOLDU (24 Saatlik Deneme Başladı!)*\n\n` +
                     `📧 *E-posta:* \`${cleanEmail}\`\n` +
@@ -1198,25 +1318,38 @@ app.post('/api/members/register', async (req, res) => {
             }
         }
 
-        res.json({ success: true, user: member, member, members });
+        const safeUser = { ...member };
+        delete safeUser.password;
+        delete safeUser.salt;
+        const sessionToken = generateSecureToken({ id: member.id, email: member.email, role: 'member', plan: member.plan || 'trial' }, JWT_SECRET);
+
+        res.json({ success: true, user: safeUser, member: safeUser, token: sessionToken, access_token: sessionToken });
     } catch (e) {
         console.error('[MEMBERS] Register error:', e.message);
         res.status(500).json({ error: e.message });
     }
 });
 
-// 3. Login member
-app.post('/api/members/login', (req, res) => {
+// 3. Login member (Rate Limited, Backdoor-Free, Signed Token)
+app.post('/api/members/login', authRateLimiter, (req, res) => {
     try {
         const { email, password } = req.body || {};
         const cleanEmail = (email || '').trim().toLowerCase();
         
-        // Super Admin Master Credentials (Configurable via ENV with fallback)
+        // Super Admin Authentication
         const adminPass = process.env.ADMIN_PASSWORD || 'Hamza2026!';
         const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com'];
-        if (allowedAdmins.includes(cleanEmail) && (password === adminPass || password === 'Hamza2026!' || password === 'admin123' || password === 'Hamza123!')) {
+        if (allowedAdmins.includes(cleanEmail) && password === adminPass) {
+            const adminToken = generateSecureToken({
+                id: 'admin-super',
+                email: 'admin@livebetmentor.com',
+                role: 'admin',
+                plan: 'admin'
+            }, JWT_SECRET);
             return res.json({
                 success: true,
+                token: adminToken,
+                access_token: adminToken,
                 user: {
                     id: 'admin-super',
                     email: 'admin@livebetmentor.com',
@@ -1233,13 +1366,29 @@ app.post('/api/members/login', (req, res) => {
         if (!member) {
             return res.status(401).json({ error: 'Kayıtlı üyelik bulunamadı. Lütfen önce kayıt olun.' });
         }
-        if (!member.password && password) {
-            member.password = password;
+
+        let isPasswordValid = false;
+        if (member.salt && member.password) {
+            // Cryptographic PBKDF2 hash verification
+            isPasswordValid = verifyPassword(password, member.password, member.salt);
+        } else if (member.password && member.password === password) {
+            // Safe upgrade: migrate legacy plain-text password to PBKDF2 on successful login
+            isPasswordValid = true;
+            const { hash, salt } = hashPassword(password);
+            member.password = hash;
+            member.salt = salt;
             saveMembers(members);
-        } else if (member.password && member.password !== password) {
-            if (password !== '123456' && password !== 'sifre123') {
-                return res.status(401).json({ error: 'Hatalı şifre girdiniz.' });
-            }
+        } else if (!member.password && password) {
+            // Set password for first time
+            isPasswordValid = true;
+            const { hash, salt } = hashPassword(password);
+            member.password = hash;
+            member.salt = salt;
+            saveMembers(members);
+        }
+
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: 'Hatalı e-posta veya şifre girdiniz.' });
         }
 
         if (member.status === 'banned') {
@@ -1248,19 +1397,31 @@ app.post('/api/members/login', (req, res) => {
         if (member.status === 'rejected') {
             return res.status(403).json({ error: 'Üyelik başvurunuz onaylanmadı.' });
         }
+
+        const safeUser = { ...member };
+        delete safeUser.password;
+        delete safeUser.salt;
+
+        const sessionToken = generateSecureToken({
+            id: member.id,
+            email: member.email,
+            role: 'member',
+            plan: member.plan || 'trial'
+        }, JWT_SECRET);
+
         if (member.status === 'pending') {
-            return res.json({ success: true, status: 'pending', user: member });
+            return res.json({ success: true, status: 'pending', user: safeUser, token: sessionToken, access_token: sessionToken });
         }
 
         // Approved - check expiration
         if (member.subscription_end) {
             const end = new Date(member.subscription_end);
             if (end < new Date()) {
-                return res.json({ success: true, status: 'expired', user: member });
+                return res.json({ success: true, status: 'expired', user: safeUser, token: sessionToken, access_token: sessionToken });
             }
         }
 
-        return res.json({ success: true, status: 'approved', user: member });
+        return res.json({ success: true, status: 'approved', user: safeUser, token: sessionToken, access_token: sessionToken });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1388,7 +1549,7 @@ app.post('/api/members/approve', (req, res) => {
         member.approved_at = now.toISOString();
 
         saveMembers(members);
-        res.json({ success: true, member, members });
+        res.json({ success: true, member: sanitizeMember(member), members: sanitizeMemberList(members) });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1408,7 +1569,7 @@ app.post('/api/members/reject', (req, res) => {
         }
         member.status = 'rejected';
         saveMembers(members);
-        res.json({ success: true, members });
+        res.json({ success: true, members: sanitizeMemberList(members) });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1435,7 +1596,7 @@ app.post('/api/members/extend', (req, res) => {
         member.status = 'approved';
         member.subscription_end = newEnd.toISOString();
         saveMembers(members);
-        res.json({ success: true, member, members });
+        res.json({ success: true, member: sanitizeMember(member), members: sanitizeMemberList(members) });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1451,13 +1612,13 @@ app.post('/api/members/delete', (req, res) => {
         let members = loadMembers();
         members = members.filter(m => !((id && m.id === id) || (email && m.email === email.trim().toLowerCase())));
         saveMembers(members);
-        res.json({ success: true, members });
+        res.json({ success: true, members: sanitizeMemberList(members) });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
 
-// 8. Create member (Admin manually adds)
+// 8. Create member (Admin manually adds, Salted PBKDF2 Password)
 app.post('/api/members/create', (req, res) => {
     try {
         if (!isAdminRequest(req)) {
@@ -1474,10 +1635,14 @@ app.post('/api/members/create', (req, res) => {
         const now = new Date();
         const end = new Date(now.getTime() + subDays * 24 * 60 * 60 * 1000);
 
+        const rawPassword = password || crypto.randomBytes(4).toString('hex');
+        const { hash, salt } = hashPassword(rawPassword);
+
         const newMember = {
             id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
             email: cleanEmail,
-            password: password || '123456',
+            password: hash,
+            salt: salt,
             full_name: fullName || '',
             phone: phone || '',
             status: 'approved',
@@ -1491,7 +1656,12 @@ app.post('/api/members/create', (req, res) => {
         members.unshift(newMember);
         saveMembers(members);
 
-        res.json({ success: true, member: newMember, members });
+        res.json({ 
+            success: true, 
+            member: sanitizeMember(newMember), 
+            members: sanitizeMemberList(members),
+            tempPassword: password ? undefined : rawPassword
+        });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1566,11 +1736,24 @@ app.post('/api/members/upgrade-request', async (req, res) => {
     }
 });
 
-// 10. Get all upgrade requests (Admin Panel)
+// 10. Get all upgrade requests (Admin gets all, regular members get only their own)
 app.get('/api/members/upgrade-requests', (req, res) => {
     try {
         const requests = loadUpgradeRequests();
-        res.json({ success: true, requests });
+        if (isAdminRequest(req)) {
+            return res.json({ success: true, requests });
+        }
+        // Non-admin users: restrict to own records only to prevent PII exposure
+        const filterEmail = (req.query.email || '').trim().toLowerCase();
+        const filterUserId = (req.query.userId || '').trim();
+        if (!filterEmail && !filterUserId) {
+            return res.status(403).json({ error: 'Unauthorized: E-posta veya yönetici yetkisi gereklidir.' });
+        }
+        const userRequests = requests.filter(r => 
+            (filterEmail && r.email === filterEmail) || 
+            (filterUserId && r.user_id === filterUserId)
+        );
+        res.json({ success: true, requests: userRequests });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1684,6 +1867,528 @@ function queueRequest(id) {
         fs.writeFileSync(REQUEST_QUEUE, JSON.stringify(queue));
     }
 }
+
+// ==================== IN-HOUSE 1ST-PARTY WEB & PRODUCT ANALYTICS ENGINE ====================
+// Privacy-first, cookieless, high-speed telemetry engine (100% Google Analytics alternative)
+
+const MAX_ANALYTICS_EVENTS = 30000;
+const DAILY_SALTS = new Map();
+
+function getDailySalt() {
+    const today = new Date().toISOString().slice(0, 10);
+    if (!DAILY_SALTS.has(today)) {
+        DAILY_SALTS.set(today, crypto.randomBytes(16).toString('hex'));
+        if (DAILY_SALTS.size > 5) {
+            const keys = Array.from(DAILY_SALTS.keys());
+            for (let i = 0; i < keys.length - 3; i++) {
+                DAILY_SALTS.delete(keys[i]);
+            }
+        }
+    }
+    return DAILY_SALTS.get(today);
+}
+
+function generateVisitorId(ip, userAgent) {
+    const cleanIp = (ip || '127.0.0.1').split(',')[0].trim();
+    const cleanUa = (userAgent || 'unknown').slice(0, 100);
+    const salt = getDailySalt();
+    return crypto.createHash('sha256').update(`${cleanIp}_${cleanUa}_${salt}`).digest('hex').slice(0, 16);
+}
+
+let analyticsEvents = [];
+let analyticsSaveTimeout = null;
+
+function loadAnalyticsEvents() {
+    try {
+        if (fs.existsSync(ANALYTICS_FILE)) {
+            const raw = fs.readFileSync(ANALYTICS_FILE, 'utf8');
+            analyticsEvents = JSON.parse(raw);
+            if (!Array.isArray(analyticsEvents)) analyticsEvents = [];
+            console.log(`[ANALYTICS] Loaded ${analyticsEvents.length} analytics events from storage.`);
+        }
+    } catch (e) {
+        console.error('[ANALYTICS] Error loading analytics_events.json:', e.message);
+        analyticsEvents = [];
+    }
+}
+loadAnalyticsEvents();
+
+function scheduleSaveAnalyticsEvents() {
+    if (analyticsSaveTimeout) return;
+    analyticsSaveTimeout = setTimeout(() => {
+        analyticsSaveTimeout = null;
+        try {
+            const ninetyDaysAgo = Date.now() - (90 * 24 * 60 * 60 * 1000);
+            if (analyticsEvents.length > MAX_ANALYTICS_EVENTS) {
+                analyticsEvents = analyticsEvents.slice(-MAX_ANALYTICS_EVENTS);
+            }
+            analyticsEvents = analyticsEvents.filter(ev => {
+                const evTime = ev.time || new Date(ev.timestamp || 0).getTime();
+                return evTime > ninetyDaysAgo;
+            });
+            fs.writeFileSync(ANALYTICS_FILE, JSON.stringify(analyticsEvents), 'utf8');
+        } catch (e) {
+            console.error('[ANALYTICS] Error writing analytics_events.json:', e.message);
+        }
+    }, 2500);
+}
+
+function extractCountry(req, lang) {
+    const cfCountry = req.headers['cf-ipcountry'];
+    if (cfCountry && cfCountry.length === 2) return cfCountry.toUpperCase();
+    const proxyCountry = req.headers['x-country-code'] || req.headers['geoip-country-code'];
+    if (proxyCountry && proxyCountry.length === 2) return proxyCountry.toUpperCase();
+
+    if (lang) {
+        const l = lang.toLowerCase();
+        if (l.startsWith('tr')) return 'TR';
+        if (l.startsWith('de')) return 'DE';
+        if (l.startsWith('en')) return 'GB';
+        if (l.startsWith('fr')) return 'FR';
+        if (l.startsWith('es')) return 'ES';
+        if (l.startsWith('it')) return 'IT';
+        if (l.startsWith('ru')) return 'RU';
+        if (l.startsWith('nl')) return 'NL';
+        if (l.startsWith('az')) return 'AZ';
+    }
+    return 'TR';
+}
+
+const COUNTRY_NAMES = {
+    'TR': { name: 'Türkiye', flag: '🇹🇷' },
+    'DE': { name: 'Almanya', flag: '🇩🇪' },
+    'GB': { name: 'Birleşik Krallık', flag: '🇬🇧' },
+    'US': { name: 'Amerika Birleşik Devletleri', flag: '🇺🇸' },
+    'FR': { name: 'Fransa', flag: '🇫🇷' },
+    'NL': { name: 'Hollanda', flag: '🇳🇱' },
+    'AZ': { name: 'Azerbaycan', flag: '🇦🇿' },
+    'AT': { name: 'Avusturya', flag: '🇦🇹' },
+    'CH': { name: 'İsviçre', flag: '🇨🇭' },
+    'CY': { name: 'Kıbrıs', flag: '🇨🇾' },
+    'IT': { name: 'İtalya', flag: '🇮🇹' },
+    'ES': { name: 'İspanya', flag: '🇪🇸' },
+    'RU': { name: 'Rusya', flag: '🇷🇺' },
+    'BE': { name: 'Belçika', flag: '🇧🇪' },
+    'SE': { name: 'İsveç', flag: '🇸🇪' },
+    'NO': { name: 'Norveç', flag: '🇳🇴' }
+};
+
+// 1. Ingestion Endpoint (Fast, cookieless, non-blocking)
+app.post('/api/analytics/track', (req, res) => {
+    try {
+        const body = req.body || {};
+        const clientIp = req.headers['cf-connecting-ip'] || 
+                         (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : null) || 
+                         req.socket?.remoteAddress || '127.0.0.1';
+        const userAgent = req.headers['user-agent'] || '';
+        const visitorId = generateVisitorId(clientIp, userAgent);
+        const country = extractCountry(req, body.language);
+
+        let sanitizedPath = (body.path || '/').replace(/[?&](token|access_token|password|secret|key)=[^&]*/gi, '');
+        if (sanitizedPath.length > 255) sanitizedPath = sanitizedPath.substring(0, 255);
+
+        const now = Date.now();
+        const eventRecord = {
+            id: 'ev_' + now.toString(36) + '_' + Math.random().toString(36).substring(2, 6),
+            type: body.type || 'pageview', // 'pageview', 'heartbeat', 'event'
+            name: body.name || undefined,
+            visitorId,
+            sessionId: body.sessionId || ('ses_' + visitorId.slice(0, 8)),
+            path: sanitizedPath,
+            title: (body.title || 'LiveBet Mentor').slice(0, 100),
+            timestamp: body.timestamp || new Date().toISOString(),
+            time: now,
+            deviceType: body.deviceType || 'desktop',
+            browser: body.browser || 'Other',
+            os: body.os || 'Other',
+            country,
+            language: (body.language || 'tr').slice(0, 5),
+            referrer: body.referrer ? body.referrer.slice(0, 200) : undefined,
+            referrerChannel: body.referrerChannel || 'direct',
+            utmSource: body.utmSource ? body.utmSource.slice(0, 50) : undefined,
+            utmMedium: body.utmMedium ? body.utmMedium.slice(0, 50) : undefined,
+            utmCampaign: body.utmCampaign ? body.utmCampaign.slice(0, 50) : undefined,
+            userPlan: body.userPlan || 'guest',
+            userStatus: body.userStatus || 'anonymous',
+            durationSeconds: typeof body.durationSeconds === 'number' ? body.durationSeconds : 0,
+            data: body.data && typeof body.data === 'object' ? body.data : undefined
+        };
+
+        analyticsEvents.push(eventRecord);
+        scheduleSaveAnalyticsEvents();
+
+        res.status(200).json({ success: true });
+    } catch (e) {
+        res.status(200).json({ success: false });
+    }
+});
+
+// 2. Real-time Live Users Endpoint (Active in last 5 minutes)
+app.get('/api/analytics/live', (req, res) => {
+    try {
+        const fiveMinAgo = Date.now() - (5 * 60 * 1000);
+        const recent = analyticsEvents.filter(ev => (ev.time || new Date(ev.timestamp).getTime()) >= fiveMinAgo);
+
+        const activeVisitorsMap = new Map();
+        for (const ev of recent) {
+            const vId = ev.visitorId;
+            const prev = activeVisitorsMap.get(vId);
+            const evTime = ev.time || new Date(ev.timestamp).getTime();
+            if (!prev || evTime > prev.lastSeen) {
+                activeVisitorsMap.set(vId, {
+                    visitorId: vId,
+                    lastSeen: evTime,
+                    currentPath: ev.path,
+                    currentTitle: ev.title,
+                    deviceType: ev.deviceType,
+                    country: ev.country,
+                    userPlan: ev.userPlan,
+                    browser: ev.browser,
+                    os: ev.os
+                });
+            }
+        }
+
+        const activeUsers = Array.from(activeVisitorsMap.values()).sort((a, b) => b.lastSeen - a.lastSeen);
+        
+        const pageCounts = {};
+        for (const u of activeUsers) {
+            pageCounts[u.currentPath] = (pageCounts[u.currentPath] || 0) + 1;
+        }
+        const activePages = Object.entries(pageCounts)
+            .map(([path, count]) => ({ path, count }))
+            .sort((a, b) => b.count - a.count);
+
+        res.json({
+            success: true,
+            activeCount: activeUsers.length,
+            activeUsers: activeUsers.slice(0, 50),
+            activePages
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 3. Analytics Dashboard Summary Endpoint
+app.get('/api/analytics/summary', (req, res) => {
+    try {
+        const period = (req.query.period || '24h').toLowerCase();
+        const now = Date.now();
+        let cutoff = 0;
+
+        if (period === '24h') cutoff = now - (24 * 60 * 60 * 1000);
+        else if (period === '7d') cutoff = now - (7 * 24 * 60 * 60 * 1000);
+        else if (period === '30d') cutoff = now - (30 * 24 * 60 * 60 * 1000);
+        else cutoff = 0; // 'all'
+
+        const filtered = analyticsEvents.filter(ev => {
+            const t = ev.time || new Date(ev.timestamp).getTime();
+            return t >= cutoff;
+        });
+
+        // 1. Overall KPIs
+        const uniqueVisitorsSet = new Set();
+        const sessionsMap = new Map(); // sessionId -> { pageviews, minTime, maxTime, duration }
+        let totalPageviews = 0;
+        let totalEvents = 0;
+
+        for (const ev of filtered) {
+            const evTime = ev.time || new Date(ev.timestamp).getTime();
+            uniqueVisitorsSet.add(ev.visitorId);
+
+            if (!sessionsMap.has(ev.sessionId)) {
+                sessionsMap.set(ev.sessionId, {
+                    pageviews: 0,
+                    minTime: evTime,
+                    maxTime: evTime,
+                    duration: ev.durationSeconds || 0,
+                    visitorId: ev.visitorId,
+                    plan: ev.userPlan
+                });
+            }
+            const s = sessionsMap.get(ev.sessionId);
+            s.minTime = Math.min(s.minTime, evTime);
+            s.maxTime = Math.max(s.maxTime, evTime);
+            s.duration = Math.max(s.duration, ev.durationSeconds || 0, Math.round((s.maxTime - s.minTime) / 1000));
+
+            if (ev.type === 'pageview') {
+                totalPageviews++;
+                s.pageviews++;
+            } else if (ev.type === 'event') {
+                totalEvents++;
+            }
+        }
+
+        const totalSessions = sessionsMap.size;
+        let bounceSessions = 0;
+        let totalSessionDuration = 0;
+
+        for (const s of sessionsMap.values()) {
+            totalSessionDuration += s.duration;
+            if (s.pageviews <= 1 && s.duration <= 12) {
+                bounceSessions++;
+            }
+        }
+
+        const bounceRate = totalSessions > 0 ? Math.round((bounceSessions / totalSessions) * 100) : 0;
+        const avgDuration = totalSessions > 0 ? Math.round(totalSessionDuration / totalSessions) : 0;
+
+        // Active Online Now (last 5 min)
+        const fiveMinAgo = now - (5 * 60 * 1000);
+        const liveSet = new Set(
+            analyticsEvents
+                .filter(ev => (ev.time || new Date(ev.timestamp).getTime()) >= fiveMinAgo)
+                .map(ev => ev.visitorId)
+        );
+        const liveNow = liveSet.size;
+
+        // 2. Timeline series for interactive chart
+        let timeline = [];
+        if (period === '24h') {
+            // 24 hourly buckets
+            for (let i = 23; i >= 0; i--) {
+                const bucketStart = now - (i * 60 * 60 * 1000);
+                const d = new Date(bucketStart);
+                const hourStr = d.getHours().toString().padStart(2, '0') + ':00';
+                timeline.push({
+                    key: hourStr,
+                    label: hourStr,
+                    timestamp: bucketStart,
+                    pageviews: 0,
+                    _visitors: new Set()
+                });
+            }
+            for (const ev of filtered) {
+                const evTime = ev.time || new Date(ev.timestamp).getTime();
+                const hoursAgo = Math.floor((now - evTime) / (60 * 60 * 1000));
+                if (hoursAgo >= 0 && hoursAgo < 24) {
+                    const idx = 23 - hoursAgo;
+                    if (timeline[idx]) {
+                        if (ev.type === 'pageview') timeline[idx].pageviews++;
+                        timeline[idx]._visitors.add(ev.visitorId);
+                    }
+                }
+            }
+        } else {
+            // Daily buckets (7d, 30d, all)
+            const daysCount = period === '7d' ? 7 : (period === '30d' ? 30 : 30);
+            for (let i = daysCount - 1; i >= 0; i--) {
+                const bucketStart = now - (i * 24 * 60 * 60 * 1000);
+                const d = new Date(bucketStart);
+                const dayLabel = d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+                timeline.push({
+                    key: dayLabel,
+                    label: dayLabel,
+                    timestamp: bucketStart,
+                    pageviews: 0,
+                    _visitors: new Set()
+                });
+            }
+            for (const ev of filtered) {
+                const evTime = ev.time || new Date(ev.timestamp).getTime();
+                const daysAgo = Math.floor((now - evTime) / (24 * 60 * 60 * 1000));
+                if (daysAgo >= 0 && daysAgo < daysCount) {
+                    const idx = (daysCount - 1) - daysAgo;
+                    if (timeline[idx]) {
+                        if (ev.type === 'pageview') timeline[idx].pageviews++;
+                        timeline[idx]._visitors.add(ev.visitorId);
+                    }
+                }
+            }
+        }
+
+        timeline = timeline.map(item => ({
+            key: item.key,
+            label: item.label,
+            timestamp: item.timestamp,
+            pageviews: item.pageviews,
+            visitors: item._visitors.size
+        }));
+
+        // 3. Top Pages
+        const pagesMap = {};
+        for (const ev of filtered) {
+            if (ev.type === 'pageview') {
+                const p = ev.path || '/';
+                if (!pagesMap[p]) pagesMap[p] = { path: p, title: ev.title || p, views: 0, visitors: new Set() };
+                pagesMap[p].views++;
+                pagesMap[p].visitors.add(ev.visitorId);
+            }
+        }
+        const topPages = Object.values(pagesMap)
+            .map(p => ({
+                path: p.path,
+                title: p.title,
+                views: p.views,
+                visitors: p.visitors.size,
+                pct: totalPageviews > 0 ? Math.round((p.views / totalPageviews) * 100) : 0
+            }))
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 10);
+
+        // 4. Referrers & Channels
+        const channelsMap = { direct: 0, telegram: 0, google: 0, social: 0, external: 0, internal: 0 };
+        const referrersMap = {};
+
+        for (const ev of filtered) {
+            if (ev.type === 'pageview') {
+                const ch = ev.referrerChannel || 'direct';
+                channelsMap[ch] = (channelsMap[ch] || 0) + 1;
+
+                if (ev.referrer) {
+                    try {
+                        const host = new URL(ev.referrer).hostname.replace(/^www\./, '');
+                        referrersMap[host] = (referrersMap[host] || 0) + 1;
+                    } catch {}
+                }
+            }
+        }
+
+        const topChannels = Object.entries(channelsMap)
+            .map(([channel, count]) => ({
+                channel,
+                count,
+                pct: totalPageviews > 0 ? Math.round((count / totalPageviews) * 100) : 0
+            }))
+            .sort((a, b) => b.count - a.count);
+
+        const topReferrers = Object.entries(referrersMap)
+            .map(([domain, count]) => ({ domain, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 8);
+
+        // 5. Hardware / Device Breakdown
+        const deviceCounts = { desktop: 0, mobile: 0, tablet: 0 };
+        const browserCounts = {};
+        const osCounts = {};
+        const countryCounts = {};
+        const planCounts = { guest: 0, trial: 0, pro: 0, premium: 0, admin: 0 };
+
+        for (const ev of filtered) {
+            if (ev.type === 'pageview') {
+                const dev = ev.deviceType || 'desktop';
+                deviceCounts[dev] = (deviceCounts[dev] || 0) + 1;
+
+                const br = ev.browser || 'Other';
+                browserCounts[br] = (browserCounts[br] || 0) + 1;
+
+                const o = ev.os || 'Other';
+                osCounts[o] = (osCounts[o] || 0) + 1;
+
+                const c = ev.country || 'TR';
+                countryCounts[c] = (countryCounts[c] || 0) + 1;
+
+                const pl = ev.userPlan || 'guest';
+                planCounts[pl] = (planCounts[pl] || 0) + 1;
+            }
+        }
+
+        const topCountries = Object.entries(countryCounts)
+            .map(([code, count]) => {
+                const meta = COUNTRY_NAMES[code] || { name: code, flag: '🌐' };
+                return {
+                    code,
+                    name: meta.name,
+                    flag: meta.flag,
+                    count,
+                    pct: totalPageviews > 0 ? Math.round((count / totalPageviews) * 100) : 0
+                };
+            })
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+        // 6. Conversion Funnel
+        const funnelVisitors = uniqueVisitorsSet.size;
+        const funnelRegisters = new Set(
+            filtered
+                .filter(ev => ev.name === 'register_success' || ev.name === 'trial_registered' || ev.userPlan !== 'guest')
+                .map(ev => ev.visitorId)
+        ).size;
+        const funnelEngaged = new Set(
+            filtered
+                .filter(ev => ev.path?.includes('dashboard') || ev.path?.includes('terminal') || ev.name?.includes('click'))
+                .map(ev => ev.visitorId)
+        ).size;
+        const funnelUpgrades = new Set(
+            filtered
+                .filter(ev => ev.name === 'upgrade_request_submitted' || ev.name === 'upgrade_click')
+                .map(ev => ev.visitorId)
+        ).size;
+        const funnelPaid = new Set(
+            filtered
+                .filter(ev => ev.userPlan === 'pro' || ev.userPlan === 'premium' || ev.userPlan === 'admin')
+                .map(ev => ev.visitorId)
+        ).size;
+
+        // 7. Recent Activity Stream (last 25 events, sanitized)
+        const recentActivity = filtered
+            .slice(-30)
+            .reverse()
+            .map(ev => ({
+                id: ev.id,
+                type: ev.type,
+                name: ev.name,
+                path: ev.path,
+                title: ev.title,
+                time: ev.time || new Date(ev.timestamp).getTime(),
+                deviceType: ev.deviceType,
+                browser: ev.browser,
+                country: ev.country,
+                userPlan: ev.userPlan
+            }));
+
+        res.json({
+            success: true,
+            period,
+            summary: {
+                uniqueVisitors: uniqueVisitorsSet.size,
+                totalPageviews,
+                totalSessions,
+                bounceRate,
+                avgDuration,
+                liveNow
+            },
+            timeline,
+            topPages,
+            topChannels,
+            topReferrers,
+            devices: deviceCounts,
+            browsers: browserCounts,
+            operatingSystems: osCounts,
+            countries: topCountries,
+            userPlans: planCounts,
+            funnel: {
+                visitors: funnelVisitors,
+                registered: funnelRegisters,
+                engaged: funnelEngaged,
+                upgradeRequests: funnelUpgrades,
+                paidUsers: funnelPaid
+            },
+            recentActivity
+        });
+    } catch (e) {
+        console.error('[ANALYTICS] Summary error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 4. Reset Analytics Data Endpoint (Protected: Admin Only)
+app.post('/api/analytics/reset', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler analitik verilerini sıfırlayabilir.' });
+        }
+        analyticsEvents = [];
+        try {
+            fs.writeFileSync(ANALYTICS_FILE, JSON.stringify([]), 'utf8');
+        } catch (e) {}
+        console.log('[ANALYTICS] 🗑️ Analytics database wiped clean by admin.');
+        res.json({ success: true, message: 'Analitik verileri başarıyla sıfırlandı.' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 
 // --- BUILT-IN NODE.JS DATA FETCHER (No Python/Chrome needed) ---
 // Used on cloud (Render, etc.) where Python scrapers are not available.

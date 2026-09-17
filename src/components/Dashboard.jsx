@@ -24,6 +24,7 @@ import { LegalModal } from './LegalModal';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
 import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
+import { trackPageView, trackAnalyticsEvent } from '../utils/analyticsTracker';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -254,6 +255,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
     };
 
+    // Track internal view changes in analytics
+    useEffect(() => {
+        const viewTitles = {
+            DASHBOARD: 'LiveBet Mentor | Canlı Dashboard',
+            ADMIN: 'LiveBet Mentor | Yönetici Paneli',
+            RADAR: 'LiveBet Mentor | Günlük Radar',
+            PORTFOLIO: 'LiveBet Mentor | Portföy & Kasa',
+            TRENDING: 'LiveBet Mentor | Trend Analizi'
+        };
+        trackPageView('/dashboard/' + (view || 'main').toLowerCase(), viewTitles[view] || `LiveBet Mentor | ${view}`);
+    }, [view]);
+
     useEffect(() => {
         if (user) {
             const plan = userProfile?.plan || 'premium';
@@ -270,9 +283,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         ? 'http://localhost:3001'
                         : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
 
-                    // 1. Check Backend API upgrade requests
+                    // 1. Check Backend API upgrade requests (Scoped to current user)
                     try {
-                        const res = await fetch(`${proxyBase}/api/members/upgrade-requests`);
+                        const qParams = new URLSearchParams();
+                        if (user?.email) qParams.append('email', user.email);
+                        if (user?.id) qParams.append('userId', user.id);
+                        const res = await fetch(`${proxyBase}/api/members/upgrade-requests?${qParams.toString()}`);
                         if (res.ok) {
                             const data = await res.json();
                             if (data?.requests && Array.isArray(data.requests)) {
@@ -648,7 +664,14 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data.success) sentSuccessfully = true;
+                    if (data.success) {
+                        sentSuccessfully = true;
+                        trackAnalyticsEvent('upgrade_request_submitted', {
+                            requestedPlan,
+                            currentPlan: userProfile?.plan || 'trial',
+                            email: user?.email
+                        });
+                    }
                 }
             } catch (beErr) {
                 console.warn('[UPGRADE] Backend request warning:', beErr);

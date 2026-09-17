@@ -4,6 +4,7 @@ import { LandingPage } from './components/LandingPage'
 import { supabase } from './backend/supabaseClient'
 import { translations } from './locales/translations'
 import { CONFIG } from './config'
+import { initAnalytics, trackPageView, updateAnalyticsUser, trackAnalyticsEvent } from './utils/analyticsTracker'
 import './styles/global.css'
 
 const isLocal = typeof window !== 'undefined' && (
@@ -114,6 +115,30 @@ function App() {
       console.warn('Lang sync error:', e);
     }
   }, [lang]);
+
+  // Initialize in-house cookieless analytics tracker
+  useEffect(() => {
+    initAnalytics({ userProfile });
+  }, []);
+
+  // Synchronize user profile updates with analytics context
+  useEffect(() => {
+    if (userProfile) {
+      updateAnalyticsUser(userProfile);
+    }
+  }, [userProfile]);
+
+  // Track pageview on page transitions (landing, dashboard, pending, expired)
+  useEffect(() => {
+    const titles = {
+      landing: 'LiveBet Mentor | Canlı İstatistik & AI Terminali',
+      dashboard: 'LiveBet Mentor | Canlı Maç Terminali',
+      pending: 'LiveBet Mentor | Onay Bekleniyor',
+      expired: 'LiveBet Mentor | Abonelik Süresi Doldu'
+    };
+    const path = '/' + (page === 'landing' ? '' : page);
+    trackPageView(path, titles[page] || document.title, { page });
+  }, [page]);
 
   const t = translations[lang] || translations['en'];
 
