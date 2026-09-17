@@ -2,6 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { calculateMatchHeatScore, formatMarketPrediction } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { CONFIG } from '../config';
+import { MatchLiveStatsCard } from './MatchLiveStatsCard';
+import { AttackMomentumGraph as DefaultAttackGraph } from './AttackMomentumGraph';
+import { MatchIncidentsTimeline as DefaultIncidentsTimeline } from './MatchIncidentsTimeline';
 
 export const LiveTerminalTable = ({
     matches = [],
@@ -22,6 +25,8 @@ export const LiveTerminalTable = ({
     userProfile = null,
     onOpenUpgrade = () => {}
 }) => {
+    const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
+    const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
     const [expandedMatchId, setExpandedMatchId] = useState(null);
 
     const handleRowClick = (match, e) => {
@@ -364,18 +369,36 @@ export const LiveTerminalTable = ({
                                         <tr className="tb-expanded-row">
                                             <td colSpan={13}>
                                                 <div className="tb-expanded-content">
-                                                    {/* Left: Momentum Graph & Timeline */}
-                                                    <div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                                            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--tb-text-secondary)' }}>
-                                                                📈 {lang === 'tr' ? 'CANLI BASKI GRAFİĞİ' : 'LIVE MOMENTUM GRAPH'}
-                                                            </span>
-                                                            <span style={{ fontSize: '0.7rem', color: 'var(--tb-text-muted)' }}>
-                                                                DQS: {(m.dqs || 0).toFixed(2)} | Tier: {m.tier || 1}
-                                                            </span>
+                                                    {/* Left: Momentum Graph, Live Stats & Incidents */}
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                                        {/* Momentum Wave Header & Graph */}
+                                                        <div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                                                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                    <span>📈</span>
+                                                                    <span>{lang === 'tr' ? 'CANLI BASKI GRAFİĞİ (MOMENTUM DALGASI)' : 'LIVE ATTACK MOMENTUM WAVE'}</span>
+                                                                </span>
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--tb-text-muted)', fontWeight: 700 }}>
+                                                                    DQS: {(m.dqs || 0).toFixed(2)} | Tier {m.tier || 1}
+                                                                </span>
+                                                            </div>
+                                                            {EffectiveAttackGraph && (
+                                                                <EffectiveAttackGraph match={m} lang={lang} />
+                                                            )}
                                                         </div>
-                                                        {AttackMomentumGraph && (
-                                                            <AttackMomentumGraph match={m} />
+
+                                                        {/* Live Match Real-time Stats */}
+                                                        <MatchLiveStatsCard match={m} lang={lang} t={t} />
+
+                                                        {/* Match Incidents Timeline (Goals, Cards, Subs) */}
+                                                        {EffectiveIncidentsTimeline && (
+                                                            <div>
+                                                                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--tb-text-secondary)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                    <span>⏱️</span>
+                                                                    <span>{lang === 'tr' ? 'CANLI MAÇ OLAYLARI & KRONOLOJİ' : 'MATCH INCIDENTS TIMELINE'}</span>
+                                                                </div>
+                                                                <EffectiveIncidentsTimeline match={m} lang={lang} />
+                                                            </div>
                                                         )}
                                                     </div>
 

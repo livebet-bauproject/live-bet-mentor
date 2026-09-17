@@ -1,18 +1,77 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
+
+const incidentsCache = new Map();
 
 export const MatchIncidentsTimeline = ({
-    incidents = [],
-    homeTeam = 'Ev Sahibi',
-    awayTeam = 'Deplasman',
-    homeTeamLogo = null,
-    awayTeamLogo = null,
-    currentScore = null,
+    match = null,
+    incidents: propIncidents = null,
+    homeTeam: propHomeTeam = null,
+    awayTeam: propAwayTeam = null,
+    homeTeamLogo: propHomeTeamLogo = null,
+    awayTeamLogo: propAwayTeamLogo = null,
+    currentScore: propCurrentScore = null,
     lang = 'tr',
-    loading = false
+    loading: propLoading = null
 }) => {
+    const matchId = match?.id;
+    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || 'Ev Sahibi';
+    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || 'Deplasman';
+    const homeTeamId = match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
+    const awayTeamId = match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
+    const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
+    const homeTeamLogo = propHomeTeamLogo || match?.homeTeamLogo || (homeTeamId ? `${apiBase}/api/team/${homeTeamId}/image` : null);
+    const awayTeamLogo = propAwayTeamLogo || match?.awayTeamLogo || (awayTeamId ? `${apiBase}/api/team/${awayTeamId}/image` : null);
+    const currentScore = propCurrentScore || match?.score;
+
+    const [fetchedIncidents, setFetchedIncidents] = useState(() => {
+        if (propIncidents !== null && propIncidents !== undefined) return propIncidents;
+        if (matchId && incidentsCache.has(matchId)) return incidentsCache.get(matchId).incidents || [];
+        return [];
+    });
+    const [loading, setLoading] = useState(() => {
+        if (propLoading !== null) return propLoading;
+        if (propIncidents !== null && propIncidents !== undefined) return false;
+        if (matchId && incidentsCache.has(matchId)) return false;
+        return Boolean(matchId);
+    });
     const [filter, setFilter] = useState('ALL'); // 'ALL' or 'KEY' (Goals & Cards only)
 
-    if (loading) {
+    useEffect(() => {
+        if (propIncidents !== null && propIncidents !== undefined) {
+            setFetchedIncidents(propIncidents);
+            setLoading(false);
+            return;
+        }
+        if (!matchId) return;
+
+        let isCancelled = false;
+        const now = Date.now();
+        const cached = incidentsCache.get(matchId);
+        if (cached && (now - cached.time < 60000)) {
+            setFetchedIncidents(cached.incidents || []);
+            setLoading(false);
+        } else {
+            setLoading(true);
+            sofaScoreAdapter.fetchEventIncidents(matchId).then(incs => {
+                if (isCancelled) return;
+                const list = Array.isArray(incs) ? incs : [];
+                setFetchedIncidents(list);
+                incidentsCache.set(matchId, { time: Date.now(), incidents: list });
+                setLoading(false);
+            }).catch(() => {
+                if (!isCancelled) setLoading(false);
+            });
+        }
+        return () => {
+            isCancelled = true;
+        };
+    }, [matchId, propIncidents]);
+
+    const incidents = propIncidents !== null && propIncidents !== undefined ? propIncidents : fetchedIncidents;
+    const isLoading = propLoading !== null ? propLoading : loading;
+
+    if (isLoading) {
         return (
             <div style={{
                 padding: '1.2rem',

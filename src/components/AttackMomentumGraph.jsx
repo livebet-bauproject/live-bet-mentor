@@ -1,24 +1,134 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
+
+const graphCache = new Map();
+const incidentsCache = new Map();
 
 export const AttackMomentumGraph = ({
-    points = [],
-    homeTeam = 'Ev Sahibi',
-    awayTeam = 'Deplasman',
-    homeTeamLogo = null,
-    awayTeamLogo = null,
-    homeTeamId = null,
-    awayTeamId = null,
-    currentMinute = 90,
-    status = null,
-    incidents = [],
+    match = null,
+    points: propPoints = null,
+    homeTeam: propHomeTeam = null,
+    awayTeam: propAwayTeam = null,
+    homeTeamLogo: propHomeTeamLogo = null,
+    awayTeamLogo: propAwayTeamLogo = null,
+    homeTeamId: propHomeTeamId = null,
+    awayTeamId: propAwayTeamId = null,
+    currentMinute: propCurrentMinute = null,
+    status: propStatus = null,
+    incidents: propIncidents = null,
     height = 130,
     lang = 'tr',
-    loading = false,
-    noGraph = false
+    loading: propLoading = null,
+    noGraph: propNoGraph = false
 }) => {
+    const matchId = match?.id;
+    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || 'Ev Sahibi';
+    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || 'Deplasman';
+    const homeTeamId = propHomeTeamId ?? match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
+    const awayTeamId = propAwayTeamId ?? match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
+    const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
+    const homeTeamLogo = propHomeTeamLogo || match?.homeTeamLogo || (homeTeamId ? `${apiBase}/api/team/${homeTeamId}/image` : null);
+    const awayTeamLogo = propAwayTeamLogo || match?.awayTeamLogo || (awayTeamId ? `${apiBase}/api/team/${awayTeamId}/image` : null);
+    const currentMinute = propCurrentMinute ?? (parseInt(match?.minute) || 90);
+    const status = propStatus || match?.status;
+
+    const [fetchedPoints, setFetchedPoints] = useState(() => {
+        if (propPoints !== null && propPoints !== undefined) return propPoints;
+        if (matchId && graphCache.has(matchId)) return graphCache.get(matchId).points || [];
+        return [];
+    });
+    const [fetchedIncidents, setFetchedIncidents] = useState(() => {
+        if (propIncidents !== null && propIncidents !== undefined) return propIncidents;
+        if (matchId && incidentsCache.has(matchId)) return incidentsCache.get(matchId).incidents || [];
+        return [];
+    });
+    const [loading, setLoading] = useState(() => {
+        if (propLoading !== null) return propLoading;
+        if (propPoints !== null && propPoints !== undefined) return false;
+        if (matchId && graphCache.has(matchId)) return false;
+        return Boolean(matchId);
+    });
+    const [noGraph, setNoGraph] = useState(() => {
+        if (propNoGraph) return true;
+        if (matchId && graphCache.has(matchId)) return Boolean(graphCache.get(matchId).noGraph);
+        return false;
+    });
+
     const [hoveredItem, setHoveredItem] = useState(null); // point or incident
 
-    if (loading) {
+    useEffect(() => {
+        if (propPoints !== null && propPoints !== undefined) {
+            setFetchedPoints(propPoints);
+            setLoading(false);
+            return;
+        }
+
+        if (!matchId) return;
+
+        let isCancelled = false;
+        const now = Date.now();
+
+        // 1. Check cache
+        const cachedGraph = graphCache.get(matchId);
+        if (cachedGraph && (now - cachedGraph.time < 60000)) {
+            setFetchedPoints(cachedGraph.points || []);
+            setNoGraph(Boolean(cachedGraph.noGraph));
+            setLoading(false);
+        } else {
+            setLoading(true);
+            setNoGraph(false);
+
+            sofaScoreAdapter.fetchEventGraph(matchId).then(res => {
+                if (isCancelled) return;
+                const pts = res?.graphPoints || (Array.isArray(res) ? res : []);
+                if (pts.length > 0) {
+                    setFetchedPoints(pts);
+                    setNoGraph(false);
+                    graphCache.set(matchId, { time: Date.now(), points: pts, noGraph: false });
+                } else if (res?.noGraph) {
+                    setFetchedPoints([]);
+                    setNoGraph(true);
+                    graphCache.set(matchId, { time: Date.now(), points: [], noGraph: true });
+                } else {
+                    setFetchedPoints([]);
+                    setNoGraph(true);
+                    graphCache.set(matchId, { time: Date.now(), points: [], noGraph: true });
+                }
+                setLoading(false);
+            }).catch(() => {
+                if (!isCancelled) {
+                    setLoading(false);
+                    setNoGraph(true);
+                }
+            });
+        }
+
+        // Fetch incidents if not provided
+        if (propIncidents === null || propIncidents === undefined) {
+            const cachedIncs = incidentsCache.get(matchId);
+            if (cachedIncs && (now - cachedIncs.time < 60000)) {
+                setFetchedIncidents(cachedIncs.incidents || []);
+            } else {
+                sofaScoreAdapter.fetchEventIncidents(matchId).then(incs => {
+                    if (isCancelled) return;
+                    const list = Array.isArray(incs) ? incs : [];
+                    setFetchedIncidents(list);
+                    incidentsCache.set(matchId, { time: Date.now(), incidents: list });
+                }).catch(() => {});
+            }
+        }
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [matchId, propPoints, propIncidents]);
+
+    const points = propPoints !== null && propPoints !== undefined ? propPoints : fetchedPoints;
+    const incidents = propIncidents !== null && propIncidents !== undefined ? propIncidents : fetchedIncidents;
+    const isLoading = propLoading !== null ? propLoading : loading;
+    const hasNoGraph = propNoGraph || noGraph;
+
+    if (isLoading) {
         return (
             <div style={{
                 padding: '1.5rem',
@@ -50,9 +160,9 @@ export const AttackMomentumGraph = ({
                 color: '#94a3b8',
                 fontSize: '0.75rem'
             }}>
-                <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>{noGraph ? 'ℹ️' : '📈'}</div>
+                <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>{hasNoGraph ? 'ℹ️' : '📈'}</div>
                 <div>
-                    {noGraph
+                    {hasNoGraph
                         ? (lang === 'tr' ? 'Bu lig/kupa maçı için canlı baskı radarı bulunmuyor' : 'Live pressure wave radar not available for this event')
                         : (lang === 'tr' ? 'Canlı Attack Momentum dalga verisi bekleniyor...' : 'Awaiting live Attack Momentum wave data...')
                     }

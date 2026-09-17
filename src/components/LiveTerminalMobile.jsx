@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { calculateMatchHeatScore, formatMarketPrediction } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { CONFIG } from '../config';
+import { MatchLiveStatsCard } from './MatchLiveStatsCard';
+import { AttackMomentumGraph as DefaultAttackGraph } from './AttackMomentumGraph';
+import { MatchIncidentsTimeline as DefaultIncidentsTimeline } from './MatchIncidentsTimeline';
 
 export const LiveTerminalMobile = ({
     matches = [],
@@ -22,6 +25,8 @@ export const LiveTerminalMobile = ({
     userProfile = null,
     onOpenUpgrade = () => {}
 }) => {
+    const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
+    const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
     const [expandedMatchId, setExpandedMatchId] = useState(null);
 
     const handleCardClick = (match, e) => {
@@ -360,19 +365,25 @@ export const LiveTerminalMobile = ({
                             {isExpanded && (
                                 <div className="tb-m-drawer tb-action-ignore">
                                     {/* Momentum Graph */}
-                                    {AttackMomentumGraph && (
+                                    {EffectiveAttackGraph && (
                                         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '8px' }}>
-                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--tb-text-secondary)', marginBottom: '4px' }}>
-                                                📈 Canlı Baskı Grafiği
+                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#38bdf8', marginBottom: '4px' }}>
+                                                📈 Canlı Baskı Grafiği (Attack Momentum)
                                             </div>
-                                            <AttackMomentumGraph match={m} />
+                                            <EffectiveAttackGraph match={m} lang={lang} />
                                         </div>
                                     )}
 
+                                    {/* Match Live Stats Card */}
+                                    <MatchLiveStatsCard match={m} lang={lang} t={t} />
+
                                     {/* Match Incidents Timeline */}
-                                    {MatchIncidentsTimeline && (
+                                    {EffectiveIncidentsTimeline && (
                                         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '8px' }}>
-                                            <MatchIncidentsTimeline match={m} />
+                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--tb-text-secondary)', marginBottom: '4px' }}>
+                                                ⏱️ Canlı Maç Olayları
+                                            </div>
+                                            <EffectiveIncidentsTimeline match={m} lang={lang} />
                                         </div>
                                     )}
 
