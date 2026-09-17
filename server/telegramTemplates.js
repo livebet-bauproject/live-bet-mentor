@@ -263,7 +263,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 🔒 _Net tahmin ve oran VIP grubumuzda canlı paylaşıldı._
 
 💎 *Sinyalleri 0 saniye gecikmeyle yakalamak için:*
-👉 @${botUser} bota /deneme yazarak *3 Günlük Ücretsiz VIP* başlatın veya /vip ile katılın!
+👉 @${botUser} bota /deneme yazarak *24 Saatlik Ücretsiz VIP* başlatın veya /vip ile katılın!
 🌐 *Web Terminali:* https://live-bet-mentor-brown.vercel.app`;
     }
 
@@ -274,7 +274,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 🔒 _Vollständiger Tipp & faire Quote im VIP-Kanal geteilt._
 
 💎 *Signale ohne Verzögerung (0s Latenz) erhalten:*
-👉 Sende /trial oder /test an @${botUser} für einen *3-Tage VIP-Pass* oder /vip zum Beitreten!
+👉 Sende /trial oder /test an @${botUser} für einen *24-Stunden VIP-Pass* oder /vip zum Beitreten!
 🌐 *Web-Terminal:* https://live-bet-mentor-brown.vercel.app`;
     }
 
@@ -284,7 +284,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 🔒 _Full pick & fair odds shared in VIP Syndicate._
 
 💎 *Catch signals live with zero latency:*
-👉 Send /trial to @${botUser} for a *3-Day Free VIP Pass* or /vip to join!
+👉 Send /trial to @${botUser} for a *24-Hour Free VIP Pass* or /vip to join!
 🌐 *Web Terminal:* https://live-bet-mentor-brown.vercel.app`;
 }
 
@@ -650,10 +650,10 @@ Yapay zeka destekli canlı analiz ve otonom değer sinyalleri servisi.
 • Şeffaf günlük başarı takibi
 
 🎁 *Ücretsiz Deneme:*
-/deneme — *3 Günlük Ücretsiz VIP Üyeliğinizi* hemen başlatın!
+/deneme — *24 Saatlik Ücretsiz VIP Üyeliğinizi* hemen başlatın!
 
 📩 *Hızlı Komutlar:*
-/deneme — 3 günlük ücretsiz VIP deneme
+/deneme — 24 saatlik ücretsiz VIP deneme
 /profil — VIP üyelik durumunu sorgula
 /kupon — Günün canlı altın kombinesi
 /stats — Günlük performans tablosu
@@ -676,10 +676,10 @@ KI-gestützter Live-Fußballanalyse- und Value-Signal-Service.
 • Transparente tägliche Erfolgsbilanz
 
 🎁 *Kostenlose Testphase:*
-/trial oder /test — Starten Sie sofort Ihren *3-Tage VIP-Pass*!
+/trial oder /test — Starten Sie sofort Ihren *24-Stunden VIP-Pass*!
 
 📩 *Befehle:*
-/trial oder /test — 3 Tage kostenloser VIP-Zugang
+/trial oder /test — 24 Stunden kostenloser VIP-Zugang
 /profil — Abonnement-Status prüfen
 /kombi — Tägliche Gold-Kombi
 /stats — Tagesperformance
@@ -700,10 +700,10 @@ AI-powered live football analysis & value signal service.
 • ⚡ Bookmaker Lag & Latency Arbitrage
 
 🎁 *Free Trial:*
-/trial — Activate your *3-Day Free VIP Pass* instantly!
+/trial — Activate your *24-Hour Free VIP Pass* instantly!
 
 📩 *Commands:*
-/trial — 3-day free VIP trial
+/trial — 24-hour free VIP trial
 /profile — Check subscription status
 /combo — Daily Golden Double
 /stats — Performance ledger
@@ -738,8 +738,8 @@ Yapay zeka xG ivmesi, Poisson oranları ve gecikme arbitrajı sinyallerine 0 san
 _(Kopyalamak için adrese dokunun)_
 Ödeme sonrası TXID veya dekontu bu bota mesaj olarak göndermeniz yeterlidir.
 
-🎁 *Sistemi 3 Gün Boyunca Ücretsiz Test Etmek İçin:*
-👉 /deneme yazarak *3 Günlük Ücretsiz VIP Erişiminizi* hemen başlatabilirsiniz!
+🎁 *Sistemi 24 Saat Boyunca Ücretsiz Test Etmek İçin:*
+👉 /deneme yazarak *24 Saatlik Ücretsiz VIP Erişiminizi* hemen başlatabilirsiniz!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor Quant Syndicate*`;
     }
@@ -762,8 +762,8 @@ Zugriff ohne Verzögerung auf In-Play Quant-Signale, +EV Value-Wetten und Latenz
 _(Tippen zum Kopieren der Adresse)_
 Senden Sie nach der Überweisung einfach die TXID oder einen Screenshot hierher für die sofortige VIP-Freischaltung.
 
-🎁 *3 Tage kostenlos testen:*
-👉 Senden Sie /trial oder /test, um Ihren *3-Tage kostenlosen VIP-Pass* sofort zu aktivieren!
+🎁 *24 Stunden kostenlos testen:*
+👉 Senden Sie /trial oder /test, um Ihren *24-Stunden kostenlosen VIP-Pass* sofort zu aktivieren!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor Quant Syndicate*`;
     }
@@ -786,7 +786,7 @@ _(Tap to copy address)_
 Send TXID or screenshot here upon transfer for immediate VIP activation.
 
 🎁 *Instant Free Trial:*
-👉 Send /trial to activate your *3-Day Free VIP Pass* instantly!
+👉 Send /trial to activate your *24-Hour Free VIP Pass* instantly!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor VIP Syndicate*`;
 }

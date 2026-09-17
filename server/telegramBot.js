@@ -1000,12 +1000,12 @@ _Average activation time: 2–5 minutes._
                 const isTr = userLang === 'tr';
                 const isDe = userLang === 'de';
                 if (trialRes.success) {
-                    const inviteLink = await this.createInviteLink(username, 72);
-                    let msg = `🎉 *3-DAY VIP TRIAL PASS ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\nYou have been granted full institutional access to our quantitative live signal feed for 72 hours.\n\n⏰ *Duration:* 3 Days (72 Hours)\n💎 *Tier:* Complimentary VIP Trial Pass\n\n🎟️ *Your One-Time VIP Access Link:* \n👉 ${inviteLink || 'Direct VIP access in progress...'}\n\n_To extend your pass or subscribe, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    const inviteLink = await this.createInviteLink(username, 24);
+                    let msg = `🎉 *24-HOUR VIP TRIAL PASS ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\nYou have been granted full institutional access to our quantitative live signal feed for 24 hours.\n\n⏰ *Duration:* 24 Hours (1 Day)\n💎 *Tier:* Complimentary VIP Trial Pass\n\n🎟️ *Your One-Time VIP Access Link:* \n👉 ${inviteLink || 'Direct VIP access in progress...'}\n\n_To extend your pass or subscribe, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
                     if (isTr) {
-                        msg = `🎉 *3 GÜNLÜK ÜCRETSİZ VIP DENEME BAŞLATILDI!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n72 saat boyunca tüm canlı quant sinyallerimize ve kasa koruma bildirimlerimize ücretsiz erişim tanımlandı.\n\n⏰ *Süre:* 3 Gün (72 Saat)\n💎 *Paket:* Ücretsiz VIP Deneme Paketi\n\n🎟️ *Tek Kullanımlık VIP Giriş Bağlantınız:* \n👉 ${inviteLink || 'VIP erişimi hazırlanıyor...'}\n\n_Sürenizi uzatmak veya paketleri incelemek için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                        msg = `🎉 *24 SAATLİK ÜCRETSİZ VIP DENEME BAŞLATILDI!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n24 saat boyunca tüm canlı quant sinyallerimize ve kasa koruma bildirimlerimize ücretsiz erişim tanımlandı.\n\n⏰ *Süre:* 24 Saat (1 Gün)\n💎 *Paket:* Ücretsiz VIP Deneme Paketi\n\n🎟️ *Tek Kullanımlık VIP Giriş Bağlantınız:* \n👉 ${inviteLink || 'VIP erişimi hazırlanıyor...'}\n\n_Sürenizi uzatmak veya paketleri incelemek için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
                     } else if (isDe) {
-                        msg = `🎉 *3-TAGE KOSTENLOSER VIP-PASS AKTIVIERT!* 🎉\n━━━━━━━━━━━━━━━━━━\nWillkommen @${username},\nSie haben 72 Stunden lang vollen Zugriff auf unseren quantitativen Live-Signal-Feed und Kapitalschutz.\n\n⏰ *Dauer:* 3 Tage (72 Stunden)\n💎 *Paket:* Kostenloser VIP-Testpass\n\n🎟️ *Ihr persönlicher VIP-Zugangslink:* \n👉 ${inviteLink || 'VIP-Zugang wird vorbereitet...'}\n\n_Um den Pass zu verlängern, schreiben Sie /vip._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                        msg = `🎉 *24-STUNDEN KOSTENLOSER VIP-PASS AKTIVIERT!* 🎉\n━━━━━━━━━━━━━━━━━━\nWillkommen @${username},\nSie haben 24 Stunden lang vollen Zugriff auf unseren quantitativen Live-Signal-Feed und Kapitalschutz.\n\n⏰ *Dauer:* 24 Stunden (1 Tag)\n💎 *Paket:* Kostenloser VIP-Testpass\n\n🎟️ *Ihr persönlicher VIP-Zugangslink:* \n👉 ${inviteLink || 'VIP-Zugang wird vorbereitet...'}\n\n_Um den Pass zu verlängern, schreiben Sie /vip._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
                     }
                     await this.sendMessage(chatId, msg);
                 } else if (trialRes.reason === 'ACTIVE_TRIAL') {
@@ -1018,10 +1018,10 @@ _Average activation time: 2–5 minutes._
                     await this.sendMessage(chatId, msg);
                 } else {
                     const msg = isTr
-                        ? `ℹ️ *Ücretsiz Deneme Hakkı Daha Önce Kullanılmış.*\n\nDaha önce 3 günlük deneme hakkınızı kullandınız. VIP grubumuza sınırsız erişmek için paketleri /vip yazarak inceleyebilirsiniz.`
+                        ? `ℹ️ *Ücretsiz Deneme Hakkı Daha Önce Kullanılmış.*\n\nDaha önce 24 saatlik deneme hakkınızı kullandınız. VIP grubumuza sınırsız erişmek için paketleri /vip yazarak inceleyebilirsiniz.`
                         : isDe
-                        ? `ℹ️ *Testpass bereits eingelöst.*\n\nSie haben Ihre 3 kostenlosen Testtage bereits genutzt. Um dauerhaften Zugriff zu erhalten, tippen Sie /vip.`
-                        : `ℹ️ *Trial Pass Already Used.*\n\nYou have already claimed your 3-day trial. To unlock permanent access to our VIP Quant Syndicate, type /vip.`;
+                        ? `ℹ️ *Testpass bereits eingelöst.*\n\nSie haben Ihre 24-stündige kostenlose Testphase bereits genutzt. Um dauerhaften Zugriff zu erhalten, tippen Sie /vip.`
+                        : `ℹ️ *Trial Pass Already Used.*\n\nYou have already claimed your 24-hour trial. To unlock permanent access to our VIP Quant Syndicate, type /vip.`;
                     await this.sendMessage(chatId, msg);
                 }
                 break;
@@ -1037,10 +1037,10 @@ _Average activation time: 2–5 minutes._
 
                 if (rem && rem.active) {
                     const planName = isTr
-                        ? (userObj?.plan === 'TRIAL' ? '3 Günlük Ücretsiz Deneme' : 'VIP Quant Aboneliği')
+                        ? (userObj?.plan === 'TRIAL' ? '24 Saatlik Ücretsiz Deneme' : 'VIP Quant Aboneliği')
                         : isDe
-                        ? (userObj?.plan === 'TRIAL' ? '3-Tage Kostenlose Testphase' : 'VIP Quant-Abonnement')
-                        : (userObj?.plan === 'TRIAL' ? '3-Day Free Trial' : 'VIP Quant Subscription');
+                        ? (userObj?.plan === 'TRIAL' ? '24-Stunden Kostenlose Testphase' : 'VIP Quant-Abonnement')
+                        : (userObj?.plan === 'TRIAL' ? '24-Hour Free Trial' : 'VIP Quant Subscription');
 
                     const msg = isTr
                         ? `👑 *VIP Abonelik & Profil Durumu:*\n━━━━━━━━━━━━━━━━━━\n• Kullanıcı: @${username}\n• Chat ID: \`${chatId}\`\n• Paket: *${planName}*\n• Durum: *AKTİF*\n• Kalan Süre: *${rem.text}*\n• Tercih Edilen Dil: *${userLang.toUpperCase()}*\n• Ayrıcalıklar: Canlı Sinyaller + Stop-Loss + Arbitraj Radarı\n━━━━━━━━━━━━━━━━━━\n_Yenilemek veya yükseltmek için /vip yazabilirsiniz._`
@@ -1057,10 +1057,10 @@ _Average activation time: 2–5 minutes._
                     await this.sendMessage(chatId, msg);
                 } else {
                     const msg = isTr
-                        ? `ℹ️ *Aktif Bir VIP Aboneliği Bulunamadı.*\n━━━━━━━━━━━━━━━━━━\n• 3 Günlük *Ücretsiz* deneme başlat: /deneme\n• VIP Paketlerini incele: /vip\n• Dil tercihi: /dil`
+                        ? `ℹ️ *Aktif Bir VIP Aboneliği Bulunamadı.*\n━━━━━━━━━━━━━━━━━━\n• 24 Saatlik *Ücretsiz* deneme başlat: /deneme\n• VIP Paketlerini incele: /vip\n• Dil tercihi: /dil`
                         : isDe
-                        ? `ℹ️ *Kein aktives VIP-Abonnement gefunden.*\n━━━━━━━━━━━━━━━━━━\n• 3-Tage *KOSTENLOSE* Testphase: /test\n• VIP-Pakete ansehen: /vip\n• Sprache ändern: /sprache`
-                        : `ℹ️ *No Active VIP Subscription Found.*\n━━━━━━━━━━━━━━━━━━\n• Start 3-day *FREE* trial: /trial\n• Explore VIP Syndicate tiers: /vip\n• Change language: /lang`;
+                        ? `ℹ️ *Kein aktives VIP-Abonnement gefunden.*\n━━━━━━━━━━━━━━━━━━\n• 24-Stunden *KOSTENLOSE* Testphase: /test\n• VIP-Pakete ansehen: /vip\n• Sprache ändern: /sprache`
+                        : `ℹ️ *No Active VIP Subscription Found.*\n━━━━━━━━━━━━━━━━━━\n• Start 24-hour *FREE* trial: /trial\n• Explore VIP Syndicate tiers: /vip\n• Change language: /lang`;
                     await this.sendMessage(chatId, msg);
                 }
                 break;
