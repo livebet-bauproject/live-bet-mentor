@@ -37,31 +37,36 @@ function getCanvasFingerprint() {
     }
 }
 
+function getWebGLFingerprint() {
+    try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (!gl) return 'nowebgl';
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (!debugInfo) return 'nowebgldebug';
+        const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
+        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+        return simpleHash(`${vendor}~${renderer}`);
+    } catch (e) {
+        return 'webglerr';
+    }
+}
+
 export function getDeviceFingerprint() {
     if (typeof window === 'undefined') return 'server-env';
 
-    // 1. Check if we already assigned and persisted a persistent local device ID
-    let persistentId = null;
-    try {
-        persistentId = localStorage.getItem('lbm_device_uuid');
-    } catch (e) {}
-
-    // 2. Compute hardware and browser attributes
-    const screenInfo = `${window.screen?.width || 0}x${window.screen?.height || 0}x${window.screen?.colorDepth || 0}`;
+    // 1. Compute deterministic hardware attributes (persistent across incognito)
+    const screenInfo = `${window.screen?.width || 0}x${window.screen?.height || 0}x${window.screen?.colorDepth || 0}x${window.devicePixelRatio || 1}`;
     const tz = Intl?.DateTimeFormat ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'unknown_tz';
     const cpuCores = navigator.hardwareConcurrency || 2;
     const canvasHash = getCanvasFingerprint();
-    const ua = (navigator.userAgent || '').slice(0, 80);
+    const webglHash = getWebGLFingerprint();
+    const platform = navigator.platform || 'unknown_platform';
+    const lang = navigator.language || 'unknown_lang';
 
-    const rawSignature = `${screenInfo}|${tz}|${cpuCores}|${canvasHash}|${ua}`;
+    const rawSignature = `${screenInfo}|${tz}|${cpuCores}|${canvasHash}|${webglHash}|${platform}|${lang}`;
     const hardwareHash = simpleHash(rawSignature);
 
-    if (!persistentId) {
-        persistentId = `dev_${hardwareHash}_${Math.random().toString(36).substring(2, 8)}`;
-        try {
-            localStorage.setItem('lbm_device_uuid', persistentId);
-        } catch (e) {}
-    }
-
-    return `${hardwareHash}_${persistentId}`;
+    // Return deterministic hardware ID without Math.random() so incognito doesn't bypass detection
+    return `hw_${hardwareHash}`;
 }

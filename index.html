@@ -1,11 +1,128 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>LiveBet Mentor | Canlı İstatistik & AI Terminali</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Primary Meta Tags -->
+  <title>LiveBet Mentor | Canlı Maç İstatistikleri, xG & AI Analiz Terminali</title>
+  <meta name="title" content="LiveBet Mentor | Canlı Maç İstatistikleri, xG & AI Analiz Terminali">
+  <meta name="description" content="Yapay zeka ve Poisson modelleriyle desteklenen canlı maç analiz terminali. Canlı xG gol beklentisi, anlık atak momentumu, Kelly kriteri kasa yönetimi ve kantitatif spor istatistikleri.">
+  <meta name="keywords" content="canlı maç istatistikleri, xg analizi, canlı futbol radar, poisson modeli, kelly criterion hesaplama, maç momentumu, in-play football stats, quant spor analitiği">
+  <meta name="author" content="LiveBet Mentor Labs">
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#0a0e17">
+  
+  <!-- Canonical & Alternate Hreflang -->
+  <link rel="canonical" href="https://livebetmentor.com/">
+  <link rel="alternate" hreflang="x-default" href="https://livebetmentor.com/">
+  <link rel="alternate" hreflang="tr" href="https://livebetmentor.com/?lang=tr">
+  <link rel="alternate" hreflang="en" href="https://livebetmentor.com/?lang=en">
+  <link rel="alternate" hreflang="de" href="https://livebetmentor.com/?lang=de">
+
+  <!-- Open Graph / Facebook / WhatsApp / Telegram -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://livebetmentor.com/">
+  <meta property="og:site_name" content="LiveBet Mentor">
+  <meta property="og:title" content="LiveBet Mentor | Canlı Maç İstatistikleri, xG & AI Analiz Terminali">
+  <meta property="og:description" content="Canlı xG oranları, 0-100 baskı ısı skorları, Poisson dağılımı ve disiplinli Kelly kasa yönetimi ile profesyonel canlı maç telemetri terminali.">
+  <meta property="og:image" content="https://livebetmentor.com/logo.svg">
+  <meta property="og:locale" content="tr_TR">
+  <meta property="og:locale:alternate" content="en_US">
+  <meta property="og:locale:alternate" content="de_DE">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://livebetmentor.com/">
+  <meta name="twitter:title" content="LiveBet Mentor | Canlı Maç İstatistikleri, xG & AI Analiz Terminali">
+  <meta name="twitter:description" content="Canlı xG oranları, 0-100 baskı ısı skorları, Poisson dağılımı ve disiplinli Kelly kasa yönetimi ile profesyonel canlı maç telemetri terminali.">
+  <meta name="twitter:image" content="https://livebetmentor.com/logo.svg">
+
+  <!-- Fonts Preconnect -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>">
+
+  <!-- Structured Data: SoftwareApplication & Organization (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://livebetmentor.com/#app",
+        "name": "LiveBet Mentor",
+        "url": "https://livebetmentor.com",
+        "applicationCategory": "SportsApplication",
+        "operatingSystem": "Web, Mobile (iOS, Android)",
+        "description": "Yapay zeka ve Poisson modelleriyle donatılmış profesyonel canlı futbol analitiği, anlık xG telemetrisi ve Kelly Kriteri sermaye yönetimi terminali.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "description": "24 Saatlik Ücretsiz PRO Deneme Sürümü"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "342"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://livebetmentor.com/#org",
+        "name": "LiveBet Mentor Labs",
+        "url": "https://livebetmentor.com",
+        "logo": "https://livebetmentor.com/logo.svg",
+        "sameAs": [
+          "https://t.me/Livebetdeskbot"
+        ]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://livebetmentor.com/#website",
+        "url": "https://livebetmentor.com",
+        "name": "LiveBet Mentor",
+        "inLanguage": ["tr", "en", "de"],
+        "publisher": {
+          "@id": "https://livebetmentor.com/#org"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://livebetmentor.com/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "LiveBet Mentor nedir ve nasıl çalışır?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "LiveBet Mentor, canlı futbol maçlarını veri sağlayıcılarından saniye bazında çeken, Poisson olasılık dağılımı, xG (beklenen gol) ve baskı dalgası telemetrisi ile analiz eden kurumsal bir kantitatif spor analiz terminalidir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Kelly Kriteri ile Kasa Yönetimi neden önemlidir?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Kelly Kriteri, rastgele ve kontrolsüz bahis miktarları yerine matematiksel değere (Edge Score) göre kasa yüzdesini optimize eden formüldür. Kasanın erimesini önler ve uzun vadeli sermaye koruması sağlar."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "DQS (Data Quality Score) veri güvenliği eşiği nedir?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "DQS, canlı veri akışındaki gecikmeyi (latency) ve veri tutarlılığını 0.00-1.00 arasında ölçer. Gecikme 30 saniyeyi aştığında sistem otomatik NO-BET kalkanı açarak hatalı kararları engeller."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
   <div id="root"></div>

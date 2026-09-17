@@ -1,0 +1,30 @@
+﻿# LiveBet Mentor - Technical SEO Directive
+# SaaS Spor Analitiği ve Quant Modelleme Platformu
+# https://livebetmentor.com
+
+User-agent: *
+Allow: /
+Allow: /public/
+Allow: /assets/
+Disallow: /api/
+Disallow: /api-sofascore/
+Disallow: /api-redscores/
+Disallow: /admin/
+Disallow: /pending/
+
+# Major Search Engine Crawlers
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+
+User-agent: YandexBot
+Allow: /
+Disallow: /api/
+
+# Host & Sitemap Directives
+Host: https://livebetmentor.com
+Sitemap: https://livebetmentor.com/sitemap.xml

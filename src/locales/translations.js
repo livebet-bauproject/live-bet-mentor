@@ -186,15 +186,15 @@ export const translations = {
         pro_badge: "PROFESYONEL",
         premium_badge: "PREMIUM",
         extend_info: "Üyeliğinizi uzatmak veya plan değiştirmek için yöneticinizle iletişime geçin.",
-        trial_banner_title: "24 SAATLİK PRO DENEME",
-        trial_banner_desc: "Tüm VIP xG Radarı, Alevli Maçlar ve Canlı Sinyaller 24 saat boyunca sınırsız açıktır.",
+        trial_banner_title: "3 GÜNLÜK PRO DENEME",
+        trial_banner_desc: "Tüm VIP xG Radarı, Alevli Maçlar ve Canlı Sinyaller 3 gün (72 saat) boyunca sınırsız açıktır.",
         expiry_warning: "Üyeliğiniz kısa süre içinde sona erecektir!",
         telegram_upgrade: "Telegram ile Hemen Yükselt",
         plan_features_pro: "Pro Plan Avantajları: Tüm Ligler, Sınırsız AI Raporu, Akıllı Alarmlar.",
-        plan_features_trial: "24 Saatlik PRO Deneme: Canlı xG radarı, alevli maçlar ve VIP sinyallere tam erişim.",
+        plan_features_trial: "3 Günlük PRO Deneme: Canlı xG radarı, alevli maçlar ve VIP sinyallere tam erişim.",
 
         // Plan Comparison (Honest Set)
-        plan_trial_price: "24 Saat Ücretsiz",
+        plan_trial_price: "3 Gün Ücretsiz",
         plan_trial_subtext: "anında tam erişim",
         plan_pro_price: "{price} {curr}",
         plan_premium_price: "{price} {curr}",
@@ -204,12 +204,12 @@ export const translations = {
         billing_yearly: "Yıllık (%25 İndirim)",
         annual_discount_badge: "%25 İNDİRİM / 2 AY HEDİYE",
         plan_trial_features: [
-            "24 Saat Kesintisiz PRO Deneme Erişimi",
+            "3 Gün Kesintisiz PRO Deneme Erişimi",
             "Canlı xG Radarı & Alevli Maç Alarmları",
             "Tüm Konsensus Kaynakları & Sinyaller",
             "Canlı Baskı & Momentum Grafikleri",
             "Piyasa Akışı & Akıllı Para Tespiti",
-            "Kredi Kartsız Anında Aktivasyon"
+            "Telegram ile Tek Tıkla Aktivasyon"
         ],
         plan_pro_features: [
             "Tam Kapsamlı Analiz & DQS Motoru",

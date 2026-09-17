@@ -263,7 +263,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 🔒 _Net tahmin ve oran VIP grubumuzda canlı paylaşıldı._
 
 💎 *Sinyalleri 0 saniye gecikmeyle yakalamak için:*
-👉 @${botUser} bota /deneme yazarak *24 Saatlik Ücretsiz VIP* başlatın veya /vip ile katılın!
+👉 @${botUser} bota /deneme yazarak *3 Günlük Ücretsiz VIP* başlatın veya /vip ile katılın!
 🌐 *Web Terminali:* https://live-bet-mentor-brown.vercel.app`;
     }
 
@@ -649,11 +649,11 @@ Yapay zeka destekli canlı analiz ve otonom değer sinyalleri servisi.
 • ⚡ Büro Oran Açığı & Gecikme Arbitrajı
 • Şeffaf günlük başarı takibi
 
-🎁 *Ücretsiz Deneme:*
-/deneme — *24 Saatlik Ücretsiz VIP Üyeliğinizi* hemen başlatın!
+    🎁 *Ücretsiz Deneme:*
+/deneme — *3 Günlük (72 Saat) Ücretsiz VIP Üyeliğinizi* hemen başlatın!
 
 📩 *Hızlı Komutlar:*
-/deneme — 24 saatlik ücretsiz VIP deneme
+/deneme — 3 günlük (72 saat) ücretsiz VIP deneme
 /profil — VIP üyelik durumunu sorgula
 /kupon — Günün canlı altın kombinesi
 /stats — Günlük performans tablosu
@@ -676,10 +676,10 @@ KI-gestützter Live-Fußballanalyse- und Value-Signal-Service.
 • Transparente tägliche Erfolgsbilanz
 
 🎁 *Kostenlose Testphase:*
-/trial oder /test — Starten Sie sofort Ihren *24-Stunden VIP-Pass*!
+/trial oder /test — Starten Sie sofort Ihren *3-Tage (72h) VIP-Pass*!
 
 📩 *Befehle:*
-/trial oder /test — 24 Stunden kostenloser VIP-Zugang
+/trial oder /test — 3 Tage (72 Stunden) kostenloser VIP-Zugang
 /profil — Abonnement-Status prüfen
 /kombi — Tägliche Gold-Kombi
 /stats — Tagesperformance
@@ -700,10 +700,10 @@ AI-powered live football analysis & value signal service.
 • ⚡ Bookmaker Lag & Latency Arbitrage
 
 🎁 *Free Trial:*
-/trial — Activate your *24-Hour Free VIP Pass* instantly!
+/trial — Activate your *3-Day (72h) Free VIP Pass* instantly!
 
 📩 *Commands:*
-/trial — 24-hour free VIP trial
+/trial — 3-day (72-hour) free VIP trial
 /profile — Check subscription status
 /combo — Daily Golden Double
 /stats — Performance ledger
@@ -721,72 +721,223 @@ export function formatVIPInfo(settings = {}, lang = 'tr') {
     const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://shopier.com/livebetmentor';
     
     if (isTr) {
-        return `💎 *VIP QUANT SYNDICATE ÜYELİK PAKETLERİ*
+        return `💎 *LIVE BET MENTOR ÜYELİK VE VIP PAKETLERİ*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-Yapay zeka xG ivmesi, Poisson oranları ve gecikme arbitrajı sinyallerine 0 saniye gecikmeyle erişin.
+Yapay zeka xG ivmesi, Poisson oranları ve anlık değer sinyallerine 0 saniye gecikmeyle erişin.
 
-🎟️ *Abonelik Paketleri:*
-1️⃣ *Haftalık VIP Pass:* *9.90 €* (veya 11 USDT) (7 Günlük tam erişim)
-2️⃣ *Aylık VIP Pro (En Popüler):* *14.90 €* (veya 16 USDT) (30 Gün tam erişim)
-3️⃣ *Premium Pass:* *34.90 €* (veya 38 USDT) (Tüm AI Modülleri + VIP Bot)
+🎟️ *Resmi Paket Seçenekleri:*
 
-💳 *1. Ödeme Yolu (Kredi Kartı / Havale - Anında Otomatik Aktivasyon):*
-👉 [Kredi Kartı ile Güvenli Satın Al](${shopierLink})
+1️⃣ 🎁 *DENEME — 3 Gün Ücretsiz (72 Saat)*
+• Kredi kartsız & anında erişim
+• 3 gün (72 saat) kesintisiz PRO deneme erişimi
+• Canlı xG radarı & alevli maç alarmları
+• Tüm konsensüs kaynakları & momentum grafikleri
+👉 _Hemen başlatmak için:_ /deneme
 
-💰 *2. Ödeme Yolu (Kripto - USDT TRC-20):*
-\`${usdtAddress}\`
-_(Kopyalamak için adrese dokunun)_
-Ödeme sonrası TXID veya dekontu bu bota mesaj olarak göndermeniz yeterlidir.
+2️⃣ 💎 *PROFESYONEL*
+• 🗓️ *Aylık Plan:* *29 € / Ay*
+• 🌟 *Yıllık Plan (2 Ay Hediye):* *228 € / Yıl* _(Aylık 19 €'ya gelir)_
+• Tam Kapsamlı Analiz & DQS Motoru
+• Gelişmiş Küresel Ligler (Tier 1 & Tier 2 Tam Erişim)
+• Tüm Konsensus Kaynakları (IQ Ağırlıklı)
+• Günlük 15 AI Uzman Raporu & 150 Akıllı Alarm
 
-🎁 *Sistemi 24 Saat Boyunca Ücretsiz Test Etmek İçin:*
-👉 /deneme yazarak *24 Saatlik Ücretsiz VIP Erişiminizi* hemen başlatabilirsiniz!
+3️⃣ 👑 *PREMIUM (EN POPÜLER)*
+• 🗓️ *Aylık Plan:* *79 € / Ay*
+• 🌟 *Yıllık Plan (2 Ay Hediye):* *660 € / Yıl* _(Aylık 55 €'ya gelir)_
+• Tüm Pro Özellikleri Dahil
+• 📱 VIP Telegram Botu (Telefona Anında Canlı Sinyal)
+• Günlük 50 AI Derin Analiz Raporu & Sınırsız Akıllı Alarm
+• 💰 Kasa Yönetimi & Otomatik Kelly Bahis Miktarı
+• 💎 Erken Değer (Value Bet) & Arbitraj Radarı
+• 7/24 Öncelikli VIP Telegram Destek Hattı
+
+⚡ *Anında Satın Alma:*
+Aşağıdaki butonları kullanarak CryptoBot ile (USDT, TON, Kart veya Telegram Cüzdanınızla) anında ödeyebilirsiniz.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor Quant Syndicate*`;
     }
 
     if (isDe) {
-        return `💎 *VIP QUANT SYNDICATE MITGLIEDSCHAFT*
+        return `💎 *LIVE BET MENTOR MITGLIEDSCHAFT & VIP-PAKETE*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 Zugriff ohne Verzögerung auf In-Play Quant-Signale, +EV Value-Wetten und Latenz-Arbitrage.
 
-🎟️ *Abonnement-Pässe:*
-1️⃣ *Wöchentlicher Pass:* *9.90 €* (oder 11 USDT) (7 Tage voller Zugriff)
-2️⃣ *Monatlicher Pro-Pass (Beliebt):* *14.90 €* (oder 16 USDT) (30 Tage uneingeschränkt)
-3️⃣ *Premium-Pass:* *34.90 €* (oder 38 USDT) (Alle Module + VIP-Bot)
+🎟️ *Offizielle Mitgliedschaftspakete:*
 
-💳 *1. Zahlungsmethode (Kreditkarte / Sofort-Aktivierung):*
-👉 [Sicher mit Karte bezahlen](${shopierLink})
+1️⃣ 🎁 *TESTPHASE — 3 Tage Kostenlos (72 Stunden)*
+• Sofortiger Zugriff ohne Kreditkarte
+• 3 Tage (72 Stunden) uneingeschränkter PRO-Testzugang
+• Live-xG-Radar & Flammen-Match-Alarme
+• Alle Konsensquellen & Momentum-Grafiken
+👉 _Jetzt starten:_ /test oder /trial
 
-💰 *2. Zahlungsmethode (Krypto - USDT TRC-20):*
-\`${usdtAddress}\`
-_(Tippen zum Kopieren der Adresse)_
-Senden Sie nach der Überweisung einfach die TXID oder einen Screenshot hierher für die sofortige VIP-Freischaltung.
+2️⃣ 💎 *PROFESSIONELL*
+• 🗓️ *Monatlich:* *29 € / Monat*
+• 🌟 *Jährlich (2 Monate Gratis):* *228 € / Jahr* _(entspricht 19 €/M)_
+• Vollständige DQS- und Risikoanalyse
+• Globale Ligen (Tier 1 & Tier 2 Vollzugriff)
+• Alle Konsensquellen (IQ-gewichtet)
+• 15 tägliche KI-Expertenberichte & 150 Alarme
 
-🎁 *24 Stunden kostenlos testen:*
-👉 Senden Sie /trial oder /test, um Ihren *24-Stunden kostenlosen VIP-Pass* sofort zu aktivieren!
+3️⃣ 👑 *PREMIUM (BELIEBTESTE)*
+• 🗓️ *Monatlich:* *79 € / Monat*
+• 🌟 *Jährlich (2 Monate Gratis):* *660 € / Jahr* _(entspricht 55 €/M)_
+• Alle Pro-Funktionen enthalten
+• 📱 VIP Telegram Bot (Sofortige Live-Signale aufs Handy)
+• 50 tägliche KI-Tiefenanalyse-Berichte & Unbegrenzte Alarme
+• 💰 Bankroll-Management & Kelly-Einsatz
+• 💎 Value-Wetten & Arbitrage-Radar
+• 7/24 Prioritäts-Support via VIP Telegram
+
+⚡ *Sofortige Freischaltung:*
+Klicken Sie unten auf die Schaltflächen, um direkt über CryptoBot (USDT, TON oder Wallet) zu bezahlen.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor Quant Syndicate*`;
     }
 
-    return `💎 *VIP QUANT SYNDICATE MEMBERSHIP*
+    return `💎 *LIVE BET MENTOR MEMBERSHIP & VIP TIERS*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-Zero-latency access to in-play algorithmic signals, +EV value edges and live latency arbitrage.
+Institutional zero-latency algorithmic signals, Poisson distributions and real-time edge alerts.
 
-🎟️ *Membership Passes:*
-1️⃣ *Weekly Pass:* *9.90 €* (or 11 USDT) (7 Days full access)
-2️⃣ *Monthly Pro (Most Popular):* *14.90 €* (or 16 USDT) (30 Days unrestricted)
-3️⃣ *Premium Pass:* *34.90 €* (or 38 USDT) (Full Modules + VIP Bot)
+🎟️ *Official Subscription Tiers:*
 
-💳 *Card / Checkout:*
-👉 [Instant Card Checkout](${shopierLink})
+1️⃣ 🎁 *TRIAL — 3 Days Free (72 Hours)*
+• Instant activation, no credit card required
+• 3 days (72 hours) unrestricted PRO trial access
+• Live xG radar & flame match alerts
+• All consensus sources & momentum charts
+👉 _Start now:_ /trial
 
-💰 *Crypto (USDT TRC-20):*
-\`${usdtAddress}\`
-_(Tap to copy address)_
-Send TXID or screenshot here upon transfer for immediate VIP activation.
+2️⃣ 💎 *PROFESSIONAL*
+• 🗓️ *Monthly Pass:* *29 € / Month*
+• 🌟 *Annual Pass (2 Months Free):* *228 € / Year* _(equals 19 €/mo)_
+• Full-stack DQS and match analytics
+• Global leagues (Tier 1 & Tier 2 full access)
+• All consensus ingestion sources (IQ-weighted)
+• 15 daily AI expert reports & 150 smart alerts
 
-🎁 *Instant Free Trial:*
-👉 Send /trial to activate your *24-Hour Free VIP Pass* instantly!
+3️⃣ 👑 *PREMIUM (MOST POPULAR)*
+• 🗓️ *Monthly Pass:* *79 € / Month*
+• 🌟 *Annual Pass (2 Months Free):* *660 € / Year* _(equals 55 €/mo)_
+• All Pro features included
+• 📱 VIP Telegram Bot (Instant push signals to your phone)
+• 50 daily AI deep quantitative reports & unlimited alerts
+• 💰 Bankroll management & auto-Kelly staking
+• 💎 Early value bet & arbitrage radar
+• 24/7 priority VIP Telegram support line
+
+⚡ *Instant Checkout:*
+Use the buttons below to pay securely via CryptoBot (USDT, TON, cards or Telegram wallet).
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor Quant Syndicate*`;
+}
+
+export function formatFomoWinningCard(signal, result, finalScore = null, lang = 'tr') {
+    const isTr = lang === 'tr';
+    const isDe = lang === 'de';
+    const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetdeskbot';
+    
+    const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
+    const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
+    const market = cleanMd(resolveMarketText(signal, lang) || signal.market || (isTr ? 'Tahmin' : isDe ? 'Tipp' : 'Pick'));
+    const odds = signal.recommendation?.odds || signal.odds || '1.80';
+    const alertMin = signal.minute ? `${signal.minute}'` : '';
+    const scoreStr = finalScore ? (typeof finalScore === 'object' ? `${finalScore.home}-${finalScore.away}` : finalScore) : (signal.resultScore || '');
+
+    if (isTr) {
+        return `🎯 *DÜDÜK ÇALDI, KASA KAZANDI!* 🎯
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚽ *${home} vs ${away}* ${scoreStr ? `[*${scoreStr}*]` : ''}
+⏱️ *Sinyal Dakikası:* ${alertMin || 'Canlı'}
+🎯 *Hedef Bahis:* *${market}* ✅
+📊 *Yakalanan Oran:* *${odds}* | *Kâr Kasaya Eklendi!*
+
+🔒 _VIP Kulübümüz bu değeri 0 saniye gecikmeyle canlıda yakaladı._
+
+🔥 *Sıradaki kazanan sinyali kaçırmamak için:*
+👉 Hemen bota gidin ve /deneme yazarak *3 Günlük Ücretsiz VIP* başlatın: @${botUser}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Syndicate*`;
+    }
+
+    if (isDe) {
+        return `🎯 *SPIEL BEENDET, GEWINN GESICHERT!* 🎯
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚽ *${home} vs ${away}* ${scoreStr ? `[*${scoreStr}*]` : ''}
+⏱️ *Signal-Minute:* ${alertMin || 'Live'}
+🎯 *Erfolgreicher Tipp:* *${market}* ✅
+📊 *Quote:* *${odds}* | *Gewinn verbucht!*
+
+🔒 _Unser VIP-Syndikat hat diesen Pick mit 0s Latenz live erfasst._
+
+🔥 *Um die nächsten Treffer nicht zu verpassen:*
+👉 Jetzt @${botUser} anschreiben und /trial für den *3-Tage (72h) VIP-Pass* senden!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Syndicate*`;
+    }
+
+    return `🎯 *TARGET HIT, PROFIT SECURED!* 🎯
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚽ *${home} vs ${away}* ${scoreStr ? `[*${scoreStr}*]` : ''}
+⏱️ *Alert Minute:* ${alertMin || 'In-Play'}
+🎯 *Winning Pick:* *${market}* ✅
+📊 *Locked Odds:* *${odds}* | *Profit Added to Ledger!*
+
+🔒 _Our VIP Syndicate captured this value in-play with zero delay._
+
+🔥 *Don't miss the next verified in-play alert:*
+👉 Start your *3-Day (72h) Free VIP Pass* now by sending /trial to @${botUser}!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 *Live Bet Mentor VIP Syndicate*`;
 }
+
+export function formatTrialExpiringOffer(user, hoursRemaining = 4, lang = 'tr') {
+    const isTr = lang === 'tr';
+    const isDe = lang === 'de';
+    const username = user.username || 'Üye';
+    const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://shopier.com/livebetmentor';
+
+    if (isTr) {
+        return `⏳ *DİKKAT: ÜCRETSİZ VIP DENEMENİZİN BİTMESİNE ${hoursRemaining} SAAT KALDI!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sayın @${username},
+3 günlük (72 saat) deneme süreniz sona ermek üzere. VIP kanalımızdaki canlı xG baskı alarmlarına, +EV fırsatlarına ve kasa koruma bildirimlerine kesintisiz erişmeye devam etmek için:
+
+💎 *Özel Kampanya:* Bugün yenileme yapanlara Aylık Pro pakette anında indirim tanımlandı.
+
+👉 *VIP Aboneliğinizi Hemen Uzatın:* /vip
+👉 *Doğrudan Kartla Öde & Otomatik Aç:* [Buraya Tıklayın](${shopierLink})
+
+_Herhangi bir sorunuz varsa bize bu sohbet üzerinden mesaj atabilirsiniz._
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Kulübü*`;
+    }
+
+    if (isDe) {
+        return `⏳ *ACHTUNG: IHRE KOSTENLOSE VIP-TESTPHASE ENDET IN ${hoursRemaining} STUNDEN!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Liebe(r) @${username},
+Ihr 3-Tage (72h) Testpass läuft bald ab. Sichern Sie sich unterbrechungsfreien Zugriff auf Live-Signale und Latenz-Radar:
+
+💎 *Sonderangebot:* Verlängern Sie jetzt mit Sonderrabatt auf den Monats-Pass!
+
+👉 *VIP-Status verlängern:* Senden Sie /vip
+👉 *Sofort per Karte aktivieren:* [Hier klicken](${shopierLink})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Syndicate*`;
+    }
+
+    return `⏳ *NOTICE: YOUR FREE VIP PASS EXPIRES IN ${hoursRemaining} HOURS!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Dear @${username},
+Your complimentary 3-day (72h) trial is about to conclude. To maintain uninterrupted zero-latency access to institutional in-play signals & capital shields:
+
+💎 *Special Renewal Offer:* Activate your monthly pass today to lock in priority pricing!
+
+👉 *Renew VIP Access:* Send /vip
+👉 *Direct Card Checkout:* [Click Here](${shopierLink})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Syndicate*`;
+}
+

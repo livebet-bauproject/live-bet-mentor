@@ -983,16 +983,19 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         const isYearly = billingCycle === 'yearly';
         const curr = settings.price_currency || '€';
-        const proMonthlyBase = (settings.price_pro !== undefined && settings.price_pro !== '') ? Number(settings.price_pro) : 14.90;
-        const premiumMonthlyBase = (settings.price_premium !== undefined && settings.price_premium !== '') ? Number(settings.price_premium) : 34.90;
+        const proMonthlyBase = (settings.price_pro !== undefined && settings.price_pro !== '') ? Number(settings.price_pro) : 29;
+        const premiumMonthlyBase = (settings.price_premium !== undefined && settings.price_premium !== '') ? Number(settings.price_premium) : 79;
 
         const formatPrice = (n) => (n % 1 === 0 ? n.toString() : n.toFixed(2));
 
-        const proPriceVal = isYearly ? (proMonthlyBase === 14.90 ? 9.90 : Math.round(proMonthlyBase * 0.7)) : proMonthlyBase;
-        const premiumPriceVal = isYearly ? (premiumMonthlyBase === 34.90 ? 24.90 : Math.round(premiumMonthlyBase * 0.7)) : premiumMonthlyBase;
+        const proPriceVal = isYearly ? (proMonthlyBase === 29 ? 19 : Math.round(proMonthlyBase * 0.7)) : proMonthlyBase;
+        const premiumPriceVal = isYearly ? (premiumMonthlyBase === 79 ? 55 : Math.round(premiumMonthlyBase * 0.7)) : premiumMonthlyBase;
 
         const proPrice = `${formatPrice(proPriceVal)} ${curr}`;
         const premiumPrice = `${formatPrice(premiumPriceVal)} ${curr}`;
+
+        const proYearlyTotal = 228;
+        const premiumYearlyTotal = 660;
 
         const plans = [
             {
@@ -1000,8 +1003,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 name: t.trial_badge,
                 color: '#94a3b8',
                 features: t.plan_trial_features,
-                price: lang === 'tr' ? '24 Saat Ücretsiz' : '24h Free PRO Trial',
-                subtext: lang === 'tr' ? 'Anında erişim, kredi kartsız' : 'Instant access, no card required',
+                price: lang === 'tr' ? '3 Gün Ücretsiz' : '3-Day Free PRO Trial',
+                subtext: lang === 'tr' ? 'Cuma-Pazar bülteni dahil' : 'Full weekend matchdays included',
                 isFree: true
             },
             {
@@ -1010,7 +1013,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 color: '#38bdf8',
                 features: t.plan_pro_features,
                 price: proPrice,
-                subtext: isYearly ? (t.billed_annually || (lang === 'tr' ? 'Yıllık faturalandırılır (2 Ay Hediye)' : 'Billed annually (2 months free)')) : null,
+                subtext: isYearly 
+                    ? (lang === 'tr' ? `Yıllık tek çekim: ${proYearlyTotal} ${curr} (2 Ay Hediye)` : `Billed annually: ${proYearlyTotal} ${curr} (2 Months Free)`)
+                    : null,
                 isFree: false
             },
             {
@@ -1020,7 +1025,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 badge: lang === 'tr' ? 'EN POPÜLER' : 'MOST POPULAR',
                 features: t.plan_premium_features,
                 price: premiumPrice,
-                subtext: isYearly ? (t.billed_annually || (lang === 'tr' ? 'Yıllık faturalandırılır (2 Ay Hediye)' : 'Billed annually (2 months free)')) : null,
+                subtext: isYearly 
+                    ? (lang === 'tr' ? `Yıllık tek çekim: ${premiumYearlyTotal} ${curr} (2 Ay Hediye)` : `Billed annually: ${premiumYearlyTotal} ${curr} (2 Months Free)`)
+                    : null,
                 isFree: false
             }
         ];
@@ -1213,23 +1220,44 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         if (!selectedPlanForUpgrade) return null;
 
         const p = selectedPlanForUpgrade;
-        const features = p.id === 'pro' ? t.plan_pro_features : t.plan_premium_features;
+        const isTrial = p.id === 'trial';
+        const isYearly = billingCycle === 'yearly';
+        const curr = settings.price_currency || '€';
+        const actualCharge = isTrial 
+            ? p.price 
+            : (isYearly ? (p.id === 'pro' ? `228 ${curr}` : `660 ${curr}`) : p.price);
+        const periodDesc = isTrial
+            ? (lang === 'tr' ? '3 Günlük Ücretsiz PRO Deneme' : '3-Day Free PRO Trial')
+            : (isYearly 
+                ? (lang === 'tr' ? '1 Yıllık Tam Erişim (365 Gün — 2 Ay Hediye)' : '1 Year Full Access (365 Days — 2 Months Free)') 
+                : (lang === 'tr' ? '1 Aylık Tam Erişim (30 Gün)' : '1 Month Full Access (30 Days)'));
+        const features = isTrial ? t.plan_trial_features : (p.id === 'pro' ? t.plan_pro_features : t.plan_premium_features);
 
         return (
             <div className="modal-overlay" style={{ zIndex: 10002 }} onClick={() => setSelectedPlanForUpgrade(null)}>
                 <div className="modal-content glass-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', padding: '2.5rem' }}>
                     <button className="close-btn" onClick={() => setSelectedPlanForUpgrade(null)}>×</button>
-                    <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>{p.id === 'pro' ? '🚀' : '💎'}</div>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: p.color }}>{p.name} {t.upgrade_plan}</h2>
-                        <p style={{ opacity: 0.6, fontSize: '0.9rem', marginTop: '0.5rem' }}>{t.confirmation_desc || 'Sistemin tam gücüne erişmek üzeresiniz.'}</p>
+                    <div style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '0.8rem' }}>{isTrial ? '🎁' : (p.id === 'pro' ? '🚀' : '👑')}</div>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: p.color }}>{p.name} {isYearly && !isTrial ? (lang === 'tr' ? '(Yıllık)' : '(Yearly)') : ''}</h2>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 900, marginTop: '0.4rem', color: '#fff' }}>
+                            {actualCharge} {isYearly && !isTrial && <span style={{ fontSize: '0.85rem', color: '#34d399', fontWeight: 700 }}>({p.price} /ay)</span>}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#38bdf8', marginTop: '0.2rem', fontWeight: 700 }}>
+                            {periodDesc}
+                        </div>
+                        <p style={{ opacity: 0.6, fontSize: '0.85rem', marginTop: '0.4rem' }}>
+                            {isTrial 
+                                ? (lang === 'tr' ? '3 gün (72 saat) kesintisiz PRO deneme erişimi tanımlanacaktır.' : '3-day (72h) unrestricted PRO trial will be activated.') 
+                                : (t.confirmation_desc || 'Sistemin tam gücüne erişmek üzeresiniz.')}
+                        </p>
                     </div>
 
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '1.5rem', marginBottom: '2rem', border: '1px solid var(--glass-border)' }}>
-                        <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', opacity: 0.5, marginBottom: '1rem', letterSpacing: '1px' }}>{t.top_benefits || 'ÖNE ÇIKAN AVANTAJLAR'}</h4>
+                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '16px', padding: '1.2rem', marginBottom: '1.8rem', border: '1px solid var(--glass-border)' }}>
+                        <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.5, marginBottom: '0.8rem', letterSpacing: '1px' }}>{t.top_benefits || 'ÖNE ÇIKAN AVANTAJLAR'}</h4>
                         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                            {features.slice(0, 3).map((f, i) => (
-                                <li key={i} style={{ display: 'flex', gap: '0.7rem', marginBottom: '0.8rem', fontSize: '0.9rem', alignItems: 'center' }}>
+                            {Array.isArray(features) && features.slice(0, 4).map((f, i) => (
+                                <li key={i} style={{ display: 'flex', gap: '0.7rem', marginBottom: '0.6rem', fontSize: '0.85rem', alignItems: 'center' }}>
                                     <span style={{ color: p.color }}>✦</span> {f}
                                 </li>
                             ))}
@@ -1237,58 +1265,97 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                        <a
-                            href={settings?.shopier_link || 'https://shopier.com/livebetmentor'}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn"
-                            style={{
-                                background: 'linear-gradient(135deg, #10b981, #059669)',
-                                color: '#fff',
-                                textDecoration: 'none',
-                                padding: '1rem',
-                                borderRadius: '12px',
-                                fontSize: '1rem',
-                                fontWeight: 800,
-                                textAlign: 'center',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
-                            }}
-                        >
-                            💳 {lang === 'tr' ? 'Kredi Kartı / Havale ile Satın Al (Shopier)' : 'Pay with Card / Bank (Shopier)'}
-                        </a>
+                        {isTrial ? (
+                            <button
+                                onClick={() => {
+                                    const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
+                                    window.open(`https://t.me/${tgUser}?start=deneme`, '_blank');
+                                    setSelectedPlanForUpgrade(null);
+                                    setShowPlanComparison(false);
+                                }}
+                                className="btn btn-primary"
+                                style={{
+                                    background: 'linear-gradient(135deg, #38bdf8, #0284c7)',
+                                    border: 'none',
+                                    padding: '1.1rem',
+                                    borderRadius: '12px',
+                                    fontSize: '1rem',
+                                    fontWeight: 900,
+                                    color: '#000',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🎁 {lang === 'tr' ? '3 Günlük Ücretsiz Denemeyi Başlat' : 'Start 3-Day Free Trial'}
+                            </button>
+                        ) : (
+                            <>
+                                <a
+                                    href={settings?.shopier_link || 'https://shopier.com/livebetmentor'}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                                        color: '#fff',
+                                        textDecoration: 'none',
+                                        padding: '1rem',
+                                        borderRadius: '12px',
+                                        fontSize: '1rem',
+                                        fontWeight: 800,
+                                        textAlign: 'center',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                                    }}
+                                >
+                                    💳 {lang === 'tr' ? `Kredi Kartı / Havale ile Satın Al (${actualCharge})` : `Pay with Card / Bank (${actualCharge})`}
+                                </a>
 
-                        <button
-                            onClick={() => {
-                                const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
-                                const cycleText = billingCycle === 'yearly' ? (lang === 'tr' ? 'Yıllık' : 'Yearly') : (lang === 'tr' ? 'Aylık' : 'Monthly');
-                                const msg = encodeURIComponent(lang === 'tr'
-                                    ? `Merhaba! LiveBet Mentor ${p.name} (${cycleText}) üyeliğine geçiş yapmak istiyorum.`
-                                    : `Hello! I would like to upgrade to LiveBet Mentor ${p.name} (${cycleText}) plan.`
-                                );
-                                window.open(`https://t.me/${tgUser}?text=${msg}`, '_blank');
-                                setSelectedPlanForUpgrade(null);
-                            }}
-                            className="btn btn-primary"
-                            style={{ background: '#0088cc', border: 'none', padding: '1rem', borderRadius: '12px', fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                        >
-                            ✈️ {t.telegram_upgrade_now || 'Telegram ile Hemen Aktif Et'}
-                        </button>
+                                <button
+                                    onClick={() => {
+                                        const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
+                                        const startParam = isYearly ? `yearly_${p.id}` : p.id;
+                                        window.open(`https://t.me/${tgUser}?start=vip_${startParam}`, '_blank');
+                                        setSelectedPlanForUpgrade(null);
+                                    }}
+                                    className="btn btn-primary"
+                                    style={{
+                                        background: '#0088cc',
+                                        border: 'none',
+                                        padding: '1rem',
+                                        borderRadius: '12px',
+                                        fontSize: '1rem',
+                                        fontWeight: 700,
+                                        color: '#fff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '8px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    ⚡ {lang === 'tr' ? `CryptoBot / Telegram ile Anında Öde (${actualCharge})` : `Instant Pay via Telegram / CryptoBot`}
+                                </button>
 
-                        <button
-                            onClick={() => {
-                                requestUpgrade(p.id);
-                                setSelectedPlanForUpgrade(null);
-                                setShowPlanComparison(false);
-                            }}
-                            className="btn btn-outline"
-                            style={{ padding: '1rem', borderRadius: '12px', fontSize: '0.9rem' }}
-                        >
-                            📩 {t.request_upgrade || 'Sistemden Talep Gönder'}
-                        </button>
+                                <button
+                                    onClick={() => {
+                                        requestUpgrade(isYearly ? `${p.id}_yearly` : p.id);
+                                        setSelectedPlanForUpgrade(null);
+                                        setShowPlanComparison(false);
+                                    }}
+                                    className="btn btn-outline"
+                                    style={{ padding: '0.8rem', borderRadius: '12px', fontSize: '0.85rem', opacity: 0.7 }}
+                                >
+                                    📩 {t.request_upgrade || 'Sistemden Manuel Talep Gönder'}
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -3917,7 +3984,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             <span className="banner-icon" style={{ fontSize: '1.3rem' }}>⏳</span>
                             <div className="banner-text" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <strong style={{ color: '#c084fc', letterSpacing: '0.5px' }}>
-                                    {lang === 'tr' ? '24 SAATLİK PRO DENEME:' : '24H PRO TRIAL:'}
+                                    {lang === 'tr' ? '3 GÜNLÜK PRO DENEME:' : '3-DAY PRO TRIAL:'}
                                 </strong>
                                 <span style={{
                                     background: 'rgba(0, 0, 0, 0.55)',

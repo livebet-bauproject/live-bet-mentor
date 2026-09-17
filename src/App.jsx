@@ -81,11 +81,20 @@ function App() {
   const [systemSettings, setSystemSettings] = useState({})
   const [lang, setLang] = useState(() => {
     try {
+      // 1. Check URL Search Param (?lang=tr|en|de) for Search Engine Crawlers & Direct Links
+      if (typeof window !== 'undefined' && window.location.search) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramLang = urlParams.get('lang')?.toLowerCase();
+        if (paramLang && (paramLang === 'tr' || paramLang === 'en' || paramLang === 'de')) {
+          return paramLang;
+        }
+      }
+      // 2. Check localStorage
       const saved = localStorage.getItem('app_lang');
       if (saved && (saved === 'tr' || saved === 'en' || saved === 'de')) {
         return saved;
       }
-      // Detect browser / device primary language
+      // 3. Detect browser / device primary language
       const browserLang = (typeof navigator !== 'undefined' && (
         (navigator.languages && navigator.languages[0]) || navigator.language || ''
       )) || '';
@@ -98,21 +107,68 @@ function App() {
     }
   });
 
+  // Dynamic SEO Synchronization Hook (Title, Description, Canonical, OG tags, Hreflang)
   useEffect(() => {
     try {
       localStorage.setItem('app_lang', lang);
       if (typeof document !== 'undefined') {
         document.documentElement.lang = lang;
-        if (lang === 'tr') {
-          document.title = 'LiveBet Mentor | Canlı İstatistik & AI Terminali';
-        } else if (lang === 'de') {
-          document.title = 'LiveBet Mentor | Live In-Play Statistiken & KI-Terminal';
-        } else {
-          document.title = 'LiveBet Mentor | Live In-Play Stats & AI Terminal';
+
+        const metaConfigs = {
+          tr: {
+            title: 'LiveBet Mentor | Canlı Maç İstatistikleri, xG & AI Analiz Terminali',
+            desc: 'Yapay zeka ve Poisson modelleriyle desteklenen canlı maç analiz terminali. Canlı xG gol beklentisi, anlık atak momentumu, Kelly kriteri kasa yönetimi ve kantitatif spor istatistikleri.',
+            locale: 'tr_TR'
+          },
+          en: {
+            title: 'LiveBet Mentor | In-Play Football Stats, xG & AI Quant Terminal',
+            desc: 'Quantitative in-play football terminal powered by Poisson models, real-time xG goal telemetry, live momentum waves, and Kelly Criterion bankroll discipline.',
+            locale: 'en_US'
+          },
+          de: {
+            title: 'LiveBet Mentor | Live In-Play Statistiken, xG & KI-Quant-Terminal',
+            desc: 'Quantitatives Live-Fussball-Terminal mit Poisson-Modellen, Echtzeit-xG-Telemetrie, Live-Druckwellen und Kelly-Kriterium-Bankroll-Disziplin.',
+            locale: 'de_DE'
+          }
+        };
+
+        const currentMeta = metaConfigs[lang] || metaConfigs['en'];
+        document.title = currentMeta.title;
+
+        // Sync Meta Description
+        const descEl = document.querySelector('meta[name="description"]');
+        if (descEl) descEl.setAttribute('content', currentMeta.desc);
+
+        // Sync Open Graph & Twitter Titles
+        const ogTitle = document.querySelector('meta[property="og:title"]');
+        if (ogTitle) ogTitle.setAttribute('content', currentMeta.title);
+        const ogDesc = document.querySelector('meta[property="og:description"]');
+        if (ogDesc) ogDesc.setAttribute('content', currentMeta.desc);
+        const ogLocale = document.querySelector('meta[property="og:locale"]');
+        if (ogLocale) ogLocale.setAttribute('content', currentMeta.locale);
+        const twTitle = document.querySelector('meta[name="twitter:title"]');
+        if (twTitle) twTitle.setAttribute('content', currentMeta.title);
+        const twDesc = document.querySelector('meta[name="twitter:description"]');
+        if (twDesc) twDesc.setAttribute('content', currentMeta.desc);
+
+        // Sync Canonical Link
+        const canonicalUrl = `https://livebetmentor.com/${lang === 'tr' ? '' : '?lang=' + lang}`;
+        const canonicalEl = document.querySelector('link[rel="canonical"]');
+        if (canonicalEl) canonicalEl.setAttribute('href', canonicalUrl);
+
+        // Sync URL param without full page reload if user toggled
+        if (typeof window !== 'undefined' && window.history?.replaceState) {
+          const url = new URL(window.location.href);
+          if (lang === 'tr') {
+            url.searchParams.delete('lang');
+          } else {
+            url.searchParams.set('lang', lang);
+          }
+          window.history.replaceState({}, '', url.toString());
         }
       }
     } catch (e) {
-      console.warn('Lang sync error:', e);
+      console.warn('SEO & Lang sync error:', e);
     }
   }, [lang]);
 
@@ -581,7 +637,7 @@ function App() {
           </div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.5rem', color: '#f3e8ff' }}>
             {isTrialExpiry 
-              ? (lang === 'tr' ? '24 Saatlik Ücretsiz Denemeniz Sona Erdi' : 'Your 24h Free Trial Has Ended')
+              ? (lang === 'tr' ? '3 Günlük Ücretsiz Denemeniz Sona Erdi' : 'Your 3-Day Free Trial Has Ended')
               : (lang === 'tr' ? 'Abonelik Süreniz Doldu' : t.subscription_expired)}
           </h2>
           <p style={{ color: '#94a3b8', marginBottom: '1.4rem', lineHeight: 1.5, fontSize: '0.9rem' }}>

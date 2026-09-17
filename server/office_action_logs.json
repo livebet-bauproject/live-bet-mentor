@@ -1,0 +1,98 @@
+[
+  {
+    "id": "act_1789685702864_lhso",
+    "timestamp": "2026-09-17T22:55:02.864Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1789685032869_7c2k",
+    "timestamp": "2026-09-17T22:43:52.869Z",
+    "agent": "SENTINEL",
+    "level": "ALERT",
+    "message": "Veri akışında aksama tespit edildi (48928s gecikme).",
+    "details": null
+  },
+  {
+    "id": "act_1789685032855_sbfv",
+    "timestamp": "2026-09-17T22:43:52.855Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1789685027828_69i4",
+    "timestamp": "2026-09-17T22:43:47.828Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1789684790190_6lhp",
+    "timestamp": "2026-09-17T22:39:50.190Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1789682495156_54dl",
+    "timestamp": "2026-09-17T22:01:35.156Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1789682486426_zoi5",
+    "timestamp": "2026-09-17T22:01:26.426Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1789682081178_zrpy",
+    "timestamp": "2026-09-17T21:54:41.178Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Eylem Modu PASİF yapıldı.",
+    "details": null
+  },
+  {
+    "id": "act_1789682081166_imkf",
+    "timestamp": "2026-09-17T21:54:41.166Z",
+    "agent": "SENTINEL",
+    "level": "SUCCESS",
+    "message": "Manuel sistem sağlık taraması tamamlandı: STALLED (12 canlı maç).",
+    "details": null
+  },
+  {
+    "id": "act_1789682081152_d4iz",
+    "timestamp": "2026-09-17T21:54:41.152Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1789682081131_4p8s",
+    "timestamp": "2026-09-17T21:54:41.131Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1789681931551_sv1r",
+    "timestamp": "2026-09-17T21:52:11.551Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  }
+]

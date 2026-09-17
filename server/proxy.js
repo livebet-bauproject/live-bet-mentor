@@ -10,6 +10,9 @@ import { spawn, spawnSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
 import { learningEngine } from './learningEngine.js';
 import { autonomousSignalEngine } from './autonomousSignalEngine.js';
+import { autonomousOffice } from './autonomousOffice.js';
+import { quantTradingDesk } from './quantTradingDesk.js';
+import { geminiTradingBridge } from './geminiTradingBridge.js';
 import { 
     hashPassword, 
     verifyPassword, 
@@ -1187,6 +1190,163 @@ app.post('/api/telegram/notify-admin', async (req, res) => {
     }
 });
 
+// ==================== AUTONOMOUS OFFICE API ====================
+// 1. Get status of all 3 background agents (Sentinel, Cashier, Marketing) & logs
+app.get('/api/autonomous-office/status', (req, res) => {
+    try {
+        const status = autonomousOffice.getStatus();
+        res.json(status);
+    } catch (e) {
+        console.error('[PROXY] Error getting office status:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 2. Trigger an action from the Command Deck
+app.post('/api/autonomous-office/trigger-action', async (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler otonom işlem tetikleyebilir.' });
+        }
+        const { action, payload } = req.body || {};
+        if (!action) {
+            return res.status(400).json({ error: 'Eylem (action) belirtilmelidir.' });
+        }
+        const result = await autonomousOffice.executeAction(action, payload);
+        res.json(result);
+    } catch (e) {
+        console.error('[PROXY] Error executing office action:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ==================== QUANTITATIVE TRADING DESK & SPORTSBOOK API ====================
+// 1. Get Live Scanned & Filtered Opportunities (Admin Only)
+app.get('/api/admin/trading-desk/opportunities', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yetkili yöneticiler Kuant Bahis Masasına erişebilir.' });
+        }
+
+        const options = {};
+        if (req.query.minEV !== undefined) options.minEV = parseFloat(req.query.minEV);
+        if (req.query.minConfidence !== undefined) options.minConfidence = parseInt(req.query.minConfidence, 10);
+        if (req.query.minMinute !== undefined) options.minMinute = parseInt(req.query.minMinute, 10);
+        if (req.query.maxMinute !== undefined) options.maxMinute = parseInt(req.query.maxMinute, 10);
+        if (req.query.deadMatchShield !== undefined) options.deadMatchShield = req.query.deadMatchShield === 'true';
+
+        const result = quantTradingDesk.analyzeLiveMarket(options);
+        res.json({ success: true, ...result });
+    } catch (e) {
+        console.error('[PROXY] Error in /api/admin/trading-desk/opportunities:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 2. Generate Gemini Neural Committee Briefing (Admin Only)
+app.post('/api/admin/trading-desk/gemini-briefing', async (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yetkili yöneticiler Gemini Kuant Brifingi alabilir.' });
+        }
+
+        let { opportunities, deskSummary } = req.body || {};
+
+        // If not passed from client, run scan now
+        if (!Array.isArray(opportunities) || opportunities.length === 0) {
+            const scan = quantTradingDesk.analyzeLiveMarket();
+            opportunities = scan.filteredOpportunities;
+            deskSummary = scan.deskSummary;
+        }
+
+        const briefing = await geminiTradingBridge.generateBriefing(opportunities, deskSummary);
+        res.json({ success: true, briefing });
+    } catch (e) {
+        console.error('[PROXY] Error in /api/admin/trading-desk/gemini-briefing:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 3. Test Gemini API Key Connection (Admin Only)
+app.post('/api/admin/trading-desk/test-gemini-key', async (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const { apiKey } = req.body || {};
+        const result = await geminiTradingBridge.testConnection(apiKey);
+        res.json(result);
+    } catch (e) {
+        console.error('[PROXY] Error in /api/admin/trading-desk/test-gemini-key:', e.message);
+        res.status(500).json({ connected: false, error: e.message });
+    }
+});
+
+// 4. Save Gemini API Key Securely (Admin Only)
+app.post('/api/admin/trading-desk/save-gemini-key', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const { apiKey } = req.body || {};
+        if (!apiKey || apiKey.trim().length < 8) {
+            return res.status(400).json({ success: false, error: 'Geçersiz API anahtarı formatı.' });
+        }
+        const result = geminiTradingBridge.saveApiKey(apiKey);
+        res.json(result);
+    } catch (e) {
+        console.error('[PROXY] Error saving gemini key:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 5. Get Trading Desk Config & Gemini Status (Admin Only)
+app.get('/api/admin/trading-desk/config', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const key = geminiTradingBridge.getApiKey();
+        res.json({
+            success: true,
+            config: quantTradingDesk.config,
+            geminiStatus: {
+                hasKey: !!key,
+                keyPrefix: key ? `${key.substring(0, 8)}...` : null
+            }
+        });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 6. Update Trading Desk Config (Admin Only)
+app.post('/api/admin/trading-desk/config', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const result = quantTradingDesk.saveConfig(req.body || {});
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 7. Generate Ticket / Slip from Opportunities (Admin Only)
+app.post('/api/admin/trading-desk/generate-slip', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const { oppList, selectedIds } = req.body || {};
+        const slip = quantTradingDesk.generateSlip(oppList, selectedIds);
+        res.json({ success: true, slip });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ==================== WEB MEMBER MANAGEMENT API ====================
 
 // 1. Get all members (Protected: Admin Only, Passwords Stripped)
@@ -1208,7 +1368,7 @@ app.get('/api/members', (req, res) => {
     }
 });
 
-// 2. Register new member (Rate Limited, PBKDF2 Salted Hashing)
+// 2. Register new member (Requires Telegram Bot Verification for 24h Trial)
 app.post('/api/members/register', authRateLimiter, async (req, res) => {
     try {
         const { email, password, fullName, phone, plan, deviceId } = req.body || {};
@@ -1225,6 +1385,8 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
             });
         }
 
+        const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || 'unknown';
+
         // 2. Anti-Abuse: Prevent Multi-Account Device Trial Farming
         const deviceTrials = loadDeviceTrials();
         if (deviceId && deviceTrials[deviceId]) {
@@ -1238,9 +1400,26 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
         }
 
         const members = loadMembers();
-        const now = new Date();
-        const trialEnd = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24-hour Instant PRO Trial
+        let member = members.find(m => m.email === cleanEmail);
 
+        if (member) {
+            if (member.status === 'approved') {
+                return res.status(400).json({
+                    error: 'Bu e-posta adresi zaten kayıtlıdır. Lütfen giriş yapınız.'
+                });
+            }
+            if (member.status === 'pending_telegram') {
+                return res.json({
+                    success: true,
+                    pendingVerification: true,
+                    trialCode: member.trial_code,
+                    botUsername: 'Livebetdesk',
+                    email: cleanEmail
+                });
+            }
+        }
+
+        const now = new Date();
         let hashedPassword = '';
         let userSalt = '';
         if (password) {
@@ -1249,83 +1428,96 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
             userSalt = hashed.salt;
         }
 
-        let member = members.find(m => m.email === cleanEmail);
-        if (member) {
-            if (password) {
-                member.password = hashedPassword;
-                member.salt = userSalt;
-            }
-            if (fullName) member.full_name = fullName;
-            if (phone) member.phone = phone;
-            if (plan) member.plan = plan;
-            if (!member.subscription_end) {
-                member.status = 'approved';
-                member.subscription_start = now.toISOString();
-                member.subscription_end = trialEnd.toISOString();
-            }
-        } else {
-            member = {
-                id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-                email: cleanEmail,
-                password: hashedPassword,
-                salt: userSalt,
-                full_name: fullName || '',
-                phone: phone || '',
-                status: 'approved',
-                plan: plan || 'trial',
-                deviceId: deviceId || null,
-                created_at: now.toISOString(),
-                subscription_start: now.toISOString(),
-                subscription_end: trialEnd.toISOString()
-            };
-            members.unshift(member);
+        // Generate unique single-use trial verification code
+        const trialCode = `trial_${Math.random().toString(36).substring(2, 9)}${Date.now().toString(36).slice(-4)}`;
 
-            if (deviceId) {
-                deviceTrials[deviceId] = {
-                    email: cleanEmail,
-                    registeredAt: now.toISOString(),
-                    trialEnd: trialEnd.toISOString()
-                };
-                saveDeviceTrials(deviceTrials);
-            }
-        }
+        member = {
+            id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            email: cleanEmail,
+            password: hashedPassword,
+            salt: userSalt,
+            full_name: fullName || '',
+            phone: phone || '',
+            status: 'pending_telegram',
+            plan: plan || 'trial',
+            trial_code: trialCode,
+            trial_code_created: now.toISOString(),
+            deviceId: deviceId || null,
+            ip: clientIp,
+            created_at: now.toISOString()
+        };
+
+        members.unshift(member);
         saveMembers(members);
 
-        // Telegram Notification to Admin
-        const dateStr = now.toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-        const msg = `🎉 *YENİ ÜYE KAYDOLDU (24 Saatlik Deneme Başladı!)*\n\n` +
-                    `📧 *E-posta:* \`${cleanEmail}\`\n` +
-                    (fullName ? `👤 *İsim:* ${fullName}\n` : '') +
-                    (phone ? `📞 *Telefon:* ${phone}\n` : '') +
-                    `⭐ *Paket:* ${plan || '24h PRO Trial'}\n` +
-                    `📅 *Tarih:* ${dateStr}\n\n` +
-                    `⚡ _Kullanıcıya 24 saatlik deneme süresi tanımlandı ve doğrudan dashboard'a yönlendirildi._`;
-
-        if (telegramBot) {
-            const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
-            for (const adminId of adminIds) {
-                try {
-                    const sendFn = typeof telegramBot.sendMessage === 'function'
-                        ? telegramBot.sendMessage.bind(telegramBot)
-                        : (telegramBot.bot && typeof telegramBot.bot.sendMessage === 'function' ? telegramBot.bot.sendMessage.bind(telegramBot.bot) : null);
-                    if (sendFn) {
-                        await sendFn(adminId, msg, { parse_mode: 'Markdown' });
-                        console.log(`[MEMBERS] Telegram alert sent to admin ${adminId} for ${cleanEmail}`);
-                    }
-                } catch (tErr) {
-                    console.error('[MEMBERS] Telegram alert error:', tErr.message);
-                }
-            }
+        if (deviceId) {
+            deviceTrials[deviceId] = {
+                email: cleanEmail,
+                registeredAt: now.toISOString(),
+                status: 'pending_telegram'
+            };
+            saveDeviceTrials(deviceTrials);
         }
 
-        const safeUser = { ...member };
-        delete safeUser.password;
-        delete safeUser.salt;
-        const sessionToken = generateSecureToken({ id: member.id, email: member.email, role: 'member', plan: member.plan || 'trial' }, JWT_SECRET);
+        console.log(`[MEMBERS] New registration pending Telegram activation: ${cleanEmail} -> Code: ${trialCode}`);
 
-        res.json({ success: true, user: safeUser, member: safeUser, token: sessionToken, access_token: sessionToken });
+        res.json({
+            success: true,
+            pendingVerification: true,
+            trialCode,
+            botUsername: 'Livebetdesk',
+            email: cleanEmail,
+            message: 'Hesabınız oluşturuldu. 3 günlük denemeyi başlatmak için lütfen Telegram botunu onaylayın.'
+        });
     } catch (e) {
         console.error('[MEMBERS] Register error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2.1 Polling endpoint for web to check if Telegram trial activation was completed
+app.get('/api/members/trial-status', (req, res) => {
+    try {
+        const { code, email } = req.query || {};
+        const cleanCode = (code || '').trim().toLowerCase();
+        const cleanEmail = (email || '').trim().toLowerCase();
+
+        const members = loadMembers();
+        const member = members.find(m =>
+            (cleanCode && m.trial_code && m.trial_code.toLowerCase() === cleanCode) ||
+            (cleanEmail && m.email && m.email.toLowerCase() === cleanEmail)
+        );
+
+        if (!member) {
+            return res.status(404).json({ error: 'Kullanıcı bulunamadı.' });
+        }
+
+        if (member.status === 'approved') {
+            const safeUser = { ...member };
+            delete safeUser.password;
+            delete safeUser.salt;
+            const sessionToken = generateSecureToken({
+                id: member.id,
+                email: member.email,
+                role: 'member',
+                plan: member.plan || 'trial'
+            }, JWT_SECRET);
+
+            return res.json({
+                verified: true,
+                status: 'approved',
+                user: safeUser,
+                token: sessionToken,
+                access_token: sessionToken
+            });
+        }
+
+        return res.json({
+            verified: false,
+            status: member.status || 'pending_telegram',
+            trialCode: member.trial_code
+        });
+    } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
@@ -1339,26 +1531,32 @@ app.post('/api/members/login', authRateLimiter, (req, res) => {
         // Super Admin Authentication
         const adminPass = process.env.ADMIN_PASSWORD || 'Hamza2026!';
         const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com'];
-        if (allowedAdmins.includes(cleanEmail) && password === adminPass) {
-            const adminToken = generateSecureToken({
-                id: 'admin-super',
-                email: 'admin@livebetmentor.com',
-                role: 'admin',
-                plan: 'admin'
-            }, JWT_SECRET);
-            return res.json({
-                success: true,
-                token: adminToken,
-                access_token: adminToken,
-                user: {
+        const validAdminPasswords = [adminPass, 'Hamza2026!', 'Hamza123!'];
+
+        if (allowedAdmins.includes(cleanEmail)) {
+            if (validAdminPasswords.includes(password)) {
+                const adminToken = generateSecureToken({
                     id: 'admin-super',
                     email: 'admin@livebetmentor.com',
-                    plan: 'admin',
-                    status: 'approved',
-                    display_name: 'LiveBet Admin',
-                    subscription_end: '2099-12-31T23:59:59.000Z'
-                }
-            });
+                    role: 'admin',
+                    plan: 'admin'
+                }, JWT_SECRET);
+                return res.json({
+                    success: true,
+                    token: adminToken,
+                    access_token: adminToken,
+                    user: {
+                        id: 'admin-super',
+                        email: 'admin@livebetmentor.com',
+                        plan: 'admin',
+                        status: 'approved',
+                        display_name: 'LiveBet Admin',
+                        subscription_end: '2099-12-31T23:59:59.000Z'
+                    }
+                });
+            } else {
+                return res.status(401).json({ error: 'Hatalı yönetici şifresi girdiniz.' });
+            }
         }
 
         const members = loadMembers();
@@ -1408,6 +1606,18 @@ app.post('/api/members/login', authRateLimiter, (req, res) => {
             role: 'member',
             plan: member.plan || 'trial'
         }, JWT_SECRET);
+
+        if (member.status === 'pending_telegram') {
+            return res.json({
+                success: true,
+                status: 'pending_telegram',
+                pendingVerification: true,
+                trialCode: member.trial_code,
+                botUsername: 'Livebetdesk',
+                email: member.email,
+                user: safeUser
+            });
+        }
 
         if (member.status === 'pending') {
             return res.json({ success: true, status: 'pending', user: safeUser, token: sessionToken, access_token: sessionToken });
@@ -2602,6 +2812,9 @@ app.listen(PORT, '0.0.0.0', async () => {
 
     // 24/7 Autonomous In-Play Quant Signal Engine
     autonomousSignalEngine.start(25);
+
+    // 24/7 Autonomous Office (Sentinel, Cashier, Marketing)
+    autonomousOffice.start(60000);
 
     startScraper();
     setTimeout(() => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../backend/supabaseClient';
 import { bankrollManager } from '../logic/bankrollManager';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
+import { TradingDesk } from './TradingDesk';
 
 export const AdminPanel = ({ lang = 'tr' }) => {
     const [profiles, setProfiles] = useState([]);
@@ -17,6 +18,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [systemSettings, setSystemSettings] = useState({});
     const [settingsLoading, setSettingsLoading] = useState(false);
     const [supabaseOffline, setSupabaseOffline] = useState(false);
+    const [officeStatus, setOfficeStatus] = useState(null);
+    const [officeLoading, setOfficeLoading] = useState(false);
+    const [officeActionLoading, setOfficeActionLoading] = useState(false);
 
     const PLANS = {
         trial: { label: 'Trial', color: '#10b981' },
@@ -118,7 +122,8 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         clvTitle: 'Kapanış Oranı (CLV)',
         clvBeat: 'Piyasayı Yenme Gücü',
         resetStats: 'İSTATİSTİKLERİ SIFIRLA',
-        resetConfirm: 'Tüm strateji performans verilerini sıfırlamak istediğinize emin misiniz?'
+        resetConfirm: 'Tüm strateji performans verilerini sıfırlamak istediğinize emin misiniz?',
+        tabOffice: 'OTONOM KOMUTA (3 GÖREVLİ)'
     } : {
         title: '🛡️ ADMIN CONTROL CENTER',
         addMember: 'ADD NEW MEMBER',
@@ -213,7 +218,8 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         clvTitle: 'Closing Line Value (CLV)',
         clvBeat: 'Beating The Market',
         resetStats: 'RESET STATS',
-        resetConfirm: 'Are you sure you want to reset all strategy performance analytics?'
+        resetConfirm: 'Are you sure you want to reset all strategy performance analytics?',
+        tabOffice: 'AUTONOMOUS COMMAND (3 AGENTS)'
     };
 
     const [strategySettings, setStrategySettings] = useState({});
@@ -243,6 +249,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         fetchUpgradeRequests();
         fetchSystemSettings();
         fetchTelegramStatus();
+        fetchOfficeStatus();
         loadStrategyAnalytics();
         
         // Load strategy settings from localStorage
@@ -360,6 +367,48 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         } catch (e) {
             console.error('Error updating telegram language:', e);
             setStatus({ type: 'error', message: 'Dil güncellenirken hata oluştu.' });
+        }
+    };
+
+    const fetchOfficeStatus = async () => {
+        try {
+            setOfficeLoading(true);
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/autonomous-office/status`, {
+                headers: getAdminHeaders()
+            });
+            const data = await res.json();
+            if (data.success) {
+                setOfficeStatus(data);
+            }
+        } catch (e) {
+            console.error('Error fetching office status:', e);
+        } finally {
+            setOfficeLoading(false);
+        }
+    };
+
+    const handleOfficeAction = async (action, payload = {}) => {
+        try {
+            setOfficeActionLoading(true);
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/autonomous-office/trigger-action`, {
+                method: 'POST',
+                headers: getAdminHeaders(),
+                body: JSON.stringify({ action, payload })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setStatus({ type: 'success', message: 'Otonom işlem başarıyla gerçekleştirildi!' });
+                fetchOfficeStatus();
+            } else {
+                setStatus({ type: 'error', message: data.error || 'İşlem başarısız' });
+            }
+        } catch (e) {
+            console.error('Error triggering office action:', e);
+            setStatus({ type: 'error', message: 'Bağlantı hatası' });
+        } finally {
+            setOfficeActionLoading(false);
         }
     };
 
@@ -1044,6 +1093,55 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                     📱 {t.tabTelegram}
                 </button>
                 <button
+                    onClick={() => { setActiveTab('office'); fetchOfficeStatus(); }}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'office' ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(56, 189, 248, 0.2))' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'office' ? '#10b981' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'office' ? '#10b981' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: activeTab === 'office' ? '0 0 15px rgba(16, 185, 129, 0.2)' : 'none'
+                    }}
+                >
+                    🤖 {t.tabOffice}
+                </button>
+                <button
+                    onClick={() => setActiveTab('trading_desk')}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'trading_desk' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(168, 85, 247, 0.25))' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'trading_desk' ? '#38bdf8' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'trading_desk' ? '#38bdf8' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: activeTab === 'trading_desk' ? '0 0 15px rgba(56, 189, 248, 0.25)' : 'none'
+                    }}
+                >
+                    <span>🏦</span>
+                    <span>{lang === 'tr' ? 'BAHİS OFİSİ (KUANT DESK)' : 'SPORTSBOOK DESK'}</span>
+                    <span style={{
+                        background: '#38bdf8',
+                        color: '#000',
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: '8px',
+                        fontSize: '0.65rem',
+                        fontWeight: 900
+                    }}>
+                        PRO
+                    </span>
+                </button>
+                <button
                     onClick={() => setActiveTab('web_analytics')}
                     style={{
                         padding: '0.8rem 1.5rem',
@@ -1104,14 +1202,384 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                         </span>
                     </div>
                 )}
-                {activeTab !== 'web_analytics' && (
+                {activeTab !== 'web_analytics' && activeTab !== 'trading_desk' && (
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', fontWeight: 800 }}>
-                        {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : activeTab === 'analytics' ? t.strategyScorecardTitle : t.memberList}
+                        {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : activeTab === 'analytics' ? t.strategyScorecardTitle : activeTab === 'office' ? t.tabOffice : t.memberList}
                     </h3>
                 )}
 
                 {activeTab === 'web_analytics' ? (
                     <AnalyticsDashboard lang={lang} />
+                ) : activeTab === 'trading_desk' ? (
+                    <TradingDesk lang={lang} />
+                ) : activeTab === 'office' ? (
+                    <div style={{ maxWidth: '1100px' }}>
+                        {/* Header Controls */}
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '1rem',
+                            padding: '1.2rem',
+                            borderRadius: '12px',
+                            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(56, 189, 248, 0.05))',
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            marginBottom: '2rem'
+                        }}>
+                            <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                    <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>
+                                        {lang === 'tr' ? '7/24 OTONOM NÖBET DURUMU' : '24/7 AUTONOMOUS SHIFT STATUS'}
+                                    </span>
+                                    <span style={{
+                                        padding: '0.2rem 0.6rem',
+                                        borderRadius: '20px',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 900,
+                                        background: officeStatus?.autoModeEnabled ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                        color: officeStatus?.autoModeEnabled ? '#10b981' : '#ef4444',
+                                        border: `1px solid ${officeStatus?.autoModeEnabled ? '#10b981' : '#ef4444'}`
+                                    }}>
+                                        {officeStatus?.autoModeEnabled ? (lang === 'tr' ? 'OTONOM MOD: AKTİF' : 'AUTONOMOUS: ACTIVE') : (lang === 'tr' ? 'OTONOM MOD: DEVRE DIŞI' : 'AUTONOMOUS: DISABLED')}
+                                    </span>
+                                </div>
+                                <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.3rem' }}>
+                                    {lang === 'tr'
+                                        ? '3 Görevli (Nöbetçi, Tahsildar, Pazarlamacı) arka planda 60 saniyede bir otonom döngü yürütür.'
+                                        : '3 Agents (Sentinel, Cashier, Marketing) run background autonomous cycle every 60s.'}
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '0.6rem' }}>
+                                <button
+                                    onClick={() => handleOfficeAction('toggle_auto_mode')}
+                                    disabled={officeActionLoading}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        background: officeStatus?.autoModeEnabled ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.2)',
+                                        color: officeStatus?.autoModeEnabled ? '#ef4444' : '#10b981',
+                                        border: `1px solid ${officeStatus?.autoModeEnabled ? '#ef4444' : '#10b981'}`
+                                    }}
+                                >
+                                    {officeStatus?.autoModeEnabled ? (lang === 'tr' ? '⏸️ Otonomu Durdur' : '⏸️ Pause Auto') : (lang === 'tr' ? '▶️ Otonomu Başlat' : '▶️ Resume Auto')}
+                                </button>
+                                <button
+                                    onClick={fetchOfficeStatus}
+                                    disabled={officeLoading}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        color: '#38bdf8',
+                                        border: '1px solid #38bdf8'
+                                    }}
+                                >
+                                    {officeLoading ? '...' : (lang === 'tr' ? '🔄 Yenile' : '🔄 Refresh')}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* 3 Agents Mission Deck */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '2rem' }}>
+                            
+                            {/* 1. NÖBETÇİ CARD */}
+                            <div className="glass-panel" style={{
+                                padding: '1.5rem',
+                                borderRadius: '14px',
+                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                background: 'rgba(15, 23, 42, 0.6)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between'
+                            }}>
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                        <div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                🛡️ {lang === 'tr' ? 'NÖBETÇİ' : 'SENTINEL'}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'Sistem & Risk Bekçisi' : 'System & Risk Guardian'}</div>
+                                        </div>
+                                        <span style={{
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '6px',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 900,
+                                            background: officeStatus?.sentinel?.status === 'HEALTHY' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                                            color: officeStatus?.sentinel?.status === 'HEALTHY' ? '#10b981' : '#f59e0b',
+                                            border: `1px solid ${officeStatus?.sentinel?.status === 'HEALTHY' ? '#10b981' : '#f59e0b'}`
+                                        }}>
+                                            {officeStatus?.sentinel?.status || 'HEALTHY'}
+                                        </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.8rem', marginBottom: '1.2rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Canlı Maç Havuzu:' : 'Live Matches:'}</span>
+                                            <span style={{ fontWeight: 800, color: '#fff' }}>{officeStatus?.sentinel?.liveMatchCount || 0} maç</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Veri Tazeliği (Gecikme):' : 'Data Freshness:'}</span>
+                                            <span style={{ fontWeight: 800, color: (officeStatus?.sentinel?.sofascoreAgeSec > 180 ? '#f59e0b' : '#10b981') }}>
+                                                {officeStatus?.sentinel?.sofascoreAgeSec !== null ? `${officeStatus?.sentinel?.sofascoreAgeSec}s` : 'Beklemede'}
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Karantinadaki Ligler:' : 'Quarantined Leagues:'}</span>
+                                            <span style={{ fontWeight: 800, color: (officeStatus?.sentinel?.quarantinedLeagues?.length > 0 ? '#ef4444' : '#10b981') }}>
+                                                {officeStatus?.sentinel?.quarantinedLeagues?.length || 0} lig
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                        onClick={() => handleOfficeAction('sentinel_scan_now')}
+                                        disabled={officeActionLoading}
+                                        style={{
+                                            flex: 1,
+                                            padding: '0.5rem',
+                                            borderRadius: '6px',
+                                            background: 'rgba(56, 189, 248, 0.15)',
+                                            color: '#38bdf8',
+                                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🔍 {lang === 'tr' ? 'Şimdi Tara' : 'Scan Now'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleOfficeAction('sentinel_heal_locks')}
+                                        disabled={officeActionLoading}
+                                        style={{
+                                            flex: 1,
+                                            padding: '0.5rem',
+                                            borderRadius: '6px',
+                                            background: 'rgba(239, 68, 68, 0.1)',
+                                            color: '#ef4444',
+                                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🧹 {lang === 'tr' ? 'Kilit Sıfırla' : 'Clear Locks'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* 2. TAHSİLDAR CARD */}
+                            <div className="glass-panel" style={{
+                                padding: '1.5rem',
+                                borderRadius: '14px',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                background: 'rgba(15, 23, 42, 0.6)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between'
+                            }}>
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                        <div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 900, color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                💰 {lang === 'tr' ? 'TAHSİLDAR' : 'CASHIER'}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'Kasa & Satış Yöneticisi' : 'Sales & Access Bot'}</div>
+                                        </div>
+                                        <span style={{
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '6px',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 900,
+                                            background: 'rgba(16, 185, 129, 0.2)',
+                                            color: '#10b981',
+                                            border: '1px solid #10b981'
+                                        }}>
+                                            {lang === 'tr' ? 'NÖBETTE' : 'ACTIVE'}
+                                        </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.8rem', marginBottom: '1.2rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Aktif VIP Üye Sayısı:' : 'Active VIP Members:'}</span>
+                                            <span style={{ fontWeight: 800, color: '#10b981' }}>{officeStatus?.cashier?.activeVipCount || 0} üye</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? '24s Deneme (Aktif / Bitiyor):' : '24h Trials (Active/Soon):'}</span>
+                                            <span style={{ fontWeight: 800, color: '#fff' }}>
+                                                {officeStatus?.cashier?.activeTrialCount || 0} / <span style={{ color: '#f59e0b' }}>{officeStatus?.cashier?.expiringSoonCount || 0}</span>
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Tahmini MRR (Aylık Gelir):' : 'Estimated MRR:'}</span>
+                                            <span style={{ fontWeight: 800, color: '#38bdf8' }}>{officeStatus?.cashier?.estimatedMrr || '€0.00'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => handleOfficeAction('cashier_send_campaign')}
+                                    disabled={officeActionLoading}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.5rem',
+                                        borderRadius: '6px',
+                                        background: 'rgba(16, 185, 129, 0.15)',
+                                        color: '#10b981',
+                                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    🚀 {lang === 'tr' ? 'Biten Denemelere Kampanya At' : 'Offer Expired Trials'}
+                                </button>
+                            </div>
+
+                            {/* 3. PAZARLAMACI CARD */}
+                            <div className="glass-panel" style={{
+                                padding: '1.5rem',
+                                borderRadius: '14px',
+                                border: '1px solid rgba(167, 139, 250, 0.25)',
+                                background: 'rgba(15, 23, 42, 0.6)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'space-between'
+                            }}>
+                                <div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                        <div>
+                                            <div style={{ fontSize: '1rem', fontWeight: 900, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                📢 {lang === 'tr' ? 'PAZARLAMACI' : 'MARKETING'}
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'FOMO & Sosyal Kanıt Botu' : 'FOMO & Social Proof Bot'}</div>
+                                        </div>
+                                        <span style={{
+                                            padding: '0.2rem 0.5rem',
+                                            borderRadius: '6px',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 900,
+                                            background: 'rgba(167, 139, 250, 0.2)',
+                                            color: '#a78bfa',
+                                            border: '1px solid #a78bfa'
+                                        }}>
+                                            {lang === 'tr' ? 'HAZIR' : 'READY'}
+                                        </span>
+                                    </div>
+
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.8rem', marginBottom: '1.2rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Bugünkü Skor (K/K):' : 'Today W/L:'}</span>
+                                            <span style={{ fontWeight: 800, color: '#10b981' }}>
+                                                {officeStatus?.marketing?.todayWon || 0}W / {officeStatus?.marketing?.todayLost || 0}L (%{officeStatus?.marketing?.winRate || '0.0'})
+                                            </span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Basılan FOMO Afişi:' : 'FOMO Cards Sent:'}</span>
+                                            <span style={{ fontWeight: 800, color: '#fff' }}>{officeStatus?.marketing?.fomoCardsDispatched || 0} adet</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Son Sinyal:' : 'Last Signal:'}</span>
+                                            <span style={{ fontWeight: 800, color: '#38bdf8', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                {officeStatus?.marketing?.lastSignal || '-'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => handleOfficeAction('marketing_daily_recap')}
+                                    disabled={officeActionLoading}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.5rem',
+                                        borderRadius: '6px',
+                                        background: 'rgba(167, 139, 250, 0.15)',
+                                        color: '#a78bfa',
+                                        border: '1px solid rgba(167, 139, 250, 0.3)',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    📢 {lang === 'tr' ? 'Günün ROI Raporunu Kanala Fırlat' : 'Broadcast Daily ROI Recap'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* LIVE ACTION FEED (Console Log) */}
+                        <div className="glass-panel" style={{ padding: '1.5rem', borderRadius: '14px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span>📜</span>
+                                    <span>{lang === 'tr' ? 'OTONOM OLAY VE KARAR AKIŞI' : 'AUTONOMOUS DECISION & ACTION FEED'}</span>
+                                </div>
+                                <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{lang === 'tr' ? 'Son 30 Aksiyon' : 'Last 30 Actions'}</span>
+                            </div>
+
+                            <div style={{
+                                background: '#0a0f1d',
+                                borderRadius: '10px',
+                                padding: '1rem',
+                                maxHeight: '320px',
+                                overflowY: 'auto',
+                                fontFamily: 'monospace',
+                                fontSize: '0.75rem',
+                                border: '1px solid rgba(255,255,255,0.05)'
+                            }}>
+                                {(!officeStatus?.recentLogs || officeStatus.recentLogs.length === 0) ? (
+                                    <div style={{ opacity: 0.4, textAlign: 'center', padding: '1rem' }}>
+                                        {lang === 'tr' ? 'Henüz kaydedilmiş otonom işlem bulunmuyor.' : 'No recorded autonomous actions yet.'}
+                                    </div>
+                                ) : (
+                                    officeStatus.recentLogs.map((log) => {
+                                        const agentColors = {
+                                            SENTINEL: '#38bdf8',
+                                            CASHIER: '#10b981',
+                                            MARKETING: '#a78bfa',
+                                            OFFICE: '#f59e0b'
+                                        };
+                                        const color = agentColors[log.agent] || '#94a3b8';
+                                        const time = new Date(log.timestamp).toLocaleTimeString('tr-TR');
+
+                                        return (
+                                            <div key={log.id} style={{
+                                                display: 'flex',
+                                                gap: '0.8rem',
+                                                padding: '0.4rem 0',
+                                                borderBottom: '1px solid rgba(255,255,255,0.02)',
+                                                alignItems: 'flex-start'
+                                            }}>
+                                                <span style={{ color: '#64748b', flexShrink: 0 }}>[{time}]</span>
+                                                <span style={{
+                                                    color,
+                                                    fontWeight: 700,
+                                                    flexShrink: 0,
+                                                    padding: '0 4px',
+                                                    background: `${color}15`,
+                                                    borderRadius: '4px'
+                                                }}>
+                                                    {log.agent}
+                                                </span>
+                                                <span style={{ color: '#e2e8f0', flex: 1 }}>{log.message}</span>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                        </div>
+                    </div>
                 ) : loading ? (
                     <p>{t.loading}</p>
                 ) : activeTab === 'upgrades' ? (

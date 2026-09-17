@@ -75,7 +75,7 @@ export class VipManager {
             };
         }
 
-        const durationMs = 24 * 60 * 60 * 1000; // 24 hours (1 day)
+        const durationMs = 3 * 24 * 60 * 60 * 1000; // 3 days (72 hours)
         const now = Date.now();
         const expiresAt = now + durationMs;
 
@@ -222,6 +222,71 @@ export class VipManager {
             activeVip,
             activeTrials,
             expired
+        };
+    }
+
+    /**
+     * Link and approve a web trial using activation code sent via Telegram deep-link
+     */
+    approveWebTrial(trialCode, chatId, username = 'User') {
+        const id = String(chatId);
+        const existingTgUser = this.users[id];
+
+        // Anti-Abuse: If this Telegram account already had a trial, reject!
+        if (existingTgUser && (existingTgUser.hadTrial || existingTgUser.plan === 'TRIAL')) {
+            return {
+                success: false,
+                reason: 'TELEGRAM_ALREADY_USED',
+                message: 'Bu Telegram hesabı ile daha önce 3 günlük ücretsiz deneme hakkı kullanılmıştır.'
+            };
+        }
+
+        const membersFile = path.join(__dirname, 'web_members.json');
+        let members = [];
+        try {
+            if (fs.existsSync(membersFile)) {
+                members = JSON.parse(fs.readFileSync(membersFile, 'utf8'));
+            }
+        } catch (e) {
+            console.error('[VIP_MANAGER] Error reading web_members.json:', e.message);
+        }
+
+        const cleanCode = (trialCode || '').trim();
+        const member = members.find(m => m.trial_code && m.trial_code.toLowerCase() === cleanCode.toLowerCase());
+
+        if (!member) {
+            return {
+                success: false,
+                reason: 'INVALID_CODE',
+                message: 'Geçersiz veya süresi dolmuş aktivasyon kodu.'
+            };
+        }
+
+        // Start Telegram trial (3 days / 72 hours)
+        this.startTrial(chatId, username);
+
+        // Update Web member
+        const now = new Date();
+        const trialEnd = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 Days (72h)
+
+        member.status = 'approved';
+        member.plan = 'trial';
+        member.telegram_chat_id = id;
+        member.telegram_username = username;
+        member.subscription_start = now.toISOString();
+        member.subscription_end = trialEnd.toISOString();
+        member.trial_verified_at = now.toISOString();
+
+        try {
+            fs.writeFileSync(membersFile, JSON.stringify(members, null, 2), 'utf8');
+        } catch (e) {
+            console.error('[VIP_MANAGER] Error saving web_members.json:', e.message);
+        }
+
+        return {
+            success: true,
+            member,
+            expiresAt: trialEnd.toISOString()
         };
     }
 }
