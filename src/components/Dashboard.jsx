@@ -3754,6 +3754,15 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         </div>
                                     </div>
 
+                                    {/* System Guide / FAQ Button */}
+                                    <button
+                                        className="popover-action-btn"
+                                        onClick={() => { setFaqMode('live'); setShowFAQ(true); setShowUserMenu(false); }}
+                                    >
+                                        <span>❓</span>
+                                        <span>{lang === 'tr' ? 'Sistem Rehberi & SSS' : 'System Guide & FAQ'}</span>
+                                    </button>
+
                                     {/* Settings Button */}
                                     <button
                                         className="popover-action-btn"
@@ -3800,24 +3809,21 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         >
                             <span>⚡</span>
                             <span>{lang === 'tr' ? 'CANLI RADAR' : 'LIVE RADAR'}</span>
-                            {matches.length > 0 && <span className="tab-count-pill">{matches.length}</span>}
+                            <span className="tab-live-count">{matches.length}</span>
                         </button>
                         <button
                             className={`unified-tab-btn trending ${view === 'TRENDING' ? 'active' : ''}`}
                             onClick={() => setView('TRENDING')}
                         >
                             <span>🔥</span>
-                            <span>{t.trending_nav || (lang === 'tr' ? 'PİYASA TRENDLERİ' : 'MARKET TRENDS')}</span>
-                            {trendingBets.length > 0 && (
-                                <span
-                                    className="tab-count-pill"
-                                    style={{
-                                        background: view === 'TRENDING' ? 'rgba(0,0,0,0.3)' : 'rgba(239, 68, 68, 0.25)',
-                                        color: view === 'TRENDING' ? '#ffffff' : '#f87171',
-                                        border: view === 'TRENDING' ? 'none' : '1px solid rgba(239, 68, 68, 0.4)'
-                                    }}
-                                >
-                                    {new Set((trendingBets || []).map(b => b.eventId ? String(b.eventId) : `${b.home}_${b.away}`)).size}
+                            <span>{lang === 'tr' ? 'PİYASA TRENDLERİ' : 'MARKET TRENDS'}</span>
+                            {trendingBets && trendingBets.length > 0 && (
+                                <span className="tab-live-count trending" style={{
+                                    background: view === 'TRENDING' ? 'rgba(0,0,0,0.3)' : 'rgba(239, 68, 68, 0.25)',
+                                    color: view === 'TRENDING' ? '#ffffff' : '#f87171',
+                                    border: view === 'TRENDING' ? 'none' : '1px solid rgba(239, 68, 68, 0.4)'
+                                }}>
+                                    {trendingBets.length}
                                 </span>
                             )}
                         </button>
@@ -3826,16 +3832,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             onClick={() => setView('RADAR')}
                         >
                             <span>🎯</span>
-                            <span>{lang === 'tr' ? 'GÜNLÜK RADAR' : 'DAILY RADAR'}</span>
+                            <span>{t.daily_radar}</span>
                         </button>
                         <button
                             className={`unified-tab-btn ${view === 'PORTFOLIO' ? 'active' : ''}`}
                             onClick={() => setView('PORTFOLIO')}
                         >
-                            <span>📈</span>
-                            <span>{lang === 'tr' ? 'PORTFÖY' : 'PORTFOLIO'}</span>
+                            <span>💼</span>
+                            <span>{t.portfolio}</span>
                         </button>
-                        {(isAdmin || userProfile?.plan === 'admin') && (
+                        {isAdmin && (
                             <button
                                 className={`unified-tab-btn admin ${view === 'ADMIN' ? 'active' : ''}`}
                                 onClick={() => setView('ADMIN')}
@@ -3847,19 +3853,22 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </div>
                 </div>
 
-                {/* Bottom Row: Micro KPI Ticker Strip */}
+                {/* Bottom Row: Micro Live Telemetry Strip */}
                 <div className="terminal-kpi-strip">
                     <div className="kpi-pill success">
-                        <span className="kpi-label">{t.pass_rate}:</span>
-                        <span className="kpi-val">{(analytics.passRate || 0).toFixed(1)}%</span>
-                    </div>
-                    <div className="kpi-pill neutral">
-                        <span className="kpi-label">{t.no_bet_rate}:</span>
-                        <span className="kpi-val">{(analytics.noBetRate || 0).toFixed(1)}%</span>
+                        <span className="tb-pulse-dot" style={{ width: '6px', height: '6px', background: '#10b981', borderRadius: '50%', display: 'inline-block' }}></span>
+                        <span className="kpi-label">{lang === 'tr' ? 'Kuant Motor:' : 'Quant Engine:'}</span>
+                        <span className="kpi-val">{lang === 'tr' ? '24/7 Aktif' : 'Online'}</span>
                     </div>
                     <div className="kpi-pill accent">
-                        <span className="kpi-label">{t.limit}:</span>
-                        <span className="kpi-val">{bankState.daily_bet_count}/{CONFIG.BANKROLL.HIERARCHY.THRESHOLDS.DAILY_BET_LIMIT}</span>
+                        <span>📡</span>
+                        <span className="kpi-label">{lang === 'tr' ? 'Taranan:' : 'Tracked:'}</span>
+                        <span className="kpi-val">{matches.length} {lang === 'tr' ? 'Canlı Maç' : 'Live'}</span>
+                    </div>
+                    <div className="kpi-pill neutral">
+                        <span>🧠</span>
+                        <span className="kpi-label">{lang === 'tr' ? 'Model:' : 'Model:'}</span>
+                        <span className="kpi-val">Bayesian + xG Flow</span>
                     </div>
                     <button
                         onClick={() => { setFaqMode('live'); setShowFAQ(true); }}
@@ -4899,14 +4908,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         value={terminalSortCriteria}
                                         onChange={(e) => setTerminalSortCriteria(e.target.value)}
                                     >
-                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme' : 'Live Momentum'}</option>
-                                        <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali' : 'Goal Probability'}</option>
-                                        <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : 'Last 20m Momentum'}</option>
-                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Kupon Hacmi' : 'Market Volume'}</option>
-                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Dakika' : 'Minute'}</option>
-                                        <option value={SORT_CRITERIA.DQS}>🎯 {lang === 'tr' ? 'AI DQS' : 'AI DQS'}</option>
-                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig' : 'League'}</option>
-                                        <option value={SORT_CRITERIA.TOTAL_SHOTS}>💥 {lang === 'tr' ? 'Toplam Şut' : 'Total Shots'}</option>
+                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı)' : 'Live Momentum'}</option>
+                                        <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali (%55+)' : 'Goal Probability'}</option>
+                                        <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : 'Last 20m Surge'}</option>
+                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Kupon Hacmi' : 'Market Volume'}</option>
+                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Maç Dakikası' : 'Match Minute'}</option>
+                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig Sıralaması' : 'League'}</option>
                                     </select>
                                 </div>
                             </div>

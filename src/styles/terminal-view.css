@@ -1087,6 +1087,13 @@
     display: inline !important;
   }
 
+  /* Clean up cognitive noise on mobile so live matches appear immediately */
+  .terminal-kpi-strip,
+  .mobile-bankroll-glance,
+  .tier-filter-bar {
+    display: none !important;
+  }
+
   .tb-cockpit-toolbar {
     display: flex !important;
     flex-direction: column !important;

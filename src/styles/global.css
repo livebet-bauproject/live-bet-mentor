@@ -2554,19 +2554,8 @@ html, body {
     display: none !important;
   }
 
-  /* Micro KPI Strip - Horizontal Scrollable Chips */
+  /* Micro KPI Strip - Hidden on mobile to prioritize instant match visibility */
   .terminal-kpi-strip {
-    display: flex !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    scrollbar-width: none !important;
-    gap: 0.4rem !important;
-    padding-top: 0.4rem !important;
-    width: 100% !important;
-  }
-
-  .terminal-kpi-strip::-webkit-scrollbar {
     display: none !important;
   }
 
@@ -4119,10 +4108,7 @@ html, body {
     display: flex !important;
   }
   .mobile-bankroll-glance {
-    display: flex !important;
-    padding: 0.35rem 0.75rem !important;
-    margin-bottom: 0.45rem !important;
-    border-radius: 8px !important;
+    display: none !important;
   }
   .mobile-quick-chips {
     display: flex !important;
@@ -4133,15 +4119,9 @@ html, body {
     display: none !important;
   }
 
-  /* Tier Filter Bar Mobile - Sleek Compact Segmented Bar (30px Height) */
+  /* Tier Filter Bar - Hidden on mobile to let 2x3 filter grid & live matches dominate */
   .tier-filter-bar {
-    display: grid !important;
-    grid-template-columns: repeat(4, 1fr) !important;
-    gap: 0.25rem !important;
-    width: 100% !important;
-    margin-bottom: 0.45rem !important;
-    padding: 0 !important;
-    overflow: visible !important;
+    display: none !important;
   }
 
   .tier-btn {
