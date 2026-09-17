@@ -11,6 +11,7 @@ import { sofaScoreAdapter } from '../backend/sofaScoreAdapter.js';
 export const SORT_CRITERIA = {
     MOMENTUM: 'MOMENTUM',       // Dynamic: High pressure, hot attacks, active momentum bubble to top
     LAST_20_MIN: 'LAST_20_MIN', // Dynamic: High surge and acceleration in the last 20 minutes
+    GOAL_PROB: 'GOAL_PROB',     // Dynamic: Bayesian in-play goal probability (Highest % first)
     DQS: 'DQS',                 // AI Conviction & Data Quality Score
     MINUTE_DESC: 'MINUTE_DESC', // Late game first (90' -> 1')
     MINUTE_ASC: 'MINUTE_ASC',   // Early game first (1' -> 90')
@@ -452,6 +453,49 @@ export const isMatchSurgingLast20 = (match, signal = null) => {
 };
 
 /**
+ * Calculates in-play goal probability using Bayesian posterior or live metrics fallback.
+ * Returns decimal probability between 0 and 1 (e.g. 0.605 for 60.5%).
+ */
+export const calculateGoalProbability = (match, signal = null) => {
+    if (!match) return 0;
+    const bayesian = match.observations?.bayesian;
+    if (typeof bayesian?.posterior === 'number' && !isNaN(bayesian.posterior)) {
+        return bayesian.posterior;
+    }
+    const sig = signal || match.signal;
+    const heat = calculateMatchHeatScore(match, sig);
+    const heatNorm = Math.min(1, Math.max(0, heat / 100));
+    const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
+    const sogAway = Number(match.stats?.shotsOnGoal?.away || 0);
+    const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
+    const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
+    const daDiff = Math.abs(daHome - daAway);
+    const xgHome = Number(match.stats?.xg?.home || 0);
+    const xgAway = Number(match.stats?.xg?.away || 0);
+
+    const rawPosterior = Math.min(0.92, Math.max(0.12, (
+        heatNorm * 0.45 +
+        ((xgHome + xgAway) > 0 ? (xgHome + xgAway) * 0.15 : (sogHome + sogAway) * 0.04) +
+        (daDiff >= 15 ? 0.12 : 0)
+    )));
+    return rawPosterior;
+};
+
+/**
+ * Determines if a match has high live goal probability (>= threshold, default 55%)
+ */
+export const isMatchHighGoalProb = (match, signal = null, threshold = 0.55) => {
+    if (!match) return false;
+    const minStr = String(match.minute || '').toLowerCase();
+    const min = parseNumericMinute(match.minute);
+    const isLateOrFinished = min >= 88 || minStr.includes('ms') || minStr.includes('ft');
+    if (isLateOrFinished) return false;
+
+    const prob = calculateGoalProbability(match, signal);
+    return prob >= threshold;
+};
+
+/**
  * Sorts matches dynamically based on criteria and lock state
  */
 export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, signals = {}, isLocked = false, lockedOrderMap = null, trendingBets = []) => {
@@ -489,6 +533,15 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
                 if (metricsB.surgeScore !== metricsA.surgeScore) {
                     return metricsB.surgeScore - metricsA.surgeScore;
                 }
+                return b.heat - a.heat;
+            });
+            break;
+
+        case SORT_CRITERIA.GOAL_PROB:
+            list.sort((a, b) => {
+                const probA = calculateGoalProbability(a.match, signals[a.match.id]);
+                const probB = calculateGoalProbability(b.match, signals[b.match.id]);
+                if (probB !== probA) return probB - probA;
                 return b.heat - a.heat;
             });
             break;

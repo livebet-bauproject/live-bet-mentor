@@ -23,7 +23,7 @@ import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -4352,16 +4352,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <div title="High Edge Detection" style={{ background: 'var(--accent-color)', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>VALUE</div>
                                             )}
                                             {s.isLive && (
-                                                <div title="Canlı Oynanıyor" style={{ background: '#ef4444', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px', boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)' }}>🔴 CANLI</div>
+                                                <div title={lang === 'tr' ? "Canlı Oynanıyor" : "Match in play"} style={{ background: '#ef4444', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px', boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)' }}>{lang === 'tr' ? '🔴 CANLI' : '🔴 LIVE'}</div>
                                             )}
                                             {s.isUpcoming && s.minutesUntilKickoff > 0 && s.minutesUntilKickoff <= 120 && (
-                                                <div title="Başlamak Üzere" style={{ background: '#f59e0b', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>⏳ {s.minutesUntilKickoff} DK</div>
+                                                <div title={lang === 'tr' ? "Başlamak Üzere" : "Starting soon"} style={{ background: '#f59e0b', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>⏳ {s.minutesUntilKickoff} {lang === 'tr' ? 'DK' : 'MIN'}</div>
                                             )}
                                             {s.isFinished && (
-                                                <div title="Maç Sona Erdi" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>🏁 BİTTİ</div>
+                                                <div title={lang === 'tr' ? "Maç Sona Erdi" : "Match finished"} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>{lang === 'tr' ? '🏁 BİTTİ' : '🏁 ENDED'}</div>
                                             )}
                                             {s.divergence > CONFIG.MODULAR_SYSTEM.ADVANCED_ANALYSIS.DIVERGENCE_RADAR.THRESHOLD && (
-                                                <div title="Conflicting Source Predictions" style={{ background: 'var(--danger-color)', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>DİKKAT</div>
+                                                <div title="Conflicting Source Predictions" style={{ background: 'var(--danger-color)', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>{lang === 'tr' ? 'DİKKAT' : 'CAUTION'}</div>
                                             )}
                                         </div>
 
@@ -5222,7 +5222,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     type="button"
                                                     onClick={(e) => handleSendToTelegram(e, match, opp)}
                                                     className="opp-telegram-btn"
-                                                    title="VIP Gruba Gönder"
+                                                    title={lang === 'tr' ? "VIP Gruba Gönder" : "Send to VIP Group"}
                                                 >
                                                     ✈️
                                                 </button>
@@ -5235,7 +5235,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <div className="opp-team-side home">
                                             <span className="opp-team-name">
                                                 {match.homeTeam}
-                                                {isHomeHeavy && <span style={{ color: '#38bdf8', marginLeft: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title="Yoğun Ev Baskısı">⚡▶</span>}
+                                                {isHomeHeavy && <span style={{ color: '#38bdf8', marginLeft: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Ev Baskısı" : "Heavy Home Pressure"}>⚡▶</span>}
                                             </span>
                                             {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
                                                 <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff' }}>
@@ -5257,7 +5257,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 </span>
                                             )}
                                             <span className="opp-team-name">
-                                                {isAwayHeavy && <span style={{ color: '#f43f5e', marginRight: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title="Yoğun Deplasman Baskısı">◀⚡</span>}
+                                                {isAwayHeavy && <span style={{ color: '#f43f5e', marginRight: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Deplasman Baskısı" : "Heavy Away Pressure"}>◀⚡</span>}
                                                 {match.awayTeam}
                                             </span>
                                         </div>
@@ -5267,12 +5267,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <div className="opp-badges-row">
                                         {opp.isHalftime && (
                                             <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24' }}>
-                                                ☕ 2. YARI DEĞERİ
+                                                ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : '2ND HALF VALUE'}
                                             </span>
                                         )}
                                         {opp.valueDetected && (
                                             <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000' }}>
-                                                💰 DEĞERLİ ORAN
+                                                💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : 'VALUE ODDS'}
                                             </span>
                                         )}
                                         {match.stats?.xg && (
@@ -5281,11 +5281,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </span>
                                         )}
                                         <span className="opp-micro-badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1' }}>
-                                            {opp.trend === 'UP' ? '⬆️' : opp.trend === 'DOWN' ? '⬇️' : '➡️'} %{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta} ({momentumWindow}dk)
+                                            {opp.trend === 'UP' ? '⬆️' : opp.trend === 'DOWN' ? '⬇️' : '➡️'} %{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta} ({momentumWindow}{lang === 'tr' ? 'dk' : 'm'})
                                         </span>
                                         {opp.smartMoney?.active && (
                                             <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', color: '#fff' }}>
-                                                📉 BÜYÜK PARA (-%{opp.smartMoney.dropPct.toFixed(0)})
+                                                📉 {lang === 'tr' ? 'BÜYÜK PARA' : 'SMART MONEY'} (-%{opp.smartMoney.dropPct.toFixed(0)})
                                             </span>
                                         )}
                                         {opp.hasValueEV && opp.bestEV && (
@@ -5300,12 +5300,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         )}
                                         {opp.cashOutWarning && (
                                             <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff', animation: 'pulse 1.5s infinite' }}>
-                                                🛡️ BAHİS BOZDUR
+                                                🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : 'CASHOUT'}
                                             </span>
                                         )}
                                         {opp.isLowData && (
                                             <span className="opp-micro-badge" style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}>
-                                                ⚠️ Kısıtlı İstatistik
+                                                ⚠️ {lang === 'tr' ? 'Kısıtlı İstatistik' : 'Limited Stats'}
                                             </span>
                                         )}
                                     </div>
@@ -5316,18 +5316,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8' }}>
                                                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block', boxShadow: isHomeHeavy ? '0 0 8px #38bdf8' : 'none' }} />
                                                 <span>%{homePct}</span>
-                                                {isHomeHeavy && <span style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 900 }}>BASKI</span>}
+                                                {isHomeHeavy && <span style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : 'PRESS'}</span>}
                                             </div>
 
                                             <div className="opp-momentum-pill" style={{
                                                 background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
                                                 color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
                                             }}>
-                                                {isHot ? '🔥 RİTİM YÜKSEK' : (isHomeHeavy ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : isAwayHeavy ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : '⚪ DENGELİ TEMPO')}
+                                                {isHot ? (lang === 'tr' ? '🔥 RİTİM YÜKSEK' : '🔥 HIGH TEMPO') : (isHomeHeavy ? (lang === 'tr' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Home'} Pressing`) : isAwayHeavy ? (lang === 'tr' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Away'} Pressing`) : (lang === 'tr' ? '⚪ DENGELİ TEMPO' : '⚪ BALANCED TEMPO'))}
                                             </div>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8' }}>
-                                                {isAwayHeavy && <span style={{ fontSize: '0.58rem', color: '#f43f5e', fontWeight: 900 }}>BASKI</span>}
+                                                {isAwayHeavy && <span style={{ fontSize: '0.58rem', color: '#f43f5e', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : 'PRESS'}</span>}
                                                 <span>%{awayPct}</span>
                                                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block', boxShadow: isAwayHeavy ? '0 0 8px #f43f5e' : 'none' }} />
                                             </div>
@@ -6497,11 +6497,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     textTransform: 'uppercase',
                                     color: showAlertPopup.recommendation?.edgeType === 'LATENCY' ? '#f97316' :
                                            showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? '#c084fc' :
-                                           showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24'
+                                            showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24'
                                 }}>
-                                    {showAlertPopup.recommendation?.edgeType === 'LATENCY' ? 'GECİKME ARBİTRAJI' :
-                                     showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? 'KURUMSAL +EV DEĞER' :
-                                     `${showAlertPopup.level || 'SICAK'} FIRSAT`}
+                                    {showAlertPopup.recommendation?.edgeType === 'LATENCY' ? (lang === 'tr' ? 'GECİKME ARBİTRAJI' : 'LATENCY ARBITRAGE') :
+                                     showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? (lang === 'tr' ? 'KURUMSAL +EV DEĞER' : '+EV VALUE') :
+                                     `${lang === 'en' ? (showAlertPopup.level === 'ALEV' ? 'FLAME' : showAlertPopup.level === 'SICAK' ? 'HOT' : 'HOT') : (showAlertPopup.level || 'SICAK')} ${lang === 'tr' ? 'FIRSAT' : 'OPPORTUNITY'}`}
                                 </span>
                                 <span style={{
                                     fontSize: '0.65rem',
@@ -6511,7 +6511,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     color: '#94a3b8',
                                     fontWeight: 700
                                 }}>
-                                    {showAlertPopup.conditionsMet || 4}/5 Koşul
+                                    {showAlertPopup.conditionsMet || 4}/5 {lang === 'tr' ? 'Koşul' : 'Conditions'}
                                 </span>
                             </div>
                             <button 
@@ -6532,7 +6532,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(239,68,68,0.3)'; }}
                                 onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-                                title="Kapat"
+                                title={lang === 'tr' ? "Kapat" : "Close"}
                             >
                                 ✕
                             </button>
@@ -6572,7 +6572,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 )}
                             </div>
                             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-color)' }}>
-                                {renderMatchMinute(showAlertPopup.minute, t, false)} • Skor: {showAlertPopup.score}
+                                {renderMatchMinute(showAlertPopup.minute, t, false)} • {lang === 'tr' ? 'Skor:' : 'Score:'} {showAlertPopup.score}
                             </div>
                         </div>
 
@@ -6587,7 +6587,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             alignItems: 'center'
                         }}>
                             <div>
-                                <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ÖNERİLEN PAZAR</div>
+                                <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{lang === 'tr' ? 'ÖNERİLEN PAZAR' : 'SUGGESTED MARKET'}</div>
                                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#38bdf8' }}>
                                     {showAlertPopup.recommendation?.predictionText ||
                                      (showAlertPopup.recommendation?.marketKey === 'POST_GOAL_COOLDOWN' ? (t.POST_GOAL_COOLDOWN || 'Yeni Gol Oldu (Piyasa Dengeleniyor)') :
@@ -6605,7 +6605,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     fontSize: '0.75rem', 
                                     fontWeight: 900 
                                 }}>
-                                    %{showAlertPopup.recommendation?.confidence || 75} Güven
+                                    %{showAlertPopup.recommendation?.confidence || 75} {lang === 'tr' ? 'Güven' : 'Confidence'}
                                 </div>
                                 {showAlertPopup.recommendation?.odds && Number(showAlertPopup.recommendation.odds) > 1.05 && (
                                     <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '2px', fontWeight: 800, color: '#fbbf24' }}>
@@ -6795,23 +6795,23 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {/* Alert Stats Summary */}
                                     <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
                                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>TOPLAM SİNYAL</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'TOPLAM SİNYAL' : 'TOTAL ALERTS'}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--accent-color)' }}>{alertHistoryList.length}</div>
                                         </div>
                                         <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>KAZANAN</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAZANAN' : 'WON'}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#10b981' }}>
                                                 {alertHistoryList.filter(a => a.status === 'WON').length}
                                             </div>
                                         </div>
                                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>KAYBEDEN</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAYBEDEN' : 'LOST'}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ef4444' }}>
                                                 {alertHistoryList.filter(a => a.status === 'LOST').length}
                                             </div>
                                         </div>
                                         <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>DEVAM EDEN</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'DEVAM EDEN' : 'PENDING'}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fbbf24' }}>
                                                 {alertHistoryList.filter(a => a.status === 'PENDING').length}
                                             </div>
@@ -6819,7 +6819,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.8 }}>Gelen Popup & Bildirim Sinyalleri</div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.8 }}>{lang === 'tr' ? 'Gelen Popup & Bildirim Sinyalleri' : 'Incoming Popup & Notification Signals'}</div>
                                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                             <button
                                                 onClick={scanFinishedAlerts}
@@ -6837,15 +6837,15 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     alignItems: 'center',
                                                     gap: '4px'
                                                 }}
-                                                title="Biten maçların skorlarını canlı sorgula ve sonuçlandır"
+                                                title={lang === 'tr' ? "Biten maçların skorlarını canlı sorgula ve sonuçlandır" : "Scan and settle finished matches"}
                                             >
                                                 <span>{isScanningResults ? '⏳' : '🔄'}</span>
-                                                {isScanningResults ? 'Sorgulanıyor...' : 'Biten Maçları Sorgula'}
+                                                {isScanningResults ? (lang === 'tr' ? 'Sorgulanıyor...' : 'Scanning...') : (lang === 'tr' ? 'Biten Maçları Sorgula' : 'Settle Finished Matches')}
                                             </button>
                                             {alertHistoryList.length > 0 && (
                                                 <button
                                                     onClick={() => {
-                                                        if (window.confirm('Tüm sinyal geçmişini temizlemek istediğinize emin misiniz?')) {
+                                                        if (window.confirm(lang === 'tr' ? 'Tüm sinyal geçmişini temizlemek istediğinize emin misiniz?' : 'Are you sure you want to clear all alert history?')) {
                                                             smartAlertService.clearHistory();
                                                             setAlertHistoryList([]);
                                                         }
@@ -6861,7 +6861,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         cursor: 'pointer'
                                                     }}
                                                 >
-                                                    🗑️ Geçmişi Temizle
+                                                    🗑️ {lang === 'tr' ? 'Geçmişi Temizle' : 'Clear History'}
                                                 </button>
                                             )}
                                         </div>
@@ -6871,7 +6871,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <div style={{ maxHeight: '420px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.7rem', paddingRight: '0.3rem' }}>
                                         {alertHistoryList.map(alert => {
                                             const rec = alert.recommendation || {};
-                                            const betTitle = rec.predictionText || rec.marketLabel || rec.marketKey || 'Tahmin';
+                                            const betTitle = rec.predictionText || rec.marketLabel || rec.marketKey || (lang === 'tr' ? 'Tahmin' : 'Prediction');
                                             const timeStr = alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                                             return (
                                                 <div
@@ -6896,7 +6896,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 background: alert.level === 'ALEV' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
                                                                 color: '#fff'
                                                             }}>
-                                                                {alert.level === 'ALEV' ? '🔥 ALEV' : '⚡ SICAK'}
+                                                                {alert.level === 'ALEV' ? (lang === 'tr' ? '🔥 ALEV' : '🔥 FLAME') : (lang === 'tr' ? '⚡ SICAK' : '⚡ HOT')}
                                                             </span>
                                                             {(alert.league || alert.leagueName) && (
                                                                 <span style={{
@@ -6972,7 +6972,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         }}>
                                                                             <span>⏱️ {initialMinute}'</span>
                                                                             <span style={{ opacity: 0.4 }}>|</span>
-                                                                            <span>Skor: <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> anında</span>
+                                                                            <span>{lang === 'tr' ? 'Skor:' : 'Score:'} <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : 'at signal'}</span>
                                                                         </span>
 
                                                                         <span style={{ color: 'var(--accent-color)', fontWeight: 900, fontSize: '0.75rem' }}>➔</span>
@@ -6989,7 +6989,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                                 alignItems: 'center',
                                                                                 gap: '5px'
                                                                             }}>
-                                                                                <span style={{ fontSize: '0.65rem' }}>{isFinished ? '🏁 Bitiş:' : '🔴 Canlı Skor:'}</span>
+                                                                                <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Bitiş:' : '🏁 Final:') : (lang === 'tr' ? '🔴 Canlı Skor:' : '🔴 Live:')}</span>
                                                                                 <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
                                                                                 {!isFinished && currentMinuteStr && (
                                                                                     <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
@@ -7026,7 +7026,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                                         fontSize: '0.7rem',
                                                                                         fontWeight: 700
                                                                                     }}>
-                                                                                        🔴 Canlı: {initialScoreStr} ({initialMinute}')
+                                                                                        🔴 {lang === 'tr' ? 'Canlı:' : 'Live:'} {initialScoreStr} ({initialMinute}')
                                                                                     </span>
                                                                                 );
                                                                             })()
@@ -7038,10 +7038,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 </div>
                                                                 <div style={{ textAlign: 'right' }}>
                                                                     <div style={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
-                                                                        {rec.odds ? `Oran: ${Number(rec.odds).toFixed(2)}` : ''}
+                                                                        {rec.odds ? `${lang === 'tr' ? 'Oran:' : 'Odds:'} ${Number(rec.odds).toFixed(2)}` : ''}
                                                                     </div>
                                                                     <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
-                                                                        %{rec.confidence || 75} Güven
+                                                                        %{rec.confidence || 75} {lang === 'tr' ? 'Güven' : 'Confidence'}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -7058,9 +7058,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         setAlertHistoryList(smartAlertService.getHistory(50));
                                                                     }}
                                                                     style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                    title="Durumu değiştirmek için tıklayın (Kaybetti)"
+                                                                    title={lang === 'tr' ? "Durumu değiştirmek için tıklayın (Kaybetti)" : "Click to toggle (Lost)"}
                                                                 >
-                                                                    ✓ KAZANDI
+                                                                    ✓ {lang === 'tr' ? 'KAZANDI' : 'WON'}
                                                                 </span>
                                                             ) : alert.status === 'LOST' ? (
                                                                 <span
@@ -7069,13 +7069,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         setAlertHistoryList(smartAlertService.getHistory(50));
                                                                     }}
                                                                     style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                    title="Durumu değiştirmek için tıklayın (Kazandı)"
+                                                                    title={lang === 'tr' ? "Durumu değiştirmek için tıklayın (Kazandı)" : "Click to toggle (Won)"}
                                                                 >
-                                                                    ✗ KAYBETTİ
+                                                                    ✗ {lang === 'tr' ? 'KAYBETTİ' : 'LOST'}
                                                                 </span>
                                                             ) : (
                                                                 <span style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>
-                                                                    ⏳ DEVAM EDİYOR
+                                                                    ⏳ {lang === 'tr' ? 'DEVAM EDİYOR' : 'IN PROGRESS'}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -7089,9 +7089,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                             setAlertHistoryList(smartAlertService.getHistory(50));
                                                                         }}
                                                                         style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title="Kazandı olarak işaretle"
+                                                                        title={lang === 'tr' ? "Kazandı olarak işaretle" : "Mark as won"}
                                                                     >
-                                                                        ✓ Kazandı
+                                                                        ✓ {lang === 'tr' ? 'Kazandı' : 'Won'}
                                                                     </button>
                                                                     <button
                                                                         onClick={() => {
@@ -7099,9 +7099,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                             setAlertHistoryList(smartAlertService.getHistory(50));
                                                                         }}
                                                                         style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title="Kaybetti olarak işaretle"
+                                                                        title={lang === 'tr' ? "Kaybetti olarak işaretle" : "Mark as lost"}
                                                                     >
-                                                                        ✗ Kaybetti
+                                                                        ✗ {lang === 'tr' ? 'Kaybetti' : 'Lost'}
                                                                     </button>
                                                                 </>
                                                             )}
@@ -7128,7 +7128,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         source: 'ALERT'
                                                                     });
                                                                     setTrackingStats(predictionTracker.getStats());
-                                                                    alert('Tahmin başarıyla karnenize kaydedildi!');
+                                                                    alert(lang === 'tr' ? 'Tahmin başarıyla karnenize kaydedildi!' : 'Prediction saved to your ledger!');
                                                                 }}
                                                                 style={{
                                                                     background: 'rgba(56, 189, 248, 0.1)',
@@ -7140,9 +7140,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     fontWeight: 700,
                                                                     cursor: 'pointer'
                                                                 }}
-                                                                title="Bu tahmini kişisel kasa karnene ekle"
+                                                                title={lang === 'tr' ? "Bu tahmini kişisel kasa karnene ekle" : "Add this prediction to your ledger"}
                                                             >
-                                                                + Portföye Ekle
+                                                                + {lang === 'tr' ? 'Portföye Ekle' : 'Add to Ledger'}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -7153,8 +7153,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         {alertHistoryList.length === 0 && (
                                             <div style={{ textAlign: 'center', padding: '3rem 1rem', opacity: 0.5 }}>
                                                 <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔔</div>
-                                                <div>Henüz tetiklenen sinyal bulunmuyor.</div>
-                                                <div style={{ fontSize: '0.75rem', marginTop: '0.4rem' }}>Canlı maçlarda yüksek baskı veya xG dominasyonu tespit edildiğinde sinyaller burada listelenecektir.</div>
+                                                <div>{lang === 'tr' ? 'Henüz tetiklenen sinyal bulunmuyor.' : 'No alerts triggered yet.'}</div>
+                                                <div style={{ fontSize: '0.75rem', marginTop: '0.4rem' }}>{lang === 'tr' ? 'Canlı maçlarda yüksek baskı veya xG dominasyonu tespit edildiğinde sinyaller burada listelenecektir.' : 'Alerts will appear here when high pressure or xG dominance is detected in live matches.'}</div>
                                             </div>
                                         )}
                                     </div>
@@ -7167,31 +7167,33 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {/* Summary Stats */}
                                     <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
                                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>TOPLAM</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'TOPLAM' : 'TOTAL'}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-color)' }}>{trackingStats.total}</div>
                                         </div>
                                         <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>KAZANAN</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'KAZANAN' : 'WON'}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981' }}>{trackingStats.won}</div>
                                         </div>
                                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>KAYBEDEN</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'KAYBEDEN' : 'LOST'}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#ef4444' }}>{trackingStats.lost}</div>
                                         </div>
                                         <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>İSABET</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'İSABET' : 'ACCURACY'}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fbbf24' }}>%{trackingStats.accuracy}</div>
                                         </div>
                                     </div>
 
                                     {/* By Confidence */}
                                     <div style={{ marginBottom: '2rem' }}>
-                                        <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>Güven Seviyesine Göre</h4>
+                                        <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>
+                                            {lang === 'tr' ? 'Güven Seviyesine Göre' : 'By Confidence Level'}
+                                        </h4>
                                         <div style={{ display: 'flex', gap: '1rem' }}>
                                             {Object.entries(trackingStats.byConfidence || {}).map(([level, stats]) => (
                                                 <div key={level} style={{ flex: 1, background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
                                                     <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>
-                                                        {level === 'high' ? 'Yüksek (75+)' : level === 'medium' ? 'Orta (60-74)' : 'Düşük (<60)'}
+                                                        {level === 'high' ? (lang === 'tr' ? 'Yüksek (75+)' : 'High (75+)') : level === 'medium' ? (lang === 'tr' ? 'Orta (60-74)' : 'Medium (60-74)') : (lang === 'tr' ? 'Düşük (<60)' : 'Low (<60)')}
                                                     </div>
                                                     <div style={{ fontWeight: 800, marginTop: '0.3rem' }}>
                                                         {stats.total > 0 ? `${((stats.won / stats.total) * 100).toFixed(0)}%` : '-'}
@@ -7295,7 +7297,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 }}>
                                                                     {initialMinute && <span>⏱️ {initialMinute}'</span>}
                                                                     {initialMinute && <span style={{ opacity: 0.4 }}>|</span>}
-                                                                    <span>Skor: <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> anında</span>
+                                                                    <span>{lang === 'tr' ? 'Skor: ' : 'Score: '}<strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : 'at signal'}</span>
                                                                 </span>
 
                                                                 <span style={{ color: 'var(--accent-color)', fontWeight: 900, fontSize: '0.75rem' }}>➔</span>
@@ -7312,7 +7314,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         alignItems: 'center',
                                                                         gap: '5px'
                                                                     }}>
-                                                                        <span style={{ fontSize: '0.65rem' }}>{isFinished ? '🏁 Sonuç:' : '🔴 Canlı Skor:'}</span>
+                                                                        <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Sonuç:' : '🏁 Result:') : (lang === 'tr' ? '🔴 Canlı Skor:' : '🔴 Live Score:')}</span>
                                                                         <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
                                                                         {!isFinished && currentMinuteStr && (
                                                                             <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
@@ -7327,7 +7329,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         fontSize: '0.7rem',
                                                                         fontWeight: 700
                                                                     }}>
-                                                                        🔴 Skor: {initialScoreStr}
+                                                                        🔴 {lang === 'tr' ? 'Skor: ' : 'Score: '}{initialScoreStr}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -7354,7 +7356,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                             setTrackingStats(predictionTracker.getStats());
                                                                         }}
                                                                         style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title="Kazandı olarak işaretle"
+                                                                        title={lang === 'tr' ? 'Kazandı olarak işaretle' : 'Mark as won'}
                                                                     >
                                                                         ✓
                                                                     </button>
@@ -7372,7 +7374,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                             setTrackingStats(predictionTracker.getStats());
                                                                         }}
                                                                         style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title="Kaybetti olarak işaretle"
+                                                                        title={lang === 'tr' ? 'Kaybetti olarak işaretle' : 'Mark as lost'}
                                                                     >
                                                                         ✗
                                                                     </button>
@@ -7398,7 +7400,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     }}
                                                                     title={lang === 'tr' ? 'Yanlış tıkladıysanız geri almak (Devam Ediyor yapmak) için tıklayın' : 'Click to undo back to Pending'}
                                                                 >
-                                                                    {pred.status === 'WON' ? '✓ KAZANDI ↺' : '✗ KAYBETTİ ↺'}
+                                                                    {pred.status === 'WON' ? (lang === 'tr' ? '✓ KAZANDI ↺' : '✓ WON ↺') : (lang === 'tr' ? '✗ KAYBETTİ ↺' : '✗ LOST ↺')}
                                                                 </button>
                                                             )}
 
@@ -7429,7 +7431,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             })}
                                             {predictionTracker.getRecent(20).length === 0 && (
                                                 <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
-                                                    Henüz kayıtlı tahmin yok
+                                                    {lang === 'tr' ? 'Henüz kayıtlı tahmin yok' : 'No recorded predictions yet'}
                                                 </div>
                                             )}
                                         </div>
@@ -7471,7 +7473,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     justifyContent: 'center',
                     zIndex: 1000
                 }}
-                title="Tahmin Performansı"
+                title={lang === 'tr' ? 'Tahmin Performansı' : 'Prediction Performance'}
             >
                 📊
             </button>

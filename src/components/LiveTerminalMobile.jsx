@@ -77,7 +77,22 @@ export const LiveTerminalMobile = ({
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
             label = signal.reason;
         }
-        return label || 'BAHİS';
+        if (!label) return lang === 'tr' ? 'BAHİS' : 'BET';
+
+        if (lang === 'en') {
+            return label
+                .replace(/^Sıradaki Gol:/i, 'Next Goal:')
+                .replace(/^İY 0\.5 ÜST/i, 'HT Over 0.5')
+                .replace(/^İY 1\.5 ÜST/i, 'HT Over 1.5')
+                .replace(/^SON 15DK PATLAMASI/i, '15m MOMENTUM BURST')
+                .replace(/^GERİ DÖNÜŞ/i, 'COMEBACK')
+                .replace(/^BASKI LİDERİ/i, 'PRESSURE LEADER')
+                .replace(/^İSTATİSTİKSEL BASKI/i, 'STATISTICAL DOMINANCE')
+                .replace(/^GOL ALARMI/i, 'GOAL ALERT')
+                .replace(/ÜST/g, 'OVER')
+                .replace(/ALT/g, 'UNDER');
+        }
+        return label;
     };
 
     if (!Array.isArray(matches) || matches.length === 0) {
@@ -107,8 +122,11 @@ export const LiveTerminalMobile = ({
                 const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
                 const rawScore = (opp?.score !== undefined && typeof opp.score === 'number' && !isNaN(opp.score)) ? opp.score : heat;
                 const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
-                const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
-                const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
+                const rawHeatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
+                const heatLevel = lang === 'en' 
+                    ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : rawHeatLevel === 'SOGUK' ? 'COLD' : rawHeatLevel)
+                    : rawHeatLevel;
+                const heatIcon = rawHeatLevel === 'ALPHA' ? '🚀' : rawHeatLevel === 'ALEV' ? '🔥' : rawHeatLevel === 'SICAK' ? '⚡' : '❄️';
                 const last20 = calculateLast20MinMetrics(m, signal);
 
                     const sogHome = m.stats?.shotsOnGoal?.home || 0;
@@ -176,7 +194,7 @@ export const LiveTerminalMobile = ({
                             lateGame: { status: 'OK' }
                         };
                     const latencyMs = m.latency || Math.round(35 + (m.id ? (Number(String(m.id).replace(/\D/g, '')) % 40) : 12));
-                    const dataQuality = m.dataQuality === 'PARTIAL' ? 'BEKLENİYOR' : (m.dataQuality === 'LIMITED' ? 'KISITLI' : 'TAM');
+                    const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'en' ? 'PENDING' : 'BEKLENİYOR') : (m.dataQuality === 'LIMITED' ? (lang === 'en' ? 'LIMITED' : 'KISITLI') : (lang === 'en' ? 'FULL' : 'TAM'));
                     const pressureTotal = m.observations?.pressure?.total || Math.round(heat * 0.85);
 
                     const scores = parseScores(m.score);
@@ -201,7 +219,7 @@ export const LiveTerminalMobile = ({
                                             padding: '0 2px',
                                             cursor: 'pointer'
                                         }}
-                                        title={isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
+                                        title={isPinned ? (lang === 'en' ? 'Remove from Favorites' : 'Favorilerden Çıkar') : (lang === 'en' ? 'Add to Favorites' : 'Favoriye Ekle')}
                                     >
                                         ★
                                     </button>
@@ -217,8 +235,8 @@ export const LiveTerminalMobile = ({
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span
-                                        className={`tb-heat-badge tb-heat-${(heatLevel || 'soguk').toLowerCase()}`}
-                                        title={`Isı Skoru: ${heatScore} • Seviye: ${heatLevel}`}
+                                        className={`tb-heat-badge tb-heat-${(rawHeatLevel || 'soguk').toLowerCase()}`}
+                                        title={lang === 'tr' ? `Isı Skoru: ${heatScore} • Seviye: ${heatLevel}` : `Heat Score: ${heatScore} • Level: ${heatLevel}`}
                                     >
                                         {heatIcon} {heatScore} {heatLevel}
                                     </span>
@@ -296,7 +314,7 @@ export const LiveTerminalMobile = ({
                                         %{heat}
                                         {last20.isSurging && (
                                             <span style={{ display: 'block', fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800, marginTop: '2px' }}>
-                                                ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} Atak)` : `+${last20.deltaDA} Atak`}
+                                                ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} ${lang === 'tr' ? 'Atak' : 'Atk'})` : `+${last20.deltaDA} ${lang === 'tr' ? 'Atak' : 'Atk'}`}
                                             </span>
                                         )}
                                     </span>
@@ -338,7 +356,7 @@ export const LiveTerminalMobile = ({
                                                 onClick={(e) => { e.stopPropagation(); onOpenUpgrade(); }}
                                                 style={{ width: '100%', justifyContent: 'center', cursor: 'pointer', background: 'linear-gradient(135deg, #a78bfa, #38bdf8)', color: '#000', fontWeight: 900, boxShadow: '0 0 12px rgba(167, 139, 250, 0.4)' }}
                                             >
-                                                🔒 VIP SİNYAL KİLİDİNİ AÇ
+                                                🔒 {lang === 'tr' ? 'VIP SİNYAL KİLİDİNİ AÇ' : 'UNLOCK VIP SIGNAL'}
                                             </span>
                                         );
                                     }
@@ -348,7 +366,7 @@ export const LiveTerminalMobile = ({
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
                                                 <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
                                                 <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px', opacity: 0.6 }}>
-                                                    {minStr === 'MS' || minStr.includes('FT') ? 'MS' : 'KİLİTLİ (88+)'}
+                                                    {minStr === 'MS' || minStr.includes('FT') ? (lang === 'tr' ? 'MS' : 'FT') : (lang === 'tr' ? 'KİLİTLİ (88+)' : 'LOCKED (88+)')}
                                                 </span>
                                             </div>
                                         );
@@ -419,7 +437,7 @@ export const LiveTerminalMobile = ({
                                     {EffectiveAttackGraph && (
                                         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '8px' }}>
                                             <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#38bdf8', marginBottom: '4px' }}>
-                                                📈 Canlı Baskı Grafiği (Attack Momentum)
+                                                📈 {lang === 'tr' ? 'Canlı Baskı Grafiği (Attack Momentum)' : 'Live Attack Momentum Wave'}
                                             </div>
                                             <EffectiveAttackGraph match={m} lang={lang} />
                                         </div>
@@ -432,7 +450,7 @@ export const LiveTerminalMobile = ({
                                     {EffectiveIncidentsTimeline && (
                                         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '8px' }}>
                                             <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--tb-text-secondary)', marginBottom: '4px' }}>
-                                                ⏱️ Canlı Maç Olayları
+                                                ⏱️ {lang === 'tr' ? 'Canlı Maç Olayları' : 'Match Incidents Timeline'}
                                             </div>
                                             <EffectiveIncidentsTimeline match={m} lang={lang} />
                                         </div>
@@ -443,7 +461,7 @@ export const LiveTerminalMobile = ({
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px', borderRadius: '8px', fontSize: '0.72rem' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
                                                 <span style={{ fontWeight: 800, color: '#38bdf8' }}>
-                                                    🎯 Yapay Zeka Stratejisi
+                                                    🎯 {lang === 'tr' ? 'Yapay Zeka Stratejisi' : 'AI Match Strategy'}
                                                 </span>
                                                 {isBetReady && (
                                                     <span style={{ fontWeight: 800, color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.68rem' }}>
@@ -452,7 +470,7 @@ export const LiveTerminalMobile = ({
                                                 )}
                                             </div>
                                             <div style={{ color: 'var(--tb-text-secondary)', lineHeight: 1.4 }}>
-                                                {signal.reason || signal.mainReason || m.opportunityData?.reason || 'Sistem saha verilerini analiz ediyor.'}
+                                                {signal.reason || signal.mainReason || m.opportunityData?.reason || (lang === 'tr' ? 'Sistem saha verilerini analiz ediyor.' : 'Analyzing match stats in real-time.')}
                                             </div>
                                             {signal.activeStrategies && signal.activeStrategies.length > 0 && (
                                                 <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -542,7 +560,7 @@ export const LiveTerminalMobile = ({
                                                 {lang === 'tr' ? 'Güven:' : 'Conf:'} <strong style={{ color: confidenceColor }}>{confidenceLabel}</strong>
                                             </span>
                                             <span style={{ opacity: 0.5, fontStyle: 'italic' }}>
-                                                DQS: {(m.dqs || 0).toFixed(2)} • Latans: {latencyMs}ms
+                                                DQS: {(m.dqs || 0).toFixed(2)} • {lang === 'tr' ? 'Latans:' : 'Latency:'} {latencyMs}ms
                                             </span>
                                         </div>
                                     </div>
@@ -564,10 +582,10 @@ export const LiveTerminalMobile = ({
                                                 fontWeight: 800,
                                                 padding: '1px 5px',
                                                 borderRadius: '4px',
-                                                background: dataQuality === 'TAM' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                                color: dataQuality === 'TAM' ? '#34d399' : '#f87171'
+                                                background: (dataQuality === 'TAM' || dataQuality === 'FULL') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                                color: (dataQuality === 'TAM' || dataQuality === 'FULL') ? '#34d399' : '#f87171'
                                             }}>
-                                                VERİ: {dataQuality}
+                                                {lang === 'tr' ? `VERİ: ${dataQuality}` : `DATA: ${dataQuality}`}
                                             </span>
                                         </div>
 
@@ -576,27 +594,27 @@ export const LiveTerminalMobile = ({
                                             <div style={{ background: 'rgba(0,0,0,0.25)', padding: '4px', borderRadius: '4px', textAlign: 'center' }}>
                                                 <div style={{ fontSize: '0.55rem', opacity: 0.6 }}>{lang === 'tr' ? 'Ölü Maç' : 'Dead'}</div>
                                                 <span style={{ fontSize: '0.62rem', fontWeight: 900, color: riskFilters.deadMatch?.status === 'OK' ? '#34d399' : '#ef4444' }}>
-                                                    {riskFilters.deadMatch?.status === 'OK' ? '✓ TAMAM' : '✗ RİSK'}
+                                                    {riskFilters.deadMatch?.status === 'OK' ? (lang === 'tr' ? '✓ TAMAM' : '✓ OK') : (lang === 'tr' ? '✗ RİSK' : '✗ RISKY')}
                                                 </span>
                                             </div>
                                             <div style={{ background: 'rgba(0,0,0,0.25)', padding: '4px', borderRadius: '4px', textAlign: 'center' }}>
                                                 <div style={{ fontSize: '0.55rem', opacity: 0.6 }}>{lang === 'tr' ? 'Momentum' : 'Mom.'}</div>
                                                 <span style={{ fontSize: '0.62rem', fontWeight: 900, color: riskFilters.momentum?.status === 'OK' ? '#34d399' : '#ef4444' }}>
-                                                    {riskFilters.momentum?.status === 'OK' ? '✓ AKTİF' : '✗ PASİF'}
+                                                    {riskFilters.momentum?.status === 'OK' ? (lang === 'tr' ? '✓ AKTİF' : '✓ ACTIVE') : (lang === 'tr' ? '✗ PASİF' : '✗ PASSIVE')}
                                                 </span>
                                             </div>
                                             <div style={{ background: 'rgba(0,0,0,0.25)', padding: '4px', borderRadius: '4px', textAlign: 'center' }}>
                                                 <div style={{ fontSize: '0.55rem', opacity: 0.6 }}>{lang === 'tr' ? 'Geç Dk' : 'Late'}</div>
                                                 <span style={{ fontSize: '0.62rem', fontWeight: 900, color: riskFilters.lateGame?.status === 'OK' ? '#34d399' : '#ef4444' }}>
-                                                    {riskFilters.lateGame?.status === 'OK' ? '✓ UYGUN' : '✗ KİLİT'}
+                                                    {riskFilters.lateGame?.status === 'OK' ? (lang === 'tr' ? '✓ UYGUN' : '✓ ELIGIBLE') : (lang === 'tr' ? '✗ KİLİT' : '✗ LOCKED')}
                                                 </span>
                                             </div>
                                         </div>
 
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--tb-text-muted)' }}>
-                                            <span>Baskı: <strong style={{ color: '#fbbf24' }}>%{pressureTotal}</strong></span>
-                                            <span>İvme: <strong style={{ color: '#f1f5f9' }}>{m.observations?.velocity?.trend || (heat >= 70 ? 'HOT' : 'STABLE')}</strong></span>
-                                            <span>Gecikme: <strong style={{ color: '#38bdf8' }}>{latencyMs}ms</strong></span>
+                                            <span>{lang === 'tr' ? 'Baskı:' : 'Press:'} <strong style={{ color: '#fbbf24' }}>%{pressureTotal}</strong></span>
+                                            <span>{lang === 'tr' ? 'İvme:' : 'Vel:'} <strong style={{ color: '#f1f5f9' }}>{m.observations?.velocity?.trend || (heat >= 70 ? 'HOT' : 'STABLE')}</strong></span>
+                                            <span>{lang === 'tr' ? 'Gecikme:' : 'Lat:'} <strong style={{ color: '#38bdf8' }}>{latencyMs}ms</strong></span>
                                         </div>
                                     </div>
 

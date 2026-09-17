@@ -407,7 +407,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                             color: 'var(--tb-text-muted)'
                         }}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <span>Faul: <strong style={{ color: '#fff' }}>{foulsHome}</strong></span>
+                                <span>{lang === 'tr' ? 'Faul:' : 'Fouls:'} <strong style={{ color: '#fff' }}>{foulsHome}</strong></span>
                                 {(ycHome > 0 || rcHome > 0) && (
                                     <span>
                                         {ycHome > 0 && <span style={{ color: '#fbbf24' }}>🟨 {ycHome} </span>}
@@ -423,7 +423,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                                         {rcAway > 0 && <span style={{ color: '#ef4444' }}>🟥 {rcAway}</span>}
                                     </span>
                                 )}
-                                <span>Faul: <strong style={{ color: '#fff' }}>{foulsAway}</strong></span>
+                                <span>{lang === 'tr' ? 'Faul:' : 'Fouls:'} <strong style={{ color: '#fff' }}>{foulsAway}</strong></span>
                             </div>
                         </div>
                     )}

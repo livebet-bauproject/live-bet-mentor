@@ -69,7 +69,28 @@ export const LiveTerminalTable = ({
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
             label = signal.reason;
         }
-        return label || 'BAHİS';
+        if (lang === 'en' && label) {
+            if (label.startsWith('Sıradaki Gol:')) {
+                label = label.replace('Sıradaki Gol:', 'Next Goal:');
+            } else if (label === 'İY 0.5 ÜST') {
+                label = 'HT Over 0.5';
+            } else if (label === 'SON 15DK PATLAMASI') {
+                label = '15m MOMENTUM BURST';
+            } else if (label === 'GERİ DÖNÜŞ') {
+                label = 'COMEBACK';
+            } else if (label === 'FAVORİ GERİ DÖNÜŞ') {
+                label = 'FAVORITE COMEBACK';
+            } else if (label === 'KORNER BASKISI') {
+                label = 'CORNER PRESSURE';
+            } else if (label === 'KG VAR DİNAMİĞİ') {
+                label = 'BTTS DYNAMIC';
+            } else if (label === 'SAYISAL ÜSTÜNLÜK') {
+                label = 'NUMERICAL ADVANTAGE';
+            } else if (label === 'SKOR MARUZİYETİ') {
+                label = 'HIGH SCORE EXPOSURE';
+            }
+        }
+        return label || (lang === 'tr' ? 'BAHİS' : 'BET');
     };
 
     return (
@@ -78,18 +99,18 @@ export const LiveTerminalTable = ({
                 <thead>
                     <tr>
                         <th style={{ width: '28px', textAlign: 'center' }}>★</th>
-                        <th style={{ width: '46px' }}>{t?.minute_short || 'DK'}</th>
-                        <th style={{ width: '100px' }}>{t?.league_label || 'LİG'}</th>
-                        <th style={{ minWidth: '170px' }}>{t?.match_label || 'MAÇ'}</th>
-                        <th style={{ width: '50px', textAlign: 'center' }}>{t?.score_label || 'SKOR'}</th>
+                        <th style={{ width: '46px' }}>{t?.minute_short || (lang === 'tr' ? 'DK' : 'MIN')}</th>
+                        <th style={{ width: '100px' }}>{t?.league_label || (lang === 'tr' ? 'LİG' : 'LEAGUE')}</th>
+                        <th style={{ minWidth: '170px' }}>{t?.match_label || (lang === 'tr' ? 'MAÇ' : 'MATCH')}</th>
+                        <th style={{ width: '50px', textAlign: 'center' }}>{t?.score_label || (lang === 'tr' ? 'SKOR' : 'SCORE')}</th>
                         <th style={{ width: '78px', textAlign: 'center' }}>{lang === 'tr' ? 'ISI / DURUM' : 'HEAT'}</th>
-                        <th style={{ width: '72px', textAlign: 'center' }}>1X2 CANLI</th>
-                        <th style={{ width: '58px', textAlign: 'center' }}>BASKI / IVME</th>
-                        <th style={{ width: '56px', textAlign: 'center' }}>ŞUT (ISB)</th>
-                        <th style={{ width: '54px', textAlign: 'center' }}>T.ATAK</th>
+                        <th style={{ width: '72px', textAlign: 'center' }}>{lang === 'tr' ? '1X2 CANLI' : '1X2 LIVE'}</th>
+                        <th style={{ width: '58px', textAlign: 'center' }}>{lang === 'tr' ? 'BASKI / İVME' : 'PRESS / MOM'}</th>
+                        <th style={{ width: '56px', textAlign: 'center' }}>{lang === 'tr' ? 'ŞUT (İSB)' : 'SHOTS (SOG)'}</th>
+                        <th style={{ width: '54px', textAlign: 'center' }}>{lang === 'tr' ? 'T.ATAK' : 'D.ATTACK'}</th>
                         <th style={{ width: '56px', textAlign: 'center' }}>xG</th>
-                        <th style={{ width: '150px', textAlign: 'center' }}>AI SİNYAL</th>
-                        <th style={{ width: '36px', textAlign: 'center' }}>DETAY</th>
+                        <th style={{ width: '150px', textAlign: 'center' }}>{lang === 'tr' ? 'AI SİNYAL' : 'AI SIGNAL'}</th>
+                        <th style={{ width: '36px', textAlign: 'center' }}>{lang === 'tr' ? 'DETAY' : 'DETAIL'}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -109,8 +130,11 @@ export const LiveTerminalTable = ({
                             const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
                             const rawScore = (opp?.score !== undefined && typeof opp.score === 'number' && !isNaN(opp.score)) ? opp.score : heat;
                             const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
-                            const heatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
-                            const heatIcon = heatLevel === 'ALPHA' ? '🚀' : heatLevel === 'ALEV' ? '🔥' : heatLevel === 'SICAK' ? '⚡' : '❄️';
+                            const rawHeatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
+                            const heatLevel = lang === 'en'
+                                ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : rawHeatLevel === 'SOGUK' ? 'COLD' : rawHeatLevel)
+                                : (rawHeatLevel === 'FLAME' ? 'ALEV' : rawHeatLevel === 'HOT' ? 'SICAK' : rawHeatLevel === 'COLD' ? 'SOĞUK' : rawHeatLevel);
+                            const heatIcon = (rawHeatLevel === 'ALPHA' || heatLevel === 'ALPHA') ? '🚀' : (rawHeatLevel === 'ALEV' || heatLevel === 'FLAME') ? '🔥' : (rawHeatLevel === 'SICAK' || heatLevel === 'HOT') ? '⚡' : '❄️';
                             const last20 = calculateLast20MinMetrics(m, signal);
 
                             const sogHome = m.stats?.shotsOnGoal?.home || 0;
@@ -171,7 +195,7 @@ export const LiveTerminalTable = ({
                                     lateGame: { status: 'OK' }
                                 };
                             const latencyMs = m.latency || Math.round(35 + (m.id ? (Number(String(m.id).replace(/\D/g, '')) % 40) : 12));
-                            const dataQuality = m.dataQuality === 'PARTIAL' ? 'BEKLENİYOR' : (m.dataQuality === 'LIMITED' ? 'KISITLI' : 'TAM');
+                            const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'en' ? 'PENDING' : 'BEKLENİYOR') : (m.dataQuality === 'LIMITED' ? (lang === 'en' ? 'LIMITED' : 'KISITLI') : (lang === 'en' ? 'FULL' : 'TAM'));
                             const pressureTotal = m.observations?.pressure?.total || Math.round(heat * 0.85);
 
                             return (
@@ -192,7 +216,7 @@ export const LiveTerminalTable = ({
                                                     cursor: 'pointer',
                                                     fontSize: '0.85rem'
                                                 }}
-                                                title={isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
+                                                title={isPinned ? (lang === 'en' ? 'Remove from Favorites' : 'Favorilerden Çıkar') : (lang === 'en' ? 'Add to Favorites' : 'Favoriye Ekle')}
                                             >
                                                 ★
                                             </button>
@@ -268,7 +292,7 @@ export const LiveTerminalTable = ({
                                         <td style={{ textAlign: 'center' }}>
                                             <span
                                                 className={`tb-heat-badge tb-heat-${(heatLevel || 'soguk').toLowerCase()}`}
-                                                title={`Isı Skoru: ${heatScore} • Seviye: ${heatLevel}${opp?.trend ? ` • Trend: ${opp.trend}` : ''}`}
+                                                title={lang === 'tr' ? `Isı Skoru: ${heatScore} • Seviye: ${heatLevel}${opp?.trend ? ` • Trend: ${opp.trend}` : ''}` : `Heat Score: ${heatScore} • Level: ${heatLevel}${opp?.trend ? ` • Trend: ${opp.trend}` : ''}`}
                                             >
                                                 {heatIcon} {heatScore} {heatLevel}
                                             </span>
@@ -303,8 +327,8 @@ export const LiveTerminalTable = ({
                                                         maxWidth: '145px',
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis'
-                                                    }} title={`${last20.dominantTeam ? `${last20.dominantTeam} son 20 dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Toplam Şut${last20.deltaSog ? ` [${last20.deltaSog} İsabetli]` : ''})`}>
-                                                        ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} Atak)` : `+${last20.deltaDA} Atak`}
+                                                    }} title={lang === 'tr' ? `${last20.dominantTeam ? `${last20.dominantTeam} son 20 dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Toplam Şut${last20.deltaSog ? ` [${last20.deltaSog} İsabetli]` : ''})` : `${last20.dominantTeam ? `${last20.dominantTeam} has been applying attacking pressure in the last 20 mins.` : 'High attacking pressure.'} (Last 20m: +${last20.deltaDA} Dangerous Attacks, +${last20.deltaShots} Total Shots${last20.deltaSog ? ` [${last20.deltaSog} On Target]` : ''})`}>
+                                                        ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} ${lang === 'tr' ? 'Atak' : 'Atk'})` : `+${last20.deltaDA} ${lang === 'tr' ? 'Atak' : 'Atk'}`}
                                                     </span>
                                                 </div>
                                             )}
@@ -344,7 +368,7 @@ export const LiveTerminalTable = ({
                                                 if (isLateOrFinished) {
                                                     return (
                                                         <span className="tb-signal-badge tb-signal-pass" style={{ opacity: 0.6 }}>
-                                                            {minStr === 'MS' || minStr.includes('FT') ? 'MS' : 'KİLİTLİ (88+)'}
+                                                            {minStr === 'MS' || minStr.includes('FT') ? (lang === 'tr' ? 'MS' : 'FT') : (lang === 'tr' ? 'KİLİTLİ (88+)' : 'LOCKED (88+)')}
                                                         </span>
                                                     );
                                                 }
@@ -360,7 +384,7 @@ export const LiveTerminalTable = ({
                                                             style={{ cursor: 'pointer', background: 'linear-gradient(135deg, #a78bfa, #38bdf8)', color: '#000', fontWeight: 900, boxShadow: '0 0 10px rgba(167, 139, 250, 0.4)' }}
                                                             title={lang === 'tr' ? 'VIP Sinyal Kilidini Aç' : 'Unlock VIP Signal'}
                                                         >
-                                                            🔒 VIP KİLİDİ
+                                                            🔒 {lang === 'tr' ? 'VIP KİLİDİ' : 'VIP LOCKED'}
                                                         </span>
                                                     );
                                                 }
@@ -369,7 +393,7 @@ export const LiveTerminalTable = ({
                                                     return (
                                                         <span
                                                             className="tb-signal-badge tb-signal-bet"
-                                                            title={signal.reason || signal.mainReason || 'AI Strateji Onaylandı'}
+                                                            title={signal.reason || signal.mainReason || (lang === 'tr' ? 'AI Strateji Onaylandı' : 'AI Strategy Confirmed')}
                                                         >
                                                             ✓ {predText}
                                                         </span>
@@ -379,7 +403,7 @@ export const LiveTerminalTable = ({
                                                 if (heat >= 75) {
                                                     return (
                                                         <span className="tb-signal-badge tb-signal-hot">
-                                                            🔥 ALEV
+                                                            🔥 {lang === 'tr' ? 'ALEV' : 'FLAME'}
                                                         </span>
                                                     );
                                                 }
@@ -397,9 +421,9 @@ export const LiveTerminalTable = ({
                                                                 whiteSpace: 'nowrap',
                                                                 fontWeight: 800
                                                             }}
-                                                            title={`${teamLabel || 'Takımlar'} son 20 dakikadır hücum temposunu artırdı. (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak)`}
+                                                            title={lang === 'tr' ? `${teamLabel || 'Takımlar'} son 20 dakikadır hücum temposunu artırdı. (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak)` : `${teamLabel || 'Teams'} increased attacking tempo in last 20 mins. (Last 20m: +${last20.deltaDA} Dangerous Attacks)`}
                                                         >
-                                                            ⚡ {teamLabel ? `Baskı: ${teamLabel}` : "20' Baskısı"}
+                                                            ⚡ {teamLabel ? (lang === 'tr' ? `Baskı: ${teamLabel}` : `Press: ${teamLabel}`) : (lang === 'tr' ? "20' Baskısı" : "20' Surge")}
                                                         </span>
                                                     );
                                                 }
@@ -475,7 +499,7 @@ export const LiveTerminalTable = ({
                                                                 </span>
                                                                 {signal?.verdict === 'BET' && getPredictionDisplay(m, signal) && (
                                                                     <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#34d399', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '4px' }}>
-                                                                        ÖNERİ: {getPredictionDisplay(m, signal)}
+                                                                        {lang === 'tr' ? 'ÖNERİ' : 'PICK'}: {getPredictionDisplay(m, signal)}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -619,7 +643,7 @@ export const LiveTerminalTable = ({
                                                                     </span>
                                                                 </div>
                                                                 <div style={{ opacity: 0.5, fontStyle: 'italic', fontSize: '0.62rem' }}>
-                                                                    DQS {(m.dqs || 0).toFixed(2)} • Latans: {latencyMs}ms
+                                                                    DQS {(m.dqs || 0).toFixed(2)} • {lang === 'tr' ? 'Latans:' : 'Latency:'} {latencyMs}ms
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -641,9 +665,9 @@ export const LiveTerminalTable = ({
                                                                     fontWeight: 800,
                                                                     padding: '2px 7px',
                                                                     borderRadius: '4px',
-                                                                    background: dataQuality === 'TAM' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                                                    color: dataQuality === 'TAM' ? '#34d399' : '#f87171',
-                                                                    border: `1px solid ${dataQuality === 'TAM' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                                                                    background: (dataQuality === 'TAM' || dataQuality === 'FULL') ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                                                    color: (dataQuality === 'TAM' || dataQuality === 'FULL') ? '#34d399' : '#f87171',
+                                                                    border: `1px solid ${(dataQuality === 'TAM' || dataQuality === 'FULL') ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
                                                                 }}>
                                                                     {lang === 'tr' ? `VERİ: ${dataQuality}` : `DATA: ${dataQuality}`}
                                                                 </span>
@@ -658,7 +682,7 @@ export const LiveTerminalTable = ({
                                                                         fontWeight: 900,
                                                                         color: riskFilters.deadMatch?.status === 'OK' ? '#34d399' : '#ef4444'
                                                                     }}>
-                                                                        {riskFilters.deadMatch?.status === 'OK' ? '✓ TAMAM' : '✗ RİSKLİ'}
+                                                                        {riskFilters.deadMatch?.status === 'OK' ? (lang === 'tr' ? '✓ TAMAM' : '✓ OK') : (lang === 'tr' ? '✗ RİSKLİ' : '✗ RISKY')}
                                                                     </span>
                                                                 </div>
 
@@ -669,7 +693,7 @@ export const LiveTerminalTable = ({
                                                                         fontWeight: 900,
                                                                         color: riskFilters.momentum?.status === 'OK' ? '#34d399' : '#ef4444'
                                                                     }}>
-                                                                        {riskFilters.momentum?.status === 'OK' ? '✓ AKTİF' : '✗ PASİF'}
+                                                                        {riskFilters.momentum?.status === 'OK' ? (lang === 'tr' ? '✓ AKTİF' : '✓ ACTIVE') : (lang === 'tr' ? '✗ PASİF' : '✗ PASSIVE')}
                                                                     </span>
                                                                 </div>
 
@@ -680,7 +704,7 @@ export const LiveTerminalTable = ({
                                                                         fontWeight: 900,
                                                                         color: riskFilters.lateGame?.status === 'OK' ? '#34d399' : '#ef4444'
                                                                     }}>
-                                                                        {riskFilters.lateGame?.status === 'OK' ? '✓ UYGUN' : '✗ KİLİTLİ'}
+                                                                        {riskFilters.lateGame?.status === 'OK' ? (lang === 'tr' ? '✓ UYGUN' : '✓ ELIGIBLE') : (lang === 'tr' ? '✗ KİLİTLİ' : '✗ LOCKED')}
                                                                     </span>
                                                                 </div>
                                                             </div>

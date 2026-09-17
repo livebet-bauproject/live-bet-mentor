@@ -15,8 +15,8 @@ export const MatchIncidentsTimeline = ({
     loading: propLoading = null
 }) => {
     const matchId = match?.id;
-    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || 'Ev Sahibi';
-    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || 'Deplasman';
+    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || (lang === 'tr' ? 'Ev Sahibi' : 'Home');
+    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : 'Away');
     const homeTeamId = match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
     const awayTeamId = match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
     const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
@@ -421,7 +421,7 @@ export const MatchIncidentsTimeline = ({
                                                 <span style={{ fontSize: '0.6rem', color: '#fbbf24', marginLeft: '4px' }}>(P)</span>
                                             )}
                                             {inc.incidentClass === 'ownGoal' && (
-                                                <span style={{ fontSize: '0.6rem', color: '#f43f5e', marginLeft: '4px' }}>(K.K.)</span>
+                                                <span style={{ fontSize: '0.6rem', color: '#f43f5e', marginLeft: '4px' }}>{lang === 'tr' ? '(K.K.)' : '(OG)'}</span>
                                             )}
                                             {assistName && (
                                                 <div style={{ fontSize: '0.6rem', color: '#94a3b8', opacity: 0.8 }}>

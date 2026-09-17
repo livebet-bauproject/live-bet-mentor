@@ -26,7 +26,7 @@ export const FAQ = ({ onClose, lang = 'tr', mode = 'live' }) => {
 
     const getHeaderSubtitle = () => {
         if (isAI) return t.faq_ai_subtitle;
-        if (isStaking) return t.staking_faq_subtitle || 'Bileşik Kelly Modeli, Kombine Kupon Tuzağı ve Otomatik Kasa Koruma Kilitleri';
+        if (isStaking) return t.staking_faq_subtitle || (lang === 'tr' ? 'Bileşik Kelly Modeli, Kombine Kupon Tuzağı ve Otomatik Kasa Koruma Kilitleri' : 'Kelly Criterion Model, Multi-Bet Trap Analysis & Automated Bankroll Protections');
         if (isRadar) return t.faq_radar_subtitle;
         return t.faq_live_subtitle;
     };
@@ -547,7 +547,9 @@ export const FAQ = ({ onClose, lang = 'tr', mode = 'live' }) => {
                             }}>
                                 <span style={{ fontSize: '2.2rem' }}>⚠️</span>
                                 <div style={{ textAlign: 'left' }}>
-                                    <h4 style={{ color: '#ef4444', marginBottom: '0.3rem', fontWeight: 800, fontSize: '1.1rem' }}>KRİTİK SERMAYE KURALI</h4>
+                                    <h4 style={{ color: '#ef4444', marginBottom: '0.3rem', fontWeight: 800, fontSize: '1.1rem' }}>
+                                        {lang === 'tr' ? 'KRİTİK SERMAYE KURALI' : 'CRITICAL CAPITAL RULE'}
+                                    </h4>
                                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: '1.5' }}>
                                         {t.staking_warning}
                                     </p>

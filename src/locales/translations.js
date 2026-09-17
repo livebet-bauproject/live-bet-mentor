@@ -166,11 +166,15 @@ export const translations = {
         dead_match_reason: "Ölü Maç (Skor Farkı/Dakika)",
         no_momentum_reason: "Son 10-15dk İsabetli Şut Yok",
         late_game_reason: "Geç Dakika Yasaklı (85+)",
+        lateGame_reason: "Geç Dakika Yasaklı (85+)",
 
         // Advanced Settings
         advanced_settings_title: "GELİŞMİŞ AYARLAR (Modüler)",
         advanced_settings_desc: "Bu özellikler şu an aktif ve analiz motoruna bağlıdır.",
+        toggle_data_fusion: "Doğrudan Veri Akışları (Doğrulayıcı)",
         toggle_xg: 'xG Modülü',
+        validator_status: "KURUMSAL DOĞRULAYICI",
+        data_consistent: "VERİ TUTARLI",
 
         // Membership UI
         membership_plan: "Üyelik Planı",
@@ -773,6 +777,7 @@ export const translations = {
         trending_guide_step2_title: "2. Yapay Zeka & Saha Röntgeni",
         trending_guide_step2_desc: "Kalabalığın %90'ı sadece takım ismine veya hırsına kapılarak oynar. Sistemimiz bu bahsi sahadaki gerçek şut, tehlikeli atak ve DQS veri kalitesiyle test eder.",
         trending_guide_step3_title: "3. Akıllı Para vs. Kasa Tuzağı",
+        trending_guide_step3_desc: "🟢 ONAYLI TREND: Kalabalık haklı, saha baskısı bahsi teyit ediyor.\n🔴 TUZAK ALARMI: Saha ölü, kalabalık tuzağa çekiliyor. Kasa kazanır, uzak durun!",
         trending_other_bets: "Bu Maçtaki Diğer Trend Bahisler",
         trending_multiple_markets: "Trend Bahis",
         match_timeline_title: "MAÇ OLAYLARI & ZAMAN TÜNELİ",
@@ -876,11 +881,11 @@ export const translations = {
         faq_heat_score_desc: "Our Hot Opportunities engine ranks real-time goal likelihood on a 0-100 scale by synthesizing xG shot quality, penalty-box entries, 10-minute velocity, and corner pressure:",
         faq_heat_alpha_title: "🚀 ALPHA (85-100 Pts) — Peak Pressure & Absolute Dominance",
         faq_heat_alpha_desc: "The highest conviction state: one team traps the opponent in their box, generating relentless on-target attempts and skyrocketing xG. VIP notifications prioritize these matches.",
-        faq_heat_alev_title: "🔥 ALEV (70-84 Pts) — Severe Siege & Goal Imminent",
+        faq_heat_alev_title: "🔥 FLAME (70-84 Pts) — Severe Siege & Goal Imminent",
         faq_heat_alev_desc: "High intensity alert: sustained attacking pressure, box penetrations, and defense visibly cracking under pressure.",
-        faq_heat_sicak_title: "⚡ SICAK (55-69 Pts) — Accelerating Match Rhythm",
+        faq_heat_sicak_title: "⚡ HOT (55-69 Pts) — Accelerating Match Rhythm",
         faq_heat_sicak_desc: "Transition phase: a previously quiet match accelerating with counter-attacks and increasing attempts on target.",
-        faq_heat_soguk_title: "❄️ SOĞUK (<55 Pts) — Stagnant & Excluded",
+        faq_heat_soguk_title: "❄️ COLD (<55 Pts) — Stagnant & Excluded",
         faq_heat_soguk_desc: "Midfield deadlock, tactical fouling, zero shot traffic. Filtered out by the engine as zero-value matches.",
 
         faq_combo_wizard_title: "3. Golden Live Double (Combo Wizard v4.0)",
@@ -960,6 +965,7 @@ export const translations = {
         full_stack_ok: "DQS + Risk Filters OK",
         dead_match_reason: "Dead Match (Score Diff/Min)",
         no_momentum_reason: "No Shots on Goal (Last 10-15m)",
+        late_game_reason: "Late Game Ban (85+)",
         lateGame_reason: "Late Game Ban (85+)",
 
         // Advanced Settings
@@ -1076,6 +1082,7 @@ export const translations = {
         scenario_intel_desc: "AI develops dynamic strategies based on match minute (90+), score, and favorite status.",
         radar_divergence: "RADAR DIVERGENCE",
         radar_divergence_desc: "Detects 'divergence' between global prediction sources and market odds to identify opportunities/traps.",
+        deep_analysis: "DEEP ANALYSIS",
 
         // TAB 4: AI & Autonomous Quant Engines
         faq_ai_title: "AI & AUTONOMOUS QUANT ENGINES",
@@ -1187,6 +1194,16 @@ export const translations = {
         "Accurate passes": "Accurate passes",
         "Tackles": "Tackles",
         "Clearances": "Clearances",
+        "Interceptions": "Interceptions",
+        "Match overview": "Match Overview",
+        "Shots": "Shots",
+        "Attack": "Attack",
+        "Duels": "Duels",
+        "Defending": "Defending",
+        "Goalkeeping": "Goalkeeping",
+        "Expected goals": "Expected Goals (xG)",
+        "Touches in penalty area": "Touches in Penalty Area",
+        "Final third entries": "Final Third Entries",
         "Average rating": "Average Rating",
         "Average player rating": "Average Player Rating",
         "Rating": "Rating",
@@ -1293,8 +1310,8 @@ export const translations = {
         reason_good_momentum: "Good momentum",
         reason_high_pressure: "High pressure",
         reason_value_detected: "💰 Value detected",
-        reason_dqs_plus: "✅ DQS+",
-        reason_xg_rising: "📈 xG rising",
+        reason_alpha_signal: "🚀 ALPHA: Math & Momentum Full Alignment",
+        reason_trap_warning: "⚠️ WARNING: Suspicious Odds Movement",
         reason_dqs_plus: "✅ DQS+",
         reason_xg_rising: "📈 xG rising",
         reason_stat_synergy: "🛡️ Statistical Confirmation",
