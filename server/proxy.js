@@ -1536,7 +1536,7 @@ app.post('/api/members/login', authRateLimiter, (req, res) => {
         // Super Admin Authentication
         const adminPass = process.env.ADMIN_PASSWORD || 'Hamza2026!';
         const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com'];
-        const validAdminPasswords = [adminPass, 'Hamza2026!', 'Hamza123!'];
+        const validAdminPasswords = [adminPass];
 
         if (allowedAdmins.includes(cleanEmail)) {
             if (validAdminPasswords.includes(password)) {

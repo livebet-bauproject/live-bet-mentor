@@ -52,7 +52,7 @@ export const CONFIG = {
       SOFASCORE: 'SOFASCORE',
       REDSCORES: 'REDSCORES'
     },
-    SOFASCORE_LOCAL_PROXY_URL: (import.meta?.env?.VITE_API_BASE_URL || 'http://localhost:3001') + '/api/sofascore/live'
+    SOFASCORE_LOCAL_PROXY_URL: (import.meta?.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com')) + '/api/sofascore/live'
   },
 
   // Bankroll Management

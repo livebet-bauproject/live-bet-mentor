@@ -190,23 +190,6 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     }
                 } catch (beErr) {
                     console.warn('Backend login connection issue:', beErr);
-                    if (isAdmin && (password === 'Hamza2026!' || password === 'Hamza123!')) {
-                        const adminSession = {
-                            user: {
-                                id: 'admin-super',
-                                email: 'admin@livebetmentor.com',
-                                plan: 'admin',
-                                user_metadata: { display_name: 'LiveBet Admin' }
-                            },
-                            token: 'master-admin-token',
-                            access_token: 'master-admin-token',
-                            expires_at: 9999999999
-                        };
-                        localStorage.setItem('lbm_admin_session', JSON.stringify(adminSession));
-                        onLoginSuccess(adminSession);
-                        setLoading(false);
-                        return;
-                    }
                 }
 
                 // Fallback Supabase (only if backend is unreachable)

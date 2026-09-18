@@ -1890,8 +1890,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     useEffect(() => {
         const fetchLiveOdds = async () => {
             try {
-                // 1. Try local proxy first
-                const proxyBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+                // 1. Try local proxy or production Render
+                const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
                 try {
                     const res = await fetch(`${proxyBase}/api/odds/live`);
                     if (res.ok) {
@@ -1926,7 +1927,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     useEffect(() => {
         const fetchAiWeights = async () => {
             try {
-                const proxyBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+                const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
                 const res = await fetch(`${proxyBase}/api/learning/weights`);
                 if (res.ok) {
                     const data = await res.json();
@@ -5250,8 +5252,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         title={lang === 'tr' ? 'Son 20 dakikada hücum temposu ve tehlike ivmesi tavan yapan canlı maçlar' : (lang === 'de' ? 'Live-Spiele mit drastischem Anstieg von Tempo und Torgefahr in den letzten 20 Minuten' : 'Matches with surging offensive momentum in the last 20 minutes')}
                                                     >
                                                         <span>⚡</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '20\' Baskısı' : (lang === 'de' ? '20\\' Druck' : '20m Surge')}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '20\' Baskı' : (lang === 'de' ? '20\\' Druck' : '20m Surge')}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '20\' Baskısı' : (lang === 'de' ? "20' Druck" : '20m Surge')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '20\' Baskı' : (lang === 'de' ? "20' Druck" : '20m Surge')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m, signals[m.id])).length}
                                                         </span>
@@ -5409,7 +5411,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}>
                                     <span>⏱️</span>
                                     <span>
-                                        <strong>{lang === 'tr' ? 'Altın Dakikalar Radarı (68\' - 85\' Baskısı):' : (lang === 'de' ? 'Goldene-Minuten-Radar (68\\' - 85\\' Druckphase):' : 'Golden Window Radar (68\' - 85\' Pressure):')}</strong>{' '}
+                                        <strong>{lang === 'tr' ? 'Altın Dakikalar Radarı (68\' - 85\' Baskısı):' : (lang === 'de' ? "Goldene-Minuten-Radar (68' - 85' Druckphase):" : 'Golden Window Radar (68\' - 85\' Pressure):')}</strong>{' '}
                                         {lang === 'tr' 
                                             ? 'Canlı bahiste oranların tavan yaptığı ve en çok golün çıktığı 68-85. dakika aralığında tek farkla devam eden tempolu maçları listeler.'
                                             : (lang === 'de'
@@ -6932,8 +6934,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24'
                                 }}>
                                     {showAlertPopup.recommendation?.edgeType === 'LATENCY' ? (lang === 'tr' ? 'GECİKME ARBİTRAJI' : (lang === 'de' ? 'LATENZ-ARBITRAGE' : 'LATENCY ARBITRAGE')) :
-                                     showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? (lang === 'tr' ? 'KURUMSAL +EV DEĞER' : (lang === 'de' ? 'INSTITUTIONELLER +EV VALUE' : '+EV VALUE')) :
-                                     `${lang === 'en' ? (showAlertPopup.level === 'ALEV' ? 'FLAME' : showAlertPopup.level === 'SICAK' ? 'HOT' : 'HOT') : (showAlertPopup.level || 'SICAK')} ${lang === 'tr' ? 'FIRSAT' : (lang === 'de' ? 'CHANCE' : 'OPPORTUNITY')}`}
+                                      showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? (lang === 'tr' ? 'KURUMSAL +EV DEĞER' : (lang === 'de' ? 'INSTITUTIONELLER +EV VALUE' : '+EV VALUE')) :
+                                      `${lang === 'tr' ? (showAlertPopup.level || 'SICAK') : (lang === 'de' ? (showAlertPopup.level === 'ALEV' ? 'FLAMME' : 'HEISSE') : (showAlertPopup.level === 'ALEV' ? 'FLAME' : 'HOT'))} ${lang === 'tr' ? 'FIRSAT' : (lang === 'de' ? 'CHANCE' : 'OPPORTUNITY')}`}
                                 </span>
                                 <span style={{
                                     fontSize: '0.65rem',

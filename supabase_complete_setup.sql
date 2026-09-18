@@ -117,40 +117,59 @@ CREATE TABLE IF NOT EXISTS public.ai_usage_logs (
     UNIQUE(user_id, date)
 );
 
--- 6. Enable Row Level Security (RLS) & Policies
+-- 6. Enable Row Level Security (RLS) & Hardened Production Policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS 'Public can view profiles' ON public.profiles;
-CREATE POLICY 'Public can view profiles' ON public.profiles FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can view profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Users can view own profile or admins view all" ON public.profiles;
+CREATE POLICY "Users can view own profile or admins view all" ON public.profiles 
+    FOR SELECT USING (auth.uid() = id OR EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND plan = 'admin'));
 
-DROP POLICY IF EXISTS 'Users can update own profile' ON public.profiles;
-CREATE POLICY 'Users can update own profile' ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
+CREATE POLICY "Users can update own profile" ON public.profiles 
+    FOR UPDATE USING (auth.uid() = id);
 
-DROP POLICY IF EXISTS 'Users can insert own profile' ON public.profiles;
-CREATE POLICY 'Users can insert own profile' ON public.profiles FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+CREATE POLICY "Users can insert own profile" ON public.profiles 
+    FOR INSERT WITH CHECK (auth.uid() = id);
 
-DROP POLICY IF EXISTS 'Admins can manage all profiles' ON public.profiles;
-CREATE POLICY 'Admins can manage all profiles' ON public.profiles FOR ALL USING (true);
+DROP POLICY IF EXISTS "Admins can manage all profiles" ON public.profiles;
+CREATE POLICY "Admins can manage all profiles" ON public.profiles 
+    FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND plan = 'admin'));
 
+-- System Settings RLS
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS 'Public can view settings' ON public.system_settings;
-CREATE POLICY 'Public can view settings' ON public.system_settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Public can view settings" ON public.system_settings;
+CREATE POLICY "Public can view settings" ON public.system_settings 
+    FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS 'Admins can update settings' ON public.system_settings;
-CREATE POLICY 'Admins can update settings' ON public.system_settings FOR ALL USING (true);
+DROP POLICY IF EXISTS "Admins can update settings" ON public.system_settings;
+CREATE POLICY "Admins can update settings" ON public.system_settings 
+    FOR ALL USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND plan = 'admin'));
 
+-- Predictions RLS
 ALTER TABLE public.predictions ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS 'Users can view own predictions' ON public.predictions;
-CREATE POLICY 'Users can view own predictions' ON public.predictions FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can view own predictions" ON public.predictions;
+CREATE POLICY "Users can view own predictions" ON public.predictions 
+    FOR SELECT USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS 'Users can insert predictions' ON public.predictions;
-CREATE POLICY 'Users can insert predictions' ON public.predictions FOR INSERT WITH CHECK (true);
+DROP POLICY IF EXISTS "Users can insert predictions" ON public.predictions;
+CREATE POLICY "Users can insert predictions" ON public.predictions 
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS 'Users can update predictions' ON public.predictions;
-CREATE POLICY 'Users can update predictions' ON public.predictions FOR UPDATE USING (true);
+DROP POLICY IF EXISTS "Users can update predictions" ON public.predictions;
+CREATE POLICY "Users can update predictions" ON public.predictions 
+    FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete predictions" ON public.predictions;
+CREATE POLICY "Users can delete predictions" ON public.predictions 
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- AI Usage Logs RLS
 ALTER TABLE public.ai_usage_logs ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS 'Users can view own ai usage' ON public.ai_usage_logs;
-CREATE POLICY 'Users can view own ai usage' ON public.ai_usage_logs FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Users can view own ai usage" ON public.ai_usage_logs;
+CREATE POLICY "Users can view own ai usage" ON public.ai_usage_logs 
+    FOR SELECT USING (auth.uid() = user_id);
 
-DROP POLICY IF EXISTS 'Users can manage own ai usage' ON public.ai_usage_logs;
-CREATE POLICY 'Users can manage own ai usage' ON public.ai_usage_logs FOR ALL USING (true);
+DROP POLICY IF EXISTS "Users can manage own ai usage" ON public.ai_usage_logs;
+CREATE POLICY "Users can manage own ai usage" ON public.ai_usage_logs 
+    FOR ALL USING (auth.uid() = user_id);

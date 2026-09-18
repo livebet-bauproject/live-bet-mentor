@@ -208,7 +208,7 @@ export const LiveTerminalMobile = ({
                             lateGame: { status: 'OK' }
                         };
                     const latencyMs = m.latency || Math.round(35 + (m.id ? (Number(String(m.id).replace(/\D/g, '')) % 40) : 12));
-                    const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'en' ? 'PENDING' : 'BEKLENİYOR') : (m.dataQuality === 'LIMITED' ? (lang === 'en' ? 'LIMITED' : 'KISITLI') : (lang === 'en' ? 'FULL' : 'TAM'));
+                    const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'tr' ? 'BEKLENİYOR' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')) : (m.dataQuality === 'LIMITED' ? (lang === 'tr' ? 'KISITLI' : (lang === 'de' ? 'EINGESCHRÄNKT' : 'LIMITED')) : (lang === 'tr' ? 'TAM' : (lang === 'de' ? 'VOLLSTÄNDIG' : 'FULL')));
                     const pressureTotal = m.observations?.pressure?.total || Math.round(heat * 0.85);
 
                     const scores = parseScores(m.score);
@@ -233,7 +233,7 @@ export const LiveTerminalMobile = ({
                                             padding: '0 2px',
                                             cursor: 'pointer'
                                         }}
-                                        title={isPinned ? (lang === 'en' ? 'Remove from Favorites' : 'Favorilerden Çıkar') : (lang === 'en' ? 'Add to Favorites' : 'Favoriye Ekle')}
+                                        title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
                                     >
                                         ★
                                     </button>
