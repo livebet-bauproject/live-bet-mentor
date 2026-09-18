@@ -124,6 +124,102 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         resetStats: 'İSTATİSTİKLERİ SIFIRLA',
         resetConfirm: 'Tüm strateji performans verilerini sıfırlamak istediğinize emin misiniz?',
         tabOffice: 'OTONOM KOMUTA (3 GÖREVLİ)'
+    } : lang === 'de' ? {
+        title: '🛡️ ADMINISTRATOR-KONTROLLZENTRUM',
+        addMember: 'NEUES MITGLIED HINZUFÜGEN',
+        email: 'E-MAIL',
+        tempPass: 'VORLÄUFIGES PASSWORT',
+        duration: 'LAUFZEIT',
+        plan: 'PLAN',
+        days: 'Tage',
+        tabPending: 'WARTET AUF FREISCHALTUNG',
+        tabActive: 'AKTIVE MITGLIEDER',
+        tabAll: 'ALLE MITGLIEDER',
+        memberList: 'Mitgliederliste',
+        emailCol: 'E-MAIL',
+        dateCol: 'REGISTRIERUNG',
+        statusCol: 'STATUS',
+        planCol: 'PLAN',
+        expiryCol: 'ABLAUFDATUM',
+        remainingCol: 'VERBLEIBEND',
+        actionsCol: 'AKTIONEN',
+        statusPending: 'WARTET AUF FREISCHALTUNG',
+        statusApproved: 'AKTIV',
+        statusRejected: 'ABGELEHNT',
+        statusExpired: 'ABGELAUFEN',
+        statusBanned: 'GESPERRT',
+        approve: 'GENEHMIGEN',
+        reject: 'ABLEHNEN',
+        extend: 'VERLÄNGERN',
+        ban: 'SPERREN',
+        unban: 'ENTSPERREN',
+        delete: 'LÖSCHEN',
+        save: 'SPEICHERN',
+        cancel: 'ABBRECHEN',
+        confirmDelete: 'Möchten Sie diesen Benutzer wirklich endgültig löschen?',
+        confirmReject: 'Möchten Sie diesen Mitgliedsantrag wirklich ablehnen?',
+        userCreated: 'Benutzer erfolgreich hinzugefügt!',
+        userApproved: 'Mitgliedschaft genehmigt!',
+        userRejected: 'Antrag abgelehnt.',
+        userDeleted: 'Benutzer gelöscht.',
+        subscriptionUpdated: 'Mitgliedschaftslaufzeit aktualisiert!',
+        loading: 'Laden...',
+        noUsers: 'Keine Benutzer gefunden.',
+        quickDurations: 'Schnellauswahl:',
+        tabUpgrades: 'UPGRADE-ANFRAGEN',
+        requestedPlan: 'ANGEFORDERT',
+        currentPlan: 'AKTUELLER PLAN',
+        tabSettings: 'SYSTEMEINSTELLUNGEN',
+        saveSettings: 'EINSTELLUNGEN SPEICHERN',
+        telegramSupport: 'Telegram-Benutzername',
+        proPrice: 'Pro-Plan Preis',
+        premiumPrice: 'Premium-Plan Preis',
+        currency: 'Währungssymbol',
+        supportEmail: 'Support-E-Mail',
+        settingsUpdated: 'Systemeinstellungen aktualisiert!',
+        tabTelegram: 'TELEGRAM-BOT',
+        botStatus: 'BOT-STATUS',
+        botActive: 'AKTIV',
+        botInactive: 'INAKTIV',
+        botError: 'FEHLER',
+        sendTestReport: 'TAGESBERICHT SENDEN',
+        signalsToday: 'Heutige Signale',
+        vipGroupId: 'VIP-Gruppen-ID',
+        publicChannel: 'Öffentlicher Kanal',
+        minLevel: 'Min. Signal-Level',
+        refreshStatus: 'STATUS AKTUALISIEREN',
+        strategyTitle: '📊 WETTSTRATEGIEN',
+        strategyDesc: 'Wählen Sie, welche Algorithmen Signale erzeugen sollen.',
+        onlyXG: 'Nur mit xG-Daten',
+        stratPress: 'Druckdominanz',
+        stratMomentum: 'Momentum letzte 15 Min.',
+        stratFHG: '1. HZ Über 0.5',
+        stratComeback: 'Comeback-Druck',
+        stratStats: 'Statistik-Dominanz',
+        stratCorners: 'Eckball-Druck',
+        stratBTTS: 'Beide treffen (BTTS)',
+        stratRedCard: 'Überzahl (Rote Karte)',
+        tabWebAnalytics: 'BESUCHER- & WEB-ANALYTIK',
+        tabAnalytics: 'STRATEGIE-REPORT (ROI)',
+        strategyScorecardTitle: '🎯 STRATEGIE-PERFORMANCE & ROI-REPORT',
+        strategyScorecardDesc: 'Live-Wettalgorithmen-Performance, Erfolgsquoten und Return on Investment (ROI).',
+        stratCol: 'STRATEGIE',
+        betsCol: 'WETTEN GESAMT',
+        winLossCol: 'G / V',
+        stakedCol: 'EINSATZ GESAMT',
+        profitCol: 'NETTOGEWINN/-VERLUST',
+        winRateCol: 'ERFOLGSQUOTE',
+        roiCol: 'ROI (%)',
+        badgeCol: 'BEWERTUNG',
+        totalStaked: 'Gesamteinsatz',
+        totalProfit: 'Kumulierter Reingewinn',
+        avgRoi: 'Durchschnittlicher ROI',
+        topStrategy: 'Bester Algorithmus',
+        clvTitle: 'Closing Line Value (CLV)',
+        clvBeat: 'Marktschlagende Stärke',
+        resetStats: 'STATISTIKEN ZURÜCKSETZEN',
+        resetConfirm: 'Möchten Sie wirklich alle Strategie-Performancedaten zurücksetzen?',
+        tabOffice: 'AUTONOMES KOMMANDO (3 AGENTEN)'
     } : {
         title: '🛡️ ADMIN CONTROL CENTER',
         addMember: 'ADD NEW MEMBER',
@@ -634,7 +730,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
     const handleCreateUser = async (e) => {
         e.preventDefault();
-        setStatus({ type: 'info', message: lang === 'tr' ? 'Kullanıcı oluşturuluyor...' : 'Creating user...' });
+        setStatus({ type: 'info', message: lang === 'tr' ? 'Kullanıcı oluşturuluyor...' : (lang === 'de' ? 'Benutzer wird erstellt...' : 'Creating user...') });
         const proxyBase = getProxyBase();
 
         // 1. Create in Backend API
@@ -887,9 +983,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         const end = new Date(endDate);
         const now = new Date();
         const diffMs = end - now;
-        if (diffMs <= 0) return lang === 'tr' ? 'Doldu' : 'Expired';
+        if (diffMs <= 0) return lang === 'tr' ? 'Doldu' : (lang === 'de' ? 'Abgelaufen' : 'Expired');
         const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-        if (diffHours <= 24) return `${diffHours} ${lang === 'tr' ? 'saat' : 'hours'}`;
+        if (diffHours <= 24) return `${diffHours} ${lang === 'tr' ? 'saat' : (lang === 'de' ? 'Std.' : 'hours')}`;
         const diffDays = Math.ceil(diffHours / 24);
         return `${diffDays} ${t.days}`;
     };
@@ -943,12 +1039,12 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                             onChange={(e) => setSubscriptionDays(parseInt(e.target.value))}
                             style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}
                         >
-                            <option value={3}>3 {lang === 'tr' ? 'gün (3 Günlük Deneme / 72s)' : 'days (3-Day Trial / 72h)'}</option>
-                            <option value={7}>7 {lang === 'tr' ? 'gün (1 Hafta)' : 'days (1 Week)'}</option>
-                            <option value={30}>30 {lang === 'tr' ? 'gün (1 Ay)' : 'days (1 Month)'}</option>
-                            <option value={90}>90 {lang === 'tr' ? 'gün (3 Ay)' : 'days (3 Months)'}</option>
-                            <option value={180}>180 {lang === 'tr' ? 'gün (6 Ay)' : 'days (6 Months)'}</option>
-                            <option value={365}>365 {lang === 'tr' ? 'gün (1 Yıl)' : 'days (1 Year)'}</option>
+                            <option value={3}>3 {lang === 'tr' ? 'gün (3 Günlük Deneme / 72s)' : (lang === 'de' ? 'Tage (3-Tage-Test / 72h)' : 'days (3-Day Trial / 72h)')}</option>
+                            <option value={7}>7 {lang === 'tr' ? 'gün (1 Hafta)' : (lang === 'de' ? 'Tage (1 Woche)' : 'days (1 Week)')}</option>
+                            <option value={30}>30 {lang === 'tr' ? 'gün (1 Ay)' : (lang === 'de' ? 'Tage (1 Monat)' : 'days (1 Month)')}</option>
+                            <option value={90}>90 {lang === 'tr' ? 'gün (3 Ay)' : (lang === 'de' ? 'Tage (3 Monate)' : 'days (3 Months)')}</option>
+                            <option value={180}>180 {lang === 'tr' ? 'gün (6 Ay)' : (lang === 'de' ? 'Tage (6 Monate)' : 'days (6 Months)')}</option>
+                            <option value={365}>365 {lang === 'tr' ? 'gün (1 Yıl)' : (lang === 'de' ? 'Tage (1 Jahr)' : 'days (1 Year)')}</option>
                         </select>
                     </div>
                     <div>
@@ -1145,7 +1241,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                     }}
                 >
                     <span>🏦</span>
-                    <span>{lang === 'tr' ? 'BAHİS OFİSİ (KUANT DESK)' : 'SPORTSBOOK DESK'}</span>
+                    <span>{lang === 'tr' ? 'BAHİS OFİSİ (KUANT DESK)' : (lang === 'de' ? 'WETTBÜRO (QUANT DESK)' : 'SPORTSBOOK DESK')}</span>
                     <span style={{
                         background: '#38bdf8',
                         color: '#000',
@@ -1247,7 +1343,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                                     <span style={{ fontSize: '1.2rem' }}>⚡</span>
                                     <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff' }}>
-                                        {lang === 'tr' ? '7/24 OTONOM NÖBET DURUMU' : '24/7 AUTONOMOUS SHIFT STATUS'}
+                                        {lang === 'tr' ? '7/24 OTONOM NÖBET DURUMU' : (lang === 'de' ? '24/7 AUTONOMER SCHICHT-STATUS' : '24/7 AUTONOMOUS SHIFT STATUS')}
                                     </span>
                                     <span style={{
                                         padding: '0.2rem 0.6rem',
@@ -1258,7 +1354,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                         color: officeStatus?.autoModeEnabled ? '#10b981' : '#ef4444',
                                         border: `1px solid ${officeStatus?.autoModeEnabled ? '#10b981' : '#ef4444'}`
                                     }}>
-                                        {officeStatus?.autoModeEnabled ? (lang === 'tr' ? 'OTONOM MOD: AKTİF' : 'AUTONOMOUS: ACTIVE') : (lang === 'tr' ? 'OTONOM MOD: DEVRE DIŞI' : 'AUTONOMOUS: DISABLED')}
+                                        {officeStatus?.autoModeEnabled ? (lang === 'tr' ? 'OTONOM MOD: AKTİF' : (lang === 'de' ? 'AUTONOMER MODUS: AKTIV' : 'AUTONOMOUS: ACTIVE')) : (lang === 'tr' ? 'OTONOM MOD: DEVRE DIŞI' : (lang === 'de' ? 'AUTONOMER MODUS: DEAKTIVIERT' : 'AUTONOMOUS: DISABLED'))}
                                     </span>
                                 </div>
                                 <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.3rem' }}>
@@ -1282,7 +1378,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                         border: `1px solid ${officeStatus?.autoModeEnabled ? '#ef4444' : '#10b981'}`
                                     }}
                                 >
-                                    {officeStatus?.autoModeEnabled ? (lang === 'tr' ? '⏸️ Otonomu Durdur' : '⏸️ Pause Auto') : (lang === 'tr' ? '▶️ Otonomu Başlat' : '▶️ Resume Auto')}
+                                    {officeStatus?.autoModeEnabled ? (lang === 'tr' ? '⏸️ Otonomu Durdur' : (lang === 'de' ? '⏸️ Autonom pausieren' : '⏸️ Pause Auto')) : (lang === 'tr' ? '▶️ Otonomu Başlat' : (lang === 'de' ? '▶️ Autonom starten' : '▶️ Resume Auto'))}
                                 </button>
                                 <button
                                     onClick={fetchOfficeStatus}
@@ -1298,7 +1394,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                         border: '1px solid #38bdf8'
                                     }}
                                 >
-                                    {officeLoading ? '...' : (lang === 'tr' ? '🔄 Yenile' : '🔄 Refresh')}
+                                    {officeLoading ? '...' : (lang === 'tr' ? '🔄 Yenile' : (lang === 'de' ? '🔄 Aktualisieren' : '🔄 Refresh'))}
                                 </button>
                             </div>
                         </div>
@@ -1320,9 +1416,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                                         <div>
                                             <div style={{ fontSize: '1rem', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                🛡️ {lang === 'tr' ? 'NÖBETÇİ' : 'SENTINEL'}
+                                                🛡️ {lang === 'tr' ? 'NÖBETÇİ' : (lang === 'de' ? 'WÄCHTER' : 'SENTINEL')}
                                             </div>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'Sistem & Risk Bekçisi' : 'System & Risk Guardian'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'Sistem & Risk Bekçisi' : (lang === 'de' ? 'System- & Risikowächter' : 'System & Risk Guardian')}</div>
                                         </div>
                                         <span style={{
                                             padding: '0.2rem 0.5rem',
@@ -1339,17 +1435,17 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.8rem', marginBottom: '1.2rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Canlı Maç Havuzu:' : 'Live Matches:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Canlı Maç Havuzu:' : (lang === 'de' ? 'Live-Spielpool:' : 'Live Matches:')}</span>
                                             <span style={{ fontWeight: 800, color: '#fff' }}>{officeStatus?.sentinel?.liveMatchCount || 0} maç</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Veri Tazeliği (Gecikme):' : 'Data Freshness:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Veri Tazeliği (Gecikme):' : (lang === 'de' ? 'Datenaktualität (Latenz):' : 'Data Freshness:')}</span>
                                             <span style={{ fontWeight: 800, color: (officeStatus?.sentinel?.sofascoreAgeSec > 180 ? '#f59e0b' : '#10b981') }}>
                                                 {officeStatus?.sentinel?.sofascoreAgeSec !== null ? `${officeStatus?.sentinel?.sofascoreAgeSec}s` : 'Beklemede'}
                                             </span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Karantinadaki Ligler:' : 'Quarantined Leagues:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Karantinadaki Ligler:' : (lang === 'de' ? 'Ligen in Quarantäne:' : 'Quarantined Leagues:') }</span>
                                             <span style={{ fontWeight: 800, color: (officeStatus?.sentinel?.quarantinedLeagues?.length > 0 ? '#ef4444' : '#10b981') }}>
                                                 {officeStatus?.sentinel?.quarantinedLeagues?.length || 0} lig
                                             </span>
@@ -1373,7 +1469,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        🔍 {lang === 'tr' ? 'Şimdi Tara' : 'Scan Now'}
+                                        🔍 {lang === 'tr' ? 'Şimdi Tara' : (lang === 'de' ? 'Jetzt scannen' : 'Scan Now')}
                                     </button>
                                     <button
                                         onClick={() => handleOfficeAction('sentinel_heal_locks')}
@@ -1390,7 +1486,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        🧹 {lang === 'tr' ? 'Kilit Sıfırla' : 'Clear Locks'}
+                                        🧹 {lang === 'tr' ? 'Kilit Sıfırla' : (lang === 'de' ? 'Sperren leeren' : 'Clear Locks')}
                                     </button>
                                 </div>
                             </div>
@@ -1409,9 +1505,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                                         <div>
                                             <div style={{ fontSize: '1rem', fontWeight: 900, color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                💰 {lang === 'tr' ? 'TAHSİLDAR' : 'CASHIER'}
+                                                💰 {lang === 'tr' ? 'TAHSİLDAR' : (lang === 'de' ? 'KASSIERER' : 'CASHIER')}
                                             </div>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'Kasa & Satış Yöneticisi' : 'Sales & Access Bot'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'Kasa & Satış Yöneticisi' : (lang === 'de' ? 'Kassen- & Verkaufsmanager' : 'Sales & Access Bot')}</div>
                                         </div>
                                         <span style={{
                                             padding: '0.2rem 0.5rem',
@@ -1422,23 +1518,23 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                             color: '#10b981',
                                             border: '1px solid #10b981'
                                         }}>
-                                            {lang === 'tr' ? 'NÖBETTE' : 'ACTIVE'}
+                                            {lang === 'tr' ? 'NÖBETTE' : (lang === 'de' ? 'IM DIENST' : 'ACTIVE')}
                                         </span>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.8rem', marginBottom: '1.2rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Aktif VIP Üye Sayısı:' : 'Active VIP Members:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Aktif VIP Üye Sayısı:' : (lang === 'de' ? 'Aktive VIP-Mitglieder:' : 'Active VIP Members:')}</span>
                                             <span style={{ fontWeight: 800, color: '#10b981' }}>{officeStatus?.cashier?.activeVipCount || 0} üye</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? '3 Günlük Deneme (Aktif / Bitiyor):' : '3-Day Trials (Active/Soon):'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? '3 Günlük Deneme (Aktif / Bitiyor):' : (lang === 'de' ? '3-Tage-Test (Aktiv / Endend):' : '3-Day Trials (Active/Soon):')}</span>
                                             <span style={{ fontWeight: 800, color: '#fff' }}>
                                                 {officeStatus?.cashier?.activeTrialCount || 0} / <span style={{ color: '#f59e0b' }}>{officeStatus?.cashier?.expiringSoonCount || 0}</span>
                                             </span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Tahmini MRR (Aylık Gelir):' : 'Estimated MRR:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Tahmini MRR (Aylık Gelir):' : (lang === 'de' ? 'Geschätzter MRR (Monatsumsatz):' : 'Estimated MRR:')}</span>
                                             <span style={{ fontWeight: 800, color: '#38bdf8' }}>{officeStatus?.cashier?.estimatedMrr || '€0.00'}</span>
                                         </div>
                                     </div>
@@ -1459,7 +1555,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    🚀 {lang === 'tr' ? 'Biten Denemelere Kampanya At' : 'Offer Expired Trials'}
+                                    🚀 {lang === 'tr' ? 'Biten Denemelere Kampanya At' : (lang === 'de' ? 'Kampagne an abgelaufene Tests senden' : 'Offer Expired Trials')}
                                 </button>
                             </div>
 
@@ -1477,9 +1573,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                                         <div>
                                             <div style={{ fontSize: '1rem', fontWeight: 900, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                📢 {lang === 'tr' ? 'PAZARLAMACI' : 'MARKETING'}
+                                                📢 {lang === 'tr' ? 'PAZARLAMACI' : (lang === 'de' ? 'MARKETING' : 'MARKETING')}
                                             </div>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'FOMO & Sosyal Kanıt Botu' : 'FOMO & Social Proof Bot'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{lang === 'tr' ? 'FOMO & Sosyal Kanıt Botu' : (lang === 'de' ? 'FOMO & Social-Proof-Bot' : 'FOMO & Social Proof Bot')}</div>
                                         </div>
                                         <span style={{
                                             padding: '0.2rem 0.5rem',
@@ -1490,23 +1586,23 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                             color: '#a78bfa',
                                             border: '1px solid #a78bfa'
                                         }}>
-                                            {lang === 'tr' ? 'HAZIR' : 'READY'}
+                                            {lang === 'tr' ? 'HAZIR' : (lang === 'de' ? 'BEREIT' : 'READY')}
                                         </span>
                                     </div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.8rem', marginBottom: '1.2rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Bugünkü Skor (K/K):' : 'Today W/L:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Bugünkü Skor (K/K):' : (lang === 'de' ? 'Heutige Bilanz (G/V):' : 'Today W/L:')}</span>
                                             <span style={{ fontWeight: 800, color: '#10b981' }}>
                                                 {officeStatus?.marketing?.todayWon || 0}W / {officeStatus?.marketing?.todayLost || 0}L (%{officeStatus?.marketing?.winRate || '0.0'})
                                             </span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Basılan FOMO Afişi:' : 'FOMO Cards Sent:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Basılan FOMO Afişi:' : (lang === 'de' ? 'Gesendete FOMO-Karten:' : 'FOMO Cards Sent:') }</span>
                                             <span style={{ fontWeight: 800, color: '#fff' }}>{officeStatus?.marketing?.fomoCardsDispatched || 0} adet</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.3rem' }}>
-                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Son Sinyal:' : 'Last Signal:'}</span>
+                                            <span style={{ opacity: 0.7 }}>{lang === 'tr' ? 'Son Sinyal:' : (lang === 'de' ? 'Letztes Signal:' : 'Last Signal:')}</span>
                                             <span style={{ fontWeight: 800, color: '#38bdf8', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                 {officeStatus?.marketing?.lastSignal || '-'}
                                             </span>
@@ -1529,7 +1625,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    📢 {lang === 'tr' ? 'Günün ROI Raporunu Kanala Fırlat' : 'Broadcast Daily ROI Recap'}
+                                    📢 {lang === 'tr' ? 'Günün ROI Raporunu Kanala Fırlat' : (lang === 'de' ? 'Tages-ROI-Bericht im Kanal teilen' : 'Broadcast Daily ROI Recap')}
                                 </button>
                             </div>
                         </div>
@@ -1539,9 +1635,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                 <div style={{ fontSize: '0.85rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <span>📜</span>
-                                    <span>{lang === 'tr' ? 'OTONOM OLAY VE KARAR AKIŞI' : 'AUTONOMOUS DECISION & ACTION FEED'}</span>
+                                    <span>{lang === 'tr' ? 'OTONOM OLAY VE KARAR AKIŞI' : (lang === 'de' ? 'AUTONOMER ENTSCHEIDUNGS- & AKTIONEN-STREAM' : 'AUTONOMOUS DECISION & ACTION FEED')}</span>
                                 </div>
-                                <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{lang === 'tr' ? 'Son 30 Aksiyon' : 'Last 30 Actions'}</span>
+                                <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>{lang === 'tr' ? 'Son 30 Aksiyon' : (lang === 'de' ? 'Letzte 30 Aktionen' : 'Last 30 Actions')}</span>
                             </div>
 
                             <div style={{
@@ -1556,7 +1652,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                             }}>
                                 {(!officeStatus?.recentLogs || officeStatus.recentLogs.length === 0) ? (
                                     <div style={{ opacity: 0.4, textAlign: 'center', padding: '1rem' }}>
-                                        {lang === 'tr' ? 'Henüz kaydedilmiş otonom işlem bulunmuyor.' : 'No recorded autonomous actions yet.'}
+                                        {lang === 'tr' ? 'Henüz kaydedilmiş otonom işlem bulunmuyor.' : (lang === 'de' ? 'Noch keine autonomen Aktionen aufgezeichnet.' : 'No recorded autonomous actions yet.')}
                                     </div>
                                 ) : (
                                     officeStatus.recentLogs.map((log) => {
@@ -1697,7 +1793,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
 
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem' }}>
-                                    💳 {lang === 'tr' ? 'Shopier Kredi Kartı Ödeme / Mağaza Linki' : 'Shopier Payment / Store Link'}
+                                    💳 {lang === 'tr' ? 'Shopier Kredi Kartı Ödeme / Mağaza Linki' : (lang === 'de' ? 'Shopier Kreditkarten-Zahlungslink / Shop' : 'Shopier Payment / Store Link')}
                                 </label>
                                 <input
                                     type="url"
@@ -1707,7 +1803,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                     style={{ width: '100%', padding: '0.8rem', background: 'rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', borderRadius: '8px', color: '#fff' }}
                                 />
                                 <span style={{ fontSize: '0.72rem', opacity: 0.5, marginTop: '0.3rem', display: 'block' }}>
-                                    {lang === 'tr' ? 'Kullanıcılar web panelinde veya Telegram botunda kredi kartı ile öde butonuna bastığında bu linke yönlendirilir.' : 'Users will be redirected to this URL when clicking Pay with Card.'}
+                                    {lang === 'tr' ? 'Kullanıcılar web panelinde veya Telegram botunda kredi kartı ile öde butonuna bastığında bu linke yönlendirilir.' : (lang === 'de' ? 'Benutzer werden auf diesen Link weitergeleitet, wenn sie im Web-Panel oder im Telegram-Bot auf Kartenzahlung klicken.' : 'Users will be redirected to this URL when clicking Pay with Card.')}
                                 </span>
                             </div>
 
@@ -2201,23 +2297,23 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                                 {/* Header info */}
                                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.5rem' }}>
                                                                     <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8' }}>
-                                                                        ⚙️ {lang === 'tr' ? 'Üyelik & Süre Yönetimi' : 'Manage Subscription'}
+                                                                        ⚙️ {lang === 'tr' ? 'Üyelik & Süre Yönetimi' : (lang === 'de' ? 'Mitgliedschaft & Laufzeitverwaltung' : 'Manage Subscription')}
                                                                     </div>
                                                                     <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
-                                                                        {getRemainingDays(profile.subscription_end)} {lang === 'tr' ? 'kaldı' : 'left'}
+                                                                        {getRemainingDays(profile.subscription_end)} {lang === 'tr' ? 'kaldı' : (lang === 'de' ? 'verbleibend' : 'left')}
                                                                     </div>
                                                                 </div>
 
                                                                 {/* 1. Hızlı 1-Tık Presetler (Paket + Süre Birlikte) */}
                                                                 <div>
                                                                     <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
-                                                                        ⚡ {lang === 'tr' ? 'Hızlı Paket Tanımla (Paket + Süre)' : 'Quick Presets (Plan + Days)'}
+                                                                        ⚡ {lang === 'tr' ? 'Hızlı Paket Tanımla (Paket + Süre)' : (lang === 'de' ? 'Schnellpaket zuweisen (Paket + Tage)' : 'Quick Presets (Plan + Days)')}
                                                                     </div>
                                                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => updateSubscription(profile.id, null, 'trial', profile.email, 3)}
-                                                                            title={lang === 'tr' ? '3 Günlük Deneme başlatır' : 'Start 3-day trial'}
+                                                                            title={lang === 'tr' ? '3 Günlük Deneme başlatır' : (lang === 'de' ? 'Startet 3-Tage-Testzugang' : 'Start 3-day trial')}
                                                                             style={{
                                                                                 background: profile.plan === 'trial' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.1)',
                                                                                 border: `1px solid ${profile.plan === 'trial' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`,
@@ -2233,14 +2329,14 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                                                 gap: '2px'
                                                                             }}
                                                                         >
-                                                                            <span>⚡ {lang === 'tr' ? '3G Deneme' : '3D Trial'}</span>
+                                                                            <span>⚡ {lang === 'tr' ? '3G Deneme' : (lang === 'de' ? '3T Test' : '3D Trial')}</span>
                                                                             <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(72 Saat)</span>
                                                                         </button>
 
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => updateSubscription(profile.id, null, 'pro', profile.email, 30)}
-                                                                            title={lang === 'tr' ? '1 Aylık PRO tanımlar' : 'Assign 1-Month Pro'}
+                                                                            title={lang === 'tr' ? '1 Aylık PRO tanımlar' : (lang === 'de' ? 'Weist 1 Monat PRO zu' : 'Assign 1-Month Pro')}
                                                                             style={{
                                                                                 background: profile.plan === 'pro' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(56, 189, 248, 0.1)',
                                                                                 border: `1px solid ${profile.plan === 'pro' ? '#38bdf8' : 'rgba(56, 189, 248, 0.3)'}`,
@@ -2256,14 +2352,14 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                                                 gap: '2px'
                                                                             }}
                                                                         >
-                                                                            <span>👑 {lang === 'tr' ? '1 Ay PRO' : '1 Mo PRO'}</span>
+                                                                            <span>👑 {lang === 'tr' ? '1 Ay PRO' : (lang === 'de' ? '1 Mon. PRO' : '1 Mo PRO')}</span>
                                                                             <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(30 Gün)</span>
                                                                         </button>
 
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => updateSubscription(profile.id, null, 'premium', profile.email, 30)}
-                                                                            title={lang === 'tr' ? '1 Aylık PREMIUM tanımlar' : 'Assign 1-Month Premium'}
+                                                                            title={lang === 'tr' ? '1 Aylık PREMIUM tanımlar' : (lang === 'de' ? 'Weist 1 Monat VIP zu' : 'Assign 1-Month Premium')}
                                                                             style={{
                                                                                 background: profile.plan === 'premium' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.1)',
                                                                                 border: `1px solid ${profile.plan === 'premium' ? '#a855f7' : 'rgba(168, 85, 247, 0.3)'}`,
@@ -2279,7 +2375,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                                                 gap: '2px'
                                                                             }}
                                                                         >
-                                                                            <span>💎 {lang === 'tr' ? '1 Ay VIP' : '1 Mo VIP'}</span>
+                                                                            <span>💎 {lang === 'tr' ? '1 Ay VIP' : (lang === 'de' ? '1 Mon. VIP' : '1 Mo VIP')}</span>
                                                                             <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(30 Gün)</span>
                                                                         </button>
                                                                     </div>
@@ -2288,16 +2384,16 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                                 {/* 2. Mevcut Bitiş Tarihine Gün Ekle */}
                                                                 <div>
                                                                     <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
-                                                                        ⏳ {lang === 'tr' ? 'Mevcut Süreye Gün Ekle (+ Gün)' : 'Extend Current Duration (+ Days)'}
+                                                                        ⏳ {lang === 'tr' ? 'Mevcut Süreye Gün Ekle (+ Gün)' : (lang === 'de' ? 'Laufzeit verlängern (+ Tage)' : 'Extend Current Duration (+ Days)')}
                                                                     </div>
                                                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                                                                         {[
                                                                             { d: 1, label: '+1g' },
-                                                                            { d: 3, label: lang === 'tr' ? '+3g (Deneme)' : '+3d (Trial)' },
-                                                                            { d: 7, label: lang === 'tr' ? '+7g (1 Hf)' : '+7d (1 Wk)' },
-                                                                            { d: 30, label: lang === 'tr' ? '+30g (1 Ay)' : '+30d (1 Mo)' },
-                                                                            { d: 90, label: lang === 'tr' ? '+90g (3 Ay)' : '+90d (3 Mo)' },
-                                                                            { d: 365, label: lang === 'tr' ? '+365g (1 Yıl)' : '+365d (1 Yr)' }
+                                                                            { d: 3, label: lang === 'tr' ? '+3g (Deneme)' : (lang === 'de' ? '+3T (Test)' : '+3d (Trial)') },
+                                                                            { d: 7, label: lang === 'tr' ? '+7g (1 Hf)' : (lang === 'de' ? '+7T (1 Wo)' : '+7d (1 Wk)') },
+                                                                            { d: 30, label: lang === 'tr' ? '+30g (1 Ay)' : (lang === 'de' ? '+30T (1 Mon)' : '+30d (1 Mo)') },
+                                                                            { d: 90, label: lang === 'tr' ? '+90g (3 Ay)' : (lang === 'de' ? '+90T (3 Mon)' : '+90d (3 Mo)') },
+                                                                            { d: 365, label: lang === 'tr' ? '+365g (1 Yıl)' : (lang === 'de' ? '+365T (1 J)' : '+365d (1 Yr)') }
                                                                         ].map(item => (
                                                                             <button
                                                                                 key={item.d}
@@ -2326,7 +2422,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                                 {/* 3. Sadece Plan Değiştir */}
                                                                 <div>
                                                                     <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
-                                                                        🏷️ {lang === 'tr' ? 'Sadece Paketi Değiştir (Süreyi Koru)' : 'Change Plan Only (Keep Days)'}
+                                                                        🏷️ {lang === 'tr' ? 'Sadece Paketi Değiştir (Süreyi Koru)' : (lang === 'de' ? 'Nur Paket ändern (Tage beibehalten)' : 'Change Plan Only (Keep Days)')}
                                                                     </div>
                                                                     <div style={{ display: 'flex', gap: '0.3rem' }}>
                                                                         {Object.keys(PLANS).filter(k => k !== 'admin').map(p => {
@@ -2367,7 +2463,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                                         onClick={() => setEditingUser(null)}
                                                                         style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}
                                                                     >
-                                                                        ✕ {lang === 'tr' ? 'Kapat / Vazgeç' : 'Close'}
+                                                                        ✕ {lang === 'tr' ? 'Kapat / Vazgeç' : (lang === 'de' ? 'Schließen / Abbrechen' : 'Close')}
                                                                     </button>
                                                                 </div>
                                                             </div>

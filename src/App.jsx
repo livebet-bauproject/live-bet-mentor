@@ -546,12 +546,14 @@ function App() {
         }}>
           <div style={{ fontSize: '4rem', marginBottom: '1.2rem' }}>⏳</div>
           <h2 style={{ fontSize: '1.7rem', fontWeight: 900, marginBottom: '0.8rem', color: '#fbbf24' }}>
-            {lang === 'tr' ? 'Üyeliğiniz Onay Bekliyor' : t.approval_pending}
+            {t.approval_pending || (lang === 'tr' ? 'Üyeliğiniz Onay Bekliyor' : (lang === 'de' ? 'Ihre Mitgliedschaft wartet auf Bestätigung' : 'Membership Approval Pending'))}
           </h2>
           <p style={{ color: '#cbd5e1', marginBottom: '1.2rem', lineHeight: 1.6, fontSize: '0.95rem' }}>
-            {lang === 'tr' 
+            {t.approval_pending_desc || (lang === 'tr' 
               ? 'Hesap kaydınız başarıyla alındı. Canlı radar paneline erişiminiz yönetici onayından sonra aktifleşecektir.' 
-              : t.approval_pending_desc}
+              : (lang === 'de'
+                ? 'Ihre Registrierung wurde erfolgreich empfangen. Der Zugang zum Live-Radar wird nach der Administrator-Bestätigung aktiviert.'
+                : 'Your registration was successful. Access to the live radar will be activated after administrator approval.'))}
           </p>
           <div style={{ background: 'rgba(255,255,255,0.04)', padding: '0.8rem', borderRadius: '8px', color: '#94a3b8', fontSize: '0.85rem', marginBottom: '1.8rem' }}>
             📧 <strong>{userEmail}</strong>
@@ -578,7 +580,7 @@ function App() {
                 }}
               >
                 <span>✈️</span>
-                <span>{lang === 'tr' ? 'Telegram ile Lisans Aktivasyonu' : 'Contact via Telegram for Activation'}</span>
+                <span>{lang === 'tr' ? 'Telegram ile Lisans Aktivasyonu' : (lang === 'de' ? 'Lizenzaktivierung via Telegram' : 'Contact via Telegram for Activation')}</span>
               </a>
 
             <button
@@ -607,7 +609,7 @@ function App() {
     const telegramUrl = `https://t.me/${cleanTelegram}`;
     const shopierUrl = systemSettings?.shopier_link || 'https://www.shopier.com/QuantDataLabs';
     const endDate = userProfile?.subscription_end 
-      ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: 'numeric', month: 'long', year: 'numeric' })
+      ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: 'numeric', month: 'long', year: 'numeric' })
       : '';
 
     const isTrialExpiry = userProfile?.plan === 'trial';
@@ -637,13 +639,15 @@ function App() {
           </div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.5rem', color: '#f3e8ff' }}>
             {isTrialExpiry 
-              ? (lang === 'tr' ? '3 Günlük Ücretsiz Denemeniz Sona Erdi' : 'Your 3-Day Free Trial Has Ended')
-              : (lang === 'tr' ? 'Abonelik Süreniz Doldu' : t.subscription_expired)}
+              ? (lang === 'tr' ? '3 Günlük Ücretsiz Denemeniz Sona Erdi' : (lang === 'de' ? 'Ihre 3-tägige kostenlose Testphase ist beendet' : 'Your 3-Day Free Trial Has Ended'))
+              : (lang === 'tr' ? 'Abonelik Süreniz Doldu' : (t.subscription_expired || (lang === 'de' ? 'Ihr Abonnement ist abgelaufen' : 'Subscription Expired')))}
           </h2>
           <p style={{ color: '#94a3b8', marginBottom: '1.4rem', lineHeight: 1.5, fontSize: '0.9rem' }}>
             {lang === 'tr' 
               ? `Canlı radar ve VIP sinyal erişim süreniz ${endDate ? `${endDate} tarihinde ` : ''}tamamlanmıştır. Yapay zeka değer sinyallerini kaçırmamak için VIP üyeliğinizi hemen aktifleştirin.` 
-              : t.subscription_expired_desc.replace('{date}', endDate)}
+              : (lang === 'de'
+                ? `Ihr Zugang zum Live-Radar und den VIP-Signalen ist ${endDate ? `am ${endDate} ` : ''}abgelaufen. Aktivieren Sie Ihre VIP-Mitgliedschaft jetzt, um keine KI-Value-Signale zu verpassen.`
+                : (t.subscription_expired_desc ? t.subscription_expired_desc.replace('{date}', endDate) : `Your access expired ${endDate ? `on ${endDate}` : ''}. Upgrade now to keep receiving VIP signals.`))}
           </p>
 
           {/* Social Proof & Performance Widget */}
@@ -656,24 +660,24 @@ function App() {
             textAlign: 'left'
           }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.6rem' }}>
-              🤖 {lang === 'tr' ? 'SON 24 SAATTE ALGORİTMA PERFORMANSI' : 'PAST 24H QUANT PERFORMANCE'}
+              🤖 {lang === 'tr' ? 'SON 24 SAATTE ALGORİTMA PERFORMANSI' : (lang === 'de' ? 'QUANT-PERFORMANCE DER LETZTEN 24 STD.' : 'PAST 24H QUANT PERFORMANCE')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center' }}>
               <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.6rem 0.4rem', borderRadius: '10px' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#10b981' }}>%82.4</div>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{lang === 'tr' ? 'İsabet Oranı' : 'Win Rate'}</div>
+                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{lang === 'tr' ? 'İsabet Oranı' : (lang === 'de' ? 'Trefferquote' : 'Win Rate')}</div>
               </div>
               <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.6rem 0.4rem', borderRadius: '10px' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#38bdf8' }}>18/22</div>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Kazanan Sinyal' : 'Signals Won'}</div>
+                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Kazanan Sinyal' : (lang === 'de' ? 'Gewonnene Signale' : 'Signals Won')}</div>
               </div>
               <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.6rem 0.4rem', borderRadius: '10px' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#fbbf24' }}>@1.76</div>
-                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Ortalama Oran' : 'Avg Odds'}</div>
+                <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Ortalama Oran' : (lang === 'de' ? 'Durchschn. Quote' : 'Avg Odds')}</div>
               </div>
             </div>
             <div style={{ marginTop: '0.6rem', fontSize: '0.72rem', color: '#cbd5e1', opacity: 0.85, textAlign: 'center' }}>
-              🔒 {lang === 'tr' ? 'VIP Alevli Maçlar, Poisson ve xG Radarı artık kilitlidir.' : 'VIP Flame Matches, Poisson & xG Radar are currently locked.'}
+              🔒 {lang === 'tr' ? 'VIP Alevli Maçlar, Poisson ve xG Radarı artık kilitlidir.' : (lang === 'de' ? 'VIP-Spiele, Poisson- & xG-Radar sind derzeit gesperrt.' : 'VIP Flame Matches, Poisson & xG Radar are currently locked.')}
             </div>
           </div>
 
@@ -699,7 +703,7 @@ function App() {
               }}
             >
               <span>💳</span>
-              <span>{lang === 'tr' ? 'Kredi Kartı ile VIP Satın Al (Anında Açılır)' : 'Instant Card Checkout (Shopier)'}</span>
+              <span>{lang === 'tr' ? 'Kredi Kartı ile VIP Satın Al (Anında Açılır)' : (lang === 'de' ? 'Sofortige Kartenzahlung (Shopier)' : 'Instant Card Checkout (Shopier)')}</span>
             </a>
 
             <a
@@ -722,7 +726,7 @@ function App() {
               }}
             >
               <span>✈️</span>
-              <span>{lang === 'tr' ? 'Telegram ile İndirimli VIP Talebi (@Livebetdeskbot)' : 'Contact Telegram (@Livebetdeskbot)'}</span>
+              <span>{lang === 'tr' ? 'Telegram ile İndirimli VIP Talebi (@Livebetdeskbot)' : (lang === 'de' ? 'Telegram VIP-Anfrage (@Livebetdeskbot)' : 'Contact Telegram (@Livebetdeskbot)')}</span>
             </a>
 
             {/* Freemium Entry Option: Keeps users engaged with locked signals */}
@@ -745,7 +749,7 @@ function App() {
               }}
             >
               <span>🔓</span>
-              <span>{lang === 'tr' ? 'Freemium Olarak Devam Et (Temel Radar)' : 'Continue in Freemium Mode (Basic Radar)'}</span>
+              <span>{lang === 'tr' ? 'Freemium Olarak Devam Et (Temel Radar)' : (lang === 'de' ? 'Im Freemium-Modus fortfahren (Basis-Radar)' : 'Continue in Freemium Mode (Basic Radar)')}</span>
             </button>
 
             <button

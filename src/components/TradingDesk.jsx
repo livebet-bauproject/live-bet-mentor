@@ -23,14 +23,7 @@ export function TradingDesk({ lang = 'tr' }) {
     const [deadMatchShield, setDeadMatchShield] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState('ALL'); // 'ALL', 'NEXT_GOAL', 'OVER_UNDER', 'BTTS', '1X2'
 
-    // Gemini Integration State
-    const [geminiStatus, setGeminiStatus] = useState({ hasKey: false, keyPrefix: null });
-    const [geminiApiKeyInput, setGeminiApiKeyInput] = useState('');
-    const [showKeyModal, setShowKeyModal] = useState(false);
-    const [keyTesting, setKeyTesting] = useState(false);
-    const [keyTestResult, setKeyTestResult] = useState(null);
-
-    // Gemini Briefing State
+    // Nexus Quant Core State
     const [briefingLoading, setBriefingLoading] = useState(false);
     const [briefingData, setBriefingData] = useState(null);
     const [copiedBriefing, setCopiedBriefing] = useState(false);
@@ -73,7 +66,7 @@ export function TradingDesk({ lang = 'tr' }) {
         return headers;
     };
 
-    // Load desk config & Gemini status
+    // Load desk config
     const fetchDeskConfig = useCallback(async () => {
         try {
             const base = getProxyBase();
@@ -82,7 +75,6 @@ export function TradingDesk({ lang = 'tr' }) {
             });
             const data = await res.json();
             if (data.success) {
-                if (data.geminiStatus) setGeminiStatus(data.geminiStatus);
                 if (data.config) {
                     if (data.config.minEV !== undefined) setMinEV(data.config.minEV);
                     if (data.config.minConfidence !== undefined) setMinConfidence(data.config.minConfidence);
@@ -168,45 +160,12 @@ export function TradingDesk({ lang = 'tr' }) {
         });
     }, [selectedSlipIds, opportunities]);
 
-    // Test Gemini Key
-    const handleTestKey = async () => {
-        setKeyTesting(true);
-        setKeyTestResult(null);
-        try {
-            const base = getProxyBase();
-            const res = await fetch(`${base}/api/admin/trading-desk/test-gemini-key`, {
-                method: 'POST',
-                headers: getAdminHeaders(),
-                body: JSON.stringify({ apiKey: geminiApiKeyInput })
-            });
-            const data = await res.json();
-            setKeyTestResult(data);
-
-            if (data.connected) {
-                // Also save it automatically on success
-                await fetch(`${base}/api/admin/trading-desk/save-gemini-key`, {
-                    method: 'POST',
-                    headers: getAdminHeaders(),
-                    body: JSON.stringify({ apiKey: geminiApiKeyInput })
-                });
-                setGeminiStatus({
-                    hasKey: true,
-                    keyPrefix: data.keyPrefix
-                });
-            }
-        } catch (e) {
-            setKeyTestResult({ connected: false, error: e.message });
-        } finally {
-            setKeyTesting(false);
-        }
-    };
-
-    // Trigger Gemini Committee Briefing
+    // Trigger Nexus Quant Core Committee Briefing
     const handleGenerateBriefing = async () => {
         setBriefingLoading(true);
         try {
             const base = getProxyBase();
-            const res = await fetch(`${base}/api/admin/trading-desk/gemini-briefing`, {
+            const res = await fetch(`${base}/api/admin/trading-desk/nexus-briefing`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({
@@ -266,45 +225,40 @@ export function TradingDesk({ lang = 'tr' }) {
                             <span style={{ fontSize: '1.8rem' }}>🏦</span>
                             <div>
                                 <h2 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', margin: 0 }}>
-                                    {lang === 'tr' ? 'BAHİS OFİSİ & KUANT TRADING DESK' : 'SPORTSBOOK QUANT TRADING DESK'}
+                                    {lang === 'tr' ? 'BAHİS OFİSİ & KUANT TRADING DESK' : (lang === 'de' ? 'BUCHMACHER & QUANT-TRADING-DESK' : 'SPORTSBOOK QUANT TRADING DESK')}
                                 </h2>
                                 <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '0.2rem' }}>
                                     {lang === 'tr'
                                         ? '5 Aşamalı Kurumsal Filtreleme: Dixon-Coles, xG Momentum, +EV Arbitraj & Kelly Kasa Yönetimi'
-                                        : '5-Stage Institutional Filters: Dixon-Coles, xG Momentum, +EV Arbitrage & Kelly Bankroll'}
+                                        : (lang === 'de'
+                                            ? '5-stufige institutionelle Filter: Dixon-Coles, xG-Momentum, +EV-Arbitrage & Kelly-Bankroll-Management'
+                                            : '5-Stage Institutional Filters: Dixon-Coles, xG Momentum, +EV Arbitrage & Kelly Bankroll')}
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
-                        {/* Gemini Key Status Button */}
-                        <button
-                            onClick={() => setShowKeyModal(!showKeyModal)}
+                        {/* Nexus Quant Core Status Badge */}
+                        <div
                             style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.5rem',
                                 padding: '0.55rem 1rem',
                                 borderRadius: '10px',
-                                background: geminiStatus.hasKey ? 'rgba(16, 185, 129, 0.15)' : 'rgba(251, 191, 36, 0.15)',
-                                border: `1px solid ${geminiStatus.hasKey ? '#10b981' : '#fbbf24'}`,
-                                color: geminiStatus.hasKey ? '#10b981' : '#fbbf24',
+                                background: 'rgba(16, 185, 129, 0.15)',
+                                border: '1px solid #10b981',
+                                color: '#10b981',
                                 fontSize: '0.78rem',
                                 fontWeight: 800,
-                                cursor: 'pointer'
                             }}
                         >
-                            <span>🤖</span>
-                            <span>
-                                {geminiStatus.hasKey
-                                    ? `Gemini API: Aktif (${geminiStatus.keyPrefix})`
-                                    : 'Gemini API: Beklemede (Bağla)'}
-                            </span>
-                            <span style={{ opacity: 0.7 }}>⚙️</span>
-                        </button>
+                            <span>💎</span>
+                            <span>Nexus Quant Core™: Aktif (%100 Yerel)</span>
+                        </div>
 
-                        {/* Gemini Strategic Briefing Button */}
+                        {/* Nexus Strategic Briefing Button */}
                         <button
                             onClick={handleGenerateBriefing}
                             disabled={briefingLoading || opportunities.length === 0}
@@ -327,12 +281,12 @@ export function TradingDesk({ lang = 'tr' }) {
                             {briefingLoading ? (
                                 <>
                                     <span className="spinner" style={{ display: 'inline-block', width: '12px', height: '12px', border: '2px solid #fff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></span>
-                                    <span>{lang === 'tr' ? 'Komite Brifingi Hazırlanıyor...' : 'Synthesizing Committee Briefing...'}</span>
+                                    <span>{lang === 'tr' ? 'Nexus Komite Brifingi Hazırlanıyor...' : (lang === 'de' ? 'Nexus-Komitee-Briefing wird erstellt...' : 'Synthesizing Nexus Briefing...')}</span>
                                 </>
                             ) : (
                                 <>
                                     <span>⚡</span>
-                                    <span>{lang === 'tr' ? 'Gemini Kuant Brifingi Al' : 'Get Gemini Quant Briefing'}</span>
+                                    <span>{lang === 'tr' ? 'Nexus Kuant Brifingi Al' : (lang === 'de' ? 'Nexus Quant-Briefing anfordern' : 'Get Nexus Quant Briefing')}</span>
                                 </>
                             )}
                         </button>
@@ -410,99 +364,7 @@ export function TradingDesk({ lang = 'tr' }) {
                 </div>
             </div>
 
-            {/* Gemini API Key Configuration Modal / Dropdown */}
-            {showKeyModal && (
-                <div style={{
-                    background: 'rgba(15, 23, 42, 0.98)',
-                    border: '1px solid rgba(56, 189, 248, 0.35)',
-                    borderRadius: '16px',
-                    padding: '1.5rem',
-                    marginBottom: '1.5rem',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.6)'
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 900, color: '#38bdf8', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span>🔑</span> {lang === 'tr' ? 'Google Gemini API Anahtarı Bağlantı Masası' : 'Google Gemini API Connection Vault'}
-                        </h3>
-                        <button
-                            onClick={() => setShowKeyModal(false)}
-                            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.1rem' }}
-                        >
-                            ✕
-                        </button>
-                    </div>
-
-                    <p style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.5, marginBottom: '1rem' }}>
-                        {lang === 'tr'
-                            ? 'Gemini API anahtarınızı aşağıdaki alana girerek test edebilir ve doğrudan bağlayabilirsiniz. Anahtar sadece sunucunuzda şifreli saklanır ve sadece bu Admin Kokpitine özel Kuant Komitesi analizleri için kullanılır.'
-                            : 'Enter your Google AI Studio Gemini API key below to test and connect. Your key is stored securely on the server and is strictly accessible to this Admin Cockpit.'}
-                    </p>
-
-                    <div style={{ display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
-                        <input
-                            type="password"
-                            placeholder="AIzaSy..."
-                            value={geminiApiKeyInput}
-                            onChange={(e) => setGeminiApiKeyInput(e.target.value)}
-                            style={{
-                                flex: 1,
-                                minWidth: '280px',
-                                padding: '0.75rem 1rem',
-                                background: 'rgba(0,0,0,0.4)',
-                                border: '1px solid rgba(255,255,255,0.15)',
-                                borderRadius: '10px',
-                                color: '#fff',
-                                fontSize: '0.85rem'
-                            }}
-                        />
-                        <button
-                            onClick={handleTestKey}
-                            disabled={keyTesting || !geminiApiKeyInput.trim()}
-                            style={{
-                                padding: '0.75rem 1.4rem',
-                                background: 'linear-gradient(135deg, #10b981, #059669)',
-                                border: 'none',
-                                borderRadius: '10px',
-                                color: '#fff',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                cursor: (keyTesting || !geminiApiKeyInput.trim()) ? 'not-allowed' : 'pointer',
-                                opacity: (keyTesting || !geminiApiKeyInput.trim()) ? 0.6 : 1
-                            }}
-                        >
-                            {keyTesting ? 'Doğrulanıyor...' : 'Test Et & Kaydet'}
-                        </button>
-                    </div>
-
-                    {keyTestResult && (
-                        <div style={{
-                            marginTop: '1rem',
-                            padding: '0.8rem 1rem',
-                            borderRadius: '10px',
-                            fontSize: '0.8rem',
-                            background: keyTestResult.connected ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                            border: `1px solid ${keyTestResult.connected ? '#10b981' : '#ef4444'}`,
-                            color: keyTestResult.connected ? '#34d399' : '#f87171'
-                        }}>
-                            {keyTestResult.connected ? (
-                                <div>
-                                    <div style={{ fontWeight: 800 }}>✅ {keyTestResult.message}</div>
-                                    <div style={{ marginTop: '0.3rem', fontSize: '0.72rem', opacity: 0.9 }}>
-                                        Kullanılabilir Modeller: {keyTestResult.models?.join(', ')}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div>
-                                    <div style={{ fontWeight: 800 }}>❌ Bağlantı Başarısız</div>
-                                    <div style={{ marginTop: '0.2rem', fontSize: '0.72rem' }}>{keyTestResult.error}</div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Strategic Gemini Briefing Display Card */}
+            {/* Strategic Nexus Briefing Display Card */}
             {briefingData && (
                 <div style={{
                     background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(24, 24, 27, 0.95))',
@@ -517,9 +379,7 @@ export function TradingDesk({ lang = 'tr' }) {
                             <span style={{ fontSize: '1.6rem' }}>🤖</span>
                             <div>
                                 <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#f3e8ff', margin: 0 }}>
-                                    {briefingData.mode === 'GEMINI_AI'
-                                        ? `BAHİS OFİSİ RİSK KOMİTESİ BRİFİNGİ (Gemini Neural Engine)`
-                                        : `BAHİS OFİSİ RİSK KOMİTESİ BRİFİNGİ (Yerel Kuant Motoru)`}
+                                    {`BAHİS OFİSİ RİSK KOMİTESİ BRİFİNGİ (Nexus Quant Core™)`}
                                 </h3>
                                 <div style={{ fontSize: '0.72rem', color: '#c084fc', marginTop: '0.1rem' }}>
                                     {briefingData.notice || `Sentez Modeli: ${briefingData.model || 'Dixon-Coles & Poisson Hybrid'}`}
@@ -586,17 +446,17 @@ export function TradingDesk({ lang = 'tr' }) {
             }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.8rem' }}>
                     <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>🎛️</span> {lang === 'tr' ? 'CANLI KUANT FİLTRELEME MASASI' : 'QUANTITATIVE GATEKEEPER MATRIX'}
+                        <span>🎛️</span> {lang === 'tr' ? 'CANLI KUANT FİLTRELEME MASASI' : (lang === 'de' ? 'LIVE-QUANT-FILTERMATRIX' : 'QUANTITATIVE GATEKEEPER MATRIX')}
                     </div>
 
                     {/* Market Category Filter Tabs */}
                     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                         {[
-                            { id: 'ALL', label: 'Tümü' },
-                            { id: 'NEXT_GOAL', label: '🎯 Sıradaki Gol' },
-                            { id: 'OVER_UNDER', label: '📊 Üst/Alt' },
-                            { id: 'BTTS', label: '🔥 KG Var/Yok' },
-                            { id: '1X2', label: '🏆 Çifte Şans / 1X2' }
+                            { id: 'ALL', label: lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All') },
+                            { id: 'NEXT_GOAL', label: lang === 'tr' ? '🎯 Sıradaki Gol' : (lang === 'de' ? '🎯 Nächstes Tor' : '🎯 Next Goal') },
+                            { id: 'OVER_UNDER', label: lang === 'tr' ? '📊 Üst/Alt' : (lang === 'de' ? '📊 Über/Unter' : '📊 Over/Under') },
+                            { id: 'BTTS', label: lang === 'tr' ? '🔥 KG Var/Yok' : (lang === 'de' ? '🔥 Beide treffen' : '🔥 BTTS') },
+                            { id: '1X2', label: lang === 'tr' ? '🏆 Çifte Şans / 1X2' : (lang === 'de' ? '🏆 Doppelte Chance / 1X2' : '🏆 Double Chance / 1X2') }
                         ].map(cat => (
                             <button
                                 key={cat.id}
@@ -807,12 +667,14 @@ export function TradingDesk({ lang = 'tr' }) {
                 }}>
                     <div style={{ fontSize: '2.5rem', marginBottom: '0.8rem' }}>🛡️</div>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', marginBottom: '0.5rem' }}>
-                        {lang === 'tr' ? 'Seçili Kriterlere Uyan +EV Fırsat Bulunmadı' : 'No Value Opportunities Found with Current Filters'}
+                        {lang === 'tr' ? 'Seçili Kriterlere Uyan +EV Fırsat Bulunmadı' : (lang === 'de' ? 'Keine +EV-Chancen mit aktuellen Filtern gefunden' : 'No Value Opportunities Found with Current Filters')}
                     </h3>
                     <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '500px', margin: '0 auto 1.2rem' }}>
                         {lang === 'tr'
                             ? 'Şu anda taranan canlı maçlarda belirlenen +EV veya güven eşiğini geçen matematiksel fırsat bulunmuyor. Filtre sürgülerini esnetebilir veya bir sonraki canlı periyodu bekleyebilirsiniz.'
-                            : 'Currently no matches pass the gatekeeper thresholds. Try lowering the Min EV or Confidence slider.'}
+                            : (lang === 'de'
+                                ? 'Derzeit erfüllen keine Live-Spiele die strengen Gatekeeper-Schwellenwerte. Passen Sie die Min-EV- oder Konfidenz-Regler an oder warten Sie auf die nächste Spielphase.'
+                                : 'Currently no matches pass the gatekeeper thresholds. Try lowering the Min EV or Confidence slider.')}
                     </p>
                     <button
                         onClick={() => { setMinEV(2.0); setMinConfidence(60); }}
@@ -827,7 +689,7 @@ export function TradingDesk({ lang = 'tr' }) {
                             cursor: 'pointer'
                         }}
                     >
-                        Filtreleri Genişlet (+2% EV, %60 Güven)
+                        {lang === 'tr' ? 'Filtreleri Genişlet (+2% EV, %60 Güven)' : (lang === 'de' ? 'Filter erweitern (+2% EV, 60% Konfidenz)' : 'Expand Filters (+2% EV, 60% Confidence)')}
                     </button>
                 </div>
             ) : (

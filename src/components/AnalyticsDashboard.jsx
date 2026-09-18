@@ -63,6 +63,57 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
         recentActivityTitle: '⚡ CANLI HAREKET & OLAY AKIŞI',
         noData: 'Henüz kayıtlı ziyaretçi verisi bulunmuyor. Site ziyaret edildikçe veriler buraya anlık yansıyacaktır.',
         loadingText: 'Analitik verileri yükleniyor...'
+    } : lang === 'de' ? {
+        title: '📊 BESUCHER- & PRODUKT-ANALYTIK',
+        subtitle: 'Unabhängig von Google Analytics, First-Party, DSGVO-konform, ohne Cookies und 100% AdBlock-resistent in Echtzeit.',
+        liveOnline: 'JETZT LIVE',
+        liveVisitors: 'Aktive Besucher',
+        last5Min: '(Aktiv in den letzten 5 Minuten)',
+        activePages: 'Aktuell aufgerufene Seiten',
+        period24h: 'Letzte 24 Stunden',
+        period7d: 'Letzte 7 Tage',
+        period30d: 'Letzte 30 Tage',
+        periodAll: 'Gesamte Zeit',
+        autoRefresh: 'Auto-Aktualisierung (15s)',
+        refresh: 'Aktualisieren',
+        exportJson: 'JSON exportieren',
+        resetData: 'Daten zurücksetzen',
+        resetConfirm: 'Sind Sie sicher, dass Sie alle Besucher- und Analysedaten unwiderruflich löschen möchten?',
+        uniqueVisitors: 'Eindeutige Besucher',
+        totalPageviews: 'Seitenaufrufe',
+        totalSessions: 'Sitzungen gesamt',
+        bounceRate: 'Absprungrate',
+        avgDuration: 'Durchschn. Verweildauer',
+        trendChartTitle: '📈 BESUCHER- & SEITENAUFRUF-VERLAUF',
+        pageviewsLegend: 'Seitenaufrufe',
+        visitorsLegend: 'Eindeutige Besucher',
+        topPagesTitle: '📄 MEISTBESUCHTE SEITEN & BEREICHE',
+        pageCol: 'SEITE / ROUTE',
+        viewsCol: 'AUFRUFE',
+        shareCol: 'ANTEIL (%)',
+        referrersTitle: '🌐 TRAFFIC-QUELLEN & VERWEISE',
+        channelCol: 'KANAL',
+        channelDirect: 'Direkt (URL / Lesezeichen)',
+        channelTelegram: 'Telegram (Kanal & Bot)',
+        channelGoogle: 'Google / Suche',
+        channelSocial: 'Soziale Medien (X, IG)',
+        channelExternal: 'Externe Verweise',
+        channelInternal: 'Interne Navigation',
+        devicesTitle: '📱 GERÄTEVERTEILUNG',
+        deviceMobile: 'Mobil',
+        deviceDesktop: 'Desktop',
+        deviceTablet: 'Tablet',
+        browsersTitle: '🌐 BROWSER & SYSTEME',
+        countriesTitle: '🌍 GEOGRAFISCHE VERTEILUNG',
+        funnelTitle: '🎯 CONVERSION-TRICHTER',
+        funnelStep1: '1. Website-Besucher',
+        funnelStep2: '2. Registrierung / Testphase',
+        funnelStep3: '3. Dashboard aktiv',
+        funnelStep4: '4. Upgrade-Anfrage',
+        funnelStep5: '5. Aktive VIP-Mitglieder',
+        recentActivityTitle: '⚡ ECHTZEIT-AKTIVITÄTSSTROM',
+        noData: 'Noch keine Besucherdaten erfasst. Daten werden in Echtzeit aktualisiert, sobald Besucher aktiv sind.',
+        loadingText: 'Lade Analysedaten...'
     } : {
         title: '📊 VISITOR & PRODUCT ANALYTICS',
         subtitle: 'Independent from Google Analytics, 1st-party, GDPR compliant, cookieless, 100% AdBlock-resistant real-time telemetry.',
@@ -192,7 +243,7 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                 headers: getAdminHeaders()
             });
             if (res.ok) {
-                setStatusMsg({ type: 'success', text: lang === 'tr' ? 'Analitik verileri sıfırlandı.' : 'Analytics data wiped.' });
+                setStatusMsg({ type: 'success', text: lang === 'tr' ? 'Analitik verileri sıfırlandı.' : (lang === 'de' ? 'Analysedaten zurückgesetzt.' : 'Analytics data wiped.') });
                 setTimeout(() => setStatusMsg(null), 4000);
                 fetchSummary();
                 fetchLive();

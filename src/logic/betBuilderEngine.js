@@ -118,8 +118,8 @@ export class BetBuilderEngine {
             const team = pick.market.team || '';
             if (key === 'HOME_NEXT_GOAL') return `Sıradaki Gol: ${pick.homeTeam}`;
             if (key === 'AWAY_NEXT_GOAL') return `Sıradaki Gol: ${pick.awayTeam}`;
-            if (key === 'HOME_WIN_NEXT') return `Kazanmaya Yakın: ${pick.homeTeam}`;
-            if (key === 'AWAY_WIN_NEXT') return `Kazanmaya Yakın: ${pick.awayTeam}`;
+            if (key === 'HOME_WIN_NEXT') return `Maç Sonu (MS 1): ${pick.homeTeam}`;
+            if (key === 'AWAY_WIN_NEXT') return `Maç Sonu (MS 2): ${pick.awayTeam}`;
             if (key === 'OVER_GOALS') return `Canlı Üst Gol`;
             return `${team || 'Ev'} Gol / Baskı`;
         };

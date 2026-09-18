@@ -266,7 +266,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
             }}>
                 <span style={{ fontSize: '0.73rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <span>📊</span>
-                    <span>{lang === 'tr' ? 'CANLI SAHA VERİLERİ & İSTATİSTİKLER' : 'LIVE MATCH METRICS'}</span>
+                    <span>{lang === 'tr' ? 'CANLI SAHA VERİLERİ & İSTATİSTİKLER' : (lang === 'de' ? 'LIVE-SPIELSTATISTIKEN & METRIKEN' : 'LIVE MATCH METRICS')}</span>
                 </span>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -295,7 +295,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                                 transition: 'all 0.15s ease'
                             }}
                         >
-                            {lang === 'tr' ? 'Tüm Maç' : 'Full Match'}
+                            {lang === 'tr' ? 'Tüm Maç' : (lang === 'de' ? 'Ganzes Spiel' : 'Full Match')}
                         </button>
                         <button
                             type="button"
@@ -312,7 +312,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                                 transition: 'all 0.15s ease'
                             }}
                         >
-                            ⚡ {lang === 'tr' ? 'Son 20 Dk' : 'Last 20m'}
+                            ⚡ {lang === 'tr' ? 'Son 20 Dk' : (lang === 'de' ? 'Letzte 20 Min' : 'Last 20m')}
                         </button>
                     </div>
 
@@ -326,7 +326,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
 
             {!hasAnyStats && !loading ? (
                 <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--tb-text-muted)', fontSize: '0.72rem' }}>
-                    {lang === 'tr' ? 'Bu lig maçı için ayrıntılı istatistik akışı bulunmuyor.' : 'Detailed statistics not available for this league match.'}
+                    {lang === 'tr' ? 'Bu lig maçı için ayrıntılı istatistik akışı bulunmuyor.' : (lang === 'de' ? 'Detaillierte Statistiken für dieses Ligaspiel nicht verfügbar.' : 'Detailed statistics not available for this league match.')}
                 </div>
             ) : (
                 <div>
@@ -344,13 +344,13 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                             gap: '5px'
                         }}>
                             <span>⚡</span>
-                            <span>{lang === 'tr' ? 'Son 20 dakikada takımların ürettiği net hücum farkları:' : 'Net offensive metrics generated in the last 20 minutes:'}</span>
+                            <span>{lang === 'tr' ? 'Son 20 dakikada takımların ürettiği net hücum farkları:' : (lang === 'de' ? 'Netto-Offensivmetriken der letzten 20 Minuten:' : 'Net offensive metrics generated in the last 20 minutes:')}</span>
                         </div>
                     )}
 
                     {/* Possession or 20m Pressure Share */}
                     {renderStatBar(
-                        isLast20 ? (lang === 'tr' ? 'Baskı Payı (Son 20 Dk)' : 'Pressure Share (Last 20m)') : (lang === 'tr' ? 'Topla Oynama' : 'Possession'),
+                        isLast20 ? (lang === 'tr' ? 'Baskı Payı (Son 20 Dk)' : (lang === 'de' ? 'Druckanteil (Letzte 20 Min)' : 'Pressure Share (Last 20m)')) : (lang === 'tr' ? 'Topla Oynama' : (lang === 'de' ? 'Ballbesitz' : 'Possession')),
                         `%${effectivePossHome}`,
                         `%${effectivePossAway}`,
                         effectivePossHome,
@@ -360,7 +360,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
 
                     {/* Expected Goals (xG) - Only in Full Match */}
                     {!isLast20 && (xgHome > 0 || xgAway > 0) && renderStatBar(
-                        lang === 'tr' ? 'Beklenen Gol (xG)' : 'Expected Goals (xG)',
+                        lang === 'tr' ? 'Beklenen Gol (xG)' : (lang === 'de' ? 'Erwartete Tore (xG)' : 'Expected Goals (xG)'),
                         xgHome.toFixed(2),
                         xgAway.toFixed(2),
                         xgHome,
@@ -369,7 +369,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
 
                     {/* Total Shots & On Target */}
                     {renderStatBar(
-                        isLast20 ? (lang === 'tr' ? 'Son 20 Dk Şut (İsabetli)' : 'Last 20m Shots (Target)') : (lang === 'tr' ? 'Toplam Şut (İsabetli)' : 'Total Shots (On Target)'),
+                        isLast20 ? (lang === 'tr' ? 'Son 20 Dk Şut (İsabetli)' : (lang === 'de' ? 'Schüsse letzte 20m (Aufs Tor)' : 'Last 20m Shots (Target)')) : (lang === 'tr' ? 'Toplam Şut (İsabetli)' : (lang === 'de' ? 'Schüsse gesamt (Aufs Tor)' : 'Total Shots (On Target)')),
                         isLast20 ? `+${effectiveShotsHome} (+${effectiveSotHome})` : `${shotsHome || sotHome} (${sotHome})`,
                         isLast20 ? `+${effectiveShotsAway} (+${effectiveSotAway})` : `${shotsAway || sotAway} (${sotAway})`,
                         effectiveShotsHome,
@@ -378,7 +378,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
 
                     {/* Dangerous Attacks */}
                     {(effectiveDaHome > 0 || effectiveDaAway > 0 || (!isLast20 && (penHome > 0 || penAway > 0))) && renderStatBar(
-                        isLast20 ? (lang === 'tr' ? 'Son 20 Dk Tehlikeli Atak' : 'Last 20m Dangerous Attacks') : (penHome > 0 || penAway > 0 ? (lang === 'tr' ? 'Ceza Sahasında Topla Buluşma' : 'Penalty Box Touches') : (lang === 'tr' ? 'Tehlikeli Atak' : 'Dangerous Attacks')),
+                        isLast20 ? (lang === 'tr' ? 'Son 20 Dk Tehlikeli Atak' : (lang === 'de' ? 'Gefährliche Angriffe (20m)' : 'Last 20m Dangerous Attacks')) : (penHome > 0 || penAway > 0 ? (lang === 'tr' ? 'Ceza Sahasında Topla Buluşma' : (lang === 'de' ? 'Ballkontakte im Strafraum' : 'Penalty Box Touches')) : (lang === 'tr' ? 'Tehlikeli Atak' : (lang === 'de' ? 'Gefährliche Angriffe' : 'Dangerous Attacks'))),
                         isLast20 ? `+${effectiveDaHome}` : String(penHome > 0 || penAway > 0 ? penHome : daHome),
                         isLast20 ? `+${effectiveDaAway}` : String(penHome > 0 || penAway > 0 ? penAway : daAway),
                         effectiveDaHome,
@@ -387,7 +387,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
 
                     {/* Corners */}
                     {renderStatBar(
-                        isLast20 ? (lang === 'tr' ? 'Son 20 Dk Korner' : 'Last 20m Corners') : (lang === 'tr' ? 'Kornerler' : 'Corners'),
+                        isLast20 ? (lang === 'tr' ? 'Son 20 Dk Korner' : (lang === 'de' ? 'Ecken (Letzte 20m)' : 'Last 20m Corners')) : (lang === 'tr' ? 'Kornerler' : (lang === 'de' ? 'Ecken' : 'Corners')),
                         isLast20 ? `+${effectiveCornersHome}` : String(cornersHome),
                         isLast20 ? `+${effectiveCornersAway}` : String(cornersAway),
                         effectiveCornersHome,
@@ -407,7 +407,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                             color: 'var(--tb-text-muted)'
                         }}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <span>{lang === 'tr' ? 'Faul:' : 'Fouls:'} <strong style={{ color: '#fff' }}>{foulsHome}</strong></span>
+                                <span>{lang === 'tr' ? 'Faul:' : (lang === 'de' ? 'Fouls:' : 'Fouls:')} <strong style={{ color: '#fff' }}>{foulsHome}</strong></span>
                                 {(ycHome > 0 || rcHome > 0) && (
                                     <span>
                                         {ycHome > 0 && <span style={{ color: '#fbbf24' }}>🟨 {ycHome} </span>}
@@ -415,7 +415,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                                     </span>
                                 )}
                             </div>
-                            <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{lang === 'tr' ? 'Disiplin & Faul' : 'Fouls & Discipline'}</span>
+                            <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{lang === 'tr' ? 'Disiplin & Faul' : (lang === 'de' ? 'Disziplin & Fouls' : 'Fouls & Discipline')}</span>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                 {(ycAway > 0 || rcAway > 0) && (
                                     <span>
@@ -423,7 +423,7 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                                         {rcAway > 0 && <span style={{ color: '#ef4444' }}>🟥 {rcAway}</span>}
                                     </span>
                                 )}
-                                <span>{lang === 'tr' ? 'Faul:' : 'Fouls:'} <strong style={{ color: '#fff' }}>{foulsAway}</strong></span>
+                                <span>{lang === 'tr' ? 'Faul:' : (lang === 'de' ? 'Fouls:' : 'Fouls:')} <strong style={{ color: '#fff' }}>{foulsAway}</strong></span>
                             </div>
                         </div>
                     )}

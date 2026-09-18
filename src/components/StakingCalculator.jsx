@@ -99,10 +99,10 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
 
     // Format currency
     const formatTL = (amount) => {
-        return new Intl.NumberFormat(lang === 'tr' ? 'tr-TR' : 'en-US', {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(amount) + (lang === 'tr' ? ' TL' : ' ₺');
+        return new Intl.NumberFormat(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), {
+            maximumFractionDigits: 0,
+            minimumFractionDigits: 0
+        }).format(amount) + (lang === 'tr' ? ' TL' : (lang === 'de' ? ' €' : ' ₺'));
     };
 
     return (
@@ -170,10 +170,10 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                         justifyContent: 'center',
                         gap: '0.8rem'
                     }}>
-                        💰 {t.staking_title || (lang === 'tr' ? 'SMART STAKING HESAPLAYICI' : 'SMART STAKING CALCULATOR')}
+                        💰 {t.staking_title || (lang === 'tr' ? 'SMART STAKING HESAPLAYICI' : (lang === 'de' ? 'SMART STAKING RECHNER' : 'SMART STAKING CALCULATOR'))}
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', fontSize: '1rem' }}>
-                        {t.staking_subtitle || (lang === 'tr' ? 'Oranlarınıza göre otomatik kasa dağılımı' : 'Automated bankroll distribution based on odds')}
+                        {t.staking_subtitle || (lang === 'tr' ? 'Oranlarınıza göre otomatik kasa dağılımı' : (lang === 'de' ? 'Automatische Bankroll-Aufteilung basierend auf Quoten' : 'Automated bankroll distribution based on odds'))}
                     </p>
                     <button
                         onClick={() => setShowFAQ(true)}
@@ -193,7 +193,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                             transition: 'all 0.3s'
                         }}
                     >
-                        ℹ️ {t.staking_faq_title || (lang === 'tr' ? 'NASIL ÇALIŞIR?' : 'HOW IT WORKS?')}
+                        ℹ️ {t.staking_faq_title || (lang === 'tr' ? 'NASIL ÇALIŞIR?' : (lang === 'de' ? 'WIE FUNKTIONIERT ES?' : 'HOW IT WORKS?'))}
                     </button>
                 </div>
 
@@ -209,7 +209,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                     {/* Bankroll Input */}
                     <div className="glass-panel" style={{ padding: '1.5rem', background: 'rgba(251, 191, 36, 0.05)', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
                         <label style={{ display: 'block', marginBottom: '0.8rem', color: '#fbbf24', fontWeight: 700, fontSize: '0.95rem' }}>
-                            {t.bankroll_label || (lang === 'tr' ? '💵 Ana Kasa (TL)' : '💵 Bankroll')}
+                            {t.bankroll_label || (lang === 'tr' ? '💵 Ana Kasa (TL)' : (lang === 'de' ? '💵 Bankroll (€)' : '💵 Bankroll ($)'))}
                         </label>
                         <input
                             type="number"
@@ -233,13 +233,13 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                     {/* Risk Level */}
                     <div className="glass-panel" style={{ padding: '1.5rem', background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
                         <label style={{ display: 'block', marginBottom: '0.8rem', color: 'var(--accent-color)', fontWeight: 700, fontSize: '0.95rem' }}>
-                            {t.risk_level || (lang === 'tr' ? '⚠️ Risk Seviyesi' : '⚠️ Risk Level')}
+                            {t.risk_level || (lang === 'tr' ? '⚠️ Risk Seviyesi' : (lang === 'de' ? '⚠️ Risikostufe' : '⚠️ Risk Level'))}
                         </label>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                             {[
-                                { value: 30, label: t.safe_mode_staking || t.safe_mode || (lang === 'tr' ? '🛡️ Güvenli (%30)' : '🛡️ Safe (30%)'), color: '#10b981' },
-                                { value: 50, label: t.normal_mode_staking || t.normal_mode || (lang === 'tr' ? '⚖️ Normal (%50)' : '⚖️ Normal (50%)'), color: '#fbbf24' },
-                                { value: 100, label: t.aggressive_mode_staking || t.aggressive_mode || (lang === 'tr' ? '🔥 Agresif (%100)' : '🔥 Aggressive (100%)'), color: '#ef4444' }
+                                { value: 30, label: t.safe_mode_staking || t.safe_mode || (lang === 'tr' ? '🛡️ Güvenli (%30)' : (lang === 'de' ? '🛡️ Sicher (30%)' : '🛡️ Safe (30%)')), color: '#10b981' },
+                                { value: 50, label: t.normal_mode_staking || t.normal_mode || (lang === 'tr' ? '⚖️ Normal (%50)' : (lang === 'de' ? '⚖️ Normal (50%)' : '⚖️ Normal (50%)')), color: '#fbbf24' },
+                                { value: 100, label: t.aggressive_mode_staking || t.aggressive_mode || (lang === 'tr' ? '🔥 Agresif (%100)' : (lang === 'de' ? '🔥 Aggressiv (100%)' : '🔥 Aggressive (100%)')), color: '#ef4444' }
                             ].map(r => (
                                 <button
                                     key={r.value}
@@ -270,7 +270,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                             fontWeight: 700,
                             color: riskLevel === 30 ? '#10b981' : riskLevel === 50 ? '#fbbf24' : '#ef4444'
                         }}>
-                            {t.risk_amount || (lang === 'tr' ? 'Risk Miktarı:' : 'Risk Amount:')} {formatTL((bankroll * riskLevel) / 100)}
+                            {t.risk_amount || (lang === 'tr' ? 'Risk Miktarı:' : (lang === 'de' ? 'Risikobetrag:' : 'Risk Amount:'))} {formatTL((bankroll * riskLevel) / 100)}
                         </div>
                     </div>
                 </div>
@@ -279,7 +279,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                 <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem', background: 'rgba(255,255,255,0.02)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
                         <h3 style={{ color: 'var(--text-primary)', fontWeight: 800, fontSize: '1.1rem' }}>
-                            ⚽ {t.matches_label || (lang === 'tr' ? 'Maçlar' : 'Matches')}
+                            ⚽ {t.matches_label || (lang === 'tr' ? 'Maçlar' : (lang === 'de' ? 'Spiele' : 'Matches'))}
                         </h3>
                         <button
                             onClick={addMatch}
@@ -297,7 +297,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                                 transition: 'all 0.2s'
                             }}
                         >
-                            + {t.add_match || (lang === 'tr' ? 'Maç Ekle' : 'Add Match')}
+                            + {t.add_match || (lang === 'tr' ? 'Maç Ekle' : (lang === 'de' ? 'Spiel hinzufügen' : 'Add Match'))}
                         </button>
                     </div>
 
@@ -332,7 +332,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                                 </span>
                                 <input
                                     type="text"
-                                    placeholder={t.match_name_placeholder || (lang === 'tr' ? 'Maç adı (ör: Fenerbahçe - Galatasaray)' : 'Match name (e.g. Real Madrid - Barcelona)')}
+                                    placeholder={t.match_name_placeholder || (lang === 'tr' ? 'Maç adı (ör: Fenerbahçe - Galatasaray)' : (lang === 'de' ? 'Spielname (z.B. Bayern - Dortmund)' : 'Match name (e.g. Real Madrid - Barcelona)'))}
                                     value={match.name}
                                     onChange={(e) => updateMatch(match.id, 'name', e.target.value)}
                                     style={{
@@ -348,7 +348,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                                 />
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                        {t.odds_label || (lang === 'tr' ? 'Oran:' : 'Odds:')}
+                                        {t.odds_label || (lang === 'tr' ? 'Oran:' : (lang === 'de' ? 'Quote:' : 'Odds:'))}
                                     </span>
                                     <input
                                         type="number"
@@ -409,7 +409,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                         boxShadow: '0 4px 20px rgba(251, 191, 36, 0.3)'
                     }}
                 >
-                    🧮 {t.calculate_btn || (lang === 'tr' ? 'HESAPLA' : 'CALCULATE')}
+                    🧮 {t.calculate_btn || (lang === 'tr' ? 'HESAPLA' : (lang === 'de' ? 'BERECHNEN' : 'CALCULATE'))}
                 </button>
 
                 {/* Results Section */}
@@ -418,26 +418,26 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                         {/* Stakes Table */}
                         <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                             <h3 style={{ color: 'var(--success-color)', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem' }}>
-                                📊 {t.results_title || (lang === 'tr' ? 'Bahis Dağılımı' : 'Stake Distribution')}
+                                📊 {t.results_title || (lang === 'tr' ? 'Bahis Dağılımı' : (lang === 'de' ? 'Einsatzverteilung' : 'Stake Distribution'))}
                             </h3>
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                                             <th style={{ padding: '0.8rem', textAlign: 'left', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                                {t.match_col || (lang === 'tr' ? 'Maç' : 'Match')}
+                                                {t.match_col || (lang === 'tr' ? 'Maç' : (lang === 'de' ? 'Spiel' : 'Match'))}
                                             </th>
                                             <th style={{ padding: '0.8rem', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                                {t.odds_col || (lang === 'tr' ? 'Oran' : 'Odds')}
+                                                {t.odds_col || (lang === 'tr' ? 'Oran' : (lang === 'de' ? 'Quote' : 'Odds'))}
                                             </th>
                                             <th style={{ padding: '0.8rem', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                                {t.prob_col || (lang === 'tr' ? 'İma. Olasılık' : 'Implied Prob.')}
+                                                {t.prob_col || (lang === 'tr' ? 'İma. Olasılık' : (lang === 'de' ? 'Impl. Wahrsch.' : 'Implied Prob.'))}
                                             </th>
                                             <th style={{ padding: '0.8rem', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                                {t.stake_col || (lang === 'tr' ? 'Bahis Miktarı' : 'Stake Amount')}
+                                                {t.stake_col || (lang === 'tr' ? 'Bahis Miktarı' : (lang === 'de' ? 'Einsatz' : 'Stake Amount'))}
                                             </th>
                                             <th style={{ padding: '0.8rem', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                                {t.profit_col || (lang === 'tr' ? 'Potansiyel Kâr' : 'Potential Profit')}
+                                                {t.profit_col || (lang === 'tr' ? 'Potansiyel Kâr' : (lang === 'de' ? 'Möglicher Gewinn' : 'Potential Profit'))}
                                             </th>
                                         </tr>
                                     </thead>
@@ -445,7 +445,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                                         {calculations.results.map((r, i) => (
                                              <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                                 <td style={{ padding: '1rem', color: 'var(--text-primary)', fontWeight: 600 }}>
-                                                    {r.name || (lang === 'tr' ? `Maç ${i + 1}` : `Match ${i + 1}`)}
+                                                    {r.name || (lang === 'tr' ? `Maç ${i + 1}` : (lang === 'de' ? `Spiel ${i + 1}` : `Match ${i + 1}`))}
                                                 </td>
                                                 <td style={{ padding: '1rem', textAlign: 'center', color: '#fbbf24', fontWeight: 700 }}>
                                                     {r.odds.toFixed(2)}
@@ -473,7 +473,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                                     <tfoot>
                                         <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
                                             <td colSpan={3} style={{ padding: '1rem', color: 'var(--text-primary)', fontWeight: 800 }}>
-                                                {t.total_label || (lang === 'tr' ? 'TOPLAM RİSK' : 'TOTAL RISK')}
+                                                {t.total_label || (lang === 'tr' ? 'TOPLAM RİSK' : (lang === 'de' ? 'GESAMTRISIKO' : 'TOTAL RISK'))}
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'center', color: '#fbbf24', fontWeight: 900, fontSize: '1.1rem' }}>
                                                 {formatTL(calculations.riskAmount)}
@@ -490,7 +490,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                         {/* Scenarios Table */}
                         <div className="glass-panel" style={{ padding: '1.5rem', background: 'rgba(167, 139, 250, 0.05)', border: '1px solid rgba(167, 139, 250, 0.2)' }}>
                             <h3 style={{ color: '#a78bfa', fontWeight: 800, marginBottom: '1rem', fontSize: '1.1rem' }}>
-                                🎯 {t.scenarios_title || (lang === 'tr' ? 'Olası Senaryolar' : 'Possible Scenarios')}
+                                🎯 {t.scenarios_title || (lang === 'tr' ? 'Olası Senaryolar' : (lang === 'de' ? 'Mögliche Szenarien' : 'Possible Scenarios'))}
                             </h3>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.8rem' }}>
                                 {calculations.scenarios.map((s, i) => {
@@ -519,7 +519,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                                             }}
                                         >
                                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                                                {s.hits}/{matches.length} {t.hits_label || (lang === 'tr' ? 'tuttu' : 'won')}
+                                                {s.hits}/{matches.length} {t.hits_label || (lang === 'tr' ? 'tuttu' : (lang === 'de' ? 'gewonnen' : 'won'))}
                                             </div>
                                             <div style={{
                                                 fontSize: '1.1rem',
@@ -546,7 +546,7 @@ export const StakingCalculator = ({ onClose, lang = 'tr' }) => {
                             }}>
                                 <span style={{ fontSize: '1.5rem' }}>⚠️</span>
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                                    {t.staking_warning || (lang === 'tr' ? 'Düşük oranlı maçlara daha fazla para konulur çünkü olasılıkları yüksektir. En düşük oranlı maçın tutması kritik önemdedir!' : 'More capital is allocated to lower-odds matches due to higher probability. Winning the lowest-odds selection is critical!')}
+                                    {t.staking_warning || (lang === 'tr' ? 'Düşük oranlı maçlara daha fazla para konulur çünkü olasılıkları yüksektir. En düşük oranlı maçın tutması kritik önemdedir!' : (lang === 'de' ? 'Niedrigere Quoten erhalten höhere Einsätze, da ihre Wahrscheinlichkeit höher ist. Der Erfolg der niedrigsten Quote ist erfolgsentscheidend!' : 'More capital is allocated to lower-odds matches due to higher probability. Winning the lowest-odds selection is critical!'))}
                                 </p>
                             </div>
                         </div>

@@ -723,10 +723,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             alert(lang === 'tr' 
                 ? '✅ Yükseltme talebiniz başarıyla iletildi! Yöneticimize bildirim gönderildi, en kısa sürede onaylanacaktır.' 
-                : '✅ Upgrade request submitted successfully! Admin has been notified, awaiting approval.');
+                : (lang === 'de'
+                    ? '✅ Upgrade-Anfrage erfolgreich übermittelt! Der Administrator wurde benachrichtigt und wird sie in Kürze prüfen.'
+                    : '✅ Upgrade request submitted successfully! Admin has been notified, awaiting approval.'));
         } catch (err) {
             console.error('Request Error:', err);
-            alert(lang === 'tr' ? 'Bir hata oluştu. Lütfen tekrar deneyin veya Telegram üzerinden iletişime geçin.' : 'An error occurred. Please try again or contact via Telegram.');
+            alert(lang === 'tr' ? 'Bir hata oluştu. Lütfen tekrar deneyin veya Telegram üzerinden iletişime geçin.' : (lang === 'de' ? 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie uns über Telegram.' : 'An error occurred. Please try again or contact via Telegram.'));
         } finally {
             setRequestLoading(false);
         }
@@ -774,16 +776,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             if (res.ok) {
                 const data = await res.json();
                 if (data.sent) {
-                    alert(lang === 'tr' ? '🚀 Sinyal VIP grubuna gönderildi!' : '🚀 Signal sent to VIP group!');
+                    alert(lang === 'tr' ? '🚀 Sinyal VIP grubuna gönderildi!' : (lang === 'de' ? '🚀 Signal an VIP-Gruppe gesendet!' : '🚀 Signal sent to VIP group!'));
                 } else {
-                    alert(lang === 'tr' ? `⚠️ Gönderilmedi: ${data.reason || 'Kriter dışı'}` : `⚠️ Not sent: ${data.reason || 'Excluded'}`);
+                    alert(lang === 'tr' ? `⚠️ Gönderilmedi: ${data.reason || 'Kriter dışı'}` : (lang === 'de' ? `⚠️ Nicht gesendet: ${data.reason || 'Kriterien nicht erfüllt'}` : `⚠️ Not sent: ${data.reason || 'Excluded'}`));
                 }
             } else {
-                alert(lang === 'tr' ? '❌ Backend hatası.' : '❌ Backend error.');
+                alert(lang === 'tr' ? '❌ Backend hatası.' : (lang === 'de' ? '❌ Backend-Fehler.' : '❌ Backend error.'));
             }
         } catch (err) {
             console.error('Telegram error:', err);
-            alert(lang === 'tr' ? '❌ Bağlantı hatası.' : '❌ Connection error.');
+            alert(lang === 'tr' ? '❌ Bağlantı hatası.' : (lang === 'de' ? '❌ Verbindungsfehler.' : '❌ Connection error.'));
         }
     };
 
@@ -827,13 +829,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             });
             const data = await res.json();
             if (data.sent) {
-                alert(lang === 'tr' ? `🚀 ${s.home} vs ${s.away} maçı Telegram VIP Grubuna gönderildi!` : `🚀 ${s.home} vs ${s.away} sent to Telegram VIP!`);
+                alert(lang === 'tr' ? `🚀 ${s.home} vs ${s.away} maçı Telegram VIP Grubuna gönderildi!` : (lang === 'de' ? `🚀 ${s.home} vs ${s.away} an Telegram VIP-Gruppe gesendet!` : `🚀 ${s.home} vs ${s.away} sent to Telegram VIP!`));
             } else {
-                alert(lang === 'tr' ? `⚠️ Gönderilemedi: ${data.error || 'Bilinmeyen hata'}` : `⚠️ Failed: ${data.error || 'Unknown error'}`);
+                alert(lang === 'tr' ? `⚠️ Gönderilemedi: ${data.error || 'Bilinmeyen hata'}` : (lang === 'de' ? `⚠️ Fehlgeschlagen: ${data.error || 'Unbekannter Fehler'}` : `⚠️ Failed: ${data.error || 'Unknown error'}`));
             }
         } catch (err) {
             console.error('Telegram radar send error:', err);
-            alert(lang === 'tr' ? '❌ Telegram servisine bağlanılamadı.' : '❌ Connection error to Telegram service.');
+            alert(lang === 'tr' ? '❌ Telegram servisine bağlanılamadı.' : (lang === 'de' ? '❌ Verbindung zum Telegram-Dienst fehlgeschlagen.' : '❌ Connection error to Telegram service.'));
         }
     };
 
@@ -844,7 +846,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             return;
         }
         if (!combo || !combo.picks || combo.picks.length === 0) {
-            alert(lang === 'tr' ? '⚠️ Gönderilecek geçerli bir Altın İkili bulunamadı.' : '⚠️ No valid Golden Double found to send.');
+            alert(lang === 'tr' ? '⚠️ Gönderilecek geçerli bir Altın İkili bulunamadı.' : (lang === 'de' ? '⚠️ Kein gültiges Gold-Doppel zum Senden gefunden.' : '⚠️ No valid Golden Double found to send.'));
             return;
         }
 
@@ -865,13 +867,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data.sent) {
-                alert(lang === 'tr' ? '🎟️ Günün Canlı Altın İkilisi Telegram VIP kanalına başarıyla iletildi!' : '🎟️ Golden Double sent to Telegram VIP successfully!');
+                alert(lang === 'tr' ? '🎟️ Günün Canlı Altın İkilisi Telegram VIP kanalına başarıyla iletildi!' : (lang === 'de' ? '🎟️ Golden Double erfolgreich an VIP-Telegram gesendet!' : '🎟️ Golden Double sent to Telegram VIP successfully!'));
             } else {
-                alert(lang === 'tr' ? `⚠️ Gönderilemedi: ${data.error || data.reason || 'Bilinmeyen hata'}` : `⚠️ Failed: ${data.error || data.reason || 'Unknown error'}`);
+                alert(lang === 'tr' ? `⚠️ Gönderilemedi: ${data.error || data.reason || 'Bilinmeyen hata'}` : (lang === 'de' ? `⚠️ Fehlgeschlagen: ${data.error || data.reason || 'Unbekannter Fehler'}` : `⚠️ Failed: ${data.error || data.reason || 'Unknown error'}`));
             }
         } catch (err) {
             console.error('Telegram combo send error:', err);
-            alert(lang === 'tr' ? '❌ Telegram servisine bağlanılamadı: ' + err.message : '❌ Connection error to Telegram service: ' + err.message);
+            alert(lang === 'tr' ? '❌ Telegram servisine bağlanılamadı: ' + err.message : (lang === 'de' ? '❌ Verbindung zum Telegram-Dienst fehlgeschlagen: ' + err.message : '❌ Connection error to Telegram service: ' + err.message));
         } finally {
             setIsSendingGoldenCombo(false);
         }
@@ -1003,8 +1005,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 name: t.trial_badge,
                 color: '#94a3b8',
                 features: t.plan_trial_features,
-                price: lang === 'tr' ? '3 Gün Ücretsiz' : '3-Day Free PRO Trial',
-                subtext: lang === 'tr' ? 'Cuma-Pazar bülteni dahil' : 'Full weekend matchdays included',
+                price: lang === 'tr' ? '3 Gün Ücretsiz' : (lang === 'de' ? '3 Tage kostenlos' : '3-Day Free PRO Trial'),
+                subtext: lang === 'tr' ? 'Cuma-Pazar bülteni dahil' : (lang === 'de' ? 'Volles Wochenendprogramm inklusive' : 'Full weekend matchdays included'),
                 isFree: true
             },
             {
@@ -1014,7 +1016,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 features: t.plan_pro_features,
                 price: proPrice,
                 subtext: isYearly 
-                    ? (lang === 'tr' ? `Yıllık tek çekim: ${proYearlyTotal} ${curr} (2 Ay Hediye)` : `Billed annually: ${proYearlyTotal} ${curr} (2 Months Free)`)
+                    ? (lang === 'tr' ? `Yıllık tek çekim: ${proYearlyTotal} ${curr} (2 Ay Hediye)` : (lang === 'de' ? `Jährliche Einmalzahlung: ${proYearlyTotal} ${curr} (2 Monate geschenkt)` : `Billed annually: ${proYearlyTotal} ${curr} (2 Months Free)`))
                     : null,
                 isFree: false
             },
@@ -1022,11 +1024,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 id: 'premium',
                 name: t.premium_badge,
                 color: '#00f2fe',
-                badge: lang === 'tr' ? 'EN POPÜLER' : 'MOST POPULAR',
+                badge: lang === 'tr' ? 'EN POPÜLER' : (lang === 'de' ? 'BELIEBTESTE WAHL' : 'MOST POPULAR'),
                 features: t.plan_premium_features,
                 price: premiumPrice,
                 subtext: isYearly 
-                    ? (lang === 'tr' ? `Yıllık tek çekim: ${premiumYearlyTotal} ${curr} (2 Ay Hediye)` : `Billed annually: ${premiumYearlyTotal} ${curr} (2 Months Free)`)
+                    ? (lang === 'tr' ? `Yıllık tek çekim: ${premiumYearlyTotal} ${curr} (2 Ay Hediye)` : (lang === 'de' ? `Jährliche Einmalzahlung: ${premiumYearlyTotal} ${curr} (2 Monate geschenkt)` : `Billed annually: ${premiumYearlyTotal} ${curr} (2 Months Free)`))
                     : null,
                 isFree: false
             }
@@ -1227,10 +1229,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             ? p.price 
             : (isYearly ? (p.id === 'pro' ? `228 ${curr}` : `660 ${curr}`) : p.price);
         const periodDesc = isTrial
-            ? (lang === 'tr' ? '3 Günlük Ücretsiz PRO Deneme' : '3-Day Free PRO Trial')
+            ? (lang === 'tr' ? '3 Günlük Ücretsiz PRO Deneme' : (lang === 'de' ? '3 Tage kostenloser PRO-Testzugang' : '3-Day Free PRO Trial'))
             : (isYearly 
-                ? (lang === 'tr' ? '1 Yıllık Tam Erişim (365 Gün — 2 Ay Hediye)' : '1 Year Full Access (365 Days — 2 Months Free)') 
-                : (lang === 'tr' ? '1 Aylık Tam Erişim (30 Gün)' : '1 Month Full Access (30 Days)'));
+                ? (lang === 'tr' ? '1 Yıllık Tam Erişim (365 Gün — 2 Ay Hediye)' : (lang === 'de' ? '1 Jahr Vollzugriff (365 Tage — 2 Monate geschenkt)' : '1 Year Full Access (365 Days — 2 Months Free)')) 
+                : (lang === 'tr' ? '1 Aylık Tam Erişim (30 Gün)' : (lang === 'de' ? '1 Monat Vollzugriff (30 Tage)' : '1 Month Full Access (30 Days)')));
         const features = isTrial ? t.plan_trial_features : (p.id === 'pro' ? t.plan_pro_features : t.plan_premium_features);
 
         return (
@@ -1239,7 +1241,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <button className="close-btn" onClick={() => setSelectedPlanForUpgrade(null)}>×</button>
                     <div style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
                         <div style={{ fontSize: '3rem', marginBottom: '0.8rem' }}>{isTrial ? '🎁' : (p.id === 'pro' ? '🚀' : '👑')}</div>
-                        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: p.color }}>{p.name} {isYearly && !isTrial ? (lang === 'tr' ? '(Yıllık)' : '(Yearly)') : ''}</h2>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: 900, color: p.color }}>{p.name} {isYearly && !isTrial ? (lang === 'tr' ? '(Yıllık)' : (lang === 'de' ? '(Jährlich)' : '(Yearly)')) : ''}</h2>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, marginTop: '0.4rem', color: '#fff' }}>
                             {actualCharge} {isYearly && !isTrial && <span style={{ fontSize: '0.85rem', color: '#34d399', fontWeight: 700 }}>({p.price} /ay)</span>}
                         </div>
@@ -1248,7 +1250,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
                         <p style={{ opacity: 0.6, fontSize: '0.85rem', marginTop: '0.4rem' }}>
                             {isTrial 
-                                ? (lang === 'tr' ? '3 gün (72 saat) kesintisiz PRO deneme erişimi tanımlanacaktır.' : '3-day (72h) unrestricted PRO trial will be activated.') 
+                                ? (lang === 'tr' ? '3 gün (72 saat) kesintisiz PRO deneme erişimi tanımlanacaktır.' : (lang === 'de' ? '3 Tage (72 Stunden) unbegrenzter PRO-Testzugang wird aktiviert.' : '3-day (72h) unrestricted PRO trial will be activated.')) 
                                 : (t.confirmation_desc || 'Sistemin tam gücüne erişmek üzeresiniz.')}
                         </p>
                     </div>
@@ -1289,7 +1291,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     cursor: 'pointer'
                                 }}
                             >
-                                🎁 {lang === 'tr' ? '3 Günlük Ücretsiz Denemeyi Başlat' : 'Start 3-Day Free Trial'}
+                                🎁 {lang === 'tr' ? '3 Günlük Ücretsiz Denemeyi Başlat' : (lang === 'de' ? '3-Tage-Testzugang kostenlos starten' : 'Start 3-Day Free Trial')}
                             </button>
                         ) : (
                             <>
@@ -1314,7 +1316,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
                                     }}
                                 >
-                                    💳 {lang === 'tr' ? `Kredi Kartı / Havale ile Satın Al (${actualCharge})` : `Pay with Card / Bank (${actualCharge})`}
+                                    💳 {lang === 'tr' ? `Kredi Kartı / Havale ile Satın Al (${actualCharge})` : (lang === 'de' ? `Mit Kreditkarte / Banküberweisung kaufen (${actualCharge})` : `Pay with Card / Bank (${actualCharge})`)}
                                 </a>
 
                                 <button
@@ -1340,7 +1342,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    ⚡ {lang === 'tr' ? `CryptoBot / Telegram ile Anında Öde (${actualCharge})` : `Instant Pay via Telegram / CryptoBot`}
+                                    ⚡ {lang === 'tr' ? `CryptoBot / Telegram ile Anında Öde (${actualCharge})` : (lang === 'de' ? `Sofortzahlung per CryptoBot / Telegram (${actualCharge})` : `Instant Pay via Telegram / CryptoBot`)}
                                 </button>
 
                                 <button
@@ -1367,9 +1369,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         if (!data || (!isAdmin && userProfile?.plan !== 'premium') || !advancedSettings.BAYESIAN_PRICING) return null;
 
         const confidenceMap = {
-            'LOW': t.confidence_low || (lang === 'tr' ? 'DÜŞÜK' : 'LOW'),
-            'MEDIUM': t.confidence_medium || (lang === 'tr' ? 'ORTA' : 'MEDIUM'),
-            'HIGH': t.confidence_high || (lang === 'tr' ? 'YÜKSEK' : 'HIGH')
+            'LOW': t.confidence_low || (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW')),
+            'MEDIUM': t.confidence_medium || (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')),
+            'HIGH': t.confidence_high || (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH'))
         };
 
         return (
@@ -1378,10 +1380,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '6px' }}>
                         <h3 style={{ margin: 0, color: 'var(--accent-color)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ fontSize: '1.1rem' }}>🧠</span>
-                            <span>{t.bayesian_intelligence || (lang === 'tr' ? 'CANLI GOL İHTİMALİ & YAPAY ZEKA RADARI' : 'LIVE GOAL PROBABILITY & AI RADAR')}</span>
+                            <span>{t.bayesian_intelligence || (lang === 'tr' ? 'CANLI GOL İHTİMALİ & YAPAY ZEKA RADARI' : (lang === 'de' ? 'LIVE-TORWAHRSCHEINLICHKEIT & KI-RADAR' : 'LIVE GOAL PROBABILITY & AI RADAR'))}</span>
                         </h3>
                         <div style={{ background: 'var(--accent-color)', color: '#000', fontSize: '0.62rem', padding: '2px 8px', borderRadius: '4px', fontWeight: 900 }}>
-                            {t.production_engine || (lang === 'tr' ? 'CANLI ANALİZ' : 'LIVE ANALYTICS')}
+                            {t.production_engine || (lang === 'tr' ? 'CANLI ANALİZ' : (lang === 'de' ? 'LIVE-ANALYSE' : 'LIVE ANALYTICS'))}
                         </div>
                     </div>
 
@@ -1403,24 +1405,26 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         <span>
                             {lang === 'tr'
                                 ? 'Sahadaki anlık şut, xG tehlikesi ve hücum baskısına göre sıradaki golün gelme ihtimalini hesaplar.'
-                                : 'Calculates the real-time probability of the next goal based on live shots, xG threat and attack pressure.'}
+                                : (lang === 'de'
+                                    ? 'Berechnet die Live-Wahrscheinlichkeit des nächsten Tores basierend auf Schüssen, xG-Gefahr und Offensivdruck.'
+                                    : 'Calculates the real-time probability of the next goal based on live shots, xG threat and attack pressure.')}
                         </span>
                     </div>
 
                     <div className="bayesian-gauge-grid">
                         <div className="bayesian-stat-box" style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '0.65rem', opacity: 0.65, fontWeight: 800, marginBottom: '0.35rem' }}>
-                                {t.prior_prob || (lang === 'tr' ? 'MAÇ TEMPOSU' : 'MATCH BASE TEMPO')}
+                                {t.prior_prob || (lang === 'tr' ? 'MAÇ TEMPOSU' : (lang === 'de' ? 'SPIELTEMPO' : 'MATCH BASE TEMPO'))}
                             </div>
                             <div style={{ fontSize: '1.3rem', fontWeight: 900 }}>%{(data.prior * 100).toFixed(0)}</div>
                             <div style={{ fontSize: '0.6rem', opacity: 0.5, marginTop: '3px', fontWeight: 600 }}>
-                                {lang === 'tr' ? 'İlk genel beklenti' : 'Baseline expected'}
+                                {lang === 'tr' ? 'İlk genel beklenti' : (lang === 'de' ? 'Ursprüngliche Basiserwartung' : 'Baseline expected')}
                             </div>
                         </div>
 
                         <div className="bayesian-gauge-box" style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '0.7rem', color: 'var(--accent-color)', fontWeight: 900, marginBottom: '0.4rem', letterSpacing: '0.3px' }}>
-                                {t.posterior_refined || (lang === 'tr' ? 'GÜNCEL GOL İHTİMALİ' : 'CURRENT GOAL PROBABILITY')}
+                                {t.posterior_refined || (lang === 'tr' ? 'GÜNCEL GOL İHTİMALİ' : (lang === 'de' ? 'AKTUELLE TORWAHRSCHEINLICHKEIT' : 'CURRENT GOAL PROBABILITY'))}
                             </div>
                             <div style={{ position: 'relative', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <svg width="100" height="60" viewBox="0 0 100 60">
@@ -1432,26 +1436,26 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 </div>
                             </div>
                             <div style={{ fontSize: '0.62rem', color: 'var(--accent-color)', opacity: 0.85, marginTop: '3px', fontWeight: 700 }}>
-                                {lang === 'tr' ? 'Canlı baskıyla revize edilen oran' : 'Refined with in-play pressure'}
+                                {lang === 'tr' ? 'Canlı baskıyla revize edilen oran' : (lang === 'de' ? 'Durch Live-Druck angepasste Wahrscheinlichkeit' : 'Refined with in-play pressure')}
                             </div>
                         </div>
 
                         <div className="bayesian-stat-box" style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '0.65rem', opacity: 0.65, fontWeight: 800, marginBottom: '0.35rem' }}>
-                                {t.impact || (lang === 'tr' ? 'CANLI BASKI ETKİSİ' : 'LIVE PRESSURE IMPACT')}
+                                {t.impact || (lang === 'tr' ? 'CANLI BASKI ETKİSİ' : (lang === 'de' ? 'LIVE-DRUCK-EINFLUSS' : 'LIVE PRESSURE IMPACT'))}
                             </div>
                             <div style={{ fontSize: '1.3rem', fontWeight: 900, color: data.impact > 0 ? 'var(--success-color)' : (data.impact < 0 ? 'var(--danger-color)' : '#fff') }}>
                                 {data.impact > 0 ? `+${(data.impact * 100).toFixed(1)}%` : `${(data.impact * 100).toFixed(1)}%`}
                             </div>
                             <div style={{ fontSize: '0.6rem', opacity: 0.5, marginTop: '3px', fontWeight: 600 }}>
-                                {lang === 'tr' ? 'Son 10 dk hücum katkısı' : 'Recent momentum boost'}
+                                {lang === 'tr' ? 'Son 10 dk hücum katkısı' : (lang === 'de' ? 'Offensiv-Schub der letzten 10 Min.' : 'Recent momentum boost')}
                             </div>
                         </div>
                     </div>
 
                     <div style={{ marginTop: '1.2rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <span style={{ opacity: 0.6 }}>{t.confidence_label || (lang === 'tr' ? 'GÜVEN DERECESİ:' : 'CONFIDENCE:')}:</span>
+                            <span style={{ opacity: 0.6 }}>{t.confidence_label || (lang === 'tr' ? 'GÜVEN DERECESİ:' : (lang === 'de' ? 'KONFIDENZ-STUFE:' : 'CONFIDENCE:'))}:</span>
                             <span style={{
                                 color: data.confidence === 'HIGH' ? 'var(--success-color)' : data.confidence === 'MEDIUM' ? 'var(--warning-color)' : 'var(--danger-color)',
                                 fontWeight: 900,
@@ -1463,7 +1467,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             </span>
                         </div>
                         <div style={{ opacity: 0.6, fontStyle: 'italic', fontSize: '0.65rem' }}>
-                            {t.evidence_update || (lang === 'tr' ? 'Canlı şutlar, xG gol tehlikesi ve saha baskısıyla anlık hesaplanır.' : 'Calculated dynamically using live shots, xG threat & attack momentum.')}
+                            {t.evidence_update || (lang === 'tr' ? 'Canlı şutlar, xG gol tehlikesi ve saha baskısıyla anlık hesaplanır.' : (lang === 'de' ? 'Wird dynamisch anhand von Schüssen, xG-Torgefahr und Spieldruck berechnet.' : 'Calculated dynamically using live shots, xG threat & attack momentum.'))}
                         </div>
                     </div>
                 </div>
@@ -1514,7 +1518,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     if (!limitCheck.allowed) {
                                                         alert(lang === 'tr'
                                                             ? `Günlük AI rapor limitinize ulaştınız (${limitCheck.limit}). Yarın tekrar deneyebilir veya planınızı yükseltebilirsiniz.`
-                                                            : `You've reached your daily AI report limit (${limitCheck.limit}). Try again tomorrow or upgrade your plan.`);
+                                                            : (lang === 'de'
+                                                                ? `Sie haben Ihr tägliches KI-Berichtslimit erreicht (${limitCheck.limit}). Versuchen Sie es morgen erneut oder upgraden Sie Ihren Plan.`
+                                                                : `You've reached your daily AI report limit (${limitCheck.limit}). Try again tomorrow or upgrade your plan.`));
                                                         return;
                                                     }
 
@@ -1688,12 +1694,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     gap: '6px'
                                 }}>
                                     <span>📈</span>
-                                    <span>{lang === 'tr' ? 'CANLI BASKI GRAFİĞİ (ATTACK MOMENTUM)' : 'LIVE ATTACK MOMENTUM WAVE'}</span>
+                                    <span>{lang === 'tr' ? 'CANLI BASKI GRAFİĞİ (ATTACK MOMENTUM)' : (lang === 'de' ? 'LIVE-ANGRIFFSMOMENTUM-WELLE' : 'LIVE ATTACK MOMENTUM WAVE')}</span>
                                 </div>
                                 {graphLoading && (
                                     <span style={{ fontSize: '0.65rem', opacity: 0.6, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                         <span style={{ animation: 'spin 2s linear infinite', display: 'inline-block' }}>🌀</span>
-                                        {lang === 'tr' ? 'Grafik yükleniyor...' : 'Loading wave...'}
+                                        {lang === 'tr' ? 'Grafik yükleniyor...' : (lang === 'de' ? 'Welle wird geladen...' : 'Loading wave...')}
                                     </span>
                                 )}
                             </div>
@@ -1855,7 +1861,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     className="btn btn-outline"
                                     style={{ padding: '0.7rem 1.4rem', borderRadius: '10px', fontSize: '0.75rem', fontWeight: 800, borderColor: 'var(--accent-color)', color: 'var(--accent-color)' }}
                                 >
-                                    🎯 {lang === 'tr' ? 'Canlı Radarda Masaya Git' : 'Go to Live Radar Table'}
+                                    🎯 {lang === 'tr' ? 'Canlı Radarda Masaya Git' : (lang === 'de' ? 'Zum Live-Radar-Tisch wechseln' : 'Go to Live Radar Table')}
                                 </button>
                             )}
                             <button
@@ -2092,7 +2098,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const handleTerminalApproveBet = (match, signal) => {
         if (!match) return;
         const strat = signal?.activeStrategies?.[0];
-        const predText = strat?.label || signal?.prediction || signal?.reason || match?.opportunityData?.suggestedMarket?.label || (lang === 'tr' ? 'Canlı Takip' : 'Live Pick');
+        const predText = strat?.label || signal?.prediction || signal?.reason || match?.opportunityData?.suggestedMarket?.label || (lang === 'tr' ? 'Canlı Takip' : (lang === 'de' ? 'Live-Tipp' : 'Live Pick'));
         const scoreObj = (match.score && typeof match.score === 'object')
             ? match.score
             : (typeof match.score === 'string' && match.score.includes('-'))
@@ -2239,7 +2245,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         if (!limitCheck.allowed) {
             alert(lang === 'tr'
                 ? `Günlük AI rapor limitinize ulaştınız (${limitCheck.limit}). Yarın tekrar deneyebilir veya planınızı yükseltebilirsiniz.`
-                : `You've reached your daily AI report limit (${limitCheck.limit}). Try again tomorrow or upgrade your plan.`);
+                : (lang === 'de'
+                    ? `Sie haben Ihr tägliches KI-Berichtslimit erreicht (${limitCheck.limit}). Versuchen Sie es morgen erneut oder upgraden Sie Ihren Plan.`
+                    : `You've reached your daily AI report limit (${limitCheck.limit}). Try again tomorrow or upgrade your plan.`));
             return;
         }
 
@@ -2259,10 +2267,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     m.divergence > 30 && m.totalSources >= 3 && !highConsensus.find(hc => hc.match === m.match)
                 ).sort((a, b) => b.divergence - a.divergence).slice(0, 4);
 
-                const candidates = [...highConsensus, ...highDivergence];
+                let candidates = [...highConsensus, ...highDivergence];
+                if (candidates.length === 0 && filteredRadarMatches.length > 0) {
+                    candidates = filteredRadarMatches.slice(0, 6);
+                }
 
                 if (candidates.length === 0) {
-                    report = "Şu an kriterlere uygun 'Altın Seçim' veya 'Tartışmalı Maç' bulunamadı.";
+                    report = JSON.stringify({
+                        report_summary: "Nexus Quant Core™: Radar bülteninde incelenebilecek maç bulunamadı. Fikstür bekleniyor.",
+                        golden_picks: [],
+                        strategic_combo: null,
+                        avoid_list: ["Şu an bültende taranan maç bulunmamaktadır."],
+                        value_picks: [],
+                        discipline_note: "Kasa Disiplini: Veri akışı teyit edilmemiş karşılaşmalarda işlem açmayınız."
+                    });
                 } else {
                     report = await aiAnalystService.getGlobalIntelligenceReport(candidates, 'PRE-MATCH');
                 }
@@ -2516,6 +2534,24 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             ))}
                                         </div>
                                     )}
+
+                                    {data.discipline_note && (
+                                        <div style={{
+                                            marginTop: '1.2rem',
+                                            padding: '0.8rem 1rem',
+                                            background: 'rgba(56, 189, 248, 0.05)',
+                                            borderRadius: '8px',
+                                            border: '1px solid rgba(56, 189, 248, 0.15)',
+                                            fontSize: '0.75rem',
+                                            color: '#94a3b8',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.6rem'
+                                        }}>
+                                            <span style={{ fontSize: '1rem' }}>💡</span>
+                                            <span style={{ color: '#e2e8f0', lineHeight: '1.4' }}><b>{data.discipline_note}</b></span>
+                                        </div>
+                                    )}
                                 </>
                             );
                         })()}
@@ -2575,10 +2611,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             <span style={{ fontSize: '1.3rem' }}>🛡️</span>
                             <div>
                                 <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.3px' }}>
-                                    {lang === 'tr' ? 'Algoritmik Sermaye Koruma Protokolü' : 'Algorithmic Capital Protection Protocol'}
+                                    {lang === 'tr' ? 'Algoritmik Sermaye Koruma Protokolü' : (lang === 'de' ? 'Algorithmisches Kapitalschutz-Protokoll' : 'Algorithmic Capital Protection Protocol')}
                                 </div>
                                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                                    {lang === 'tr' ? 'Hırsı ve kasa sıfırlanmasını (tilt) önleyen otomatik risk kuralları' : 'Automated risk rules preventing drawdown and emotional tilt'}
+                                    {lang === 'tr' ? 'Hırsı ve kasa sıfırlanmasını (tilt) önleyen otomatik risk kuralları' : (lang === 'de' ? 'Automatisierte Risikoregeln gegen Drawdown und emotionalen Tilt' : 'Automated risk rules preventing drawdown and emotional tilt')}
                                 </div>
                             </div>
                         </div>
@@ -2600,7 +2636,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             }}
                         >
                             <span>❓</span>
-                            <span>{lang === 'tr' ? 'Disiplin Rehberi' : 'Discipline Guide'}</span>
+                            <span>{lang === 'tr' ? 'Disiplin Rehberi' : (lang === 'de' ? 'Disziplin-Leitfaden' : 'Discipline Guide')}</span>
                         </button>
                     </div>
 
@@ -2611,34 +2647,34 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     }}>
                         <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>🔒</span> {lang === 'tr' ? 'GÜNLÜK %5 KÂR KİLİDİ' : 'DAILY 5% TARGET LOCK'}
+                                <span>🔒</span> {lang === 'tr' ? 'GÜNLÜK %5 KÂR KİLİDİ' : (lang === 'de' ? 'TÄGLICHE 5%-GEWINNSPERRE' : 'DAILY 5% TARGET LOCK')}
                             </div>
                             <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Günde %5 kâra ulaşıldığında kazancı korumak için sistem kilitlenir.' : 'System stops trading upon hitting 5% daily gain to lock in profits.'}
+                                {lang === 'tr' ? 'Günde %5 kâra ulaşıldığında kazancı korumak için sistem kilitlenir.' : (lang === 'de' ? 'Bei Erreichen von 5% Tagesgewinn pausiert das System, um Profite zu sichern.' : 'System stops trading upon hitting 5% daily gain to lock in profits.')}
                             </div>
                         </div>
                         <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>🛑</span> {lang === 'tr' ? 'GÜNLÜK %3 STOP-LOSS' : 'DAILY 3% STOP-LOSS'}
+                                <span>🛑</span> {lang === 'tr' ? 'GÜNLÜK %3 STOP-LOSS' : (lang === 'de' ? 'TÄGLICHER 3%-STOP-LOSS' : 'DAILY 3% STOP-LOSS')}
                             </div>
                             <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Maksimum %3 kayıpta hırsı engellemek için işlem alımı durdurulur.' : 'Trading halts at 3% daily drawdown to avoid emotional tilt.'}
+                                {lang === 'tr' ? 'Maksimum %3 kayıpta hırsı engellemek için işlem alımı durdurulur.' : (lang === 'de' ? 'Bei 3% Tagesverlust wird der Handel gestoppt, um Tilt zu verhindern.' : 'Trading halts at 3% daily drawdown to avoid emotional tilt.')}
                             </div>
                         </div>
                         <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>🛡️</span> {lang === 'tr' ? 'TEMKİNLİ MOD (%50 KISMA)' : 'CAUTION MODE (-50%)'}
+                                <span>🛡️</span> {lang === 'tr' ? 'TEMKİNLİ MOD (%50 KISMA)' : (lang === 'de' ? 'VORSICHTSMODUS (-50% EINSATZ)' : 'CAUTION MODE (-50%)')}
                             </div>
                             <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Üst üste 2 kayıpta bahis miktarı risk güvenliği için yarıya indirilir.' : 'Consecutive 2 losses automatically halves stake size for capital safety.'}
+                                {lang === 'tr' ? 'Üst üste 2 kayıpta bahis miktarı risk güvenliği için yarıya indirilir.' : (lang === 'de' ? 'Nach 2 aufeinanderfolgenden Verlusten wird der Einsatz halbiert.' : 'Consecutive 2 losses automatically halves stake size for capital safety.')}
                             </div>
                         </div>
                         <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
                             <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>📈</span> {lang === 'tr' ? 'BİLEŞİK KELLY MOTORU' : 'FRACTIONAL KELLY'}
+                                <span>📈</span> {lang === 'tr' ? 'BİLEŞİK KELLY MOTORU' : (lang === 'de' ? 'FRAKTIONALE KELLY-FORMEL' : 'FRACTIONAL KELLY')}
                             </div>
                             <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Kasa büyüdükçe kâr katlanır, bakiye gerilediğinde risk otomatik küçülür.' : 'Stake scales with bankroll growth; risks decrease during drawdown.'}
+                                {lang === 'tr' ? 'Kasa büyüdükçe kâr katlanır, bakiye gerilediğinde risk otomatik küçülür.' : (lang === 'de' ? 'Einsätze wachsen mit der Bankroll und sinken im Verlustfall automatisch.' : 'Stake scales with bankroll growth; risks decrease during drawdown.')}
                             </div>
                         </div>
                     </div>
@@ -2719,10 +2755,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.6rem' }}>
                         <div>
                             <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span>📊</span> {lang === 'tr' ? 'Algoritmik Strateji Karnesi' : 'Algorithmic Strategy Scorecard'}
+                                <span>📊</span> {lang === 'tr' ? 'Algoritmik Strateji Karnesi' : (lang === 'de' ? 'Algorithmischer Strategie-Report' : 'Algorithmic Strategy Scorecard')}
                             </h3>
                             <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                                {lang === 'tr' ? 'Sistem motorlarının geçmiş performans ve getiri (ROI) karnesi' : 'Historical performance and ROI grading of predictive engines'}
+                                {lang === 'tr' ? 'Sistem motorlarının geçmiş performans ve getiri (ROI) karnesi' : (lang === 'de' ? 'Historische Performance und Ertragsbewertung (ROI) der System-Engines' : 'Historical performance and ROI grading of predictive engines')}
                             </p>
                         </div>
                         <div style={{ display: 'flex', gap: '0.4rem' }}>
@@ -2748,7 +2784,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <span>{st.label}</span>
                                     </div>
                                     <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '3px' }}>
-                                        {st.totalBets} {lang === 'tr' ? 'İşlem' : 'Bets'} • {st.wins}W - {st.losses}L
+                                        {st.totalBets} {lang === 'tr' ? 'İşlem' : (lang === 'de' ? 'Wetten' : 'Bets')} • {st.wins}W - {st.losses}L
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
@@ -2765,7 +2801,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         {st.badge}
                                     </div>
                                     <div style={{ fontSize: '0.72rem', fontWeight: 800, color: st.roi >= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
-                                        %{st.winRate} {lang === 'tr' ? 'İsabet' : 'Win'}
+                                        %{st.winRate} {lang === 'tr' ? 'İsabet' : (lang === 'de' ? 'Treffer' : 'Win')}
                                     </div>
                                 </div>
                             </div>
@@ -2801,7 +2837,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 {l.profit ? (l.profit >= 0 ? '+' : '') + l.profit.toFixed(2) + ' ₺' : '-'}
                             </span>
                             <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
-                                {new Date(l.timestamp).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                {new Date(l.timestamp).toLocaleString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </span>
                         </div>
                     ))}
@@ -2818,40 +2854,48 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         // Next Goal (Wer schießt das nächste Tor? / Who scores next? / next-point)
         if (ms === 'next-point' || mLower.includes('next') || mLower.includes('nächste') || mLower.includes('sıradaki')) {
-            return currentLang === 'tr' ? 'Sıradaki Golü Kim Atar?' : 'Who Scores Next?';
+            return currentLang === 'tr' ? 'Sıradaki Golü Kim Atar?' : (currentLang === 'de' ? 'Wer schießt das nächste Tor?' : 'Who Scores Next?');
         }
 
         // Rest of game Over/Under (Over/Under (0.5) rest of the game / Über/Unter (0,5) Restzeit)
         if (mLower.includes('restzeit') || mLower.includes('rest of the game') || mLower.includes('rest of game') || mLower.includes('kalan süre')) {
             const numMatch = m.match(/(\d+[,.]\d+)/);
             const num = numMatch ? numMatch[1].replace(',', '.') : '';
-            return currentLang === 'tr' 
-                ? (num ? `Kalan Süre Üst/Alt (${num})` : 'Kalan Süre Üst/Alt')
-                : (num ? `Rest of Match O/U (${num})` : 'Rest of Match Over/Under');
+            if (currentLang === 'tr') {
+                return num ? `Kalan Süre Üst/Alt (${num})` : 'Kalan Süre Üst/Alt';
+            } else if (currentLang === 'de') {
+                return num ? `Restzeit Über/Unter (${num})` : 'Restzeit Über/Unter';
+            } else {
+                return num ? `Rest of Match O/U (${num})` : 'Rest of Match Over/Under';
+            }
         }
 
         // Normal Over/Under (Über/Unter / Over/Under)
         if (mLower.includes('über/unter') || mLower.includes('over/under') || mLower.includes('üst/alt')) {
             const numMatch = m.match(/(\d+[,.]\d+)/);
             const num = numMatch ? numMatch[1].replace(',', '.') : '';
-            return currentLang === 'tr'
-                ? (num ? `Toplam Gol Üst/Alt (${num})` : 'Toplam Gol Üst/Alt')
-                : (num ? `Total Goals O/U (${num})` : 'Total Goals Over/Under');
+            if (currentLang === 'tr') {
+                return num ? `Toplam Gol Üst/Alt (${num})` : 'Toplam Gol Üst/Alt';
+            } else if (currentLang === 'de') {
+                return num ? `Gesamttore Über/Unter (${num})` : 'Gesamttore Über/Unter';
+            } else {
+                return num ? `Total Goals O/U (${num})` : 'Total Goals Over/Under';
+            }
         }
 
         // 1X2 / 3-Way Match Result (3-Way / Tipp / standard)
         if (ms === 'standard' || mLower.includes('3-way') || mLower.includes('tipp') || mLower.includes('maç sonucu')) {
-            return currentLang === 'tr' ? 'Maç Sonucu (1X2)' : 'Match Result (1X2)';
+            return currentLang === 'tr' ? 'Maç Sonucu (1X2)' : (currentLang === 'de' ? 'Endergebnis (1X2)' : 'Match Result (1X2)');
         }
 
         // Both Teams to Score (Beide Teams treffen / BTTS)
         if (ms === 'btts' || mLower.includes('beide teams') || mLower.includes('both teams')) {
-            return currentLang === 'tr' ? 'Karşılıklı Gol (KG)' : 'Both Teams To Score';
+            return currentLang === 'tr' ? 'Karşılıklı Gol (KG)' : (currentLang === 'de' ? 'Beide Teams treffen (BTTS)' : 'Both Teams To Score');
         }
 
         // Double Chance (Doppelte Chance)
         if (mLower.includes('doppelte chance') || mLower.includes('double chance')) {
-            return currentLang === 'tr' ? 'Çifte Şans' : 'Double Chance';
+            return currentLang === 'tr' ? 'Çifte Şans' : (currentLang === 'de' ? 'Doppelte Chance' : 'Double Chance');
         }
 
         return m;
@@ -2862,7 +2906,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const m = (market || '').trim().toLowerCase();
 
         if (ms === 'next-point' || m.includes('next') || m.includes('nächste') || m.includes('sıradaki')) {
-            return currentLang === 'tr' ? 'Sıradaki Gol' : 'Next Goal';
+            return currentLang === 'tr' ? 'Sıradaki Gol' : (currentLang === 'de' ? 'Nächstes Tor' : 'Next Goal');
         }
 
         if (ms === 'standard' || m.includes('3-way') || m.includes('tipp')) {
@@ -2870,16 +2914,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
 
         if (ms === 'btts' || m.includes('both teams') || m.includes('beide teams')) {
-            return currentLang === 'tr' ? 'KG' : 'BTTS';
+            return currentLang === 'tr' ? 'KG' : (currentLang === 'de' ? 'BTTS' : 'BTTS');
         }
 
         const numMatch = ms.match(/(\d+[,.]\d+)/) || m.match(/(\d+[,.]\d+)/);
         if (numMatch) {
             const num = numMatch[1].replace(',', '.');
             if (m.includes('rest') || m.includes('restzeit') || m.includes('kalan')) {
-                return currentLang === 'tr' ? `Kalan ${num}` : `Rest ${num}`;
+                return currentLang === 'tr' ? `Kalan ${num}` : (currentLang === 'de' ? `Rest ${num}` : `Rest ${num}`);
             }
-            return currentLang === 'tr' ? `Üst/Alt ${num}` : `O/U ${num}`;
+            return currentLang === 'tr' ? `Üst/Alt ${num}` : (currentLang === 'de' ? `Ü/U ${num}` : `O/U ${num}`);
         }
 
         return marketShort || market || '';
@@ -2893,32 +2937,32 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const matchOver = o.match(/^(?:über|over)\s*(\d+[,.]?\d*)/i);
         if (matchOver) {
             const num = matchOver[1].replace(',', '.');
-            return currentLang === 'tr' ? `Üst ${num}` : `Over ${num}`;
+            return currentLang === 'tr' ? `Üst ${num}` : (currentLang === 'de' ? `Über ${num}` : `Over ${num}`);
         }
 
         // Under / Unter X
         const matchUnder = o.match(/^(?:unter|under)\s*(\d+[,.]?\d*)/i);
         if (matchUnder) {
             const num = matchUnder[1].replace(',', '.');
-            return currentLang === 'tr' ? `Alt ${num}` : `Under ${num}`;
+            return currentLang === 'tr' ? `Alt ${num}` : (currentLang === 'de' ? `Unter ${num}` : `Under ${num}`);
         }
 
         // Match results
         const oLower = o.toLowerCase();
         if (oLower === 'unentschieden' || oLower === 'draw' || oLower === 'tie' || oLower === 'x') {
-            return currentLang === 'tr' ? 'Beraberlik' : 'Draw';
+            return currentLang === 'tr' ? 'Beraberlik' : (currentLang === 'de' ? 'Unentschieden' : 'Draw');
         }
         if (oLower === 'heimsieg' || oLower === 'home') {
-            return currentLang === 'tr' ? 'Ev Sahibi (1)' : 'Home (1)';
+            return currentLang === 'tr' ? 'Ev Sahibi (1)' : (currentLang === 'de' ? 'Heimsieg (1)' : 'Home (1)');
         }
         if (oLower === 'auswärtssieg' || oLower === 'away') {
-            return currentLang === 'tr' ? 'Deplasman (2)' : 'Away (2)';
+            return currentLang === 'tr' ? 'Deplasman (2)' : (currentLang === 'de' ? 'Auswärtssieg (2)' : 'Away (2)');
         }
         if (oLower === 'ja' || oLower === 'yes') {
-            return currentLang === 'tr' ? 'Evet / Var' : 'Yes';
+            return currentLang === 'tr' ? 'Evet / Var' : (currentLang === 'de' ? 'Ja' : 'Yes');
         }
         if (oLower === 'nein' || oLower === 'no') {
-            return currentLang === 'tr' ? 'Hayır / Yok' : 'No';
+            return currentLang === 'tr' ? 'Hayır / Yok' : (currentLang === 'de' ? 'Nein' : 'No');
         }
 
         return o;
@@ -2943,7 +2987,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch: null,
                 desc: lang === 'tr' 
                     ? 'Avrupa kurumsal bahis bülteninde yüksek hacimli halk ilgisi. Canlı radar dışında veya alt lig.' 
-                    : 'High public betting volume in global sportsbook feeds. Outside active radar or minor league.'
+                    : (lang === 'de'
+                        ? 'Hohes Wettvolumen bei Buchmachern. Außerhalb des aktiven Radars oder untere Liga.'
+                        : 'High public betting volume in global sportsbook feeds. Outside active radar or minor league.')
             };
         }
 
@@ -2963,7 +3009,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch,
                 desc: lang === 'tr'
                     ? `Yüksek DQS (%${(dqs * 100).toFixed(0)}) & saha verisi kalabalığın bahsini doğruluyor.`
-                    : `High DQS (${(dqs * 100).toFixed(0)}%) & match data confirms crowd influx.`
+                    : (lang === 'de'
+                        ? `Hoher DQS (${(dqs * 100).toFixed(0)}%) & Spieldaten bestätigen das Publikumsaufkommen.`
+                        : `High DQS (${(dqs * 100).toFixed(0)}%) & match data confirms crowd influx.`)
             };
         } else if (isTrap) {
             return {
@@ -2977,7 +3025,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch,
                 desc: lang === 'tr'
                     ? `Düşük DQS (%${(dqs * 100).toFixed(0)}) & yetersiz tempo. Kalabalık tuzağa çekiliyor olabilir!`
-                    : `Low DQS (${(dqs * 100).toFixed(0)}%) & weak tempo. Crowd may be walking into a trap!`
+                    : (lang === 'de'
+                        ? `Niedriger DQS (${(dqs * 100).toFixed(0)}%) & schwaches Tempo. Das Publikum könnte in eine Falle tappen!`
+                        : `Low DQS (${(dqs * 100).toFixed(0)}%) & weak tempo. Crowd may be walking into a trap!`)
             };
         } else {
             return {
@@ -2991,7 +3041,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch,
                 desc: lang === 'tr'
                     ? `Orta seviye DQS (%${(dqs * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
-                    : `Moderate DQS (${(dqs * 100).toFixed(0)}%). Keep observing match dynamics.`
+                    : (lang === 'de'
+                        ? `Moderater DQS (${(dqs * 100).toFixed(0)}%). Spielverlauf aufmerksam beobachten.`
+                        : `Moderate DQS (${(dqs * 100).toFixed(0)}%). Keep observing match dynamics.`)
             };
         }
     }, [matches, lang, t]);
@@ -3113,7 +3165,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             }}
                         >
                             <span style={{ display: 'inline-block', transform: trendingLoading ? 'rotate(360deg)' : 'none', transition: 'transform 0.8s ease' }}>🔄</span>
-                            <span>{trendingLoading ? (lang === 'tr' ? 'Yenileniyor...' : 'Refreshing...') : (t.trending_refresh || 'Yenile')}</span>
+                            <span>{trendingLoading ? (lang === 'tr' ? 'Yenileniyor...' : (lang === 'de' ? 'Wird aktualisiert...' : 'Refreshing...')) : (t.trending_refresh || 'Yenile')}</span>
                         </button>
                     </div>
                 </div>
@@ -3207,10 +3259,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     </h4>
                                     <div style={{ fontSize: '0.8rem', opacity: 0.85, lineHeight: 1.5, color: '#cbd5e1' }}>
                                         <div style={{ marginBottom: '0.4rem' }}>
-                                            <strong style={{ color: '#10b981' }}>🟢 ONAYLI TREND:</strong> {lang === 'tr' ? 'Kalabalık haklı, sahada fırtına kopuyor.' : 'Crowd is right, pitch momentum confirms.'}
+                                            <strong style={{ color: '#10b981' }}>🟢 ONAYLI TREND:</strong> {lang === 'tr' ? 'Kalabalık haklı, sahada fırtına kopuyor.' : (lang === 'de' ? 'Das Publikum liegt richtig, Spieldaten bestätigen den Trend.' : 'Crowd is right, pitch momentum confirms.')}
                                         </div>
                                         <div>
-                                            <strong style={{ color: '#ef4444' }}>🔴 TUZAK ALARMI:</strong> {lang === 'tr' ? 'Sahada tempo yok, kalabalık tuzağa çekiliyor. Kasa kazanacak, siz oynamayın!' : 'No pitch tempo, crowd is falling into a bookmaker trap. Stay away!'}
+                                            <strong style={{ color: '#ef4444' }}>🔴 TUZAK ALARMI:</strong> {lang === 'tr' ? 'Sahada tempo yok, kalabalık tuzağa çekiliyor. Kasa kazanacak, siz oynamayın!' : (lang === 'de' ? 'Kein Tempo auf dem Feld, das Publikum tappt in eine Falle. Buchmacher im Vorteil, nicht wetten!' : 'No pitch tempo, crowd is falling into a bookmaker trap. Stay away!')}
                                         </div>
                                     </div>
                                 </div>
@@ -3231,12 +3283,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {t.trending_total_tracked || 'TOPLAM TREND'}
                         </div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#f8fafc' }}>
-                            {groupedMatches.length} <span style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 600 }}>{lang === 'tr' ? 'Maç' : 'Matches'}</span>
+                            {groupedMatches.length} <span style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 600 }}>{lang === 'tr' ? 'Maç' : (lang === 'de' ? 'Spiele' : 'Matches')}</span>
                         </div>
                         <div style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.2rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                            <span style={{ color: '#34d399', fontWeight: 700 }}>● {approvedCount + trapCount} {lang === 'tr' ? 'Canlı Radarda' : 'in Radar'}</span>
+                            <span style={{ color: '#34d399', fontWeight: 700 }}>● {approvedCount + trapCount} {lang === 'tr' ? 'Canlı Radarda' : (lang === 'de' ? 'im Live-Radar' : 'in Radar')}</span>
                             <span style={{ opacity: 0.4 }}>|</span>
-                            <span style={{ color: '#38bdf8', fontWeight: 700 }}>● {marketCount + cautionCount} {lang === 'tr' ? 'Radar Dışı' : 'Outside Radar'}</span>
+                            <span style={{ color: '#38bdf8', fontWeight: 700 }}>● {marketCount + cautionCount} {lang === 'tr' ? 'Radar Dışı' : (lang === 'de' ? 'Außerhalb des Radars' : 'Outside Radar')}</span>
                         </div>
                     </div>
 
@@ -3248,7 +3300,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {approvedCount}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#34d399', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Canlı Radarda & DQS ≥ 0.50' : 'In Live Radar & DQS ≥ 0.50'}
+                            {lang === 'tr' ? 'Canlı Radarda & DQS ≥ 0.50' : (lang === 'de' ? 'Im Live-Radar & DQS ≥ 0.50' : 'In Live Radar & DQS ≥ 0.50')}
                         </div>
                     </div>
 
@@ -3260,7 +3312,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {trapCount}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#f87171', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Düşük DQS / Ölü Maç Tuzağı' : 'Low DQS / Dead Match Trap'}
+                            {lang === 'tr' ? 'Düşük DQS / Ölü Maç Tuzağı' : (lang === 'de' ? 'Niedriger DQS / Totes-Spiel-Falle' : 'Low DQS / Dead Match Trap')}
                         </div>
                     </div>
 
@@ -3272,7 +3324,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {marketCount + cautionCount}
                         </div>
                         <div style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Avrupa Hacmi (Radar Dışı / Alt Lig)' : 'European Volume (Outside Radar)'}
+                            {lang === 'tr' ? 'Avrupa Hacmi (Radar Dışı / Alt Lig)' : (lang === 'de' ? 'Europäisches Volumen (Außerhalb des Radars)' : 'European Volume (Outside Radar)')}
                         </div>
                     </div>
                 </div>
@@ -3366,7 +3418,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {groupedMatches.length === 0 ? (t.trending_empty || 'Şu anda küresel bültende trend olan bahis bulunamadı.') : (t.trending_no_results || 'Seçili filtrelere uygun trend bahis bulunamadı.')}
                         </h4>
                         <p style={{ opacity: 0.5, fontSize: '0.85rem' }}>
-                            {lang === 'tr' ? 'Canlı piyasa bülteni 45 saniyede bir taranarak yeni trendler otomatik listelenir.' : 'Live market feed is scanned every 45s for trending public money.'}
+                            {lang === 'tr' ? 'Canlı piyasa bülteni 45 saniyede bir taranarak yeni trendler otomatik listelenir.' : (lang === 'de' ? 'Der Live-Markt wird alle 45 Sekunden gescannt und Trends werden automatisch aktualisiert.' : 'Live market feed is scanned every 45s for trending public money.')}
                         </p>
                     </div>
                 ) : (
@@ -3507,7 +3559,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         }}>
                                             <div>
                                                 <div style={{ fontSize: '0.7rem', opacity: 0.6, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                    {formatTrendingMarket(m.primaryBet.market, m.primaryBet.marketShort, lang) || (lang === 'tr' ? 'Bahis Pazarı' : 'Bet Market')}
+                                                    {formatTrendingMarket(m.primaryBet.market, m.primaryBet.marketShort, lang) || (lang === 'tr' ? 'Bahis Pazarı' : (lang === 'de' ? 'Wettmarkt' : 'Bet Market'))}
                                                 </div>
                                                 <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', marginTop: '0.1rem' }}>
                                                     🎯 {formatTrendingOutcome(m.primaryBet.outcome, lang)}
@@ -3756,7 +3808,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             title={alertNotifyMode === 'TOAST' ? 'Bildirim: Açık (Toast)' : alertNotifyMode === 'SILENT' ? 'Bildirim: Sessiz' : 'Bildirim: Kapalı'}
                         >
                             <span>{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
-                            <span className="ctrl-label">{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Açık' : 'On') : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
+                            <span className="ctrl-label">{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Açık' : (lang === 'de' ? 'An' : 'On')) : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
                         </button>
 
                         {/* Audio Alert Toggle */}
@@ -3769,7 +3821,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             title={!audioMuted ? 'Ses: Açık' : 'Ses: Kapalı'}
                         >
                             <span>{!audioMuted ? '🔊' : '🔇'}</span>
-                            <span className="ctrl-label">{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : 'Audio On') : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
+                            <span className="ctrl-label">{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : (lang === 'de' ? 'Ton an' : 'Audio On')) : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
                         </button>
 
                         {/* Signal History & Bets Button */}
@@ -3785,7 +3837,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             title="Sinyal Geçmişi & Tahmin Karnesi"
                         >
                             <span>📊</span>
-                            <span className="ctrl-label">{lang === 'tr' ? 'Sinyaller' : 'Signals'}</span>
+                            <span className="ctrl-label">{lang === 'tr' ? 'Sinyaller' : (lang === 'de' ? 'Signale' : 'Signals')}</span>
                             {alertHistoryList.length > 0 && (
                                 <span className="badge-count">{alertHistoryList.length}</span>
                             )}
@@ -3815,12 +3867,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <div className="user-email-text">{isAdmin || userProfile?.plan === 'admin' ? 'admin@livebetmentor.com' : (user?.email || 'User')}</div>
                                         {isAdmin || userProfile?.plan === 'admin' ? (
                                             <div className="user-expiry-text" style={{ color: '#f59e0b', fontWeight: 800 }}>
-                                                👑 {lang === 'tr' ? 'Süper Yönetici (Sınırsız)' : 'Super Admin (Unlimited)'}
+                                                👑 {lang === 'tr' ? 'Süper Yönetici (Sınırsız)' : (lang === 'de' ? 'Super-Admin (Unbegrenzt)' : 'Super Admin (Unlimited)')}
                                             </div>
                                         ) : userProfile?.subscription_end && (
                                             <div className="user-expiry-text" style={{ color: (userProfile?.plan === 'trial' || (getRemainingDays(userProfile.subscription_end) ?? 999) <= 3) ? '#38bdf8' : '#94a3b8', fontWeight: 700 }}>
                                                 {userProfile?.plan === 'trial' && remainingTrialSeconds > 0
-                                                    ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)} ${lang === 'tr' ? 'kaldı' : 'remaining'}`
+                                                    ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)} ${lang === 'tr' ? 'kaldı' : (lang === 'de' ? 'verbleibend' : 'remaining')}`
                                                     : `⏳ ${getRemainingDays(userProfile.subscription_end)} ${t.days_remaining}`}
                                             </div>
                                         )}
@@ -3850,7 +3902,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         onClick={() => { setFaqMode('live'); setShowFAQ(true); setShowUserMenu(false); }}
                                     >
                                         <span>❓</span>
-                                        <span>{lang === 'tr' ? 'Sistem Rehberi & SSS' : 'System Guide & FAQ'}</span>
+                                        <span>{lang === 'tr' ? 'Sistem Rehberi & SSS' : (lang === 'de' ? 'System-Leitfaden & FAQ' : 'System Guide & FAQ')}</span>
                                     </button>
 
                                     {/* Settings Button */}
@@ -3871,7 +3923,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         }}
                                     >
                                         <span>🔄</span>
-                                        <span>{lang === 'tr' ? 'Verileri Sıfırla' : 'Reset System'}</span>
+                                        <span>{lang === 'tr' ? 'Verileri Sıfırla' : (lang === 'de' ? 'System zurücksetzen' : 'Reset System')}</span>
                                     </button>
 
                                     <div className="user-popover-divider"></div>
@@ -3898,7 +3950,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             onClick={() => setView('DASHBOARD')}
                         >
                             <span>⚡</span>
-                            <span>{lang === 'tr' ? 'CANLI RADAR' : 'LIVE RADAR'}</span>
+                            <span>{lang === 'tr' ? 'CANLI RADAR' : (lang === 'de' ? 'LIVE-RADAR' : 'LIVE RADAR')}</span>
                             <span className="tab-live-count">{matches.length}</span>
                         </button>
                         <button
@@ -3906,7 +3958,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             onClick={() => setView('TRENDING')}
                         >
                             <span>🔥</span>
-                            <span>{lang === 'tr' ? 'PİYASA TRENDLERİ' : 'MARKET TRENDS'}</span>
+                            <span>{lang === 'tr' ? 'PİYASA TRENDLERİ' : (lang === 'de' ? 'MARKT-TRENDS' : 'MARKET TRENDS')}</span>
                             {trendingBets && trendingBets.length > 0 && (
                                 <span className="tab-live-count trending" style={{
                                     background: view === 'TRENDING' ? 'rgba(0,0,0,0.3)' : 'rgba(239, 68, 68, 0.25)',
@@ -3947,26 +3999,26 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 <div className="terminal-kpi-strip">
                     <div className="kpi-pill success">
                         <span className="tb-pulse-dot" style={{ width: '6px', height: '6px', background: '#10b981', borderRadius: '50%', display: 'inline-block' }}></span>
-                        <span className="kpi-label">{lang === 'tr' ? 'Kuant Motor:' : 'Quant Engine:'}</span>
-                        <span className="kpi-val">{lang === 'tr' ? '24/7 Aktif' : 'Online'}</span>
+                        <span className="kpi-label">{lang === 'tr' ? 'Kuant Motor:' : (lang === 'de' ? 'Quant-Engine:' : 'Quant Engine:')}</span>
+                        <span className="kpi-val">{lang === 'tr' ? '24/7 Aktif' : (lang === 'de' ? '24/7 Aktiv' : 'Online')}</span>
                     </div>
                     <div className="kpi-pill accent">
                         <span>📡</span>
-                        <span className="kpi-label">{lang === 'tr' ? 'Taranan:' : 'Tracked:'}</span>
-                        <span className="kpi-val">{matches.length} {lang === 'tr' ? 'Canlı Maç' : 'Live'}</span>
+                        <span className="kpi-label">{lang === 'tr' ? 'Taranan:' : (lang === 'de' ? 'Erfasst:' : 'Tracked:')}</span>
+                        <span className="kpi-val">{matches.length} {lang === 'tr' ? 'Canlı Maç' : (lang === 'de' ? 'Live-Spiele' : 'Live')}</span>
                     </div>
                     <div className="kpi-pill neutral">
                         <span>🧠</span>
-                        <span className="kpi-label">{lang === 'tr' ? 'Model:' : 'Model:'}</span>
+                        <span className="kpi-label">{lang === 'tr' ? 'Model:' : (lang === 'de' ? 'Modell:' : 'Model:')}</span>
                         <span className="kpi-val">Bayesian + xG Flow</span>
                     </div>
                     <button
                         onClick={() => { setFaqMode('live'); setShowFAQ(true); }}
                         className="kpi-faq-btn"
-                        title={lang === 'tr' ? 'Sistem Rehberi & SSS' : 'System Guide & FAQ'}
+                        title={lang === 'tr' ? 'Sistem Rehberi & SSS' : (lang === 'de' ? 'System-Leitfaden & FAQ' : 'System Guide & FAQ')}
                     >
                         <span>❓</span>
-                        <span className="kpi-faq-text">{lang === 'tr' ? 'Rehber' : 'Guide'}</span>
+                        <span className="kpi-faq-text">{lang === 'tr' ? 'Rehber' : (lang === 'de' ? 'Leitfaden' : 'Guide')}</span>
                     </button>
                 </div>
             </header>
@@ -3984,7 +4036,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             <span className="banner-icon" style={{ fontSize: '1.3rem' }}>⏳</span>
                             <div className="banner-text" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <strong style={{ color: '#c084fc', letterSpacing: '0.5px' }}>
-                                    {lang === 'tr' ? '3 GÜNLÜK PRO DENEME:' : '3-DAY PRO TRIAL:'}
+                                    {lang === 'tr' ? '3 GÜNLÜK PRO DENEME:' : (lang === 'de' ? '3-TAGE-PRO-TEST:' : '3-DAY PRO TRIAL:')}
                                 </strong>
                                 <span style={{
                                     background: 'rgba(0, 0, 0, 0.55)',
@@ -4003,7 +4055,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 <span style={{ color: '#e2e8f0', fontSize: '0.82rem', opacity: 0.9 }}>
                                     {lang === 'tr'
                                         ? '— VIP xG Radarı, Alevli Maçlar & Telegram Sinyalleri Aktif'
-                                        : '— VIP xG Radar, Hot Matches & Telegram Signals Active'}
+                                        : (lang === 'de'
+                                            ? '— VIP xG-Radar, Heiße Spiele & Telegram-Signale aktiv'
+                                            : '— VIP xG Radar, Hot Matches & Telegram Signals Active')}
                                 </span>
                             </div>
                         </div>
@@ -4018,12 +4072,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     boxShadow: '0 2px 10px rgba(168, 85, 247, 0.4)'
                                 }}
                             >
-                                ⚡ {lang === 'tr' ? '%30 İndirimle VIP\'ye Geç' : 'Upgrade to VIP (30% OFF)'}
+                                ⚡ {lang === 'tr' ? '%30 İndirimle VIP\'ye Geç' : (lang === 'de' ? 'Upgrade auf VIP (30% Rabatt)' : 'Upgrade to VIP (30% OFF)')}
                             </button>
                             <button
                                 onClick={() => setDismissTrialBanner(true)}
                                 className="banner-dismiss-btn"
-                                title={lang === 'tr' ? 'Kapat' : 'Close'}
+                                title={lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Schließen' : 'Close')}
                             >
                                 ✕
                             </button>
@@ -4049,7 +4103,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 <button
                                     onClick={() => setDismissTrialBanner(true)}
                                     className="banner-dismiss-btn"
-                                    title={lang === 'tr' ? 'Kapat' : 'Close'}
+                                    title={lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Schließen' : 'Close')}
                                 >
                                     ✕
                                 </button>
@@ -4063,7 +4117,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             <div className="mobile-breaking-ticker">
                 <span className="ticker-pulse-badge">
                     <span className="ticker-pulse-dot"></span>
-                    <span>{lang === 'tr' ? 'CANLI AKIŞ' : 'LIVE FEED'}</span>
+                    <span>{lang === 'tr' ? 'CANLI AKIŞ' : (lang === 'de' ? 'LIVE-FEED' : 'LIVE FEED')}</span>
                 </span>
                 <span className="ticker-content">
                     {(() => {
@@ -4072,11 +4126,15 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             const topM = hotMatches[0];
                             return lang === 'tr'
                                 ? `🔥 ${topM.homeTeam || 'Ev'} - ${topM.awayTeam || 'Dep'} maçında dakikanın gol baskısı yakalandı!`
-                                : `🔥 Intense in-play pressure detected in ${topM.homeTeam || 'Home'} - ${topM.awayTeam || 'Away'}!`;
+                                : (lang === 'de'
+                                    ? `🔥 Intensive Tordruckphase bei ${topM.homeTeam || 'Heim'} - ${topM.awayTeam || 'Ausw.'} erfasst!`
+                                    : `🔥 Intense in-play pressure detected in ${topM.homeTeam || 'Home'} - ${topM.awayTeam || 'Away'}!`);
                         }
                         return lang === 'tr'
                             ? `⚡ Canlı İvme Radarı aktif · 24/7 algoritmik değer fırsatları taranıyor...`
-                            : `⚡ Live Momentum Radar active · Scanning real-time value edges...`;
+                            : (lang === 'de'
+                                ? `⚡ Live-Dynamik-Radar aktiv · 24/7 algorithmische Value-Chancen werden gescannt...`
+                                : `⚡ Live Momentum Radar active · Scanning real-time value edges...`);
                     })()}
                 </span>
             </div>
@@ -4320,7 +4378,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     title="Biten maçları gizle / göster"
                                 >
                                     <span>⚽</span>
-                                    <span>{radarFilters.hideFinished ? (lang === 'tr' ? 'Bitenler Gizli' : 'Finished Hidden') : (lang === 'tr' ? 'Bitenleri Göster' : 'Show Finished')}</span>
+                                    <span>{radarFilters.hideFinished ? (lang === 'tr' ? 'Bitenler Gizli' : (lang === 'de' ? 'Beendete ausgeblendet' : 'Finished Hidden')) : (lang === 'tr' ? 'Bitenleri Göster' : 'Show Finished')}</span>
                                 </button>
                                 <button
                                     onClick={() => setRadarFilters(prev => ({ ...prev, sortBy: prev.sortBy === 'CONSENSUS' ? 'TIME' : 'CONSENSUS' }))}
@@ -4360,7 +4418,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         border: `1px solid ${radarFilters.todayOnly ? '#a78bfa66' : 'rgba(255,255,255,0.1)'}`,
                                         borderRadius: '8px', padding: '0.4rem 0.8rem', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer'
                                     }}
-                                >📅 {radarFilters.todayOnly ? t.today : (lang === 'tr' ? 'Tüm Maçlar (Yarın Dahil)' : 'All (Inc. Tomorrow)')}</button>
+                                >📅 {radarFilters.todayOnly ? t.today : (lang === 'tr' ? 'Tüm Maçlar (Yarın Dahil)' : (lang === 'de' ? 'Alle Spiele (inkl. morgen)' : 'All (Inc. Tomorrow)'))}</button>
                             </div>
 
                             <button
@@ -4468,16 +4526,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <div title="High Edge Detection" style={{ background: 'var(--accent-color)', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>VALUE</div>
                                             )}
                                             {s.isLive && (
-                                                <div title={lang === 'tr' ? "Canlı Oynanıyor" : "Match in play"} style={{ background: '#ef4444', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px', boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)' }}>{lang === 'tr' ? '🔴 CANLI' : '🔴 LIVE'}</div>
+                                                <div title={lang === 'tr' ? "Canlı Oynanıyor" : "Match in play"} style={{ background: '#ef4444', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px', boxShadow: '0 0 8px rgba(239, 68, 68, 0.6)' }}>{lang === 'tr' ? '🔴 CANLI' : (lang === 'de' ? '🔴 LIVE' : '🔴 LIVE')}</div>
                                             )}
                                             {s.isUpcoming && s.minutesUntilKickoff > 0 && s.minutesUntilKickoff <= 120 && (
-                                                <div title={lang === 'tr' ? "Başlamak Üzere" : "Starting soon"} style={{ background: '#f59e0b', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>⏳ {s.minutesUntilKickoff} {lang === 'tr' ? 'DK' : 'MIN'}</div>
+                                                <div title={lang === 'tr' ? "Başlamak Üzere" : "Starting soon"} style={{ background: '#f59e0b', color: '#000', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>⏳ {s.minutesUntilKickoff} {lang === 'tr' ? 'DK' : (lang === 'de' ? 'MIN' : 'MIN')}</div>
                                             )}
                                             {s.isFinished && (
-                                                <div title={lang === 'tr' ? "Maç Sona Erdi" : "Match finished"} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>{lang === 'tr' ? '🏁 BİTTİ' : '🏁 ENDED'}</div>
+                                                <div title={lang === 'tr' ? "Maç Sona Erdi" : "Match finished"} style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>{lang === 'tr' ? '🏁 BİTTİ' : (lang === 'de' ? '🏁 BEENDET' : '🏁 ENDED')}</div>
                                             )}
                                             {s.divergence > CONFIG.MODULAR_SYSTEM.ADVANCED_ANALYSIS.DIVERGENCE_RADAR.THRESHOLD && (
-                                                <div title="Conflicting Source Predictions" style={{ background: 'var(--danger-color)', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>{lang === 'tr' ? 'DİKKAT' : 'CAUTION'}</div>
+                                                <div title="Conflicting Source Predictions" style={{ background: 'var(--danger-color)', color: '#fff', padding: '0.2rem 0.6rem', fontSize: '0.6rem', fontWeight: 900, borderRadius: '4px' }}>{lang === 'tr' ? 'DİKKAT' : (lang === 'de' ? 'ACHTUNG' : 'CAUTION')}</div>
                                             )}
                                         </div>
 
@@ -4535,7 +4593,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             alignItems: 'center',
                                                             gap: '4px'
                                                         }}>
-                                                            🔥 %{agreementPercent} {lang === 'tr' ? 'GÜÇLÜ KONSENSÜS' : 'STRONG CONSENSUS'}
+                                                            🔥 %{agreementPercent} {lang === 'tr' ? 'GÜÇLÜ KONSENSÜS' : (lang === 'de' ? 'STARKER KONSENS' : 'STRONG CONSENSUS')}
                                                         </div>
                                                     )}
                                                     {agreementPercent < 60 && s.totalSources >= 2 && (
@@ -4586,7 +4644,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     )}
                                                                     {s.probabilities?.[site] && (
                                                                         <span style={{ fontSize: '0.65rem', color: color, opacity: 0.8, fontWeight: 700 }}>
-                                                                            ({Number(s.probabilities[site]) > 100 ? `${lang === 'tr' ? 'İndeks' : 'Index'}: ${s.probabilities[site]}` : `%${s.probabilities[site]}`})
+                                                                            ({Number(s.probabilities[site]) > 100 ? `${lang === 'tr' ? 'İndeks' : (lang === 'de' ? 'Index' : 'Index')}: ${s.probabilities[site]}` : `%${s.probabilities[site]}`})
                                                                         </span>
                                                                     )}
                                                                     {s.tipCounts?.[site] && (
@@ -4697,7 +4755,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         e.currentTarget.style.boxShadow = '0 4px 12px rgba(34, 158, 217, 0.25)';
                                                     }}
                                                 >
-                                                    <span>✈️</span> {lang === 'tr' ? "Telegram VIP'ye Gönder" : "Broadcast to Telegram VIP"}
+                                                    <span>✈️</span> {lang === 'tr' ? "Telegram VIP'ye Gönder" : (lang === 'de' ? "An Telegram VIP senden" : "Broadcast to Telegram VIP")}
                                                 </button>
                                             )}
                                         </div>
@@ -4846,7 +4904,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <option value={CONFIG.DECISION.MODES.FULL_STACK}>{t.mode_full_label}</option>
                                 </select>
                                 <div style={{ textAlign: 'right', fontSize: '0.7rem', paddingRight: '0.5rem' }}>
-                                    <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{lang === 'tr' ? 'CANLI RADAR' : 'LIVE RADAR'}</span>
+                                    <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{lang === 'tr' ? 'CANLI RADAR' : (lang === 'de' ? 'LIVE-RADAR' : 'LIVE RADAR')}</span>
                                     <span style={{ opacity: 0.4, marginLeft: '0.5rem' }}>{t.settings_frozen}</span>
                                 </div>
                             </div>
@@ -4869,8 +4927,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 >
                                     <div className="tier-btn-text">
                                         <span className="tier-btn-main">
-                                            <span className="tier-label-short">{isAll ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `T${tier}`}</span>
-                                            <span className="tier-label-full">{isAll ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `TIER ${tier}`}</span>
+                                            <span className="tier-label-short">{isAll ? (lang === 'tr' ? 'TÜMÜ' : (lang === 'de' ? 'ALLE' : 'ALL')) : `T${tier}`}</span>
+                                            <span className="tier-label-full">{isAll ? (lang === 'tr' ? 'TÜMÜ' : (lang === 'de' ? 'ALLE' : 'ALL')) : `TIER ${tier}`}</span>
                                         </span>
                                         <span className="tier-btn-desktop-full">
                                             {isAll ? (t.tier_filter_all || 'TÜM LİGLER') : (t[`tier_${tier}_label`] || `TIER ${tier}`)}
@@ -4899,21 +4957,21 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     type="button"
                                     className={`tb-mode-btn ${displayViewMode === 'TERMINAL' ? 'active' : ''}`}
                                     onClick={() => handleSwitchViewMode('TERMINAL')}
-                                    title={lang === 'tr' ? 'BetBallers Stili Dinamik ve Kompakt Canlı Tablo' : 'BetBallers Style Live Terminal'}
+                                    title={lang === 'tr' ? 'BetBallers Stili Dinamik ve Kompakt Canlı Tablo' : (lang === 'de' ? 'Dynamische Live-Tabelle im BetBallers-Stil' : 'BetBallers Style Live Terminal')}
                                 >
                                     <span>📊</span>
-                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Terminal' : 'Live Terminal'}</span>
-                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Terminal' : 'Terminal'}</span>
+                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Terminal' : (lang === 'de' ? 'Live-Terminal' : 'Live Terminal')}</span>
+                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Terminal' : (lang === 'de' ? 'Terminal' : 'Terminal')}</span>
                                 </button>
                                 <button
                                     type="button"
                                     className={`tb-mode-btn ${displayViewMode === 'CLASSIC' ? 'active' : ''}`}
                                     onClick={() => handleSwitchViewMode('CLASSIC')}
-                                    title={lang === 'tr' ? 'Klasik Kart Görünümü' : 'Classic Cards View'}
+                                    title={lang === 'tr' ? 'Klasik Kart Görünümü' : (lang === 'de' ? 'Klassische Kartenansicht' : 'Classic Cards View')}
                                 >
                                     <span>🎴</span>
-                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Klasik Kartlar' : 'Classic Cards'}</span>
-                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Klasik' : 'Classic'}</span>
+                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Klasik Kartlar' : (lang === 'de' ? 'Klassische Karten' : 'Classic Cards')}</span>
+                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Klasik' : (lang === 'de' ? 'Klassisch' : 'Classic')}</span>
                                 </button>
                             </div>
 
@@ -4923,18 +4981,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     type="button"
                                     onClick={handleToggleLockSort}
                                     className={`tb-stream-status ${isSortLocked ? 'locked' : 'live'}`}
-                                    title={isSortLocked ? (lang === 'tr' ? 'Sıralama kilitli. Canlı akışı başlatmak için tıklayın.' : 'Sort locked. Click to resume live stream.') : (lang === 'tr' ? 'Canlı sıralama devrede. Sıralamayı sabitlemek için tıklayın.' : 'Live sorting active. Click to lock order.')}
+                                    title={isSortLocked ? (lang === 'tr' ? 'Sıralama kilitli. Canlı akışı başlatmak için tıklayın.' : (lang === 'de' ? 'Sortierung gesperrt. Klicken, um Live-Stream zu starten.' : 'Sort locked. Click to resume live stream.')) : (lang === 'tr' ? 'Canlı sıralama devrede. Sıralamayı sabitlemek için tıklayın.' : 'Live sorting active. Click to lock order.')}
                                 >
                                     <span className="tb-pulse-dot" />
                                     <span className="tb-status-full">
                                         {isSortLocked
-                                            ? (lang === 'tr' ? '🔒 Sıralama Kilitli' : '🔒 Sort Locked')
-                                            : (lang === 'tr' ? '🟢 Canlı Akış (Momentum)' : '🟢 Live Stream (Momentum)')}
+                                            ? (lang === 'tr' ? '🔒 Sıralama Kilitli' : (lang === 'de' ? '🔒 Sortierung gesperrt' : '🔒 Sort Locked'))
+                                            : (lang === 'tr' ? '🟢 Canlı Akış (Momentum)' : (lang === 'de' ? '🟢 Live-Stream (Momentum)' : '🟢 Live Stream (Momentum)'))}
                                     </span>
                                     <span className="tb-status-short">
                                         {isSortLocked
-                                            ? (lang === 'tr' ? '🔒 Sabit' : '🔒 Locked')
-                                            : (lang === 'tr' ? '🟢 Canlı' : '🟢 Live')}
+                                            ? (lang === 'tr' ? '🔒 Sabit' : (lang === 'de' ? '🔒 Fixiert' : '🔒 Locked'))
+                                            : (lang === 'tr' ? '🟢 Canlı' : (lang === 'de' ? '🟢 Live' : '🟢 Live'))}
                                     </span>
                                 </button>
                             )}
@@ -4946,20 +5004,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         type="button"
                                         className={`tb-sub-btn ${terminalMobileSubView === 'CARDS' ? 'active' : ''}`}
                                         onClick={() => handleSetTerminalMobileSubView('CARDS')}
-                                        title={lang === 'tr' ? 'Mobil Net Kart Görünümü' : 'Mobile Cards View'}
+                                        title={lang === 'tr' ? 'Mobil Net Kart Görünümü' : (lang === 'de' ? 'Mobile Kartenansicht' : 'Mobile Cards View')}
                                     >
                                         <span>📱</span>
-                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Kartlar' : 'Cards'}</span>
-                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Kart' : 'Cards'}</span>
+                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Kartlar' : (lang === 'de' ? 'Karten' : 'Cards')}</span>
+                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Kart' : (lang === 'de' ? 'Karten' : 'Cards')}</span>
                                     </button>
                                     <button
                                         type="button"
                                         className={`tb-sub-btn ${terminalMobileSubView === 'TABLE' ? 'active' : ''}`}
                                         onClick={() => handleSetTerminalMobileSubView('TABLE')}
-                                        title={lang === 'tr' ? 'Genişletilmiş Tablo Görünümü' : 'Full Table View'}
+                                        title={lang === 'tr' ? 'Genişletilmiş Tablo Görünümü' : (lang === 'de' ? 'Erweiterte Tabellenansicht' : 'Full Table View')}
                                     >
                                         <span>📋</span>
-                                        <span>{lang === 'tr' ? 'Tablo' : 'Table'}</span>
+                                        <span>{lang === 'tr' ? 'Tablo' : (lang === 'de' ? 'Tabelle' : 'Table')}</span>
                                     </button>
                                 </div>
                             )}
@@ -4973,7 +5031,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <span>🔍</span>
                                     <input
                                         type="text"
-                                        placeholder={lang === 'tr' ? 'Takım veya lig ara...' : 'Filter team or league...'}
+                                        placeholder={lang === 'tr' ? 'Takım veya lig ara...' : (lang === 'de' ? 'Team oder Liga suchen...' : 'Filter team or league...')}
                                         value={terminalSearchQuery}
                                         onChange={(e) => setTerminalSearchQuery(e.target.value)}
                                     />
@@ -4991,19 +5049,19 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 {/* Sort criteria selector */}
                                 <div className="tb-sort-wrapper">
                                     <span className="tb-sort-label">
-                                        {lang === 'tr' ? 'Sırala:' : 'Sort:'}
+                                        {lang === 'tr' ? 'Sırala:' : (lang === 'de' ? 'Sortierung:' : 'Sort:')}
                                     </span>
                                     <select
                                         className="tb-sort-select"
                                         value={terminalSortCriteria}
                                         onChange={(e) => setTerminalSortCriteria(e.target.value)}
                                     >
-                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı)' : 'Live Momentum'}</option>
-                                        <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali (%55+)' : 'Goal Probability'}</option>
-                                        <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : 'Last 20m Surge'}</option>
-                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Kupon Hacmi' : 'Market Volume'}</option>
-                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Maç Dakikası' : 'Match Minute'}</option>
-                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig Sıralaması' : 'League'}</option>
+                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı)' : (lang === 'de' ? 'Live-Dynamik (Druck)' : 'Live Momentum')}</option>
+                                        <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali (%55+)' : (lang === 'de' ? 'Torwahrscheinlichkeit (55%+)' : 'Goal Probability')}</option>
+                                        <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : (lang === 'de' ? 'Dynamik letzte 20 Min.' : 'Last 20m Surge')}</option>
+                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Kupon Hacmi' : (lang === 'de' ? 'Markt-Wettscheinvolumen' : 'Market Volume')}</option>
+                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Maç Dakikası' : (lang === 'de' ? 'Spielminute' : 'Match Minute')}</option>
+                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig Sıralaması' : (lang === 'de' ? 'Liga-Rang' : 'League')}</option>
                                     </select>
                                 </div>
                             </div>
@@ -5038,8 +5096,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     }}
                                                 >
                                                     <span>📋</span>
-                                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Genel Filtreler' : 'General'}</span>
-                                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Genel' : 'General'}</span>
+                                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Genel Filtreler' : (lang === 'de' ? 'Allgemeine Filter' : 'General')}</span>
+                                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Genel' : (lang === 'de' ? 'Allgemein' : 'General')}</span>
                                                 </button>
                                                 <button
                                                     type="button"
@@ -5052,8 +5110,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     }}
                                                 >
                                                     <span>🎯</span>
-                                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Fırsat Radarları' : 'In-Play Radars'}</span>
-                                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Radarlar' : 'Radars'}</span>
+                                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Fırsat Radarları' : (lang === 'de' ? 'Live-Chancen-Radare' : 'In-Play Radars')}</span>
+                                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Radarlar' : (lang === 'de' ? 'Radare' : 'Radars')}</span>
                                                     {radarMatchesCount > 0 && (
                                                         <span className="tb-group-badge">{radarMatchesCount}</span>
                                                     )}
@@ -5071,8 +5129,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('ALL')}
                                                     >
                                                         <span>⚡</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Tümü' : 'All'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}</span>
                                                         <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
                                                     </button>
                                                     <button
@@ -5081,8 +5139,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('HOT')}
                                                     >
                                                         <span>🔥</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Sıcak' : 'Hot'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Sıcak Fırsatlar' : (lang === 'de' ? 'Heiße Chancen' : 'Hot Picks')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Sıcak' : (lang === 'de' ? 'Heiß' : 'Hot')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
                                                         </span>
@@ -5091,11 +5149,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         type="button"
                                                         className={`tb-chip chip-trend ${terminalCategoryFilter === 'TREND' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('TREND')}
-                                                        title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : 'Trending matches currently active in live radar'}
+                                                        title={lang === 'tr' ? 'Avrupa piyasasında trend olan ve şu an canlı radarınızda oynanan maçlar' : (lang === 'de' ? 'Europäische Trend-Spiele, die aktuell im Live-Radar aktiv sind' : 'Trending matches currently active in live radar')}
                                                     >
                                                         <span>📈</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Trendler' : 'Live Trends'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Trend' : 'Trends'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Trendler' : (lang === 'de' ? 'Live-Trends' : 'Live Trends')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Trend' : (lang === 'de' ? 'Trends' : 'Trends')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => {
                                                                 return (trendingBets || []).some(tb => 
@@ -5111,8 +5169,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('BET')}
                                                     >
                                                         <span>✓</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'AI Bahis Sinyali' : 'AI Signals'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'AI Sinyal' : 'Signals'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'AI Bahis Sinyali' : (lang === 'de' ? 'KI-Wettsignale' : 'AI Signals')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'AI Sinyal' : (lang === 'de' ? 'KI-Signal' : 'Signals')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
                                                         </span>
@@ -5123,8 +5181,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
                                                     >
                                                         <span>⏱️</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '2. Yarı (45\'+)' : '2nd Half'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '2. Yarı' : '2H'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '2. Yarı (45\'+)' : (lang === 'de' ? '2. Halbzeit (45\'+)' : '2nd Half')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '2. Yarı' : (lang === 'de' ? '2. HZ' : '2H')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => {
                                                                 const minStr = String(m.minute || '');
@@ -5139,8 +5197,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         onClick={() => setTerminalCategoryFilter('PINNED')}
                                                     >
                                                         <span>★</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Favoriler' : 'Favorites'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Favori' : 'Favs'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Favoriler' : (lang === 'de' ? 'Favoriten' : 'Favorites')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Favori' : (lang === 'de' ? 'Favorit' : 'Favs')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
                                                         </span>
@@ -5152,22 +5210,22 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         type="button"
                                                         className={`tb-chip chip-radar-all ${terminalCategoryFilter === 'RADAR_ALL' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('RADAR_ALL')}
-                                                        title={lang === 'tr' ? 'Tüm fırsat radarlarından en az birine uyan canlı maçlar' : 'Matches matching any opportunity radar'}
+                                                        title={lang === 'tr' ? 'Tüm fırsat radarlarından en az birine uyan canlı maçlar' : (lang === 'de' ? 'Spiele, die mindestens ein Chancen-Radar erfüllen' : 'Matches matching any opportunity radar')}
                                                     >
                                                         <span>🎯</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Tüm Radarlar' : 'All Radars'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Tüm Radarlar' : (lang === 'de' ? 'Alle Radare' : 'All Radars')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}</span>
                                                         <span className="tb-chip-count">{radarMatchesCount}</span>
                                                     </button>
                                                     <button
                                                         type="button"
                                                         className={`tb-chip chip-goal-prob ${terminalCategoryFilter === 'GOAL_PROB' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('GOAL_PROB')}
-                                                        title={lang === 'tr' ? 'Şut, xG ve saha baskısı analitiğine göre sıradaki gol ihtimali %55 ve üzeri olan canlı maçlar' : 'Live matches with in-play next goal probability >= 55%'}
+                                                        title={lang === 'tr' ? 'Şut, xG ve saha baskısı analitiğine göre sıradaki gol ihtimali %55 ve üzeri olan canlı maçlar' : (lang === 'de' ? 'Live-Spiele mit berechneter nächster Torwahrscheinlichkeit >= 55%' : 'Live matches with in-play next goal probability >= 55%')}
                                                     >
                                                         <span>🧠</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Gol Radarı' : 'Goal Radar'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Gol' : 'Goals'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Gol Radarı' : (lang === 'de' ? 'Tor-Radar' : 'Goal Radar')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Gol' : (lang === 'de' ? 'Tore' : 'Goals')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55)).length}
                                                         </span>
@@ -5176,11 +5234,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         type="button"
                                                         className={`tb-chip chip-xg-surplus ${terminalCategoryFilter === 'XG_SURPLUS' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('XG_SURPLUS')}
-                                                        title={lang === 'tr' ? 'Yüksek xG ve şut üretmesine rağmen skorborda yansımamış, yüksek oran vadeden değerli maçlar' : 'Matches generating heavy xG not yet rewarded on scoreboard'}
+                                                        title={lang === 'tr' ? 'Yüksek xG ve şut üretmesine rağmen skorborda yansımamış, yüksek oran vadeden değerli maçlar' : (lang === 'de' ? 'Spiele mit hohem xG-Wert ohne Torbelohnung (Value-Potenzial)' : 'Matches generating heavy xG not yet rewarded on scoreboard')}
                                                     >
                                                         <span>⏳</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Geciken Gol' : 'Unrewarded xG'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Geciken' : 'Late Goal'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Geciken Gol' : (lang === 'de' ? 'Überfälliges Tor' : 'Unrewarded xG')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Geciken' : (lang === 'de' ? 'Überfällig' : 'Late Goal')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchXgSurplus(m, signals[m.id])).length}
                                                         </span>
@@ -5189,11 +5247,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         type="button"
                                                         className={`tb-chip chip-surge ${terminalCategoryFilter === 'SURGE_20' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('SURGE_20')}
-                                                        title={lang === 'tr' ? 'Son 20 dakikada hücum temposu ve tehlike ivmesi tavan yapan canlı maçlar' : 'Matches with surging offensive momentum in the last 20 minutes'}
+                                                        title={lang === 'tr' ? 'Son 20 dakikada hücum temposu ve tehlike ivmesi tavan yapan canlı maçlar' : (lang === 'de' ? 'Live-Spiele mit drastischem Anstieg von Tempo und Torgefahr in den letzten 20 Minuten' : 'Matches with surging offensive momentum in the last 20 minutes')}
                                                     >
                                                         <span>⚡</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '20\' Baskısı' : '20m Surge'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '20\' Baskı' : '20m Surge'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? '20\' Baskısı' : (lang === 'de' ? '20\\' Druck' : '20m Surge')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? '20\' Baskı' : (lang === 'de' ? '20\\' Druck' : '20m Surge')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m, signals[m.id])).length}
                                                         </span>
@@ -5202,11 +5260,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         type="button"
                                                         className={`tb-chip chip-golden-min ${terminalCategoryFilter === 'GOLDEN_MIN' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('GOLDEN_MIN')}
-                                                        title={lang === 'tr' ? '68-85. dakika aralığında tek farkla devam eden ve tempolu hücum yapılan altın pencere maçları' : 'High-tempo close matches in the 68-85 min golden scoring window'}
+                                                        title={lang === 'tr' ? '68-85. dakika aralığında tek farkla devam eden ve tempolu hücum yapılan altın pencere maçları' : (lang === 'de' ? 'Spiele im goldenen Zeitfenster (68.-85. Min.) mit 1 Tor Differenz und hohem Tempo' : 'High-tempo close matches in the 68-85 min golden scoring window')}
                                                     >
                                                         <span>⏱️</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Altın Saat' : 'Golden Window'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Altın' : 'Golden'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Altın Saat' : (lang === 'de' ? 'Goldene Stunde' : 'Golden Window')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Altın' : (lang === 'de' ? 'Gold' : 'Golden')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchGoldenMinutes(m, signals[m.id])).length}
                                                         </span>
@@ -5215,11 +5273,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         type="button"
                                                         className={`tb-chip chip-comeback ${terminalCategoryFilter === 'COMEBACK' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('COMEBACK')}
-                                                        title={lang === 'tr' ? 'Skor olarak geride olan ama sahada rakip kaleyi ablukaya alan takımların maçları' : 'Trailing teams intensely sieging the opponent for a comeback'}
+                                                        title={lang === 'tr' ? 'Skor olarak geride olan ama sahada rakip kaleyi ablukaya alan takımların maçları' : (lang === 'de' ? 'Spiele von Teams im Rückstand, die das gegnerische Tor belagern' : 'Trailing teams intensely sieging the opponent for a comeback')}
                                                     >
                                                         <span>🔄</span>
-                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Geri Dönüş' : 'Comeback'}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Dönüş' : 'Comeback'}</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Geri Dönüş' : (lang === 'de' ? 'Comeback' : 'Comeback')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Dönüş' : (lang === 'de' ? 'Comeback' : 'Comeback')}</span>
                                                         <span className="tb-chip-count">
                                                             {enforcedMatches.filter(filterByTier).filter(m => isMatchComeback(m, signals[m.id])).length}
                                                         </span>
@@ -5247,10 +5305,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}>
                                     <span>🎯</span>
                                     <span>
-                                        <strong>{lang === 'tr' ? 'Tüm Fırsat Radarları (Konsolide):' : 'All In-Play Radars (Consolidated):'}</strong>{' '}
+                                        <strong>{lang === 'tr' ? 'Tüm Fırsat Radarları (Konsolide):' : (lang === 'de' ? 'Alle Chancen-Radare (Konsolidiert):' : 'All In-Play Radars (Consolidated):')}</strong>{' '}
                                         {lang === 'tr' 
                                             ? 'Gol Radarı, Geciken Gol, 20 Dk Baskısı, Altın Saat veya Geri Dönüş şartlarından en az birini sağlayan tüm canlı maçları listeler.'
-                                            : 'Aggregates all live matches meeting any of the 5 specialized opportunity radar conditions.'}
+                                            : (lang === 'de'
+                                                ? 'Listet alle Live-Spiele auf, die mindestens eines der 5 spezialisierten Chancen-Radare erfüllen.'
+                                                : 'Aggregates all live matches meeting any of the 5 specialized opportunity radar conditions.')}
                                     </span>
                                 </div>
                             )}
@@ -5271,10 +5331,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}>
                                     <span>⚡</span>
                                     <span>
-                                        <strong>{lang === 'tr' ? 'Son 20 Dakika Abluka Radarı:' : 'Last 20-Min Siege Radar:'}</strong>{' '}
+                                        <strong>{lang === 'tr' ? 'Son 20 Dakika Abluka Radarı:' : (lang === 'de' ? '20-Minuten-Belagerungsradar:' : 'Last 20-Min Siege Radar:')}</strong>{' '}
                                         {lang === 'tr' 
                                             ? 'Son 20 dakikada hücum temposunu katlayan ve rakip kaleye yüklenen takımları listeler.'
-                                            : 'Highlights matches where a team is intensely dominating the opponent in the last 20 minutes.'}
+                                            : (lang === 'de'
+                                                ? 'Listet Spiele auf, in denen ein Team in den letzten 20 Minuten den Offensivdruck massiv erhöht hat.'
+                                                : 'Highlights matches where a team is intensely dominating the opponent in the last 20 minutes.')}
                                     </span>
                                 </div>
                             )}
@@ -5295,10 +5357,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}>
                                     <span>🧠</span>
                                     <span>
-                                        <strong>{lang === 'tr' ? 'Canlı Gol Radarı (Bayesian Olasılık):' : 'Live Goal Radar (Bayesian Probability):'}</strong>{' '}
+                                        <strong>{lang === 'tr' ? 'Canlı Gol Radarı (Bayesian Olasılık):' : (lang === 'de' ? 'Live-Torradar (Bayesianische Wahrscheinlichkeit):' : 'Live Goal Radar (Bayesian Probability):')}</strong>{' '}
                                         {lang === 'tr' 
                                             ? 'Şut hacmi, xG kalitesi ve anlık baskı ivmesine göre sıradaki gol gelme ihtimali %55 ve üzeri olan maçları listeler.'
-                                            : 'Lists live matches where shot volume, xG quality, and momentum elevate next goal probability above 55%.'}
+                                            : (lang === 'de'
+                                                ? 'Listet Live-Spiele auf, bei denen Schussvolumen, xG-Qualität und Dynamik die Torwahrscheinlichkeit auf >= 55% heben.'
+                                                : 'Lists live matches where shot volume, xG quality, and momentum elevate next goal probability above 55%.')}
                                     </span>
                                 </div>
                             )}
@@ -5319,10 +5383,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}>
                                     <span>⏳</span>
                                     <span>
-                                        <strong>{lang === 'tr' ? 'Geciken Gol Radarı (xG Açığı & Değerli Bahis):' : 'Unrewarded xG Radar (Value Bets):'}</strong>{' '}
+                                        <strong>{lang === 'tr' ? 'Geciken Gol Radarı (xG Açığı & Değerli Bahis):' : (lang === 'de' ? 'Überfälliges-Tor-Radar (xG-Differenz & Value-Wette):' : 'Unrewarded xG Radar (Value Bets):')}</strong>{' '}
                                         {lang === 'tr' 
                                             ? 'Yüksek xG (Beklenen Gol) ve şut üretmesine rağmen skorborda henüz yansımamış, yüksek oran potansiyeli olan maçları listeler.'
-                                            : 'Highlights matches generating heavy xG not yet rewarded on the scoreboard (Prime Value).'}
+                                            : (lang === 'de'
+                                                ? 'Listet Spiele mit hohem xG-Wert auf, die sich noch nicht im Spielstand widerspiegeln (Prime Value).'
+                                                : 'Highlights matches generating heavy xG not yet rewarded on the scoreboard (Prime Value).')}
                                     </span>
                                 </div>
                             )}
@@ -5343,10 +5409,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}>
                                     <span>⏱️</span>
                                     <span>
-                                        <strong>{lang === 'tr' ? 'Altın Dakikalar Radarı (68\' - 85\' Baskısı):' : 'Golden Window Radar (68\' - 85\' Pressure):'}</strong>{' '}
+                                        <strong>{lang === 'tr' ? 'Altın Dakikalar Radarı (68\' - 85\' Baskısı):' : (lang === 'de' ? 'Goldene-Minuten-Radar (68\\' - 85\\' Druckphase):' : 'Golden Window Radar (68\' - 85\' Pressure):')}</strong>{' '}
                                         {lang === 'tr' 
                                             ? 'Canlı bahiste oranların tavan yaptığı ve en çok golün çıktığı 68-85. dakika aralığında tek farkla devam eden tempolu maçları listeler.'
-                                            : 'Targets high-tempo close matches in the prime scoring window (68\'-85\') where late-goal odds are maximized.'}
+                                            : (lang === 'de'
+                                                ? 'Targets dynamische Spiele im goldenen Zeitfenster (68.-85. Min.) mit 1 Tor Differenz, in denen Quoten maximiert sind.'
+                                                : 'Targets high-tempo close matches in the prime scoring window (68\'-85\') where late-goal odds are maximized.')}
                                     </span>
                                 </div>
                             )}
@@ -5367,10 +5435,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}>
                                     <span>🔄</span>
                                     <span>
-                                        <strong>{lang === 'tr' ? 'Geri Dönüş Radarı (Baskı Kuran Takım Geride):' : 'Comeback Radar (Dominant Trailing Team):'}</strong>{' '}
+                                        <strong>{lang === 'tr' ? 'Geri Dönüş Radarı (Baskı Kuran Takım Geride):' : (lang === 'de' ? 'Comeback-Radar (Dominantes Team liegt hinten):' : 'Comeback Radar (Dominant Trailing Team):')}</strong>{' '}
                                         {lang === 'tr' 
                                             ? 'Skor olarak geride olmasına rağmen sahada rakibini abluka altına alan ve geri dönüş arayan takımların maçlarını listeler.'
-                                            : 'Highlights teams that are currently trailing on the scoreboard but intensely besieging the opponent for an equalizer.'}
+                                            : (lang === 'de'
+                                                ? 'Listet Teams auf, die im Rückstand liegen, aber das gegnerische Tor für den Ausgleich belagern.'
+                                                : 'Highlights teams that are currently trailing on the scoreboard but intensely besieging the opponent for an equalizer.')}
                                     </span>
                                 </div>
                             )}
@@ -5584,7 +5654,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     type="button"
                                                     onClick={(e) => handleSendToTelegram(e, match, opp)}
                                                     className="opp-telegram-btn"
-                                                    title={lang === 'tr' ? "VIP Gruba Gönder" : "Send to VIP Group"}
+                                                    title={lang === 'tr' ? "VIP Gruba Gönder" : (lang === 'de' ? "An VIP-Gruppe senden" : "Send to VIP Group")}
                                                 >
                                                     ✈️
                                                 </button>
@@ -5597,7 +5667,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <div className="opp-team-side home">
                                             <span className="opp-team-name">
                                                 {match.homeTeam}
-                                                {isHomeHeavy && <span style={{ color: '#38bdf8', marginLeft: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Ev Baskısı" : "Heavy Home Pressure"}>⚡▶</span>}
+                                                {isHomeHeavy && <span style={{ color: '#38bdf8', marginLeft: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Ev Baskısı" : (lang === 'de' ? "Intensiver Heimdruck" : "Heavy Home Pressure")}>⚡▶</span>}
                                             </span>
                                             {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
                                                 <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff' }}>
@@ -5619,7 +5689,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 </span>
                                             )}
                                             <span className="opp-team-name">
-                                                {isAwayHeavy && <span style={{ color: '#f43f5e', marginRight: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Deplasman Baskısı" : "Heavy Away Pressure"}>◀⚡</span>}
+                                                {isAwayHeavy && <span style={{ color: '#f43f5e', marginRight: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Deplasman Baskısı" : (lang === 'de' ? "Intensiver Auswärtsdruck" : "Heavy Away Pressure")}>◀⚡</span>}
                                                 {match.awayTeam}
                                             </span>
                                         </div>
@@ -5629,12 +5699,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <div className="opp-badges-row">
                                         {opp.isHalftime && (
                                             <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24' }}>
-                                                ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : '2ND HALF VALUE'}
+                                                ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : (lang === 'de' ? '2. HZ VALUE' : '2ND HALF VALUE')}
                                             </span>
                                         )}
                                         {opp.valueDetected && (
                                             <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000' }}>
-                                                💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : 'VALUE ODDS'}
+                                                💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : (lang === 'de' ? 'VALUE-QUOTE' : 'VALUE ODDS')}
                                             </span>
                                         )}
                                         {match.stats?.xg && (
@@ -5643,11 +5713,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </span>
                                         )}
                                         <span className="opp-micro-badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1' }}>
-                                            {opp.trend === 'UP' ? '⬆️' : opp.trend === 'DOWN' ? '⬇️' : '➡️'} %{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta} ({momentumWindow}{lang === 'tr' ? 'dk' : 'm'})
+                                            {opp.trend === 'UP' ? '⬆️' : opp.trend === 'DOWN' ? '⬇️' : '➡️'} %{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta} ({momentumWindow}{lang === 'tr' ? 'dk' : (lang === 'de' ? 'Min.' : 'm')})
                                         </span>
                                         {opp.smartMoney?.active && (
                                             <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', color: '#fff' }}>
-                                                📉 {lang === 'tr' ? 'BÜYÜK PARA' : 'SMART MONEY'} (-%{opp.smartMoney.dropPct.toFixed(0)})
+                                                📉 {lang === 'tr' ? 'BÜYÜK PARA' : (lang === 'de' ? 'BIG MONEY' : 'SMART MONEY')} (-%{opp.smartMoney.dropPct.toFixed(0)})
                                             </span>
                                         )}
                                         {opp.hasValueEV && opp.bestEV && (
@@ -5662,12 +5732,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         )}
                                         {opp.cashOutWarning && (
                                             <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff', animation: 'pulse 1.5s infinite' }}>
-                                                🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : 'CASHOUT'}
+                                                🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : (lang === 'de' ? 'CASHOUT' : 'CASHOUT')}
                                             </span>
                                         )}
                                         {opp.isLowData && (
                                             <span className="opp-micro-badge" style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}>
-                                                ⚠️ {lang === 'tr' ? 'Kısıtlı İstatistik' : 'Limited Stats'}
+                                                ⚠️ {lang === 'tr' ? 'Kısıtlı İstatistik' : (lang === 'de' ? 'Eingeschränkte Statistiken' : 'Limited Stats')}
                                             </span>
                                         )}
                                     </div>
@@ -5678,18 +5748,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8' }}>
                                                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block', boxShadow: isHomeHeavy ? '0 0 8px #38bdf8' : 'none' }} />
                                                 <span>%{homePct}</span>
-                                                {isHomeHeavy && <span style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : 'PRESS'}</span>}
+                                                {isHomeHeavy && <span style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : (lang === 'de' ? 'DRUCK' : 'PRESS')}</span>}
                                             </div>
 
                                             <div className="opp-momentum-pill" style={{
                                                 background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
                                                 color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
                                             }}>
-                                                {isHot ? (lang === 'tr' ? '🔥 RİTİM YÜKSEK' : '🔥 HIGH TEMPO') : (isHomeHeavy ? (lang === 'tr' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Home'} Pressing`) : isAwayHeavy ? (lang === 'tr' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Away'} Pressing`) : (lang === 'tr' ? '⚪ DENGELİ TEMPO' : '⚪ BALANCED TEMPO'))}
+                                                {isHot ? (lang === 'tr' ? '🔥 RİTİM YÜKSEK' : (lang === 'de' ? '🔥 HOHE INTENSITÄT' : '🔥 HIGH TEMPO')) : (isHomeHeavy ? (lang === 'tr' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Home'} Pressing`) : isAwayHeavy ? (lang === 'tr' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Away'} Pressing`) : (lang === 'tr' ? '⚪ DENGELİ TEMPO' : '⚪ BALANCED TEMPO'))}
                                             </div>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8' }}>
-                                                {isAwayHeavy && <span style={{ fontSize: '0.58rem', color: '#f43f5e', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : 'PRESS'}</span>}
+                                                {isAwayHeavy && <span style={{ fontSize: '0.58rem', color: '#f43f5e', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : (lang === 'de' ? 'DRUCK' : 'PRESS')}</span>}
                                                 <span>%{awayPct}</span>
                                                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block', boxShadow: isAwayHeavy ? '0 0 8px #f43f5e' : 'none' }} />
                                             </div>
@@ -5726,7 +5796,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 title="Detaylı Baskı Grafiği"
                                             >
                                                 <span>📈</span>
-                                                <span>{lang === 'tr' ? 'Baskı Grafiği' : 'Wave'}</span>
+                                                <span>{lang === 'tr' ? 'Baskı Grafiği' : (lang === 'de' ? 'Druckwelle' : 'Wave')}</span>
                                                 <span style={{ fontSize: '0.7rem' }}>➔</span>
                                             </button>
                                         </div>
@@ -5738,7 +5808,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <div className="opp-pred-header">
                                                 <span className="opp-pred-tag">
                                                     <span>💡</span>
-                                                    <span>{opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : '2ND HALF PREDICTION') : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION')}</span>
+                                                    <span>{opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : (lang === 'de' ? '2. HZ PROGNOSE' : '2ND HALF PREDICTION')) : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION')}</span>
                                                 </span>
                                                 {opp.suggestedMarket.confidence && (
                                                     <span className="opp-pred-confidence">
@@ -5807,8 +5877,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <div className="opps-title-cluster">
                                                 <h3 className="opps-title">
                                                     <span className="opps-icon">🔥</span>
-                                                    <span className="opps-text-primary">{lang === 'tr' ? 'SICAK FIRSATLAR' : 'HOT OPPORTUNITIES'}</span>
-                                                    <span className="opps-text-secondary">{lang === 'tr' ? '& CANLI RADAR' : '& LIVE RADAR'}</span>
+                                                    <span className="opps-text-primary">{lang === 'tr' ? 'SICAK FIRSATLAR' : (lang === 'de' ? 'HEISSE CHANCEN' : 'HOT OPPORTUNITIES')}</span>
+                                                    <span className="opps-text-secondary">{lang === 'tr' ? '& CANLI RADAR' : (lang === 'de' ? '& LIVE-RADAR' : '& LIVE RADAR')}</span>
                                                 </h3>
                                                 <div className="opps-live-indicator">
                                                     <span className="opps-pulse-dot" />
@@ -5820,11 +5890,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <div className="opps-stat-pill ready">
                                                     <span className="opps-pill-dot ready" />
                                                     <span className="opps-pill-val">{readyOpportunities.length}</span>
-                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Hazır' : 'Ready'}</span>
+                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Hazır' : (lang === 'de' ? 'Bereit' : 'Ready')}</span>
                                                 </div>
                                                 <div className="opps-stat-pill total">
                                                     <span className="opps-pill-val">{allOpportunities.length}</span>
-                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Canlı' : 'Live'}</span>
+                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Canlı' : (lang === 'de' ? 'Live' : 'Live')}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -5837,7 +5907,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 onClick={() => setMobileQuickFilter('ALL')}
                                             >
                                                 <span>⚡</span>
-                                                <span>{lang === 'tr' ? 'Tümü' : 'All'}</span>
+                                                <span>{lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}</span>
                                                 <span className="chip-count">{allOpportunities.length}</span>
                                             </button>
                                             <button
@@ -5846,7 +5916,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 onClick={() => setMobileQuickFilter(mobileQuickFilter === 'HOT' ? 'ALL' : 'HOT')}
                                             >
                                                 <span>🔥</span>
-                                                <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : 'Hot Picks'}</span>
+                                                <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : (lang === 'de' ? 'Heiße Chancen' : 'Hot Picks')}</span>
                                                 <span className="chip-count">{allOpportunities.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA').length}</span>
                                             </button>
                                             <button
@@ -5855,7 +5925,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 onClick={() => setMobileQuickFilter(mobileQuickFilter === 'READY' ? 'ALL' : 'READY')}
                                             >
                                                 <span>🟢</span>
-                                                <span>{lang === 'tr' ? 'Hazır' : 'Ready'}</span>
+                                                <span>{lang === 'tr' ? 'Hazır' : (lang === 'de' ? 'Bereit' : 'Ready')}</span>
                                                 <span className="chip-count">{readyOpportunities.length}</span>
                                             </button>
                                             <button
@@ -5864,7 +5934,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 onClick={() => setMobileQuickFilter(mobileQuickFilter === 'SECOND_HALF' ? 'ALL' : 'SECOND_HALF')}
                                             >
                                                 <span>☕</span>
-                                                <span>{lang === 'tr' ? '2. Yarı' : '2nd Half'}</span>
+                                                <span>{lang === 'tr' ? '2. Yarı' : (lang === 'de' ? '2. HZ' : '2nd Half')}</span>
                                                 <span className="chip-count">{allOpportunities.filter(o => o.isHalftime || o.isSecondHalfPressure).length}</span>
                                             </button>
                                             {goldenCombo && (
@@ -5874,7 +5944,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     onClick={() => setMobileQuickFilter(mobileQuickFilter === 'COMBO' ? 'ALL' : 'COMBO')}
                                                 >
                                                     <span>🎟️</span>
-                                                    <span>{lang === 'tr' ? 'Altın İkili' : 'Golden Combo'}</span>
+                                                    <span>{lang === 'tr' ? 'Altın İkili' : (lang === 'de' ? 'Gold-Doppel' : 'Golden Combo')}</span>
                                                     <span className="chip-count">{goldenCombo.totalOdds}</span>
                                                 </button>
                                             )}
@@ -5886,7 +5956,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <div className="opps-ctrl-group">
                                                 <span className="opps-ctrl-title">
                                                     <span>⏱️</span>
-                                                    <span>{lang === 'tr' ? 'İvme:' : 'Momentum:'}</span>
+                                                    <span>{lang === 'tr' ? 'İvme:' : (lang === 'de' ? 'Dynamik:' : 'Momentum:')}</span>
                                                 </span>
                                                 <div className="opps-segmented-bar">
                                                     {[5, 10, 20].map(m => (
@@ -5906,7 +5976,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <div className="opps-ctrl-group">
                                                 <span className="opps-ctrl-title">
                                                     <span>🎯</span>
-                                                    <span>{lang === 'tr' ? 'Limit:' : 'Limit:'}</span>
+                                                    <span>{lang === 'tr' ? 'Limit:' : (lang === 'de' ? 'Limit:' : 'Limit:')}</span>
                                                 </span>
                                                 <div className="opps-segmented-bar">
                                                     {[5, 10, 'ALL'].map(limit => (
@@ -5916,7 +5986,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             onClick={(e) => { e.stopPropagation(); setLiveOpportunitiesLimit(limit); }}
                                                             className={`opps-segment-btn ${liveOpportunitiesLimit === limit ? 'active' : ''}`}
                                                         >
-                                                            {limit === 'ALL' ? (lang === 'tr' ? 'TÜMÜ' : 'ALL') : `TOP ${limit}`}
+                                                            {limit === 'ALL' ? (lang === 'tr' ? 'TÜMÜ' : (lang === 'de' ? 'ALLE' : 'ALL')) : `TOP ${limit}`}
                                                         </button>
                                                     ))}
                                                 </div>
@@ -5933,17 +6003,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     <div className="golden-combo-text-block">
                                                         <div className="golden-combo-title-row">
                                                             <span className="golden-combo-main-title">
-                                                                {lang === 'tr' ? 'GÜNÜN CANLI ALTIN İKİLİSİ' : 'LIVE GOLDEN DOUBLE'}
+                                                                {lang === 'tr' ? 'GÜNÜN CANLI ALTIN İKİLİSİ' : (lang === 'de' ? 'LIVE-GOLD-DOPPEL DES TAGES' : 'LIVE GOLDEN DOUBLE')}
                                                             </span>
                                                             <span className="golden-combo-vtag">
-                                                                {lang === 'tr' ? 'KUPON SİHİRBAZI v4.0' : 'COMBO WIZARD v4.0'}
+                                                                {lang === 'tr' ? 'KUPON SİHİRBAZI v4.0' : (lang === 'de' ? 'WETTSCHEIN-ASSISTENT v4.0' : 'COMBO WIZARD v4.0')}
                                                             </span>
                                                         </div>
                                                         <div className="golden-combo-desc">
-                                                            {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : 'Algorithmic 2-leg combo combining the highest conviction opportunities'}
+                                                            {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : (lang === 'de' ? 'Institutionelle Kombination der 2 aussichtsreichsten korrelierten Live-Chancen' : 'Algorithmic 2-leg combo combining the highest conviction opportunities')}
                                                         </div>
                                                         <div className="golden-combo-disclaimer">
-                                                            ℹ️ {lang === 'tr' ? 'Olasılık bazlı algoritmik analiz modelidir. Kesin kazanç garantisi içermez, yatırım tavsiyesi değildir.' : 'Algorithmic probability model. Does not guarantee winnings.'}
+                                                            ℹ️ {lang === 'tr' ? 'Olasılık bazlı algoritmik analiz modelidir. Kesin kazanç garantisi içermez, yatırım tavsiyesi değildir.' : (lang === 'de' ? 'Wahrscheinlichkeitsbasiertes algorithmisches Modell. Keine Gewinngarantie, keine Anlageberatung.' : 'Algorithmic probability model. Does not guarantee winnings.')}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -5951,7 +6021,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 <div className="golden-combo-hero-right">
                                                     <div className="golden-combo-conf-box">
                                                         <div className="golden-combo-conf-lbl">
-                                                            {lang === 'tr' ? 'SİSTEM GÜVENİ' : 'CONVICTION'}
+                                                            {lang === 'tr' ? 'SİSTEM GÜVENİ' : (lang === 'de' ? 'SYSTEM-KONFIDENZ' : 'CONVICTION')}
                                                         </div>
                                                         <div className="golden-combo-conf-val">
                                                             %{goldenCombo.averageConfidence}
@@ -5959,7 +6029,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     </div>
                                                     <div className="golden-combo-odds-badge">
                                                         <span className="golden-combo-odds-lbl">
-                                                            {lang === 'tr' ? 'TOPLAM ORAN' : 'TOTAL ODDS'}
+                                                            {lang === 'tr' ? 'TOPLAM ORAN' : (lang === 'de' ? 'GESAMTQUOTE' : 'TOTAL ODDS')}
                                                         </span>
                                                         <span className="golden-combo-odds-val">{goldenCombo.totalOdds}</span>
                                                     </div>
@@ -5975,7 +6045,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 {pick.matchTitle}
                                                             </div>
                                                             <div className="golden-pick-meta">
-                                                                {renderMatchMinute(pick.minute, t, false)} • {lang === 'tr' ? 'Skor' : 'Score'}: {pick.score} • {pick.league}
+                                                                {renderMatchMinute(pick.minute, t, false)} • {lang === 'tr' ? 'Skor' : (lang === 'de' ? 'Stand' : 'Score')}: {pick.score} • {pick.league}
                                                             </div>
                                                             <div className="golden-pick-market">
                                                                 🎯 {pick.market}
@@ -5986,7 +6056,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 {pick.odds}
                                                             </div>
                                                             <div className="golden-pick-conf">
-                                                                %{pick.confidence} {lang === 'tr' ? 'Güven' : 'Conviction'}
+                                                                %{pick.confidence} {lang === 'tr' ? 'Güven' : (lang === 'de' ? 'Konfidenz' : 'Conviction')}
                                                             </div>
                                                         </div>
                                                     </div>
@@ -6006,8 +6076,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         <span>{isSendingGoldenCombo ? '⏳' : '✈️'}</span>
                                                         <span>
                                                             {isSendingGoldenCombo 
-                                                                ? (lang === 'tr' ? 'VIP Gruba İletiliyor...' : 'Sending to VIP...') 
-                                                                : (lang === 'tr' ? 'VIP Gruba İlet' : 'Share to VIP')}
+                                                                ? (lang === 'tr' ? 'VIP Gruba İletiliyor...' : (lang === 'de' ? 'Wird an VIP-Gruppe gesendet...' : 'Sending to VIP...')) 
+                                                                : (lang === 'tr' ? 'VIP Gruba İlet' : (lang === 'de' ? 'An VIP-Gruppe senden' : 'Share to VIP'))}
                                                         </span>
                                                     </button>
                                                 </div>
@@ -6041,7 +6111,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     <div className="opps-section-badge ready">
                                                         <span className="opps-badge-dot" />
                                                         <span className="opps-badge-title">
-                                                            {lang === 'tr' ? 'CANLI ANALİZ HAZIR' : 'LIVE ANALYSIS READY'}
+                                                            {lang === 'tr' ? 'CANLI ANALİZ HAZIR' : (lang === 'de' ? 'LIVE-ANALYSE BEREIT' : 'LIVE ANALYSIS READY')}
                                                         </span>
                                                         <span className="opps-badge-count">{displayedReady.length}</span>
                                                     </div>
@@ -6059,7 +6129,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             fontSize: '0.85rem',
                                                             opacity: 0.5
                                                         }}>
-                                                            {lang === 'tr' ? 'Seçili filtreye uygun canlı maç bulunamadı.' : 'No live matches match this filter.'}
+                                                            {lang === 'tr' ? 'Seçili filtreye uygun canlı maç bulunamadı.' : (lang === 'de' ? 'Keine Live-Spiele für diesen Filter gefunden.' : 'No live matches match this filter.')}
                                                         </div>
                                                     )}
                                                 </div>
@@ -6070,7 +6140,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         <div className="opps-section-badge pending">
                                                             <span className="opps-badge-icon">⏳</span>
                                                             <span className="opps-badge-title">
-                                                                {lang === 'tr' ? 'CANLI VERİ BEKLENİYOR (RADAR AKTİF)' : 'WAITING FOR LIVE DATA (RADAR ACTIVE)'}
+                                                                {lang === 'tr' ? 'CANLI VERİ BEKLENİYOR (RADAR AKTİF)' : (lang === 'de' ? 'WARTE AUF LIVE-DATEN (RADAR AKTIV)' : 'WAITING FOR LIVE DATA (RADAR ACTIVE)')}
                                                             </span>
                                                             <span className="opps-badge-count">{displayedPending.length}</span>
                                                         </div>
@@ -6101,7 +6171,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <span style={{ fontSize: '1.4rem' }}>⚽</span>
                                 <h2 style={{ fontSize: '1.3rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
-                                    {lang === 'tr' ? 'CANLI MAÇLAR' : 'LIVE MATCHES'}
+                                    {lang === 'tr' ? 'CANLI MAÇLAR' : (lang === 'de' ? 'LIVE-SPIELE' : 'LIVE MATCHES')}
                                 </h2>
                                 <span style={{
                                     background: 'rgba(16, 185, 129, 0.15)',
@@ -6112,11 +6182,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     fontSize: '0.75rem',
                                     fontWeight: 900
                                 }}>
-                                    {matches.filter(filterByTier).length} {lang === 'tr' ? 'Maç' : 'Matches'}
+                                    {matches.filter(filterByTier).length} {lang === 'tr' ? 'Maç' : (lang === 'de' ? 'Spiele' : 'Matches')}
                                 </span>
                             </div>
                             <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                {activeTierFilter === 'ALL' ? (lang === 'tr' ? 'Tüm Kademeler' : 'All Tiers') : `Tier ${activeTierFilter}`}
+                                {activeTierFilter === 'ALL' ? (lang === 'tr' ? 'Tüm Kademeler' : (lang === 'de' ? 'Alle Stufen' : 'All Tiers')) : `Tier ${activeTierFilter}`}
                             </span>
                         </div>
 
@@ -6125,7 +6195,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {matches.filter(filterByTier).length === 0 ? (
                                 <div className="no-matches-mobile glass-panel">
                                     <span>📡</span>
-                                    <p>{lang === 'tr' ? 'Bu kademede şu anda canlı maç bulunmuyor.' : 'No live matches in this tier currently.'}</p>
+                                    <p>{lang === 'tr' ? 'Bu kademede şu anda canlı maç bulunmuyor.' : (lang === 'de' ? 'In dieser Stufe gibt es derzeit keine Live-Spiele.' : 'No live matches in this tier currently.')}</p>
                                 </div>
                             ) : (
                                 matches.filter(filterByTier).map(m => {
@@ -6166,7 +6236,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             }}
                                                         >
                                                             <span>🔥</span>
-                                                            <span>{isTrendApproved ? (lang === 'tr' ? 'Akıllı Para:' : 'Smart Money:') : isTrendTrap ? (lang === 'tr' ? 'Tuzak:' : 'Trap:') : (lang === 'tr' ? 'Piyasa:' : 'Market:')} {marketPrediction}{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
+                                                            <span>{isTrendApproved ? (lang === 'tr' ? 'Akıllı Para:' : (lang === 'de' ? 'Smart Money:' : 'Smart Money:')) : isTrendTrap ? (lang === 'tr' ? 'Tuzak:' : 'Trap:') : (lang === 'tr' ? 'Piyasa:' : 'Market:')} {marketPrediction}{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
                                                             <span style={{ opacity: 0.8 }}>• {trendingBet.count} K</span>
                                                         </span>
                                                     )}
@@ -6249,10 +6319,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                              {trendingBet && (
                                                                 <span
                                                                     title={isTrendApproved 
-                                                                        ? (lang === 'tr' ? `Akıllı Para: Piyasa tercihi (${marketPrediction}) saha baskısıyla doğrulanıyor.` : `Smart Money: Market pick (${marketPrediction}) verified by pitch pressure.`)
+                                                                        ? (lang === 'tr' ? `Akıllı Para: Piyasa tercihi (${marketPrediction}) saha baskısıyla doğrulanıyor.` : (lang === 'de' ? `Smart Money: Marktprognose (${marketPrediction}) wird durch Spieldruck bestätigt.` : `Smart Money: Market pick (${marketPrediction}) verified by pitch pressure.`))
                                                                         : isTrendTrap
-                                                                        ? (lang === 'tr' ? `Tuzak Uyarısı: Kalabalık piyasada (${marketPrediction}) oynuyor ancak saha verisi yetersiz!` : `Trap Alert: Crowd is betting (${marketPrediction}), but pitch stats do not support it!`)
-                                                                        : (lang === 'tr' ? `Piyasa Akışı: ${marketPrediction} - Son 5 dakikada ${trendingBet.count} kupon.` : `Market Influx: ${marketPrediction} - ${trendingBet.count} bets in last 5m.`)}
+                                                                        ? (lang === 'tr' ? `Tuzak Uyarısı: Kalabalık piyasada (${marketPrediction}) oynuyor ancak saha verisi yetersiz!` : (lang === 'de' ? `Fallen-Warnung: Publikum setzt auf (${marketPrediction}), Spieldaten stützen dies jedoch nicht!` : `Trap Alert: Crowd is betting (${marketPrediction}), but pitch stats do not support it!`))
+                                                                        : (lang === 'tr' ? `Piyasa Akışı: ${marketPrediction} - Son 5 dakikada ${trendingBet.count} kupon.` : (lang === 'de' ? `Marktzufluss: ${marketPrediction} - ${trendingBet.count} Wettscheine in den letzten 5 Minuten.` : `Market Influx: ${marketPrediction} - ${trendingBet.count} bets in last 5m.`))}
                                                                     style={{
                                                                         fontSize: '0.62rem',
                                                                         padding: '0.15rem 0.5rem',
@@ -6267,9 +6337,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     }}
                                                                 >
                                                                     <span>🔥</span>
-                                                                    <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : 'SMART MONEY:') : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : 'TRAP ALERT:') : (lang === 'tr' ? 'PİYASA AKIŞI:' : 'INFLUX:')} <strong style={{ color: '#fff' }}>{marketPrediction}</strong>{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
+                                                                    <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : (lang === 'de' ? 'SMART MONEY:' : 'SMART MONEY:')) : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : 'TRAP ALERT:') : (lang === 'tr' ? 'PİYASA AKIŞI:' : 'INFLUX:')} <strong style={{ color: '#fff' }}>{marketPrediction}</strong>{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
                                                                     <span>•</span>
-                                                                    <span>{trendingBet.count} {lang === 'tr' ? 'Kupon' : 'Bets'}</span>
+                                                                    <span>{trendingBet.count} {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Wettscheine' : 'Bets')}</span>
                                                                 </span>
                                                              )}
                                                         </div>
@@ -6534,7 +6604,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             🔬 {t.tier3_monitor_title}
                                         </h4>
                                         <span style={{ fontSize: '0.65rem', opacity: 0.5, background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '6px' }}>
-                                            {performanceData.length} {lang === 'tr' ? 'lig takipte' : 'leagues tracked'}
+                                            {performanceData.length} {lang === 'tr' ? 'lig takipte' : (lang === 'de' ? 'Ligen überwacht' : 'leagues tracked')}
                                         </span>
                                     </div>
 
@@ -6542,7 +6612,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {promotionCandidates.length > 0 && (
                                         <div style={{ marginBottom: '1.5rem' }}>
                                             <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--success-color)', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                🏆 {lang === 'tr' ? 'YÜKSELTME ADAYLARI' : 'PROMOTION CANDIDATES'} ({promotionCandidates.length})
+                                                🏆 {lang === 'tr' ? 'YÜKSELTME ADAYLARI' : (lang === 'de' ? 'AUFSTIEGSKANDIDATEN' : 'PROMOTION CANDIDATES')} ({promotionCandidates.length})
                                             </div>
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.8rem' }}>
                                                 {promotionCandidates.slice(0, 6).map(item => (
@@ -6573,7 +6643,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             <div style={{ width: `${item.winRate}%`, height: '100%', background: 'var(--success-color)', transition: 'width 0.5s ease' }}></div>
                                                         </div>
                                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', opacity: 0.6 }}>
-                                                            <span>{item.wins}/{item.total} {lang === 'tr' ? 'başarılı' : 'wins'}</span>
+                                                            <span>{item.wins}/{item.total} {lang === 'tr' ? 'başarılı' : (lang === 'de' ? 'erfolgreich' : 'wins')}</span>
                                                             <span style={{ color: 'var(--warning-color)', fontWeight: 700 }}>↑ TIER 2</span>
                                                         </div>
                                                     </div>
@@ -6586,7 +6656,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {regularLeagues.length > 0 && (
                                         <div>
                                             <div style={{ fontSize: '0.65rem', fontWeight: 800, opacity: 0.6, marginBottom: '0.8rem' }}>
-                                                📊 {lang === 'tr' ? 'TAKİPTEKİ DİĞER LİGLER' : 'OTHER TRACKED LEAGUES'}
+                                                📊 {lang === 'tr' ? 'TAKİPTEKİ DİĞER LİGLER' : (lang === 'de' ? 'WEITERE ÜBERWACHTE LIGEN' : 'OTHER TRACKED LEAGUES')}
                                             </div>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                                 {regularLeagues.slice(0, 12).map(item => (
@@ -6612,7 +6682,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 ))}
                                                 {regularLeagues.length > 12 && (
                                                     <div style={{ fontSize: '0.65rem', opacity: 0.4, padding: '0.5rem', alignSelf: 'center' }}>
-                                                        +{regularLeagues.length - 12} {lang === 'tr' ? 'daha' : 'more'}
+                                                        +{regularLeagues.length - 12} {lang === 'tr' ? 'daha' : (lang === 'de' ? 'weitere' : 'more')}
                                                     </div>
                                                 )}
                                             </div>
@@ -6622,7 +6692,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {/* Empty State Info */}
                                     {performanceData.length > 0 && promotionCandidates.length === 0 && (
                                         <div style={{ marginTop: '1rem', fontSize: '0.65rem', opacity: 0.4, fontStyle: 'italic', textAlign: 'center' }}>
-                                            💡 {lang === 'tr' ? '%70+ başarı oranına ulaşan ligler Tier 2\'ye yükseltme adayı olur' : 'Leagues reaching 70%+ success rate become Tier 2 promotion candidates'}
+                                            💡 {lang === 'tr' ? '%70+ başarı oranına ulaşan ligler Tier 2\'ye yükseltme adayı olur' : (lang === 'de' ? 'Ligen mit 70%+ Erfolgsquote qualifizieren sich für Tier 2' : 'Leagues reaching 70%+ success rate become Tier 2 promotion candidates')}
                                         </div>
                                     )}
                                 </div>
@@ -6659,12 +6729,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     </div>
                                     <div>
                                         <div style={{ fontSize: '0.65rem', opacity: 0.5, textTransform: 'uppercase' }}>
-                                            {userProfile?.plan === 'trial' ? (lang === 'tr' ? 'Kalan Süre' : 'Time Remaining') : t.expiry_date}
+                                            {userProfile?.plan === 'trial' ? (lang === 'tr' ? 'Kalan Süre' : (lang === 'de' ? 'Restzeit' : 'Time Remaining')) : t.expiry_date}
                                         </div>
                                         <div style={{ fontWeight: 800, color: userProfile?.plan === 'trial' ? '#38bdf8' : 'inherit' }}>
                                             {userProfile?.plan === 'trial'
-                                                ? (remainingTrialSeconds > 0 ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)}` : (lang === 'tr' ? 'Süre Doldu' : 'Expired'))
-                                                : (userProfile?.subscription_end ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'en-US') : '-')}
+                                                ? (remainingTrialSeconds > 0 ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)}` : (lang === 'tr' ? 'Süre Doldu' : (lang === 'de' ? 'Zeit abgelaufen' : 'Expired')))
+                                                : (userProfile?.subscription_end ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US')) : '-')}
                                         </div>
                                     </div>
                                 </div>
@@ -6718,7 +6788,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 boxShadow: '0 2px 10px rgba(16, 185, 129, 0.25)'
                                             }}
                                         >
-                                            <span>💳</span> {lang === 'tr' ? 'Kredi Kartı ile VIP Satın Al (Shopier)' : 'Pay with Card (Shopier)'}
+                                            <span>💳</span> {lang === 'tr' ? 'Kredi Kartı ile VIP Satın Al (Shopier)' : (lang === 'de' ? 'VIP mit Kreditkarte kaufen (Shopier)' : 'Pay with Card (Shopier)')}
                                         </a>
                                         <button
                                             onClick={() => {
@@ -6861,9 +6931,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                            showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? '#c084fc' :
                                             showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24'
                                 }}>
-                                    {showAlertPopup.recommendation?.edgeType === 'LATENCY' ? (lang === 'tr' ? 'GECİKME ARBİTRAJI' : 'LATENCY ARBITRAGE') :
-                                     showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? (lang === 'tr' ? 'KURUMSAL +EV DEĞER' : '+EV VALUE') :
-                                     `${lang === 'en' ? (showAlertPopup.level === 'ALEV' ? 'FLAME' : showAlertPopup.level === 'SICAK' ? 'HOT' : 'HOT') : (showAlertPopup.level || 'SICAK')} ${lang === 'tr' ? 'FIRSAT' : 'OPPORTUNITY'}`}
+                                    {showAlertPopup.recommendation?.edgeType === 'LATENCY' ? (lang === 'tr' ? 'GECİKME ARBİTRAJI' : (lang === 'de' ? 'LATENZ-ARBITRAGE' : 'LATENCY ARBITRAGE')) :
+                                     showAlertPopup.recommendation?.edgeType === 'PLUS_EV' ? (lang === 'tr' ? 'KURUMSAL +EV DEĞER' : (lang === 'de' ? 'INSTITUTIONELLER +EV VALUE' : '+EV VALUE')) :
+                                     `${lang === 'en' ? (showAlertPopup.level === 'ALEV' ? 'FLAME' : showAlertPopup.level === 'SICAK' ? 'HOT' : 'HOT') : (showAlertPopup.level || 'SICAK')} ${lang === 'tr' ? 'FIRSAT' : (lang === 'de' ? 'CHANCE' : 'OPPORTUNITY')}`}
                                 </span>
                                 <span style={{
                                     fontSize: '0.65rem',
@@ -6873,7 +6943,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     color: '#94a3b8',
                                     fontWeight: 700
                                 }}>
-                                    {showAlertPopup.conditionsMet || 4}/5 {lang === 'tr' ? 'Koşul' : 'Conditions'}
+                                    {showAlertPopup.conditionsMet || 4}/5 {lang === 'tr' ? 'Koşul' : (lang === 'de' ? 'Bedingungen' : 'Conditions')}
                                 </span>
                             </div>
                             <button 
@@ -6894,7 +6964,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 }}
                                 onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(239,68,68,0.3)'; }}
                                 onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-                                title={lang === 'tr' ? "Kapat" : "Close"}
+                                title={lang === 'tr' ? "Kapat" : (lang === 'de' ? "Schließen" : "Close")}
                             >
                                 ✕
                             </button>
@@ -6934,7 +7004,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 )}
                             </div>
                             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-color)' }}>
-                                {renderMatchMinute(showAlertPopup.minute, t, false)} • {lang === 'tr' ? 'Skor:' : 'Score:'} {showAlertPopup.score}
+                                {renderMatchMinute(showAlertPopup.minute, t, false)} • {lang === 'tr' ? 'Skor:' : (lang === 'de' ? 'Stand:' : 'Score:')} {showAlertPopup.score}
                             </div>
                         </div>
 
@@ -6949,7 +7019,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             alignItems: 'center'
                         }}>
                             <div>
-                                <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{lang === 'tr' ? 'ÖNERİLEN PAZAR' : 'SUGGESTED MARKET'}</div>
+                                <div style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{lang === 'tr' ? 'ÖNERİLEN PAZAR' : (lang === 'de' ? 'EMPFOHLENER WETTMARKT' : 'SUGGESTED MARKET')}</div>
                                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#38bdf8' }}>
                                     {showAlertPopup.recommendation?.predictionText ||
                                      (showAlertPopup.recommendation?.marketKey === 'POST_GOAL_COOLDOWN' ? (t.POST_GOAL_COOLDOWN || 'Yeni Gol Oldu (Piyasa Dengeleniyor)') :
@@ -6967,7 +7037,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     fontSize: '0.75rem', 
                                     fontWeight: 900 
                                 }}>
-                                    %{showAlertPopup.recommendation?.confidence || 75} {lang === 'tr' ? 'Güven' : 'Confidence'}
+                                    %{showAlertPopup.recommendation?.confidence || 75} {lang === 'tr' ? 'Güven' : (lang === 'de' ? 'Konfidenz' : 'Confidence')}
                                 </div>
                                 {showAlertPopup.recommendation?.odds && Number(showAlertPopup.recommendation.odds) > 1.05 && (
                                     <div style={{ fontSize: '0.7rem', opacity: 0.7, marginTop: '2px', fontWeight: 800, color: '#fbbf24' }}>
@@ -7079,7 +7149,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.2rem' }}>
                                 <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', margin: 0, fontSize: '1.25rem' }}>
-                                    <span>📊</span> {lang === 'tr' ? 'Sinyal Geçmişi & Tahmin Karnesi' : 'Signal History & Prediction Tracker'}
+                                    <span>📊</span> {lang === 'tr' ? 'Sinyal Geçmişi & Tahmin Karnesi' : (lang === 'de' ? 'Signal-Verlauf & Prognose-Report' : 'Signal History & Prediction Tracker')}
                                 </h2>
                             </div>
 
@@ -7103,7 +7173,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     }}
                                 >
                                     <span>🔔</span>
-                                    <span>{lang === 'tr' ? 'Gelen Sinyal Geçmişi' : 'Smart Alerts History'}</span>
+                                    <span>{lang === 'tr' ? 'Gelen Sinyal Geçmişi' : (lang === 'de' ? 'Verlauf smarter Signale' : 'Smart Alerts History')}</span>
                                     {alertHistoryList.length > 0 && (
                                         <span style={{
                                             background: trackingActiveTab === 'ALERTS' ? 'rgba(0,0,0,0.3)' : '#38bdf8',
@@ -7135,7 +7205,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     }}
                                 >
                                     <span>📈</span>
-                                    <span>{lang === 'tr' ? 'Tahmin & Kasa Karnesi' : 'Prediction & Bankroll Tracker'}</span>
+                                    <span>{lang === 'tr' ? 'Tahmin & Kasa Karnesi' : (lang === 'de' ? 'Prognosen- & Bankroll-Report' : 'Prediction & Bankroll Tracker')}</span>
                                     {trackingStats.total > 0 && (
                                         <span style={{
                                             background: trackingActiveTab === 'BETS' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)',
@@ -7157,23 +7227,23 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {/* Alert Stats Summary */}
                                     <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
                                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'TOPLAM SİNYAL' : 'TOTAL ALERTS'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'TOPLAM SİNYAL' : (lang === 'de' ? 'SIGNALE GESAMT' : 'TOTAL ALERTS')}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--accent-color)' }}>{alertHistoryList.length}</div>
                                         </div>
                                         <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAZANAN' : 'WON'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAZANAN' : (lang === 'de' ? 'GEWONNEN' : 'WON')}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#10b981' }}>
                                                 {alertHistoryList.filter(a => a.status === 'WON').length}
                                             </div>
                                         </div>
                                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAYBEDEN' : 'LOST'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAYBEDEN' : (lang === 'de' ? 'VERLOREN' : 'LOST')}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ef4444' }}>
                                                 {alertHistoryList.filter(a => a.status === 'LOST').length}
                                             </div>
                                         </div>
                                         <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'DEVAM EDEN' : 'PENDING'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'DEVAM EDEN' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')}</div>
                                             <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fbbf24' }}>
                                                 {alertHistoryList.filter(a => a.status === 'PENDING').length}
                                             </div>
@@ -7181,7 +7251,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     </div>
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.8 }}>{lang === 'tr' ? 'Gelen Popup & Bildirim Sinyalleri' : 'Incoming Popup & Notification Signals'}</div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.8 }}>{lang === 'tr' ? 'Gelen Popup & Bildirim Sinyalleri' : (lang === 'de' ? 'Eingehende Popup- & Benachrichtigungssignale' : 'Incoming Popup & Notification Signals')}</div>
                                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                             <button
                                                 onClick={scanFinishedAlerts}
@@ -7199,15 +7269,15 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     alignItems: 'center',
                                                     gap: '4px'
                                                 }}
-                                                title={lang === 'tr' ? "Biten maçların skorlarını canlı sorgula ve sonuçlandır" : "Scan and settle finished matches"}
+                                                title={lang === 'tr' ? "Biten maçların skorlarını canlı sorgula ve sonuçlandır" : (lang === 'de' ? "Ergebnisse beendeter Spiele abfragen und auswerten" : "Scan and settle finished matches")}
                                             >
                                                 <span>{isScanningResults ? '⏳' : '🔄'}</span>
-                                                {isScanningResults ? (lang === 'tr' ? 'Sorgulanıyor...' : 'Scanning...') : (lang === 'tr' ? 'Biten Maçları Sorgula' : 'Settle Finished Matches')}
+                                                {isScanningResults ? (lang === 'tr' ? 'Sorgulanıyor...' : (lang === 'de' ? 'Wird abgefragt...' : 'Scanning...')) : (lang === 'tr' ? 'Biten Maçları Sorgula' : 'Settle Finished Matches')}
                                             </button>
                                             {alertHistoryList.length > 0 && (
                                                 <button
                                                     onClick={() => {
-                                                        if (window.confirm(lang === 'tr' ? 'Tüm sinyal geçmişini temizlemek istediğinize emin misiniz?' : 'Are you sure you want to clear all alert history?')) {
+                                                        if (window.confirm(lang === 'tr' ? 'Tüm sinyal geçmişini temizlemek istediğinize emin misiniz?' : (lang === 'de' ? 'Möchten Sie wirklich den gesamten Signalverlauf löschen?' : 'Are you sure you want to clear all alert history?'))) {
                                                             smartAlertService.clearHistory();
                                                             setAlertHistoryList([]);
                                                         }
@@ -7223,7 +7293,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         cursor: 'pointer'
                                                     }}
                                                 >
-                                                    🗑️ {lang === 'tr' ? 'Geçmişi Temizle' : 'Clear History'}
+                                                    🗑️ {lang === 'tr' ? 'Geçmişi Temizle' : (lang === 'de' ? 'Verlauf leeren' : 'Clear History')}
                                                 </button>
                                             )}
                                         </div>
@@ -7233,7 +7303,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <div style={{ maxHeight: '420px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.7rem', paddingRight: '0.3rem' }}>
                                         {alertHistoryList.map(alert => {
                                             const rec = alert.recommendation || {};
-                                            const betTitle = rec.predictionText || rec.marketLabel || rec.marketKey || (lang === 'tr' ? 'Tahmin' : 'Prediction');
+                                            const betTitle = rec.predictionText || rec.marketLabel || rec.marketKey || (lang === 'tr' ? 'Tahmin' : (lang === 'de' ? 'Prognose' : 'Prediction'));
                                             const timeStr = alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                                             return (
                                                 <div
@@ -7258,7 +7328,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 background: alert.level === 'ALEV' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
                                                                 color: '#fff'
                                                             }}>
-                                                                {alert.level === 'ALEV' ? (lang === 'tr' ? '🔥 ALEV' : '🔥 FLAME') : (lang === 'tr' ? '⚡ SICAK' : '⚡ HOT')}
+                                                                {alert.level === 'ALEV' ? (lang === 'tr' ? '🔥 ALEV' : (lang === 'de' ? '🔥 FEUER' : '🔥 FLAME')) : (lang === 'tr' ? '⚡ SICAK' : '⚡ HOT')}
                                                             </span>
                                                             {(alert.league || alert.leagueName) && (
                                                                 <span style={{
@@ -7308,13 +7378,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         if (liveMatch) {
                                                             if (typeof liveMatch.score === 'string' && liveMatch.score.trim()) {
                                                                 currentScoreStr = liveMatch.score.replace(/\s+/g, '');
+                                                            } else if (liveMatch.score && typeof liveMatch.score === 'object') {
+                                                                currentScoreStr = `${liveMatch.score.home ?? 0}-${liveMatch.score.away ?? 0}`;
                                                             } else if (liveMatch.homeScore !== undefined && liveMatch.awayScore !== undefined) {
-                                                                currentScoreStr = `${liveMatch.homeScore}-${liveMatch.awayScore}`;
+                                                                currentScoreStr = `${liveMatch.homeScore?.current ?? liveMatch.homeScore ?? 0}-${liveMatch.awayScore?.current ?? liveMatch.awayScore ?? 0}`;
                                                             }
                                                             currentMinuteStr = renderMatchMinute(liveMatch.minute, t, false);
                                                             if (liveMatch.isFinished || liveMatch.minute === 'MS' || liveMatch.minute === 'FT') {
                                                                 isFinished = true;
                                                             }
+                                                        }
+
+                                                        // If alert is already resolved, fallback currentScoreStr to initialScoreStr if finalScore was missing
+                                                        if (isFinished && !currentScoreStr) {
+                                                            currentScoreStr = initialScoreStr;
                                                         }
 
                                                         return (
@@ -7334,7 +7411,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         }}>
                                                                             <span>⏱️ {initialMinute}'</span>
                                                                             <span style={{ opacity: 0.4 }}>|</span>
-                                                                            <span>{lang === 'tr' ? 'Skor:' : 'Score:'} <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : 'at signal'}</span>
+                                                                            <span>{lang === 'tr' ? 'Skor:' : (lang === 'de' ? 'Stand:' : 'Score:')} <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : 'at signal'}</span>
                                                                         </span>
 
                                                                         <span style={{ color: 'var(--accent-color)', fontWeight: 900, fontSize: '0.75rem' }}>➔</span>
@@ -7351,7 +7428,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                                 alignItems: 'center',
                                                                                 gap: '5px'
                                                                             }}>
-                                                                                <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Bitiş:' : '🏁 Final:') : (lang === 'tr' ? '🔴 Canlı Skor:' : '🔴 Live:')}</span>
+                                                                                <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Bitiş:' : (lang === 'de' ? '🏁 Endstand:' : '🏁 Final:')) : (lang === 'tr' ? '🔴 Canlı Skor:' : '🔴 Live:')}</span>
                                                                                 <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
                                                                                 {!isFinished && currentMinuteStr && (
                                                                                     <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
@@ -7362,6 +7439,22 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                                 const elapsedMin = alert.timestamp ? Math.round((Date.now() - alert.timestamp) / 60000) : 0;
                                                                                 const initialMinNum = parseInt(String(initialMinute).replace(/\D/g, '')) || 0;
                                                                                 const matchEnded = elapsedMin >= 45 || (initialMinNum + elapsedMin >= 95);
+
+                                                                                if (isFinished) {
+                                                                                    return (
+                                                                                        <span style={{
+                                                                                            background: 'rgba(16, 185, 129, 0.15)',
+                                                                                            border: '1px solid rgba(16, 185, 129, 0.35)',
+                                                                                            padding: '2px 8px',
+                                                                                            borderRadius: '6px',
+                                                                                            color: '#10b981',
+                                                                                            fontSize: '0.7rem',
+                                                                                            fontWeight: 700
+                                                                                        }}>
+                                                                                            🏁 {lang === 'tr' ? 'Maç Bitti' : (lang === 'de' ? 'Spiel beendet' : 'Match Ended')}
+                                                                                        </span>
+                                                                                    );
+                                                                                }
 
                                                                                 if (matchEnded) {
                                                                                     return (
@@ -7374,7 +7467,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                                             fontSize: '0.7rem',
                                                                                             fontWeight: 700
                                                                                         }}>
-                                                                                            🏁 {lang === 'tr' ? 'Maç Bitti (Sonuç Bekleniyor)' : 'Ended (Awaiting Result)'}
+                                                                                            🏁 {lang === 'tr' ? 'Maç Bitti (Sonuç Bekleniyor)' : (lang === 'de' ? 'Spiel beendet (Warte auf Abrechnung)' : 'Ended (Awaiting Result)')}
                                                                                         </span>
                                                                                     );
                                                                                 }
@@ -7388,7 +7481,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                                         fontSize: '0.7rem',
                                                                                         fontWeight: 700
                                                                                     }}>
-                                                                                        🔴 {lang === 'tr' ? 'Canlı:' : 'Live:'} {initialScoreStr} ({initialMinute}')
+                                                                                        🔴 {lang === 'tr' ? 'Canlı:' : (lang === 'de' ? 'Live:' : 'Live:')} {initialScoreStr} ({initialMinute}')
                                                                                     </span>
                                                                                 );
                                                                             })()
@@ -7400,10 +7493,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 </div>
                                                                 <div style={{ textAlign: 'right' }}>
                                                                     <div style={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
-                                                                        {rec.odds ? `${lang === 'tr' ? 'Oran:' : 'Odds:'} ${Number(rec.odds).toFixed(2)}` : ''}
+                                                                        {rec.odds ? `${lang === 'tr' ? 'Oran:' : (lang === 'de' ? 'Quote:' : 'Odds:')} ${Number(rec.odds).toFixed(2)}` : ''}
                                                                     </div>
                                                                     <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
-                                                                        %{rec.confidence || 75} {lang === 'tr' ? 'Güven' : 'Confidence'}
+                                                                        %{rec.confidence || 75} {lang === 'tr' ? 'Güven' : (lang === 'de' ? 'Konfidenz' : 'Confidence')}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -7416,28 +7509,30 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             {alert.status === 'WON' ? (
                                                                 <span
                                                                     onClick={() => {
-                                                                        smartAlertService.updateAlertResult(alert.id, 'LOST');
+                                                                        const finalScoreToSave = currentScoreStr || initialScoreStr;
+                                                                        smartAlertService.updateAlertResult(alert.id, 'LOST', finalScoreToSave);
                                                                         setAlertHistoryList(smartAlertService.getHistory(50));
                                                                     }}
                                                                     style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                    title={lang === 'tr' ? "Durumu değiştirmek için tıklayın (Kaybetti)" : "Click to toggle (Lost)"}
+                                                                    title={lang === 'tr' ? "Durumu değiştirmek için tıklayın (Kaybetti)" : (lang === 'de' ? "Klicken, um Status zu ändern (Verloren)" : "Click to toggle (Lost)")}
                                                                 >
-                                                                    ✓ {lang === 'tr' ? 'KAZANDI' : 'WON'}
+                                                                    ✓ {lang === 'tr' ? 'KAZANDI' : (lang === 'de' ? 'GEWONNEN' : 'WON')}
                                                                 </span>
                                                             ) : alert.status === 'LOST' ? (
                                                                 <span
                                                                     onClick={() => {
-                                                                        smartAlertService.updateAlertResult(alert.id, 'WON');
+                                                                        const finalScoreToSave = currentScoreStr || initialScoreStr;
+                                                                        smartAlertService.updateAlertResult(alert.id, 'WON', finalScoreToSave);
                                                                         setAlertHistoryList(smartAlertService.getHistory(50));
                                                                     }}
                                                                     style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                    title={lang === 'tr' ? "Durumu değiştirmek için tıklayın (Kazandı)" : "Click to toggle (Won)"}
+                                                                    title={lang === 'tr' ? "Durumu değiştirmek için tıklayın (Kazandı)" : (lang === 'de' ? "Klicken, um Status zu ändern (Gewonnen)" : "Click to toggle (Won)")}
                                                                 >
-                                                                    ✗ {lang === 'tr' ? 'KAYBETTİ' : 'LOST'}
+                                                                    ✗ {lang === 'tr' ? 'KAYBETTİ' : (lang === 'de' ? 'VERLOREN' : 'LOST')}
                                                                 </span>
                                                             ) : (
                                                                 <span style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 800 }}>
-                                                                    ⏳ {lang === 'tr' ? 'DEVAM EDİYOR' : 'IN PROGRESS'}
+                                                                    ⏳ {lang === 'tr' ? 'DEVAM EDİYOR' : (lang === 'de' ? 'LÄUFT' : 'IN PROGRESS')}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -7447,23 +7542,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 <>
                                                                     <button
                                                                         onClick={() => {
-                                                                            smartAlertService.updateAlertResult(alert.id, 'WON');
+                                                                            const finalScoreToSave = currentScoreStr || initialScoreStr;
+                                                                            smartAlertService.updateAlertResult(alert.id, 'WON', finalScoreToSave);
                                                                             setAlertHistoryList(smartAlertService.getHistory(50));
                                                                         }}
                                                                         style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title={lang === 'tr' ? "Kazandı olarak işaretle" : "Mark as won"}
+                                                                        title={lang === 'tr' ? "Kazandı olarak işaretle" : (lang === 'de' ? "Als gewonnen markieren" : "Mark as won")}
                                                                     >
-                                                                        ✓ {lang === 'tr' ? 'Kazandı' : 'Won'}
+                                                                        ✓ {lang === 'tr' ? 'Kazandı' : (lang === 'de' ? 'Gewonnen' : 'Won')}
                                                                     </button>
                                                                     <button
                                                                         onClick={() => {
-                                                                            smartAlertService.updateAlertResult(alert.id, 'LOST');
+                                                                            const finalScoreToSave = currentScoreStr || initialScoreStr;
+                                                                            smartAlertService.updateAlertResult(alert.id, 'LOST', finalScoreToSave);
                                                                             setAlertHistoryList(smartAlertService.getHistory(50));
                                                                         }}
                                                                         style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title={lang === 'tr' ? "Kaybetti olarak işaretle" : "Mark as lost"}
+                                                                        title={lang === 'tr' ? "Kaybetti olarak işaretle" : (lang === 'de' ? "Als verloren markieren" : "Mark as lost")}
                                                                     >
-                                                                        ✗ {lang === 'tr' ? 'Kaybetti' : 'Lost'}
+                                                                        ✗ {lang === 'tr' ? 'Kaybetti' : (lang === 'de' ? 'Verloren' : 'Lost')}
                                                                     </button>
                                                                 </>
                                                             )}
@@ -7490,7 +7587,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         source: 'ALERT'
                                                                     });
                                                                     setTrackingStats(predictionTracker.getStats());
-                                                                    alert(lang === 'tr' ? 'Tahmin başarıyla karnenize kaydedildi!' : 'Prediction saved to your ledger!');
+                                                                    alert(lang === 'tr' ? 'Tahmin başarıyla karnenize kaydedildi!' : (lang === 'de' ? 'Prognose erfolgreich im Report gespeichert!' : 'Prediction saved to your ledger!'));
                                                                 }}
                                                                 style={{
                                                                     background: 'rgba(56, 189, 248, 0.1)',
@@ -7502,9 +7599,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     fontWeight: 700,
                                                                     cursor: 'pointer'
                                                                 }}
-                                                                title={lang === 'tr' ? "Bu tahmini kişisel kasa karnene ekle" : "Add this prediction to your ledger"}
+                                                                title={lang === 'tr' ? "Bu tahmini kişisel kasa karnene ekle" : (lang === 'de' ? "Zu persönlicher Bilanz hinzufügen" : "Add this prediction to your ledger")}
                                                             >
-                                                                + {lang === 'tr' ? 'Portföye Ekle' : 'Add to Ledger'}
+                                                                + {lang === 'tr' ? 'Portföye Ekle' : (lang === 'de' ? 'Zur Bilanz' : 'Add to Ledger')}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -7515,8 +7612,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         {alertHistoryList.length === 0 && (
                                             <div style={{ textAlign: 'center', padding: '3rem 1rem', opacity: 0.5 }}>
                                                 <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔔</div>
-                                                <div>{lang === 'tr' ? 'Henüz tetiklenen sinyal bulunmuyor.' : 'No alerts triggered yet.'}</div>
-                                                <div style={{ fontSize: '0.75rem', marginTop: '0.4rem' }}>{lang === 'tr' ? 'Canlı maçlarda yüksek baskı veya xG dominasyonu tespit edildiğinde sinyaller burada listelenecektir.' : 'Alerts will appear here when high pressure or xG dominance is detected in live matches.'}</div>
+                                                <div>{lang === 'tr' ? 'Henüz tetiklenen sinyal bulunmuyor.' : (lang === 'de' ? 'Noch keine Signale ausgelöst.' : 'No alerts triggered yet.')}</div>
+                                                <div style={{ fontSize: '0.75rem', marginTop: '0.4rem' }}>{lang === 'tr' ? 'Canlı maçlarda yüksek baskı veya xG dominasyonu tespit edildiğinde sinyaller burada listelenecektir.' : (lang === 'de' ? 'Signale werden hier gelistet, sobald hoher Spieldruck oder xG-Dominanz erkannt wird.' : 'Alerts will appear here when high pressure or xG dominance is detected in live matches.')}</div>
                                             </div>
                                         )}
                                     </div>
@@ -7529,19 +7626,19 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {/* Summary Stats */}
                                     <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
                                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'TOPLAM' : 'TOTAL'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'TOPLAM' : (lang === 'de' ? 'GESAMT' : 'TOTAL')}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--accent-color)' }}>{trackingStats.total}</div>
                                         </div>
                                         <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'KAZANAN' : 'WON'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'KAZANAN' : (lang === 'de' ? 'GEWONNEN' : 'WON')}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#10b981' }}>{trackingStats.won}</div>
                                         </div>
                                         <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'KAYBEDEN' : 'LOST'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'KAYBEDEN' : (lang === 'de' ? 'VERLOREN' : 'LOST')}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#ef4444' }}>{trackingStats.lost}</div>
                                         </div>
                                         <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'İSABET' : 'ACCURACY'}</div>
+                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.3rem' }}>{lang === 'tr' ? 'İSABET' : (lang === 'de' ? 'TREFFERQUOTE' : 'ACCURACY')}</div>
                                             <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#fbbf24' }}>%{trackingStats.accuracy}</div>
                                         </div>
                                     </div>
@@ -7549,13 +7646,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     {/* By Confidence */}
                                     <div style={{ marginBottom: '2rem' }}>
                                         <h4 style={{ fontSize: '0.85rem', marginBottom: '1rem', opacity: 0.8 }}>
-                                            {lang === 'tr' ? 'Güven Seviyesine Göre' : 'By Confidence Level'}
+                                            {lang === 'tr' ? 'Güven Seviyesine Göre' : (lang === 'de' ? 'Nach Konfidenz-Stufe' : 'By Confidence Level')}
                                         </h4>
                                         <div style={{ display: 'flex', gap: '1rem' }}>
                                             {Object.entries(trackingStats.byConfidence || {}).map(([level, stats]) => (
                                                 <div key={level} style={{ flex: 1, background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '8px' }}>
                                                     <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>
-                                                        {level === 'high' ? (lang === 'tr' ? 'Yüksek (75+)' : 'High (75+)') : level === 'medium' ? (lang === 'tr' ? 'Orta (60-74)' : 'Medium (60-74)') : (lang === 'tr' ? 'Düşük (<60)' : 'Low (<60)')}
+                                                        {level === 'high' ? (lang === 'tr' ? 'Yüksek (75+)' : (lang === 'de' ? 'Hoch (75+)' : 'High (75+)')) : level === 'medium' ? (lang === 'tr' ? 'Orta (60-74)' : 'Medium (60-74)') : (lang === 'tr' ? 'Düşük (<60)' : 'Low (<60)')}
                                                     </div>
                                                     <div style={{ fontWeight: 800, marginTop: '0.3rem' }}>
                                                         {stats.total > 0 ? `${((stats.won / stats.total) * 100).toFixed(0)}%` : '-'}
@@ -7570,12 +7667,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     <div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                                             <h4 style={{ fontSize: '0.85rem', margin: 0, opacity: 0.8 }}>
-                                                {lang === 'tr' ? 'Son Tahminler & Takip Listesi' : 'Recent Predictions & Watchlist'}
+                                                {lang === 'tr' ? 'Son Tahminler & Takip Listesi' : (lang === 'de' ? 'Letzte Prognosen & Beobachtungsliste' : 'Recent Predictions & Watchlist')}
                                             </h4>
                                             {predictionTracker.getRecent(1).length > 0 && (
                                                 <button
                                                     onClick={async () => {
-                                                        if (window.confirm(lang === 'tr' ? 'Tüm tahmin ve kasa karnesini temizlemek istediğinize emin misiniz?' : 'Clear all prediction tracking records?')) {
+                                                        if (window.confirm(lang === 'tr' ? 'Tüm tahmin ve kasa karnesini temizlemek istediğinize emin misiniz?' : (lang === 'de' ? 'Möchten Sie wirklich alle Prognosen und den Bankroll-Report löschen?' : 'Clear all prediction tracking records?'))) {
                                                             await predictionTracker.clearPredictions();
                                                             setTrackingStats(predictionTracker.getStats());
                                                         }
@@ -7593,10 +7690,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         alignItems: 'center',
                                                         gap: '4px'
                                                     }}
-                                                    title={lang === 'tr' ? 'Tüm listeyi temizle' : 'Clear all'}
+                                                    title={lang === 'tr' ? 'Tüm listeyi temizle' : (lang === 'de' ? 'Gesamte Liste leeren' : 'Clear all')}
                                                 >
                                                     <span>🗑️</span>
-                                                    <span>{lang === 'tr' ? 'Karneni Temizle' : 'Clear All'}</span>
+                                                    <span>{lang === 'tr' ? 'Karneni Temizle' : (lang === 'de' ? 'Report leeren' : 'Clear All')}</span>
                                                 </button>
                                             )}
                                         </div>
@@ -7659,7 +7756,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 }}>
                                                                     {initialMinute && <span>⏱️ {initialMinute}'</span>}
                                                                     {initialMinute && <span style={{ opacity: 0.4 }}>|</span>}
-                                                                    <span>{lang === 'tr' ? 'Skor: ' : 'Score: '}<strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : 'at signal'}</span>
+                                                                    <span>{lang === 'tr' ? 'Skor: ' : (lang === 'de' ? 'Stand: ' : 'Score: ')}<strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : 'at signal'}</span>
                                                                 </span>
 
                                                                 <span style={{ color: 'var(--accent-color)', fontWeight: 900, fontSize: '0.75rem' }}>➔</span>
@@ -7676,7 +7773,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         alignItems: 'center',
                                                                         gap: '5px'
                                                                     }}>
-                                                                        <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Sonuç:' : '🏁 Result:') : (lang === 'tr' ? '🔴 Canlı Skor:' : '🔴 Live Score:')}</span>
+                                                                        <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Sonuç:' : (lang === 'de' ? '🏁 Ergebnis:' : '🏁 Result:')) : (lang === 'tr' ? '🔴 Canlı Skor:' : '🔴 Live Score:')}</span>
                                                                         <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
                                                                         {!isFinished && currentMinuteStr && (
                                                                             <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
@@ -7691,7 +7788,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         fontSize: '0.7rem',
                                                                         fontWeight: 700
                                                                     }}>
-                                                                        🔴 {lang === 'tr' ? 'Skor: ' : 'Score: '}{initialScoreStr}
+                                                                        🔴 {lang === 'tr' ? 'Skor: ' : (lang === 'de' ? 'Stand: ' : 'Score: ')}{initialScoreStr}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -7718,7 +7815,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                             setTrackingStats(predictionTracker.getStats());
                                                                         }}
                                                                         style={{ background: '#10b981', color: '#000', border: 'none', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title={lang === 'tr' ? 'Kazandı olarak işaretle' : 'Mark as won'}
+                                                                        title={lang === 'tr' ? 'Kazandı olarak işaretle' : (lang === 'de' ? 'Als gewonnen markieren' : 'Mark as won')}
                                                                     >
                                                                         ✓
                                                                     </button>
@@ -7736,7 +7833,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                             setTrackingStats(predictionTracker.getStats());
                                                                         }}
                                                                         style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '0.35rem 0.65rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800, cursor: 'pointer' }}
-                                                                        title={lang === 'tr' ? 'Kaybetti olarak işaretle' : 'Mark as lost'}
+                                                                        title={lang === 'tr' ? 'Kaybetti olarak işaretle' : (lang === 'de' ? 'Als verloren markieren' : 'Mark as lost')}
                                                                     >
                                                                         ✗
                                                                     </button>
@@ -7745,7 +7842,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 <button
                                                                     type="button"
                                                                     onClick={async () => {
-                                                                        if (window.confirm(lang === 'tr' ? 'Bu maçı tekrar "DEVAM EDİYOR" durumuna geri almak istiyor musunuz?' : 'Reset this match back to PENDING?')) {
+                                                                        if (window.confirm(lang === 'tr' ? 'Bu maçı tekrar "DEVAM EDİYOR" durumuna geri almak istiyor musunuz?' : (lang === 'de' ? 'Möchten Sie dieses Spiel wieder auf \'LAUFEND\' zurücksetzen?' : 'Reset this match back to PENDING?'))) {
                                                                             await predictionTracker.updateResult(pred.id, 'PENDING', null);
                                                                             setTrackingStats(predictionTracker.getStats());
                                                                         }
@@ -7760,9 +7857,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                         color: pred.status === 'WON' ? '#10b981' : '#ef4444',
                                                                         cursor: 'pointer'
                                                                     }}
-                                                                    title={lang === 'tr' ? 'Yanlış tıkladıysanız geri almak (Devam Ediyor yapmak) için tıklayın' : 'Click to undo back to Pending'}
+                                                                    title={lang === 'tr' ? 'Yanlış tıkladıysanız geri almak (Devam Ediyor yapmak) için tıklayın' : (lang === 'de' ? 'Klicken, um zurück auf \'Laufend\' zu setzen' : 'Click to undo back to Pending')}
                                                                 >
-                                                                    {pred.status === 'WON' ? (lang === 'tr' ? '✓ KAZANDI ↺' : '✓ WON ↺') : (lang === 'tr' ? '✗ KAYBETTİ ↺' : '✗ LOST ↺')}
+                                                                    {pred.status === 'WON' ? (lang === 'tr' ? '✓ KAZANDI ↺' : (lang === 'de' ? '✓ GEWONNEN ↺' : '✓ WON ↺')) : (lang === 'tr' ? '✗ KAYBETTİ ↺' : '✗ LOST ↺')}
                                                                 </button>
                                                             )}
 
@@ -7770,7 +7867,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             <button
                                                                 onClick={async (e) => {
                                                                     e.stopPropagation();
-                                                                    if (window.confirm(lang === 'tr' ? 'Bu tahmini listeden silmek istediğinize emin misiniz?' : 'Delete this prediction?')) {
+                                                                    if (window.confirm(lang === 'tr' ? 'Bu tahmini listeden silmek istediğinize emin misiniz?' : (lang === 'de' ? 'Möchten Sie diese Prognose wirklich löschen?' : 'Delete this prediction?'))) {
                                                                         await predictionTracker.deletePrediction(pred.id);
                                                                         setTrackingStats(predictionTracker.getStats());
                                                                     }
@@ -7783,7 +7880,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                     cursor: 'pointer',
                                                                     padding: '2px 4px'
                                                                 }}
-                                                                title={lang === 'tr' ? 'Bu kaydı sil' : 'Delete record'}
+                                                                title={lang === 'tr' ? 'Bu kaydı sil' : (lang === 'de' ? 'Eintrag löschen' : 'Delete record')}
                                                             >
                                                                 🗑️
                                                             </button>
@@ -7793,7 +7890,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             })}
                                             {predictionTracker.getRecent(20).length === 0 && (
                                                 <div style={{ textAlign: 'center', padding: '2rem', opacity: 0.5 }}>
-                                                    {lang === 'tr' ? 'Henüz kayıtlı tahmin yok' : 'No recorded predictions yet'}
+                                                    {lang === 'tr' ? 'Henüz kayıtlı tahmin yok' : (lang === 'de' ? 'Noch keine gespeicherten Prognosen' : 'No recorded predictions yet')}
                                                 </div>
                                             )}
                                         </div>
@@ -7835,7 +7932,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     justifyContent: 'center',
                     zIndex: 1000
                 }}
-                title={lang === 'tr' ? 'Tahmin Performansı' : 'Prediction Performance'}
+                title={lang === 'tr' ? 'Tahmin Performansı' : (lang === 'de' ? 'Prognosen-Performance' : 'Prediction Performance')}
             >
                 📊
             </button>
@@ -7863,7 +7960,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         fontWeight: 900,
                         fontSize: '0.7rem'
                     }}>
-                        {t.badge_18_plus || (lang === 'tr' ? '🔞 18+ Yasal Yaş Sınırı' : '🔞 18+ Age Restriction')}
+                        {t.badge_18_plus || (lang === 'tr' ? '🔞 18+ Yasal Yaş Sınırı' : (lang === 'de' ? '🔞 18+ Gesetzliches Mindestalter' : '🔞 18+ Age Restriction'))}
                     </span>
                     <span style={{
                         background: 'rgba(56, 189, 248, 0.1)',
@@ -7874,7 +7971,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        {t.badge_responsible || (lang === 'tr' ? '🛡️ Sorumlu Analiz' : '🛡️ Responsible Analytics')}
+                        {t.badge_responsible || (lang === 'tr' ? '🛡️ Sorumlu Analiz' : (lang === 'de' ? '🛡️ Verantwortungsbewusste Analyse' : '🛡️ Responsible Analytics'))}
                     </span>
                     <span style={{
                         background: 'rgba(16, 185, 129, 0.1)',
@@ -7885,7 +7982,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        {t.badge_statutory_compliance || (lang === 'tr' ? '⚖️ 7258 Sayılı Kanun Uyumlu' : '⚖️ Strict Regulatory Compliance')}
+                        {t.badge_statutory_compliance || (lang === 'tr' ? '⚖️ 7258 Sayılı Kanun Uyumlu' : (lang === 'de' ? '⚖️ Gesetzlich konform & reguliert' : '⚖️ Strict Regulatory Compliance'))}
                     </span>
                 </div>
                 <div style={{ maxWidth: '850px', margin: '0 auto 0.8rem', color: '#64748b' }}>
@@ -7907,7 +8004,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             gap: '4px'
                         }}
                     >
-                        ✈️ {lang === 'tr' ? '7/24 Telegram Destek' : '24/7 Telegram Support'}
+                        ✈️ {lang === 'tr' ? '7/24 Telegram Destek' : (lang === 'de' ? '24/7 Telegram-Support' : '24/7 Telegram Support')}
                     </a>
                     <span style={{ opacity: 0.3 }}>|</span>
                     <button
@@ -7941,7 +8038,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     type="button"
                 >
                     <span className="mobile-nav-icon">⚡</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Canlı' : 'Live'}</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Canlı' : (lang === 'de' ? 'Live' : 'Live')}</span>
                     {matches.length > 0 && <span className="mobile-nav-badge">{matches.length}</span>}
                 </button>
                 <button
@@ -7950,7 +8047,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     type="button"
                 >
                     <span className="mobile-nav-icon">🔥</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Trendler' : 'Trends'}</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Trendler' : (lang === 'de' ? 'Trends' : 'Trends')}</span>
                     {(() => {
                         const count = new Set((trendingBets || []).map(b => b.eventId ? String(b.eventId) : `${b.home}_${b.away}`)).size;
                         return count > 0 ? <span className="mobile-nav-badge trending">{count}</span> : null;
@@ -7962,7 +8059,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     type="button"
                 >
                     <span className="mobile-nav-icon">🎯</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Günlük' : 'Daily'}</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Günlük' : (lang === 'de' ? 'Täglich' : 'Daily')}</span>
                 </button>
                 <button
                     className={`mobile-nav-item ${view === 'PORTFOLIO' ? 'active' : ''}`}
@@ -7970,7 +8067,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     type="button"
                 >
                     <span className="mobile-nav-icon">📈</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Portföy' : 'Portfolio'}</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Portföy' : (lang === 'de' ? 'Report' : 'Portfolio')}</span>
                 </button>
                 {(isAdmin || userProfile?.plan === 'admin') && (
                     <button

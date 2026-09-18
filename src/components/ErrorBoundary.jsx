@@ -64,13 +64,15 @@ export class ErrorBoundary extends React.Component {
                         </div>
 
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.75rem', color: '#fff' }}>
-                            {lang === 'tr' ? 'Arayüz Kurtarma Modu (Safe Mode)' : 'Safe Mode (UI Recovery)'}
+                            {lang === 'tr' ? 'Arayüz Kurtarma Modu (Safe Mode)' : (lang === 'de' ? 'UI-Wiederherstellungsmodus (Safe Mode)' : 'Safe Mode (UI Recovery)')}
                         </h2>
 
                         <p style={{ fontSize: '0.9rem', color: '#94a3b8', lineHeight: '1.6', marginBottom: '1.5rem' }}>
                             {lang === 'tr'
                                 ? 'Gelen canlı maç verisi işlenirken beklenmeyen bir render hatası engellendi. Sayfa kilitlenip siyah ekrana düşmek yerine koruma altına alındı.'
-                                : 'An unexpected render error occurred while processing live match data. The interface was protected to prevent an app crash.'}
+                                : (lang === 'de'
+                                    ? 'Ein unerwarteter Renderfehler beim Verarbeiten der Live-Spieldaten wurde abgefangen. Die Benutzeroberfläche wurde geschützt, um einen Absturz zu verhindern.'
+                                    : 'An unexpected render error occurred while processing live match data. The interface was protected to prevent an app crash.')}
                         </p>
 
                         {this.state.error && (
@@ -86,7 +88,7 @@ export class ErrorBoundary extends React.Component {
                                 color: '#f87171',
                                 fontFamily: 'monospace'
                             }}>
-                                <strong>{lang === 'tr' ? 'Hata:' : 'Error:'}</strong> {this.state.error.toString()}
+                                <strong>{lang === 'tr' ? 'Hata:' : (lang === 'de' ? 'Fehler:' : 'Error:')}</strong> {this.state.error.toString()}
                             </div>
                         )}
 
@@ -104,7 +106,7 @@ export class ErrorBoundary extends React.Component {
                                     transition: 'all 0.2s'
                                 }}
                             >
-                                {lang === 'tr' ? '🔄 Durumu Sıfırla' : '🔄 Reset State'}
+                                {lang === 'tr' ? '🔄 Durumu Sıfırla' : (lang === 'de' ? '🔄 Status zurücksetzen' : '🔄 Reset State')}
                             </button>
                             <button
                                 onClick={this.handleReload}
@@ -119,7 +121,7 @@ export class ErrorBoundary extends React.Component {
                                     transition: 'all 0.2s'
                                 }}
                             >
-                                {lang === 'tr' ? '⚡ Sayfayı Yenile' : '⚡ Reload Page'}
+                                {lang === 'tr' ? '⚡ Sayfayı Yenile' : (lang === 'de' ? '⚡ Seite neu laden' : '⚡ Reload Page')}
                             </button>
                         </div>
                     </div>

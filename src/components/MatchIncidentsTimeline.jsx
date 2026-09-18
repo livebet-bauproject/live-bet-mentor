@@ -15,8 +15,8 @@ export const MatchIncidentsTimeline = ({
     loading: propLoading = null
 }) => {
     const matchId = match?.id;
-    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || (lang === 'tr' ? 'Ev Sahibi' : 'Home');
-    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : 'Away');
+    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || (lang === 'tr' ? 'Ev Sahibi' : (lang === 'de' ? 'Heim' : 'Home'));
+    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Auswärts' : 'Away'));
     const homeTeamId = match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
     const awayTeamId = match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
     const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
@@ -88,7 +88,7 @@ export const MatchIncidentsTimeline = ({
                 marginTop: '1rem'
             }}>
                 <span style={{ animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>🌀</span>
-                <span>{lang === 'tr' ? 'Canlı maç olayları yükleniyor...' : 'Loading live match events...'}</span>
+                <span>{lang === 'tr' ? 'Canlı maç olayları yükleniyor...' : (lang === 'de' ? 'Lade Spielereignisse...' : 'Loading live match events...')}</span>
             </div>
         );
     }
@@ -206,7 +206,7 @@ export const MatchIncidentsTimeline = ({
                         color: 'var(--accent-color)',
                         textTransform: 'uppercase'
                     }}>
-                        {lang === 'tr' ? 'MAÇ OLAYLARI & ZAMAN ÇİZELGESİ' : 'MATCH TIMELINE & KEY EVENTS'}
+                        {lang === 'tr' ? 'MAÇ OLAYLARI & ZAMAN ÇİZELGESİ' : (lang === 'de' ? 'SPIELEREIGNISSE & ZEITLEISTE' : 'MATCH TIMELINE & KEY EVENTS')}
                     </span>
                     <span style={{
                         fontSize: '0.6rem',
@@ -235,7 +235,7 @@ export const MatchIncidentsTimeline = ({
                             transition: 'all 0.2s'
                         }}
                     >
-                        {lang === 'tr' ? 'Tümü' : 'All'}
+                        {lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}
                     </button>
                     <button
                         onClick={() => setFilter('KEY')}
@@ -251,7 +251,7 @@ export const MatchIncidentsTimeline = ({
                             transition: 'all 0.2s'
                         }}
                     >
-                        {lang === 'tr' ? 'Goller & Kartlar' : 'Goals & Cards'}
+                        {lang === 'tr' ? 'Goller & Kartlar' : (lang === 'de' ? 'Tore & Karten' : 'Goals & Cards')}
                     </button>
                 </div>
             </div>
@@ -273,10 +273,10 @@ export const MatchIncidentsTimeline = ({
                     // 1. Period Dividers (FT, HT, ET)
                     if (itype === 'period') {
                         const periodLabel = inc.text === 'HT'
-                            ? (lang === 'tr' ? 'DEVRE ARASI (İY)' : 'HALF TIME (HT)')
+                            ? (lang === 'tr' ? 'DEVRE ARASI (İY)' : (lang === 'de' ? 'HALBZEIT (HZ)' : 'HALF TIME (HT)'))
                             : inc.text === 'FT'
-                                ? (lang === 'tr' ? 'MAÇ SONU (MS)' : 'FULL TIME (FT)')
-                                : (inc.text || 'DÖNEM');
+                                ? (lang === 'tr' ? 'MAÇ SONU (MS)' : (lang === 'de' ? 'ENDSTAND (ES)' : 'FULL TIME (FT)'))
+                                : (inc.text || (lang === 'de' ? 'PERIODE' : 'DÖNEM'));
 
                         const scoreDisplay = inc.homeScore !== undefined && inc.awayScore !== undefined
                             ? `${inc.homeScore} - ${inc.awayScore}`
@@ -331,7 +331,7 @@ export const MatchIncidentsTimeline = ({
                                     padding: '2px 0'
                                 }}
                             >
-                                ⏱️ +{inc.length || 1} {lang === 'tr' ? 'dakika uzatma eklendi' : 'minutes added time'}
+                                ⏱️ +{inc.length || 1} {lang === 'tr' ? 'dakika uzatma eklendi' : (lang === 'de' ? 'Minuten Nachspielzeit' : 'minutes added time')}
                             </div>
                         );
                     }
@@ -381,7 +381,7 @@ export const MatchIncidentsTimeline = ({
                                     fontWeight: 900,
                                     color: isGoal ? '#4ade80' : '#94a3b8',
                                     textAlign: 'left'
-                                }}>
+                                    }}>
                                     {minStr}
                                 </div>
                             )}
@@ -421,11 +421,11 @@ export const MatchIncidentsTimeline = ({
                                                 <span style={{ fontSize: '0.6rem', color: '#fbbf24', marginLeft: '4px' }}>(P)</span>
                                             )}
                                             {inc.incidentClass === 'ownGoal' && (
-                                                <span style={{ fontSize: '0.6rem', color: '#f43f5e', marginLeft: '4px' }}>{lang === 'tr' ? '(K.K.)' : '(OG)'}</span>
+                                                <span style={{ fontSize: '0.6rem', color: '#f43f5e', marginLeft: '4px' }}>{lang === 'tr' ? '(K.K.)' : (lang === 'de' ? '(ET)' : '(OG)')}</span>
                                             )}
                                             {assistName && (
                                                 <div style={{ fontSize: '0.6rem', color: '#94a3b8', opacity: 0.8 }}>
-                                                    {lang === 'tr' ? 'Asist:' : 'Assist:'} {assistName}
+                                                    {lang === 'tr' ? 'Asist:' : (lang === 'de' ? 'Vorlage:' : 'Assist:')} {assistName}
                                                 </div>
                                             )}
                                         </div>

@@ -1105,7 +1105,7 @@ class LiveOpportunityScorer {
         const parseSanitizedOdds = (val) => {
             if (!val) return null;
             const n = parseFloat(val);
-            return (!isNaN(n) && n >= 1.10 && n <= 3.50) ? n : null;
+            return (!isNaN(n) && n >= 1.35 && n <= 4.50) ? n : null;
         };
 
         const liveHomeOdds = parseSanitizedOdds(oddsInfo?.nextGoalHome) || (goalDiff >= 1 ? parseSanitizedOdds(oddsInfo?.home) : null);
@@ -1133,16 +1133,23 @@ class LiveOpportunityScorer {
             }
             if (isHomeDominant) {
                 if (goalDiff >= 0) {
-                    return { marketKey: 'HOME_WIN_NEXT', confidence: 70, team: match.homeTeam, odds: liveHomeOdds };
+                    if (liveHomeOdds && liveHomeOdds >= 1.35) {
+                        return { marketKey: 'HOME_WIN_NEXT', confidence: 70, team: match.homeTeam, odds: liveHomeOdds, label: `${match.homeTeam} Maç Sonu Galibiyeti (MS 1)` };
+                    }
+                    return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Oran Değersiz (Pas)' };
                 } else {
-                    return { marketKey: 'HOME_NEXT_GOAL', confidence: 65, team: match.homeTeam, odds: liveHomeOdds };
+                    // Late game trailing team chasing next goal has excessive risk of counter-blow
+                    return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Geç Dakika / Riskli (Pas)' };
                 }
             }
             if (isAwayDominant) {
                 if (goalDiff <= 0) {
-                    return { marketKey: 'AWAY_WIN_NEXT', confidence: 70, team: match.awayTeam, odds: liveAwayOdds };
+                    if (liveAwayOdds && liveAwayOdds >= 1.35) {
+                        return { marketKey: 'AWAY_WIN_NEXT', confidence: 70, team: match.awayTeam, odds: liveAwayOdds, label: `${match.awayTeam} Maç Sonu Galibiyeti (MS 2)` };
+                    }
+                    return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Oran Değersiz (Pas)' };
                 } else {
-                    return { marketKey: 'AWAY_NEXT_GOAL', confidence: 65, team: match.awayTeam, odds: liveAwayOdds };
+                    return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Geç Dakika / Riskli (Pas)' };
                 }
             }
             return { marketKey: 'STABLE_GAME', confidence: 60 };
@@ -1162,14 +1169,16 @@ class LiveOpportunityScorer {
             if (isHomeDominant) {
                 // REHAVET & BLOWOUT VETO: 2+ farkla önde olan takıma (örn 4-1, 3-0) ASLA Sıradaki Gol verilmez!
                 if (goalDiff >= 2) {
-                    return { marketKey: 'HOME_WIN_NEXT', confidence: 75, team: match.homeTeam, odds: liveHomeOdds, label: `${match.homeTeam} Kontrol Ediyor` };
+                    if (liveHomeOdds && liveHomeOdds >= 1.35) {
+                        return { marketKey: 'HOME_WIN_NEXT', confidence: 75, team: match.homeTeam, odds: liveHomeOdds, label: `${match.homeTeam} Maç Sonu Galibiyeti (MS 1)` };
+                    }
+                    return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Maç Kopmuş / Oran Düşük' };
                 }
                 if (goalDiff === 1) {
                     if (minute >= 65) {
-                        return { marketKey: 'HOME_WIN_NEXT', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
-                    }
-                    if (liveHomeOdds && liveHomeOdds < 1.40) {
-                        return { marketKey: 'HOME_WIN_NEXT', confidence: 70, team: match.homeTeam, odds: liveHomeOdds };
+                        if (liveHomeOdds && liveHomeOdds >= 1.35) {
+                            return { marketKey: 'HOME_WIN_NEXT', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds, label: `${match.homeTeam} Maç Sonu Galibiyeti (MS 1)` };
+                        }
                     }
                     return { marketKey: 'HOME_NEXT_GOAL', confidence: homeConfidence, team: match.homeTeam, odds: liveHomeOdds };
                 }
@@ -1181,14 +1190,16 @@ class LiveOpportunityScorer {
             if (isAwayDominant) {
                 // REHAVET & BLOWOUT VETO: Deplasman 2+ farkla öndeyse Sıradaki Gol verilmez!
                 if (goalDiff <= -2) {
-                    return { marketKey: 'AWAY_WIN_NEXT', confidence: 75, team: match.awayTeam, odds: liveAwayOdds, label: `${match.awayTeam} Kontrol Ediyor` };
+                    if (liveAwayOdds && liveAwayOdds >= 1.35) {
+                        return { marketKey: 'AWAY_WIN_NEXT', confidence: 75, team: match.awayTeam, odds: liveAwayOdds, label: `${match.awayTeam} Maç Sonu Galibiyeti (MS 2)` };
+                    }
+                    return { marketKey: 'STABLE_GAME', confidence: 55, label: 'Maç Kopmuş / Oran Düşük' };
                 }
                 if (goalDiff === -1) {
                     if (minute >= 65) {
-                        return { marketKey: 'AWAY_WIN_NEXT', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
-                    }
-                    if (liveAwayOdds && liveAwayOdds < 1.40) {
-                        return { marketKey: 'AWAY_WIN_NEXT', confidence: 70, team: match.awayTeam, odds: liveAwayOdds };
+                        if (liveAwayOdds && liveAwayOdds >= 1.35) {
+                            return { marketKey: 'AWAY_WIN_NEXT', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds, label: `${match.awayTeam} Maç Sonu Galibiyeti (MS 2)` };
+                        }
                     }
                     return { marketKey: 'AWAY_NEXT_GOAL', confidence: awayConfidence, team: match.awayTeam, odds: liveAwayOdds };
                 }

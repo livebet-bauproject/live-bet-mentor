@@ -744,14 +744,14 @@ export const formatMarketPrediction = (bet, lang = 'tr') => {
     const marketShort = (bet.marketShort || '').trim().toLowerCase();
     const oLower = outcome.toLowerCase();
 
-    // 1. Next Goal / Sıradaki Gol
+    // 1. Next Goal / Sıradaki Gol / Nächstes Tor
     const isNextGoal = marketShort === 'next-point' || market.includes('next') || market.includes('nächste') || market.includes('sıradaki');
     if (isNextGoal) {
         const isNoGoal = oLower === 'draw' || oLower === 'unentschieden' || oLower === 'kein tor' || oLower === 'kein' || oLower === 'none' || oLower === 'x' || oLower === 'no goal' || oLower.includes('kein tor');
         if (isNoGoal) {
-            return lang === 'tr' ? 'Sıradaki Gol: Yok' : 'Next Goal: None';
+            return lang === 'tr' ? 'Sıradaki Gol: Yok' : (lang === 'de' ? 'Nächstes Tor: Keines' : 'Next Goal: None');
         }
-        return lang === 'tr' ? `Sıradaki Gol: ${outcome}` : `Next Goal: ${outcome}`;
+        return lang === 'tr' ? `Sıradaki Gol: ${outcome}` : (lang === 'de' ? `Nächstes Tor: ${outcome}` : `Next Goal: ${outcome}`);
     }
 
     // 2. Rest of Match Over/Under
@@ -761,33 +761,33 @@ export const formatMarketPrediction = (bet, lang = 'tr') => {
     const matchOver = outcome.match(/^(?:über|over)\s*(\d+[,.]?\d*)/i);
     if (matchOver) {
         const num = matchOver[1].replace(',', '.');
-        if (isRest) return lang === 'tr' ? `Kalan ${num} Üst` : `Rest ${num} Over`;
-        return `${num} ${lang === 'tr' ? 'Üst' : 'Over'}`;
+        if (isRest) return lang === 'tr' ? `Kalan ${num} Üst` : (lang === 'de' ? `Rest ${num} Über` : `Rest ${num} Over`);
+        return `${num} ${lang === 'tr' ? 'Üst' : (lang === 'de' ? 'Über' : 'Over')}`;
     }
 
     // 4. Under / Unter
     const matchUnder = outcome.match(/^(?:unter|under)\s*(\d+[,.]?\d*)/i);
     if (matchUnder) {
         const num = matchUnder[1].replace(',', '.');
-        if (isRest) return lang === 'tr' ? `Kalan ${num} Alt` : `Rest ${num} Under`;
-        return `${num} ${lang === 'tr' ? 'Alt' : 'Under'}`;
+        if (isRest) return lang === 'tr' ? `Kalan ${num} Alt` : (lang === 'de' ? `Rest ${num} Unter` : `Rest ${num} Under`);
+        return `${num} ${lang === 'tr' ? 'Alt' : (lang === 'de' ? 'Unter' : 'Under')}`;
     }
 
     // 5. 1X2 & Match Result terms
     if (oLower === 'unentschieden' || oLower === 'draw' || oLower === 'tie' || oLower === 'x') {
-        return lang === 'tr' ? 'Beraberlik (X)' : 'Draw (X)';
+        return lang === 'tr' ? 'Beraberlik (X)' : (lang === 'de' ? 'Unentschieden (X)' : 'Draw (X)');
     }
     if (oLower === 'heimsieg' || oLower === 'home') {
-        return lang === 'tr' ? 'Ev Sahibi (1)' : 'Home (1)';
+        return lang === 'tr' ? 'Ev Sahibi (1)' : (lang === 'de' ? 'Heimsieg (1)' : 'Home (1)');
     }
     if (oLower === 'auswärtssieg' || oLower === 'away') {
-        return lang === 'tr' ? 'Deplasman (2)' : 'Away (2)';
+        return lang === 'tr' ? 'Deplasman (2)' : (lang === 'de' ? 'Auswärtssieg (2)' : 'Away (2)');
     }
     if (oLower === 'ja' || oLower === 'yes') {
-        return lang === 'tr' ? 'KG Var' : 'BTTS Yes';
+        return lang === 'tr' ? 'KG Var' : (lang === 'de' ? 'Beide treffen: Ja' : 'BTTS Yes');
     }
     if (oLower === 'nein' || oLower === 'no') {
-        return lang === 'tr' ? 'KG Yok' : 'BTTS No';
+        return lang === 'tr' ? 'KG Yok' : (lang === 'de' ? 'Beide treffen: Nein' : 'BTTS No');
     }
 
     return outcome;

@@ -158,7 +158,7 @@ Bu verileri 3 uzman departmanın ortak konsensüsü olarak analiz et:
     }
 
     /**
-     * Generate Strategic Gemini Briefing
+     * Generate Strategic Nexus Quant Core Briefing
      */
     async generateBriefing(matches = [], deskSummary = {}) {
         if (!matches || matches.length === 0) {
@@ -168,70 +168,17 @@ Bu verileri 3 uzman departmanın ortak konsensüsü olarak analiz et:
             };
         }
 
-        const apiKey = this.getApiKey();
-
-        // If no API key configured, use high-grade local quant fallback
-        if (!apiKey) {
-            return {
-                mode: 'LOCAL_QUANT_ENGINE',
-                markdown: this.generateLocalBriefing(matches, deskSummary),
-                notice: '💡 Bu rapor Dahili Kuant Motoru tarafından üretildi. Kendi Gemini API anahtarınızı bağlayarak yapay zekâ nöral analizini aktif edebilirsiniz.'
-            };
-        }
-
-        const prompt = this.buildCommitteePrompt(matches, deskSummary);
-
-        try {
-            const fetchMod = (await import('node-fetch')).default;
-            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${this.activeModel}:generateContent?key=${apiKey}`;
-
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    temperature: 0.35, // Low temperature for high quantitative accuracy
-                    maxOutputTokens: 2048
-                }
-            };
-
-            const res = await fetchMod(endpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                timeout: 20000
-            });
-
-            const data = await res.json();
-
-            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-                const text = data.candidates[0].content.parts[0].text;
-                return {
-                    mode: 'GEMINI_AI',
-                    model: this.activeModel,
-                    markdown: text,
-                    timestamp: new Date().toISOString()
-                };
-            } else if (data.error) {
-                console.warn('[GEMINI_BRIDGE] Gemini API error, falling back to local engine:', data.error.message);
-                return {
-                    mode: 'LOCAL_QUANT_ENGINE',
-                    markdown: this.generateLocalBriefing(matches, deskSummary),
-                    notice: `⚠️ Gemini API hatası (${data.error.message}). Otomatik olarak Kuant Algoritmasına geçildi.`
-                };
-            }
-        } catch (e) {
-            console.error('[GEMINI_BRIDGE] Request exception:', e.message);
-        }
-
-        // Fallback to local quant synthesis
+        // 100% Autonomous Institutional Quant Core Engine (Zero external API dependencies)
         return {
-            mode: 'LOCAL_QUANT_ENGINE',
+            mode: 'NEXUS_QUANT_CORE',
             markdown: this.generateLocalBriefing(matches, deskSummary),
-            notice: '⚠️ Gemini sunucusu yanıt vermedi, Kuant Motoru analizleri başarıyla tamamladı.'
+            notice: '💡 Bu brifing Nexus Quant Core™ Otonom Kuant Masası tarafından yerel olarak üretilmiştir.',
+            timestamp: new Date().toISOString()
         };
     }
 
     /**
-     * High-Grade Local Quantitative Synthesis Engine (Fallback)
+     * High-Grade Local Quantitative Synthesis Engine
      */
     generateLocalBriefing(matches, deskSummary) {
         const sorted = [...matches].sort((a, b) => b.evPercent - a.evPercent);
@@ -248,7 +195,7 @@ Bu verileri 3 uzman departmanın ortak konsensüsü olarak analiz et:
         goldenComboOdds = Math.round(goldenComboOdds * 100) / 100;
         const comboEV = Math.round(((goldenComboProb * goldenComboOdds) - 1) * 1000) / 10;
 
-        return `🏛️ **KURUMSAL BAHİS OFİSİ & KUANT MASASI STRATEJİK BRİFİNGİ**
+        return `🏛️ **NEXUS QUANT CORE™ KURUMSAL KUANT MASASI BRİFİNGİ**
 ════════════════════════════════════════════════════════════
 📅 **Tarih / Saat:** ${new Date().toLocaleString('tr-TR')}
 📊 **Piyasa Taraması:** ${deskSummary?.totalScanned || matches.length} Canlı Maç | **Filtreyi Geçen +EV Fırsatlar:** ${matches.length} Adet | **Ortalama EV:** +%${deskSummary?.avgEV || 0}

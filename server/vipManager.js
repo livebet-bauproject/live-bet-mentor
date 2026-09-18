@@ -52,6 +52,17 @@ export class VipManager {
         return this.users[String(chatId)] || null;
     }
 
+    findUserByUsername(username) {
+        if (!username) return null;
+        const clean = String(username).replace(/^@/, '').trim().toLowerCase();
+        for (const [chatId, u] of Object.entries(this.users)) {
+            if (u.username && String(u.username).replace(/^@/, '').trim().toLowerCase() === clean) {
+                return { chatId, ...u };
+            }
+        }
+        return null;
+    }
+
     /**
      * Start a 3-day instant free trial
      */

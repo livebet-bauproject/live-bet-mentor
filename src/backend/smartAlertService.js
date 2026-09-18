@@ -289,9 +289,9 @@ class SmartAlertService {
             } else if (marketKey === 'AWAY_NEXT_GOAL') {
                 marketLabel = `Sıradaki Gol: ${match.awayTeam || 'Deplasman'}`;
             } else if (marketKey === 'HOME_WIN_NEXT') {
-                marketLabel = `${match.homeTeam || 'Ev Sahibi'} Kazanmaya Yakın`;
+                marketLabel = sm.label || `${match.homeTeam || 'Ev Sahibi'} Maç Sonu (MS 1)`;
             } else if (marketKey === 'AWAY_WIN_NEXT') {
-                marketLabel = `${match.awayTeam || 'Deplasman'} Kazanmaya Yakın`;
+                marketLabel = sm.label || `${match.awayTeam || 'Deplasman'} Maç Sonu (MS 2)`;
             } else if (marketKey === 'OVER_NEXT_DYNAMIC') {
                 marketLabel = sm.label || `${sm.target || (totalGoals + 0.5)} Üst Bekleniyor`;
             } else if (marketKey === 'POST_GOAL_COOLDOWN') {
@@ -435,9 +435,9 @@ class SmartAlertService {
         } else if (marketKey === 'market_next_goal_away' || marketKey === 'AWAY_NEXT_GOAL') {
             predictionText = `Sıradaki Golü ${team || match.awayTeam} Atar`;
         } else if (marketKey === 'HOME_WIN_NEXT') {
-            predictionText = `${team || match.homeTeam} Kazanmaya Yakın`;
+            predictionText = `${team || match.homeTeam} Maç Sonu Galibiyeti (MS 1)`;
         } else if (marketKey === 'AWAY_WIN_NEXT') {
-            predictionText = `${team || match.awayTeam} Kazanmaya Yakın`;
+            predictionText = `${team || match.awayTeam} Maç Sonu Galibiyeti (MS 2)`;
         } else if (marketKey === 'OVER_NEXT_DYNAMIC') {
             const target = oppData.suggestedMarket?.target || (totalGoals + 0.5);
             predictionText = `${target} Üst Olur`;
@@ -600,6 +600,37 @@ class SmartAlertService {
 
                 const recommendation = this.generateRecommendation(match, evaluation, signal);
 
+                // STRICT IN-PLAY VALUE & QUALITY GATES:
+                // 1. Never send alert on junk odds (< 1.35)
+                if (recommendation.odds && Number(recommendation.odds) < 1.35) {
+                    this.lastCheckTime[matchId] = now;
+                    return;
+                }
+                // 2. Never send alert on PASS, STABLE_GAME or POST_GOAL_COOLDOWN
+                if (!recommendation.marketKey || recommendation.marketKey === 'STABLE_GAME' || recommendation.marketKey === 'PASS' || recommendation.marketKey === 'POST_GOAL_COOLDOWN') {
+                    this.lastCheckTime[matchId] = now;
+                    return;
+                }
+                // 3. Late Game (75'+) Trailing Team Next Goal Trap Veto:
+                const matchMin = parseInt(match.minute) || 0;
+                if (matchMin >= 75 && (recommendation.marketKey.includes('NEXT_GOAL') || recommendation.marketKey.includes('next_goal'))) {
+                    const isHomeT = recommendation.marketKey.includes('home') || recommendation.marketKey.includes('HOME');
+                    const isAwayT = recommendation.marketKey.includes('away') || recommendation.marketKey.includes('AWAY');
+                    let curH = 0, curA = 0;
+                    if (match.score && typeof match.score === 'object') {
+                        curH = Number(match.score.home ?? 0);
+                        curA = Number(match.score.away ?? 0);
+                    } else if (typeof match.score === 'string' && match.score.includes('-')) {
+                        const parts = match.score.split('-');
+                        curH = parseInt(parts[0]) || 0;
+                        curA = parseInt(parts[1]) || 0;
+                    }
+                    if ((isHomeT && curH < curA) || (isAwayT && curA < curH)) {
+                        this.lastCheckTime[matchId] = now;
+                        return; // Block late-game trailing team chasing next goal trap!
+                    }
+                }
+
                 const alert = {
                     id: `${matchId}_${now}`,
                     matchId,
@@ -674,16 +705,25 @@ class SmartAlertService {
     /**
      * Update alert result after match ends
      */
-    updateAlertResult(alertId, result) {
+    updateAlertResult(alertId, result, finalScore = null) {
         const alert = this.alertHistory.find(a => a.id === alertId);
         if (alert) {
             alert.status = result; // 'WON', 'LOST', 'VOID'
             alert.resolvedAt = Date.now();
+            if (finalScore) {
+                alert.finalScore = typeof finalScore === 'object'
+                    ? `${finalScore.home ?? 0}-${finalScore.away ?? 0}`
+                    : String(finalScore);
+            } else if (!alert.finalScore) {
+                alert.finalScore = typeof alert.score === 'object'
+                    ? `${alert.score.home ?? 0}-${alert.score.away ?? 0}`
+                    : (alert.score || null);
+            }
             try {
                 localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
             } catch (e) {}
             if (this.currentTier === 'admin') {
-                this.sendResolutionToTelegram(alert, result);
+                this.sendResolutionToTelegram(alert, result, alert.finalScore);
             }
         }
     }
@@ -897,6 +937,17 @@ class SmartAlertService {
     reEvaluateFinishedAlerts() {
         let updated = false;
         (this.alertHistory || []).forEach(alert => {
+            // Self-repair: If alert has status WON/LOST but missing finalScore, populate from alert.score
+            if (!alert.finalScore && (alert.status === 'WON' || alert.status === 'LOST')) {
+                if (typeof alert.score === 'object') {
+                    alert.finalScore = `${alert.score?.home ?? 0}-${alert.score?.away ?? 0}`;
+                    updated = true;
+                } else if (typeof alert.score === 'string' && alert.score.includes('-')) {
+                    alert.finalScore = alert.score.replace(/\s+/g, '');
+                    updated = true;
+                }
+            }
+
             if (alert.finalScore && (alert.status === 'WON' || alert.status === 'LOST')) {
                 const parts = alert.finalScore.split('-');
                 const curHome = parseInt(parts[0]) || 0;
@@ -932,9 +983,20 @@ class SmartAlertService {
             const match = matches.find(m => String(m.id) === String(alert.matchId));
             if (!match) return;
 
-            const curHome = Number(match.score?.home ?? match.homeScore?.current ?? 0);
-            const curAway = Number(match.score?.away ?? match.awayScore?.current ?? 0);
-            const isFinished = match.status?.type === 'finished' || match.status?.code === 100 || match.minute === 'MS';
+            let curHome = 0, curAway = 0;
+            if (match.score && typeof match.score === 'object') {
+                curHome = Number(match.score.home ?? 0);
+                curAway = Number(match.score.away ?? 0);
+            } else if (match.homeScore !== undefined || match.awayScore !== undefined) {
+                curHome = Number(match.homeScore?.current ?? match.homeScore ?? 0);
+                curAway = Number(match.awayScore?.current ?? match.awayScore ?? 0);
+            } else if (typeof match.score === 'string' && match.score.includes('-')) {
+                const parts = match.score.split('-');
+                curHome = parseInt(parts[0]) || 0;
+                curAway = parseInt(parts[1]) || 0;
+            }
+
+            const isFinished = match.status?.type === 'finished' || match.status?.code === 100 || match.minute === 'MS' || match.minute === 'FT';
 
             const outcome = this.evaluateAlertStatus(alert, curHome, curAway, isFinished, match.minute);
 
@@ -989,8 +1051,18 @@ class SmartAlertService {
                 const statusCode = ev.status.code;
                 const isFinished = statusType === 'finished' || statusCode === 100 || ev.status.description === 'Ended';
 
-                const curHome = Number(ev.homeScore?.current ?? ev.score?.home ?? 0);
-                const curAway = Number(ev.awayScore?.current ?? ev.score?.away ?? 0);
+                let curHome = 0, curAway = 0;
+                if (ev.score && typeof ev.score === 'object') {
+                    curHome = Number(ev.score.home ?? 0);
+                    curAway = Number(ev.score.away ?? 0);
+                } else if (ev.homeScore !== undefined || ev.awayScore !== undefined) {
+                    curHome = Number(ev.homeScore?.current ?? ev.homeScore ?? 0);
+                    curAway = Number(ev.awayScore?.current ?? ev.awayScore ?? 0);
+                } else if (typeof ev.score === 'string' && ev.score.includes('-')) {
+                    const parts = ev.score.split('-');
+                    curHome = parseInt(parts[0]) || 0;
+                    curAway = parseInt(parts[1]) || 0;
+                }
 
                 const outcome = this.evaluateAlertStatus(alert, curHome, curAway, isFinished, ev.minute);
 

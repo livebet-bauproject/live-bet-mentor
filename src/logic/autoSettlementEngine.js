@@ -76,8 +76,38 @@ export class AutoSettlementEngine {
 
         // 5. Next Goal / Team Dominance (Red Card Advantage, Pressure, Momentum)
         if (marketId.includes('RED_CARD_ADV') || marketId.includes('PRESS') || marketId.includes('MOMENTUM') || marketId.includes('NEXT_GOAL')) {
-            // Did goals increase after bet was placed?
+            const homeName = (match.homeTeam || '').toLowerCase();
+            const awayName = (match.awayTeam || '').toLowerCase();
+            const recTeam = (openEntry.team || openEntry.selection || '').toLowerCase();
+            const rawLabel = (openEntry.market_label || openEntry.label || marketId).toLowerCase();
+
+            let isHomeTarget = false;
+            let isAwayTarget = false;
+
+            if (marketId.includes('HOME') || rawLabel.includes('ev') || rawLabel.includes('home')) isHomeTarget = true;
+            else if (marketId.includes('AWAY') || rawLabel.includes('dep') || rawLabel.includes('away')) isAwayTarget = true;
+            else if (recTeam) {
+                if (homeName && (homeName.includes(recTeam) || recTeam.includes(homeName))) isHomeTarget = true;
+                if (awayName && (awayName.includes(recTeam) || recTeam.includes(awayName))) isAwayTarget = true;
+            }
+
+            const homeScored = ftHome > (scoreAtBet.home || 0);
+            const awayScored = ftAway > (scoreAtBet.away || 0);
+
+            if (isHomeTarget) return homeScored;
+            if (isAwayTarget) return awayScored;
+
+            // Fallback: Did goals increase after bet was placed?
             return ftTotal > totalAtBet;
+        }
+
+        // 6. Match Winner (MS 1 / MS 2 / HOME_WIN / AWAY_WIN)
+        if (marketId.includes('WIN') || marketId.includes('MS 1') || marketId.includes('MS 2') || marketId.includes('FAV_WIN')) {
+            const isHome = marketId.includes('HOME') || marketId.includes('MS 1');
+            const isAway = marketId.includes('AWAY') || marketId.includes('MS 2');
+            if (isHome) return ftHome > ftAway;
+            if (isAway) return ftAway > ftHome;
+            return ftHome > ftAway;
         }
 
         // Default: If at least 1 goal occurred after bet

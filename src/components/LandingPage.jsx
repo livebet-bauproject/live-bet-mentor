@@ -102,7 +102,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
         if (view === 'register' && !agreedToTerms) {
             setError(lang === 'tr' 
                 ? 'Lütfen kullanım koşullarını ve 18+ yaş şartını onaylayınız.' 
-                : 'Please accept the 18+ requirement and Terms of Service.');
+                : (lang === 'de' ? 'Bitte akzeptieren Sie die Nutzungsbedingungen und das Mindestalter von 18 Jahren.' : 'Please accept the 18+ requirement and Terms of Service.'));
             return;
         }
 
@@ -158,14 +158,14 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         if (resData.status === 'pending') {
                             setError(lang === 'tr' 
                                 ? '⏳ Üyeliğiniz onay beklemektedir. Yönetici onayından sonra giriş yapabilirsiniz.' 
-                                : 'Your account is pending admin approval.');
+                                : (lang === 'de' ? '⏳ Ihre Mitgliedschaft wartet auf Freischaltung durch den Administrator.' : 'Your account is pending admin approval.'));
                             setLoading(false);
                             return;
                         }
                         if (resData.status === 'expired') {
                             setError(lang === 'tr' 
                                 ? '📅 Abonelik süreniz dolmuştur. Lütfen üyeliğinizi yenileyin.' 
-                                : 'Subscription has expired.');
+                                : (lang === 'de' ? '📅 Ihr Abonnement ist abgelaufen. Bitte erneuern Sie Ihre Mitgliedschaft.' : 'Subscription has expired.'));
                             setLoading(false);
                             return;
                         }
@@ -217,13 +217,13 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                 } catch (sbErr) {
                     setError(lang === 'tr' 
                         ? 'Giriş yapılamadı: E-posta veya şifre hatalı, ya da sunucuya erişilemiyor.' 
-                        : 'Login failed: Invalid credentials or server unreachable.');
+                        : (lang === 'de' ? 'Anmeldung fehlgeschlagen: Ungültige Anmeldedaten oder Server nicht erreichbar.' : 'Login failed: Invalid credentials or server unreachable.'));
                 }
             } else {
                 if (password.length < 6) {
                     setError(lang === 'tr' 
                         ? 'Şifreniz en az 6 karakter olmalıdır.' 
-                        : 'Password must be at least 6 characters.');
+                        : (lang === 'de' ? 'Das Passwort muss mindestens 6 Zeichen lang sein.' : 'Password must be at least 6 characters.'));
                     setLoading(false);
                     return;
                 }
@@ -277,13 +277,13 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                     console.warn('Backend register failed:', beErr);
                     setError(lang === 'tr'
                         ? 'Doğrulama sunucusuna bağlanılamadı. Lütfen birkaç saniye sonra tekrar deneyiniz.'
-                        : 'Could not connect to authentication server. Please try again.');
+                        : (lang === 'de' ? 'Verbindung zum Authentifizierungsserver fehlgeschlagen. Bitte versuchen Sie es in wenigen Sekunden erneut.' : 'Could not connect to authentication server. Please try again.'));
                     setLoading(false);
                     return;
                 }
             }
         } catch (err) {
-            setError(err.message || (lang === 'tr' ? 'İşlem gerçekleştirilemedi.' : 'Operation failed.'));
+            setError(err.message || (lang === 'tr' ? 'İşlem gerçekleştirilemedi.' : (lang === 'de' ? 'Vorgang fehlgeschlagen.' : 'Operation failed.')));
         } finally {
             setLoading(false);
         }
@@ -362,7 +362,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         }}
                     >
                         <span>✈️</span>
-                        <span className="nav-tg-label">{lang === 'tr' ? 'Telegram Destek' : 'Support'}</span>
+                        <span className="nav-tg-label">{lang === 'tr' ? 'Telegram Destek' : (lang === 'de' ? 'Telegram Support' : 'Support')}</span>
                     </a>
 
                     <div className="landing-lang-switcher" style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', padding: '2px' }}>
@@ -476,15 +476,15 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         fontWeight: 800,
                                         marginBottom: '0.6rem'
                                     }}>
-                                        🔒 {lang === 'tr' ? 'TEK KULLANIMLIK DOĞRULAMA' : 'ONE-TIME VERIFICATION'}
+                                        🔒 {lang === 'tr' ? 'TEK KULLANIMLIK DOĞRULAMA' : (lang === 'de' ? 'EINMALIGE VERIFIZIERUNG' : 'ONE-TIME VERIFICATION')}
                                     </div>
                                     <h2 style={{ fontSize: '1.35rem', fontWeight: 900, marginBottom: '0.4rem', color: '#fff' }}>
-                                        {lang === 'tr' ? '3 Günlük VIP Denemeyi Başlat' : 'Activate 3-Day VIP Trial'}
+                                        {lang === 'tr' ? '3 Günlük VIP Denemeyi Başlat' : (lang === 'de' ? '3-Tage VIP-Test starten' : 'Activate 3-Day VIP Trial')}
                                     </h2>
                                     <p style={{ color: '#94a3b8', fontSize: '0.8rem', lineHeight: 1.5 }}>
                                         {lang === 'tr'
                                             ? 'Mükerrer ve sahte hesapları engellemek amacıyla 3 günlük (72 saat) deneme hakkı tek seferlik Telegram üzerinden tanımlanır.'
-                                            : 'To prevent duplicate and fake accounts, your 3-day (72h) trial is single-use and activated via Telegram.'}
+                                            : (lang === 'de' ? 'Um Mehrfach- und Fake-Accounts zu verhindern, wird der 3-tägige (72h) Testzugang einmalig über Telegram freigeschaltet.' : 'To prevent duplicate and fake accounts, your 3-day (72h) trial is single-use and activated via Telegram.')}
                                     </p>
                                 </div>
 
@@ -497,11 +497,11 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                     fontSize: '0.82rem'
                                 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                                        <span style={{ color: '#94a3b8' }}>{lang === 'tr' ? 'E-posta:' : 'Email:'}</span>
+                                        <span style={{ color: '#94a3b8' }}>{lang === 'tr' ? 'E-posta:' : (lang === 'de' ? 'E-Mail:' : 'Email:')}</span>
                                         <span style={{ color: '#fff', fontWeight: 700, wordBreak: 'break-all' }}>{pendingVerification.email}</span>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ color: '#94a3b8' }}>{lang === 'tr' ? 'Aktivasyon Kodu:' : 'Code:'}</span>
+                                        <span style={{ color: '#94a3b8' }}>{lang === 'tr' ? 'Aktivasyon Kodu:' : (lang === 'de' ? 'Aktivierungscode:' : 'Code:')}</span>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                             <span style={{ color: '#38bdf8', fontWeight: 900, fontFamily: 'monospace', fontSize: '1.05rem', letterSpacing: '1px' }}>{pendingVerification.trialCode}</span>
                                             <button
@@ -518,7 +518,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                                     fontWeight: 700
                                                 }}
                                             >
-                                                {copiedCode ? (lang === 'tr' ? '✓ Kopyalandı' : '✓ Copied') : (lang === 'tr' ? 'Kopyala' : 'Copy')}
+                                                {copiedCode ? (lang === 'tr' ? '✓ Kopyalandı' : (lang === 'de' ? '✓ Kopiert' : '✓ Copied')) : (lang === 'tr' ? 'Kopyala' : (lang === 'de' ? 'Kopieren' : 'Copy'))}
                                             </button>
                                         </div>
                                     </div>
@@ -542,7 +542,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         fontSize: '0.9rem',
                                         marginBottom: '1rem'
                                     }}>
-                                        ✅ {lang === 'tr' ? 'Telegram Onayı Alındı! Yönlendiriliyorsunuz...' : 'Telegram Verified! Launching Dashboard...'}
+                                        ✅ {lang === 'tr' ? 'Telegram Onayı Alındı! Yönlendiriliyorsunuz...' : (lang === 'de' ? 'Telegram-Bestätigung erhalten! Weiterleitung zum Dashboard...' : 'Telegram Verified! Launching Dashboard...')}
                                     </div>
                                 ) : (
                                     <>
@@ -571,7 +571,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                             }}
                                         >
                                             <span>⚡</span>
-                                            <span>{lang === 'tr' ? 'Telegram ile Tek Tıkla Başlat' : 'Activate 1-Click in Telegram'}</span>
+                                            <span>{lang === 'tr' ? 'Telegram ile Tek Tıkla Başlat' : (lang === 'de' ? 'Mit 1 Klick in Telegram starten' : 'Activate 1-Click in Telegram')}</span>
                                         </a>
 
                                         <div style={{
@@ -591,7 +591,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                                 backgroundColor: '#38bdf8',
                                                 boxShadow: '0 0 8px #38bdf8'
                                             }} />
-                                            <span>{lang === 'tr' ? 'Telegram onayı bekleniyor... (Otomatik algılanır)' : 'Waiting for Telegram start... (Auto-detecting)'}</span>
+                                            <span>{lang === 'tr' ? 'Telegram onayı bekleniyor... (Otomatik algılanır)' : (lang === 'de' ? 'Warte auf Telegram-Start... (Wird automatisch erkannt)' : 'Waiting for Telegram start... (Auto-detecting)')}</span>
                                         </div>
 
                                         <button
@@ -624,10 +624,10 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                                     } else {
                                                         setError(lang === 'tr'
                                                             ? 'Henüz Telegram onayı tamamlanmadı. Lütfen açılan Telegram botunda "Başlat" butonuna basınız.'
-                                                            : 'Telegram verification not yet completed. Please tap Start in the bot.');
+                                                            : (lang === 'de' ? 'Telegram-Bestätigung noch nicht abgeschlossen. Bitte drücken Sie im Bot auf "Starten".' : 'Telegram verification not yet completed. Please tap Start in the bot.'));
                                                     }
                                                 } catch (err) {
-                                                    setError(lang === 'tr' ? 'Bağlantı hatası oluştu.' : 'Connection error.');
+                                                    setError(lang === 'tr' ? 'Bağlantı hatası oluştu.' : (lang === 'de' ? 'Verbindungsfehler aufgetreten.' : 'Connection error.'));
                                                 }
                                             }}
                                             style={{
@@ -643,7 +643,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                                 marginBottom: '1rem'
                                             }}
                                         >
-                                            🔄 {lang === 'tr' ? 'Onayı Manuel Kontrol Et' : 'Check Status Manually'}
+                                            🔄 {lang === 'tr' ? 'Onayı Manuel Kontrol Et' : (lang === 'de' ? 'Status manuell prüfen' : 'Check Status Manually')}
                                         </button>
                                     </>
                                 )}
@@ -658,7 +658,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         }}
                                         style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}
                                     >
-                                        {lang === 'tr' ? '← Başka Hesapla Giriş Yap' : '← Log In With Another Account'}
+                                        {lang === 'tr' ? '← Başka Hesapla Giriş Yap' : (lang === 'de' ? '← Mit anderem Konto anmelden' : '← Log In With Another Account')}
                                     </button>
                                 </div>
                             </div>
@@ -729,7 +729,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                             borderRadius: '4px',
                                             lineHeight: 1
                                         }}>
-                                            {lang === 'tr' ? 'HEDİYE' : 'FREE'}
+                                            {lang === 'tr' ? 'HEDİYE' : (lang === 'de' ? 'GRATIS' : 'FREE')}
                                         </span>
                                     </button>
                                 </div>
@@ -740,7 +740,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         {view === 'login' ? t.landing_cta_login : (lang === 'tr' ? '3 Günlük VIP Deneme' : (lang === 'de' ? '3-Tage VIP-Test starten' : '3-Day Free VIP Access'))}
                                     </h2>
                                     <p style={{ color: '#94a3b8', fontSize: '0.82rem', lineHeight: 1.45, margin: 0 }}>
-                                        {view === 'login' ? t.login_to_panel : (t.register_subtitle || (lang === 'tr' ? 'Cuma-Pazar tüm bülten dahil. Anında canlı maç radarını test edin.' : 'Full weekend matchdays included. Zero commitment.'))}
+                                        {view === 'login' ? t.login_to_panel : (t.register_subtitle || (lang === 'tr' ? 'Cuma-Pazar tüm bülten dahil. Anında canlı maç radarını test edin.' : (lang === 'de' ? 'Volles Wochenende inklusive. Sofort den Live-Radar testen.' : 'Full weekend matchdays included. Zero commitment.')))}
                                     </p>
                                 </div>
 
@@ -758,15 +758,15 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                     }}>
                                         <div>
                                             <div style={{ fontSize: '0.95rem', marginBottom: '2px' }}>⚡</div>
-                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#38bdf8' }}>{lang === 'tr' ? 'Anında Erişim' : 'Instant'}</div>
+                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#38bdf8' }}>{lang === 'tr' ? 'Anında Erişim' : (lang === 'de' ? 'Sofortzugriff' : 'Instant')}</div>
                                         </div>
                                         <div style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
                                             <div style={{ fontSize: '0.95rem', marginBottom: '2px' }}>💳</div>
-                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#10b981' }}>{lang === 'tr' ? 'Kartsız' : 'No Card'}</div>
+                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#10b981' }}>{lang === 'tr' ? 'Kartsız' : (lang === 'de' ? 'Keine Karte' : 'No Card')}</div>
                                         </div>
                                         <div>
                                             <div style={{ fontSize: '0.95rem', marginBottom: '2px' }}>🎯</div>
-                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fbbf24' }}>{lang === 'tr' ? '0-100 Isı' : '0-100 Radar'}</div>
+                                            <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#fbbf24' }}>{lang === 'tr' ? '0-100 Isı' : (lang === 'de' ? '0-100 Radar' : '0-100 Radar')}</div>
                                         </div>
                                     </div>
                                 )}
@@ -808,7 +808,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                             </label>
                                             {view === 'register' && (
                                                 <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
-                                                    {lang === 'tr' ? '(En az 6 karakter)' : '(Min. 6 chars)'}
+                                                    {lang === 'tr' ? '(En az 6 karakter)' : (lang === 'de' ? '(Min. 6 Zeichen)' : '(Min. 6 chars)')}
                                                 </span>
                                             )}
                                         </div>
@@ -917,7 +917,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         }}
                                     >
                                         {loading ? (
-                                            <span>{lang === 'tr' ? '⏳ İşleniyor...' : 'Processing...'}</span>
+                                            <span>{lang === 'tr' ? '⏳ İşleniyor...' : (lang === 'de' ? '⏳ Bitte warten...' : 'Processing...')}</span>
                                         ) : view === 'login' ? (
                                             <>
                                                 <span>🚀</span>
@@ -972,9 +972,9 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                         }}
                                     >
                                         {view === 'login' ? (
-                                            <span>{lang === 'tr' ? 'Hesabınız yok mu? 3 Gün Ücretsiz PRO Deneyin →' : 'No account? Start 3-Day Free VIP Trial →'}</span>
+                                            <span>{lang === 'tr' ? 'Hesabınız yok mu? 3 Gün Ücretsiz PRO Deneyin →' : (lang === 'de' ? 'Kein Konto? 3 Tage kostenlosen VIP-Test starten →' : 'No account? Start 3-Day Free VIP Trial →')}</span>
                                         ) : (
-                                            <span>{lang === 'tr' ? 'Zaten hesabınız var mı? Giriş Yapın →' : 'Already have an account? Sign In →'}</span>
+                                            <span>{lang === 'tr' ? 'Zaten hesabınız var mı? Giriş Yapın →' : (lang === 'de' ? 'Bereits ein Konto? Anmelden →' : 'Already have an account? Sign In →')}</span>
                                         )}
                                     </button>
                                 </div>
@@ -993,7 +993,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#94a3b8' }}>
                                         <span>💬</span>
-                                        <span>{lang === 'tr' ? 'Sorunuz mu var?' : 'Need support?'}</span>
+                                        <span>{lang === 'tr' ? 'Sorunuz mu var?' : (lang === 'de' ? 'Haben Sie Fragen?' : 'Need support?')}</span>
                                     </div>
                                     <a
                                         href={`https://t.me/Livebetdeskbot?start=lang_${lang || 'tr'}`}
@@ -1281,7 +1281,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         fontWeight: 900,
                         fontSize: '0.7rem'
                     }}>
-                        {t.badge_18_plus || (lang === 'tr' ? '🔞 18+ Yasal Yaş Sınırı' : '🔞 18+ Age Restriction')}
+                        {t.badge_18_plus || (lang === 'tr' ? '🔞 18+ Yasal Yaş Sınırı' : (lang === 'de' ? '🔞 18+ Gesetzliches Mindestalter' : '🔞 18+ Age Restriction'))}
                     </span>
                     <span style={{
                         background: 'rgba(56, 189, 248, 0.1)',
@@ -1292,7 +1292,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        {t.badge_responsible || (lang === 'tr' ? '🛡️ Sorumlu Analiz' : '🛡️ Responsible Analytics')}
+                        {t.badge_responsible || (lang === 'tr' ? '🛡️ Sorumlu Analiz' : (lang === 'de' ? '🛡️ Verantwortungsbewusste Analyse' : '🛡️ Responsible Analytics'))}
                     </span>
                     <span style={{
                         background: 'rgba(16, 185, 129, 0.1)',
@@ -1303,7 +1303,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         fontWeight: 800,
                         fontSize: '0.7rem'
                     }}>
-                        {t.badge_statutory_compliance || (lang === 'tr' ? '⚖️ 7258 Sayılı Kanun Uyumlu' : '⚖️ Strict Regulatory Compliance')}
+                        {t.badge_statutory_compliance || (lang === 'tr' ? '⚖️ 7258 Sayılı Kanun Uyumlu' : (lang === 'de' ? '⚖️ Gesetzlich konform & reguliert' : '⚖️ Strict Regulatory Compliance'))}
                     </span>
                 </div>
 
@@ -1327,7 +1327,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                             gap: '4px'
                         }}
                     >
-                        ✈️ {lang === 'tr' ? 'Telegram Canlı Destek' : 'Telegram Live Support'}
+                        ✈️ {lang === 'tr' ? 'Telegram Canlı Destek' : (lang === 'de' ? 'Telegram Live-Support' : 'Telegram Live Support')}
                     </a>
                     <span style={{ opacity: 0.3 }}>|</span>
                     <button

@@ -1,5 +1,53 @@
 [
   {
+    "id": "act_1789725564032_a2za",
+    "timestamp": "2026-09-18T09:59:24.032Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1789723604364_j9gz",
+    "timestamp": "2026-09-18T09:26:44.364Z",
+    "agent": "SENTINEL",
+    "level": "ALERT",
+    "message": "Veri akışında aksama tespit edildi (34894s gecikme).",
+    "details": null
+  },
+  {
+    "id": "act_1789723604352_etny",
+    "timestamp": "2026-09-18T09:26:44.352Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1789723599320_biem",
+    "timestamp": "2026-09-18T09:26:39.320Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1789687268246_8o2n",
+    "timestamp": "2026-09-17T23:21:08.246Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1789686599967_njs1",
+    "timestamp": "2026-09-17T23:09:59.967Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
     "id": "act_1789685702864_lhso",
     "timestamp": "2026-09-17T22:55:02.864Z",
     "agent": "OFFICE",

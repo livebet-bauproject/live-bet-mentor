@@ -104,7 +104,7 @@ class LearningEngine {
         if (m.includes('dominasyon')) return 'STAT_DOMINANCE';
         if (m.includes('deplasman') || m.includes('away')) return 'NEXT_GOAL_AWAY';
         if (m.includes('ev') || m.includes('home')) return 'NEXT_GOAL_HOME';
-        if (m.includes('kazanmaya yakın')) return 'FAV_WIN';
+        if (m.includes('kazanmaya yakın') || m.includes('maç sonu') || m.includes('ms 1') || m.includes('ms 2') || m.includes('match winner')) return 'FAV_WIN';
         return 'NEXT_GOAL_HOME';
     }
 

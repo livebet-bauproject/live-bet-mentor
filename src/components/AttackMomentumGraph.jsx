@@ -23,8 +23,8 @@ export const AttackMomentumGraph = ({
     noGraph: propNoGraph = false
 }) => {
     const matchId = match?.id;
-    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || (lang === 'tr' ? 'Ev Sahibi' : 'Home');
-    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : 'Away');
+    const homeTeam = propHomeTeam || (typeof match?.homeTeam === 'object' ? match?.homeTeam?.name : match?.homeTeam) || (lang === 'tr' ? 'Ev Sahibi' : (lang === 'de' ? 'Heim' : 'Home'));
+    const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Auswärts' : 'Away'));
     const homeTeamId = propHomeTeamId ?? match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
     const awayTeamId = propAwayTeamId ?? match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
     const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
@@ -145,7 +145,7 @@ export const AttackMomentumGraph = ({
                 gap: '8px'
             }}>
                 <span style={{ animation: 'spin 1.5s linear infinite', display: 'inline-block' }}>🌀</span>
-                <span>{lang === 'tr' ? 'Canlı Baskı Radarı verisi çekiliyor...' : 'Fetching Live Pressure Radar data...'}</span>
+                <span>{lang === 'tr' ? 'Canlı Baskı Radarı verisi çekiliyor...' : (lang === 'de' ? 'Lade Live-Druckradar-Daten...' : 'Fetching Live Pressure Radar data...')}</span>
             </div>
         );
     }
@@ -164,8 +164,8 @@ export const AttackMomentumGraph = ({
                 <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>{hasNoGraph ? 'ℹ️' : '📈'}</div>
                 <div>
                     {hasNoGraph
-                        ? (lang === 'tr' ? 'Bu lig/kupa maçı için canlı baskı radarı bulunmuyor' : 'Live pressure wave radar not available for this event')
-                        : (lang === 'tr' ? 'Canlı Attack Momentum dalga verisi bekleniyor...' : 'Awaiting live Attack Momentum wave data...')
+                        ? (lang === 'tr' ? 'Bu lig/kupa maçı için canlı baskı radarı bulunmuyor' : (lang === 'de' ? 'Live-Druckwellenradar für dieses Spiel nicht verfügbar' : 'Live pressure wave radar not available for this event'))
+                        : (lang === 'tr' ? 'Canlı Attack Momentum dalga verisi bekleniyor...' : (lang === 'de' ? 'Warte auf Live-Angriffsmomentum-Wellen...' : 'Awaiting live Attack Momentum wave data...'))
                     }
                 </div>
             </div>
@@ -282,7 +282,7 @@ export const AttackMomentumGraph = ({
                         fontWeight: 700
                     }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color }} />
-                        <span>{isHome ? (lang === 'tr' ? 'Ev Sahibi' : 'Home') : (lang === 'tr' ? 'Deplasman' : 'Away')}</span>
+                        <span>{isHome ? (lang === 'tr' ? 'Ev Sahibi' : (lang === 'de' ? 'Heim' : 'Home')) : (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Auswärts' : 'Away'))}</span>
                     </div>
                 </div>
             </div>
@@ -324,8 +324,8 @@ export const AttackMomentumGraph = ({
                         display: 'flex',
                         alignItems: 'center',
                         gap: '5px'
-                    }} title={lang === 'tr' ? 'Son 10 dakikadaki anlık atak dalgası ve baskı dağılımı' : 'Last 10-minute wave momentum distribution'}>
-                        <span style={{ color: '#fbbf24' }}>⚡ {lang === 'tr' ? "Son 10'" : "Last 10m"}:</span>
+                    }} title={lang === 'tr' ? 'Son 10 dakikadaki anlık atak dalgası ve baskı dağılımı' : (lang === 'de' ? 'Angriffswellen- und Druckverteilung der letzten 10 Minuten' : 'Last 10-minute wave momentum distribution')}>
+                        <span style={{ color: '#fbbf24' }}>⚡ {lang === 'tr' ? "Son 10'" : (lang === 'de' ? "Letzte 10'" : "Last 10m")}:</span>
                         <span style={{ color: '#22c55e' }}>%{recentHomePct}</span>
                         <span style={{ opacity: 0.3 }}>/</span>
                         <span style={{ color: '#3b82f6' }}>%{recentAwayPct}</span>
@@ -342,14 +342,14 @@ export const AttackMomentumGraph = ({
                         display: 'flex',
                         alignItems: 'center',
                         gap: '5px'
-                    }} title={last20Metrics ? (lang === 'tr' ? `${last20Metrics.dominantTeam ? `${last20Metrics.dominantTeam} baskı kuruyor.` : 'Yüksek hücum temposu.'} (Son 20 Dk: +${last20Metrics.deltaDA} Tehlikeli Atak, +${last20Metrics.deltaShots} Şut)` : `${last20Metrics.dominantTeam ? `${last20Metrics.dominantTeam} applying pressure.` : 'High attacking tempo.'} (Last 20m: +${last20Metrics.deltaDA} Dangerous Attacks, +${last20Metrics.deltaShots} Shots)`) : ''}>
-                        <span style={{ color: '#f59e0b' }}>⏱️ {lang === 'tr' ? "Son 20'" : "Last 20m"}:</span>
+                    }} title={last20Metrics ? (lang === 'tr' ? `${last20Metrics.dominantTeam ? `${last20Metrics.dominantTeam} baskı kuruyor.` : 'Yüksek hücum temposu.'} (Son 20 Dk: +${last20Metrics.deltaDA} Tehlikeli Atak, +${last20Metrics.deltaShots} Şut)` : (lang === 'de' ? `${last20Metrics.dominantTeam ? `${last20Metrics.dominantTeam} baut Dauerdruck auf.` : 'Hohes Angriffstempo.'} (Letzte 20 Min: +${last20Metrics.deltaDA} gefährliche Angriffe, +${last20Metrics.deltaShots} Schüsse)` : `${last20Metrics.dominantTeam ? `${last20Metrics.dominantTeam} applying pressure.` : 'High attacking tempo.'} (Last 20m: +${last20Metrics.deltaDA} Dangerous Attacks, +${last20Metrics.deltaShots} Shots)`)) : ''}>
+                        <span style={{ color: '#f59e0b' }}>⏱️ {lang === 'tr' ? "Son 20'" : (lang === 'de' ? "Letzte 20'" : "Last 20m")}:</span>
                         <span style={{ color: '#22c55e' }}>%{homePct20}</span>
                         <span style={{ opacity: 0.3 }}>/</span>
                         <span style={{ color: '#3b82f6' }}>%{awayPct20}</span>
                         {last20Metrics?.deltaDA > 0 && (
                             <span style={{ color: '#fde047', marginLeft: '2px', fontWeight: 900 }}>
-                                (+{last20Metrics.teamDeltaDA || last20Metrics.deltaDA} {lang === 'tr' ? 'Atak' : 'Atk'})
+                                (+{last20Metrics.teamDeltaDA || last20Metrics.deltaDA} {lang === 'tr' ? 'Atak' : (lang === 'de' ? 'Angr.' : 'Atk')})
                             </span>
                         )}
                     </div>
@@ -380,11 +380,11 @@ export const AttackMomentumGraph = ({
                         <span>{hoveredItem.text}</span>
                     ) : (
                         <span>
-                            ⏱️ {hoveredItem.minute}' {lang === 'tr' ? 'Dk' : 'Min'} — {hoveredItem.value > 0
+                            ⏱️ {hoveredItem.minute}' {lang === 'tr' ? 'Dk' : (lang === 'de' ? 'Min' : 'Min')} — {hoveredItem.value > 0
                                 ? `${homeTeam} (+${hoveredItem.value})`
                                 : hoveredItem.value < 0
                                     ? `${awayTeam} (-${Math.abs(hoveredItem.value)})`
-                                    : (lang === 'tr' ? 'Dengeli Oyun' : 'Balanced Play')}
+                                    : (lang === 'tr' ? 'Dengeli Oyun' : (lang === 'de' ? 'Ausgeglichenes Spiel' : 'Balanced Play'))}
                         </span>
                     )}
                 </div>
@@ -535,10 +535,10 @@ export const AttackMomentumGraph = ({
 
                         const playerName = inc.player?.shortName || inc.player?.name || inc.playerName || (isSub ? `${inc.playerIn?.shortName || ''} ⇄ ${inc.playerOut?.shortName || ''}` : '');
                         const tooltipText = isGoal
-                            ? `⚽ ${inc.time}' ${lang === 'tr' ? 'Gol!' : 'Goal!'} ${playerName} (${isHome ? homeTeam : awayTeam})`
+                            ? `⚽ ${inc.time}' ${lang === 'tr' ? 'Gol!' : (lang === 'de' ? 'Tor!' : 'Goal!')} ${playerName} (${isHome ? homeTeam : awayTeam})`
                             : isCard
-                                ? `${inc.incidentClass === 'yellow' ? '🟨' : '🟥'} ${inc.time}' ${lang === 'tr' ? 'Kart:' : 'Card:'} ${playerName}`
-                                : `🔁 ${inc.time}' ${lang === 'tr' ? 'Değişiklik:' : 'Sub:'} ${playerName}`;
+                                ? `${inc.incidentClass === 'yellow' ? '🟨' : '🟥'} ${inc.time}' ${lang === 'tr' ? 'Kart:' : (lang === 'de' ? 'Karte:' : 'Card:')} ${playerName}`
+                                : `🔁 ${inc.time}' ${lang === 'tr' ? 'Değişiklik:' : (lang === 'de' ? 'Auswechslung:' : 'Sub:')} ${playerName}`;
 
                         return (
                             <g
@@ -621,7 +621,7 @@ export const AttackMomentumGraph = ({
                 <span>0'</span>
                 <span>15'</span>
                 <span>30'</span>
-                <span style={{ color: '#cbd5e1' }}>45' {lang === 'tr' ? '(İY)' : '(HT)'}</span>
+                <span style={{ color: '#cbd5e1' }}>45' {lang === 'tr' ? '(İY)' : (lang === 'de' ? '(HZ)' : '(HT)')}</span>
                 <span>60'</span>
                 <span>75'</span>
                 <span>90'</span>

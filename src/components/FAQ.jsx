@@ -26,7 +26,7 @@ export const FAQ = ({ onClose, lang = 'tr', mode = 'live' }) => {
 
     const getHeaderSubtitle = () => {
         if (isAI) return t.faq_ai_subtitle;
-        if (isStaking) return t.staking_faq_subtitle || (lang === 'tr' ? 'Bileşik Kelly Modeli, Kombine Kupon Tuzağı ve Otomatik Kasa Koruma Kilitleri' : 'Kelly Criterion Model, Multi-Bet Trap Analysis & Automated Bankroll Protections');
+        if (isStaking) return t.staking_faq_subtitle || (lang === 'tr' ? 'Bileşik Kelly Modeli, Kombine Kupon Tuzağı ve Otomatik Kasa Koruma Kilitleri' : (lang === 'de' ? 'Kelly-Kriterium-Modell, Kombiwetten-Falle und automatische Kapitalschutzsperren' : 'Kelly Criterion Model, Multi-Bet Trap Analysis & Automated Bankroll Protections'));
         if (isRadar) return t.faq_radar_subtitle;
         return t.faq_live_subtitle;
     };
@@ -548,7 +548,7 @@ export const FAQ = ({ onClose, lang = 'tr', mode = 'live' }) => {
                                 <span style={{ fontSize: '2.2rem' }}>⚠️</span>
                                 <div style={{ textAlign: 'left' }}>
                                     <h4 style={{ color: '#ef4444', marginBottom: '0.3rem', fontWeight: 800, fontSize: '1.1rem' }}>
-                                        {lang === 'tr' ? 'KRİTİK SERMAYE KURALI' : 'CRITICAL CAPITAL RULE'}
+                                        {lang === 'tr' ? 'KRİTİK SERMAYE KURALI' : (lang === 'de' ? 'KRITISCHE KAPITALREGEL' : 'CRITICAL CAPITAL RULE')}
                                     </h4>
                                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: '1.5' }}>
                                         {t.staking_warning}
@@ -563,14 +563,14 @@ export const FAQ = ({ onClose, lang = 'tr', mode = 'live' }) => {
                     {/* ========================================================= */}
                     {isAI && (
                         <>
-                            {/* Card 1: Google Gemini */}
+                            {/* Card 1: Nexus Quant Core™ */}
                             <section className="glass-panel" style={{ padding: '2rem', borderLeft: '4px solid #a78bfa' }}>
                                 <h2 style={{ color: '#a78bfa', fontSize: '1.35rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                                     <span style={{ width: '8px', height: '22px', background: '#a78bfa', borderRadius: '4px' }}></span>
-                                    {t.faq_gemini_title}
+                                    {t.faq_nexus_title}
                                 </h2>
                                 <p style={{ lineHeight: '1.7', color: 'var(--text-secondary)', fontSize: '0.98rem', marginBottom: '1.5rem' }}>
-                                    {t.faq_gemini_desc}
+                                    {t.faq_nexus_desc}
                                 </p>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
                                     {[1, 2, 3, 4].map(num => (

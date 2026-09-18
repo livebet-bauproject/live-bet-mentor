@@ -85,7 +85,7 @@ class DataWorker {
         if (!match) return;
 
         console.log('[DATA_WORKER] Manual Deep Analysis triggered for:', matchId, 'lang:', lang);
-        match.aiSummary = lang === 'tr' ? "AI Kuant Analizi hazırlanıyor..." : "Generating AI Quant Analysis...";
+        match.aiSummary = lang === 'tr' ? "AI Kuant Analizi hazırlanıyor..." : lang === 'de' ? "KI-Quantenanalyse wird erstellt..." : "Generating AI Quant Analysis...";
 
         const summary = await aiAnalystService.getExpertSummary(match, match.consensusReport, lang);
         match.aiSummary = summary;
@@ -93,36 +93,72 @@ class DataWorker {
         return summary;
     }
 
+    parseMatchMinute(min) {
+        if (typeof min === 'number') return min;
+        if (!min) return 0;
+        const str = String(min).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (str.includes('iy') || str.includes('ht') || str.includes('devre') || str.includes('half')) return 45;
+        if (str.includes('ft') || str.includes('bitti') || str.includes('end')) return 90;
+        if (str.includes('+')) {
+            const parts = str.split('+');
+            const base = parseInt((parts[0] || '').replace(/[^0-9]/g, ''), 10) || 0;
+            const extra = parseInt((parts[1] || '').replace(/[^0-9]/g, ''), 10) || 0;
+            return base + extra;
+        }
+        const digits = str.replace(/[^0-9]/g, '');
+        const num = parseInt(digits, 10);
+        return isNaN(num) ? 0 : num;
+    }
+
     async generateGlobalIntelligence(type = 'LIVE') {
         let candidates = [];
         if (type === 'LIVE') {
-            // Live: DQS > 0.50, Signal = BET, and Minute < 80 (Professional Action Window)
-            candidates = this.fixtures.filter(f => {
-                const signal = this.getSignalForMatch(f.id);
-                return f.dqs > 0.50 && signal?.verdict === 'BET' && f.minute < 80;
-            });
+            const allLive = (this.fixtures || []).map(f => ({
+                ...f,
+                parsedMinute: this.parseMatchMinute(f.minute),
+                signal: this.getSignalForMatch(f.id)
+            }));
 
-            // Handle low volume: If fewer than 3 candidates, pull in next best potentials (also under 80m)
-            if (candidates.length < 3) {
-                const extra = this.fixtures
-                    .filter(f => !candidates.find(c => c.id === f.id) && f.dqs > 0.35 && f.minute < 80)
-                    .sort((a, b) => b.dqs - a.dqs)
-                    .slice(0, 5 - candidates.length);
+            // Tier 1: Matches in active action window (minute <= 85), solid DQS, and official BET signal
+            candidates = allLive.filter(f => f.dqs >= 0.40 && f.signal?.verdict === 'BET' && f.parsedMinute <= 85);
+
+            // Tier 2: High pressure & active telemetry matches (minute <= 88, DQS >= 0.35)
+            if (candidates.length < 4) {
+                const extra = allLive
+                    .filter(f => !candidates.find(c => c.id === f.id) && f.dqs >= 0.35 && f.parsedMinute <= 88)
+                    .sort((a, b) => {
+                        const pressureA = Number(a.observations?.pressure?.total ?? 0);
+                        const pressureB = Number(b.observations?.pressure?.total ?? 0);
+                        const dqsA = Number(a.dqs ?? 0);
+                        const dqsB = Number(b.dqs ?? 0);
+                        return (pressureB * 0.6 + dqsB * 40) - (pressureA * 0.6 + dqsA * 40);
+                    })
+                    .slice(0, 6 - candidates.length);
                 candidates = [...candidates, ...extra];
             }
-        } else {
-            // Radar: High consensus or Value
-            // radarMatches are calculated in Dashboard, but we can access consensusData here
-            // For simplicity, let's let the Dashboard pass the matches for PRE-MATCH
-            // But we can implement a basic filter here as well if needed.
+
+            // Tier 3 Resilience: If still empty but fixtures exist, feed top live fixtures
+            if (candidates.length === 0 && allLive.length > 0) {
+                candidates = allLive.slice(0, 6);
+            }
         }
 
-        if (candidates.length === 0 && type === 'LIVE') return "Şu an kriterlere uygun canlı 'Altın Seçim' bulunamadı.";
+        if (candidates.length === 0 && type === 'LIVE') {
+            return JSON.stringify({
+                report_summary: "Nexus Quant Core™ küresel canlı fikstürü taradı. Şu an sahada incelenebilecek aktif canlı veri akışı bulunmamaktadır.",
+                golden_picks: [],
+                strategic_combo: null,
+                avoid_list: ["Şu an taranan karşılaşma yok veya lig devreleri kapalı."],
+                value_picks: [],
+                discipline_note: "Canlı piyasada aktif veri olmadığında sermayenizi koruyun; körleme bahis almayın."
+            });
+        }
 
-        // Enhance candidates with signals for the AI to see our internal verdict
+        // Enhance candidates with signals and consensus for Nexus Quant Core
         const enhancedCandidates = candidates.map(c => ({
             ...c,
-            signal: this.getSignalForMatch(c.id)
+            signal: c.signal || this.getSignalForMatch(c.id),
+            consensusReport: c.consensusReport || consensusAdapter.getConsensusSummary(this.consensusData, c)
         }));
 
         return await aiAnalystService.getGlobalIntelligenceReport(enhancedCandidates, type);

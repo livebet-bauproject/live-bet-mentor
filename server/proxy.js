@@ -1243,11 +1243,11 @@ app.get('/api/admin/trading-desk/opportunities', (req, res) => {
     }
 });
 
-// 2. Generate Gemini Neural Committee Briefing (Admin Only)
-app.post('/api/admin/trading-desk/gemini-briefing', async (req, res) => {
+// 2. Generate Nexus Quant Core Committee Briefing (Admin Only)
+app.post(['/api/admin/trading-desk/nexus-briefing', '/api/admin/trading-desk/gemini-briefing'], async (req, res) => {
     try {
         if (!isAdminRequest(req)) {
-            return res.status(403).json({ error: 'Unauthorized: Sadece yetkili yöneticiler Gemini Kuant Brifingi alabilir.' });
+            return res.status(403).json({ error: 'Unauthorized: Sadece yetkili yöneticiler Nexus Kuant Brifingi alabilir.' });
         }
 
         let { opportunities, deskSummary } = req.body || {};
@@ -1310,9 +1310,14 @@ app.get('/api/admin/trading-desk/config', (req, res) => {
         res.json({
             success: true,
             config: quantTradingDesk.config,
+            nexusStatus: {
+                active: true,
+                mode: 'NEXUS_QUANT_CORE_LOCAL',
+                engine: 'Nexus Quant Core™ v3.0'
+            },
             geminiStatus: {
-                hasKey: !!key,
-                keyPrefix: key ? `${key.substring(0, 8)}...` : null
+                hasKey: true,
+                keyPrefix: 'NEXUS_LOCAL'
             }
         });
     } catch (e) {
@@ -1637,47 +1642,82 @@ app.post('/api/members/login', authRateLimiter, (req, res) => {
     }
 });
 
-// 3.1 Automated Payment Webhook (Shopier, CryptoBot, PayTR)
+// 3.1 Automated Payment Webhook (Shopier OSB, CryptoBot, PayTR)
 app.post('/api/payment/webhook', async (req, res) => {
     try {
         const payload = req.body || {};
         console.log('[PAYMENT_WEBHOOK] Received payment notification:', JSON.stringify(payload));
 
-        const userEmail = (payload.user_email || payload.email || '').trim().toLowerCase();
-        const chatId = payload.chat_id || payload.chatId || payload.telegram_id;
-        const plan = (payload.plan || 'pro').toLowerCase();
+        // 1. Shopier OSB & Generic Payload Normalization
+        const buyerName = `${payload.buyername || payload.first_name || ''} ${payload.buyersurname || payload.last_name || ''}`.trim() || payload.full_name || 'Müşteri';
+        const userEmail = (payload.buyeremail || payload.user_email || payload.email || '').trim().toLowerCase();
+        const customerNote = String(payload.customernote || payload.note || payload.description || '').trim();
+        const productName = String(payload.productname || payload.product_name || payload.item_name || '').toLowerCase();
+        
+        // Detect Plan from Product Name
+        let plan = (payload.plan || '').toLowerCase();
+        if (!plan) {
+            if (productName.includes('premium') || productName.includes('vip')) {
+                plan = 'premium';
+            } else {
+                plan = 'pro';
+            }
+        }
+
         const days = parseInt(payload.days || 30, 10);
-        const amount = payload.amount || payload.total || 'N/A';
-        const provider = payload.payment_provider || payload.provider || 'Shopier/Crypto';
+        const amount = payload.total_order_value || payload.price || payload.amount || payload.total || 'N/A';
+        const provider = payload.payment_provider || (payload.orderid || payload.platform_order_id ? 'Shopier' : 'CryptoBot/PayTR');
+        const orderId = payload.orderid || payload.platform_order_id || payload.id || `ord_${Date.now()}`;
 
         let activated = false;
         let inviteLink = null;
+        let matchedTelegramUser = null;
 
-        // 1. Activate Telegram VIP if chatId exists
+        // Extract Telegram Username from Customer Note (e.g. "@username" or "username")
+        let tgUsername = null;
+        if (customerNote) {
+            const match = customerNote.match(/@?([a-zA-Z0-9_]{4,32})/);
+            if (match && match[1]) {
+                tgUsername = match[1];
+            }
+        }
+
+        const { vipManager } = await import('./vipManager.js');
+
+        // 2. Try to match and auto-activate Telegram VIP
+        let chatId = payload.chat_id || payload.chatId || payload.telegram_id;
+        if (!chatId && tgUsername) {
+            matchedTelegramUser = vipManager.findUserByUsername(tgUsername);
+            if (matchedTelegramUser && matchedTelegramUser.chatId) {
+                chatId = matchedTelegramUser.chatId;
+            }
+        }
+
         if (chatId) {
             try {
-                const { vipManager } = await import('./vipManager.js');
-                vipManager.addVip(chatId, days, payload.username || 'Subscriber', plan.toUpperCase());
+                vipManager.addVip(chatId, days, tgUsername || matchedTelegramUser?.username || 'VIP Member', plan.toUpperCase());
                 
                 if (telegramBot && typeof telegramBot.createInviteLink === 'function') {
-                    inviteLink = await telegramBot.createInviteLink(payload.username || 'VIP', days * 24);
+                    inviteLink = await telegramBot.createInviteLink(tgUsername || 'VIP', days * 24);
                 }
 
                 if (telegramBot && inviteLink) {
                     const notifyUser = `🎉 *ÖDEMENİZ ONAYLANDI! VIP ERİŞİMİNİZ HAZIR!*\n━━━━━━━━━━━━━━━━━━\n` +
+                        `Sayın *${buyerName}*,\n` +
                         `Paket: *${plan.toUpperCase()} (${days} Gün)*\n` +
-                        `Ödeme: *${amount}*\n\n` +
+                        `Ödeme: *${amount} TL*\n\n` +
                         `💎 *Tek Kullanımlık VIP Grubuna Katılım Linkiniz:*\n👉 ${inviteLink}\n\n` +
-                        `_Bol kazançlar dileriz!_`;
+                        `_Bol kazançlar ve disiplinli bahisler dileriz!_`;
                     await telegramBot.sendMessage(chatId, notifyUser, { parse_mode: 'Markdown' });
                 }
                 activated = true;
+                console.log(`[PAYMENT_WEBHOOK] Auto-activated Telegram VIP for Chat ID ${chatId} (${tgUsername || 'User'})`);
             } catch (tgErr) {
                 console.error('[PAYMENT_WEBHOOK] Telegram activation error:', tgErr.message);
             }
         }
 
-        // 2. Activate Web Member if email exists
+        // 3. Auto-Activate Web Member if email exists
         if (userEmail) {
             try {
                 const members = loadMembers();
@@ -1689,37 +1729,47 @@ app.post('/api/payment/webhook', async (req, res) => {
                     member.status = 'approved';
                     member.plan = plan;
                     member.subscription_end = newEnd.toISOString();
+                    if (chatId) member.telegram_chat_id = chatId;
+                    if (tgUsername) member.telegram_username = tgUsername;
                 } else {
                     member = {
                         id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
                         email: userEmail,
                         password: '',
-                        full_name: payload.full_name || userEmail.split('@')[0],
+                        full_name: buyerName,
                         status: 'approved',
                         plan: plan,
                         created_at: now.toISOString(),
                         subscription_start: now.toISOString(),
-                        subscription_end: newEnd.toISOString()
+                        subscription_end: newEnd.toISOString(),
+                        telegram_chat_id: chatId || null,
+                        telegram_username: tgUsername || null
                     };
                     members.unshift(member);
                 }
                 saveMembers(members);
                 activated = true;
+                console.log(`[PAYMENT_WEBHOOK] Auto-activated Web Member for email ${userEmail}`);
             } catch (mErr) {
                 console.error('[PAYMENT_WEBHOOK] Web member activation error:', mErr.message);
             }
         }
 
-        // 3. Notify Admin (Hamza) of New Revenue!
+        // 4. Notify Admin (Hamza) of New Revenue with 1-Click Fallback Command
         if (telegramBot) {
             const adminIds = (process.env.TELEGRAM_ADMIN_IDS || '8965087988').split(',').map(s => s.trim()).filter(Boolean);
+            const statusBadge = activated ? 'Otomatik VIP Tanımlandı ✅' : 'Beklemede (Manuel Komutla Açabilirsiniz) ⚠️';
             const alertMsg = `💰 *YENİ ÖDEME TAHSİL EDİLDİ!*\n━━━━━━━━━━━━━━━━━━\n` +
                 `Sağlayıcı: *${provider}*\n` +
-                `Tutar: *${amount}*\n` +
+                `Sipariş No: \`${orderId}\`\n` +
+                `Müşteri: *${buyerName}*\n` +
+                `Tutar: *${amount} TL*\n` +
                 `Paket: *${plan.toUpperCase()} (${days} Gün)*\n` +
                 (userEmail ? `E-posta: \`${userEmail}\`\n` : '') +
-                (chatId ? `Telegram ID: \`${chatId}\`\n` : '') +
-                `Durum: *Otomatik VIP Tanımlandı ✅*`;
+                (customerNote ? `Sipariş Notu: \`${customerNote}\`\n` : '') +
+                (tgUsername ? `Telegram: @${tgUsername}\n` : '') +
+                `Durum: *${statusBadge}*\n` +
+                (!chatId && tgUsername ? `\n👉 *Manuel Onay İçin:* \`/vipver @${tgUsername} 30 ${plan}\`` : '');
 
             for (const adminId of adminIds) {
                 try {
@@ -1728,10 +1778,11 @@ app.post('/api/payment/webhook', async (req, res) => {
             }
         }
 
-        return res.json({ success: true, activated, inviteLink });
+        // Shopier OSB expects 200 OK
+        return res.status(200).send('OK');
     } catch (err) {
         console.error('[PAYMENT_WEBHOOK] Error handling payment:', err);
-        return res.status(500).json({ error: err.message });
+        return res.status(200).send('OK'); // Return OK so payment processors do not endlessly retry
     }
 });
 

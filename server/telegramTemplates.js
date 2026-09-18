@@ -718,7 +718,7 @@ export function formatVIPInfo(settings = {}, lang = 'tr') {
     const isTr = lang === 'tr';
     const isDe = lang === 'de';
     const usdtAddress = process.env.TELEGRAM_USDT_ADDRESS || 'TXDCxXx5XjNWFRLQmNZeHVcwjpHjDDPrvd';
-    const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://shopier.com/livebetmentor';
+    const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://www.shopier.com/QuantDataLabs';
     
     if (isTr) {
         return `💎 *LIVE BET MENTOR ÜYELİK VE VIP PAKETLERİ*
@@ -896,7 +896,7 @@ export function formatTrialExpiringOffer(user, hoursRemaining = 4, lang = 'tr') 
     const isTr = lang === 'tr';
     const isDe = lang === 'de';
     const username = user.username || 'Üye';
-    const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://shopier.com/livebetmentor';
+    const shopierLink = process.env.SHOPIER_VIP_LINK || 'https://www.shopier.com/QuantDataLabs';
 
     if (isTr) {
         return `⏳ *DİKKAT: ÜCRETSİZ VIP DENEMENİZİN BİTMESİNE ${hoursRemaining} SAAT KALDI!*
