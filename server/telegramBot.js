@@ -65,6 +65,7 @@ class TelegramBot {
         this.minLevel = process.env.TELEGRAM_MIN_LEVEL || 'SICAK';
         this.publicDelay = parseInt(process.env.TELEGRAM_PUBLIC_DELAY_MIN || '15') * 60 * 1000;
         this.lang = process.env.TELEGRAM_LANG || 'tr';
+        this.botUsername = process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot';
 
         // State
         this.sentSignals = new Map(); // matchId -> timestamp (duplicate guard)
@@ -176,6 +177,7 @@ class TelegramBot {
             const res = await fetch(`https://api.telegram.org/bot${this.token}/getMe`);
             const data = await res.json();
             if (data.ok) {
+                this.botUsername = data.result.username || this.botUsername;
                 console.log(`[TELEGRAM] ✅ Bot verified: @${data.result.username} (${data.result.first_name})`);
                 return { ok: true, bot: data.result };
             } else {

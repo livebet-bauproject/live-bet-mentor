@@ -148,7 +148,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         if (resData.pendingVerification || resData.status === 'pending_telegram') {
                             setPendingVerification({
                                 trialCode: resData.trialCode,
-                                botUsername: resData.botUsername || 'Livebetdesk',
+                                botUsername: resData.botUsername || 'Livebetmentorbot',
                                 email: cleanEmail
                             });
                             setLoading(false);
@@ -224,7 +224,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                         if (regData.pendingVerification && regData.trialCode) {
                             setPendingVerification({
                                 trialCode: regData.trialCode,
-                                botUsername: regData.botUsername || 'Livebetdesk',
+                                botUsername: regData.botUsername || 'Livebetmentorbot',
                                 email: cleanEmail
                             });
                             setLoading(false);
@@ -530,7 +530,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
                                 ) : (
                                     <>
                                         <a
-                                            href={`https://t.me/${pendingVerification.botUsername || 'Livebetdesk'}?start=${pendingVerification.trialCode}`}
+                                            href={`https://t.me/${pendingVerification.botUsername || 'Livebetmentorbot'}?start=${pendingVerification.trialCode}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             style={{

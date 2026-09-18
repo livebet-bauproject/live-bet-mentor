@@ -1418,7 +1418,7 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
                     success: true,
                     pendingVerification: true,
                     trialCode: member.trial_code,
-                    botUsername: 'Livebetdesk',
+                    botUsername: telegramBot.botUsername || process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot',
                     email: cleanEmail
                 });
             }
@@ -1470,7 +1470,7 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
             success: true,
             pendingVerification: true,
             trialCode,
-            botUsername: 'Livebetdesk',
+            botUsername: telegramBot.botUsername || process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot',
             email: cleanEmail,
             message: 'Hesabınız oluşturuldu. 3 günlük denemeyi başlatmak için lütfen Telegram botunu onaylayın.'
         });
@@ -1618,7 +1618,7 @@ app.post('/api/members/login', authRateLimiter, (req, res) => {
                 status: 'pending_telegram',
                 pendingVerification: true,
                 trialCode: member.trial_code,
-                botUsername: 'Livebetdesk',
+                botUsername: telegramBot.botUsername || process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot',
                 email: member.email,
                 user: safeUser
             });

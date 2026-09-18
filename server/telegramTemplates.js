@@ -254,7 +254,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
     const isDe = lang === 'de';
     const home = cleanMd(alert.homeTeam || (isTr ? 'Ev' : isDe ? 'Heim' : 'Home'));
     const away = cleanMd(alert.awayTeam || (isTr ? 'Dep' : isDe ? 'Auswärts' : 'Away'));
-    const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetdeskbot';
+    const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot';
 
     if (isTr) {
         return `⚡ *CANLI GOL BASKISI ALARMI* · *${alert.minute}'* [*${alert.score || '0-0'}*]
@@ -836,7 +836,7 @@ Use the buttons below to pay securely via CryptoBot (USDT, TON, cards or Telegra
 export function formatFomoWinningCard(signal, result, finalScore = null, lang = 'tr') {
     const isTr = lang === 'tr';
     const isDe = lang === 'de';
-    const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetdeskbot';
+    const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot';
     
     const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
     const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));

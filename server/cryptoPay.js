@@ -74,7 +74,7 @@ export class CryptoPayClient {
         days = 30
     }) {
         try {
-            const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetdeskbot';
+            const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot';
             const payload = JSON.stringify({
                 userId: String(userId),
                 username,
