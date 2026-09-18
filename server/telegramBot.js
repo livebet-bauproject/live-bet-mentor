@@ -69,6 +69,7 @@ class TelegramBot {
 
         // State
         this.sentSignals = new Map(); // matchId -> timestamp (duplicate guard)
+        this.recentMessageHashes = new Map(); // chatId_text -> timestamp (30s duplicate delivery shield)
         this.messageQueue = [];
         this.isProcessing = false;
         this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
@@ -194,7 +195,23 @@ class TelegramBot {
      * Send a message via Telegram Bot API
      */
     async sendMessage(chatId, text, options = {}) {
-        if (!this.token || !chatId) return null;
+        if (!this.token || !chatId || !text) return null;
+
+        // Deduplication shield: Block identical text sent to the same chat within 30 seconds
+        const textKey = `${chatId}_${String(text).slice(0, 100)}`;
+        const lastSentTime = this.recentMessageHashes?.get(textKey);
+        if (lastSentTime && (Date.now() - lastSentTime) < 30 * 1000) {
+            console.warn(`[TELEGRAM] 🛡️ Deduplication shield: Blocked identical message to ${chatId} within 30s`);
+            return null;
+        }
+        if (!this.recentMessageHashes) this.recentMessageHashes = new Map();
+        this.recentMessageHashes.set(textKey, Date.now());
+        if (this.recentMessageHashes.size > 200) {
+            const cutoff = Date.now() - 60000;
+            for (const [k, v] of this.recentMessageHashes.entries()) {
+                if (v < cutoff) this.recentMessageHashes.delete(k);
+            }
+        }
 
         try {
             const body = {
@@ -287,12 +304,12 @@ class TelegramBot {
     }
 
     /**
-     * Check duplicate guard (same match within 10 minutes)
+     * Check duplicate guard (same match within 45 minutes)
      */
     isDuplicate(matchId) {
         const lastSent = this.sentSignals.get(matchId);
         if (!lastSent) return false;
-        return (Date.now() - lastSent) < 10 * 60 * 1000; // 10 minute cooldown
+        return (Date.now() - lastSent) < 45 * 60 * 1000; // 45 minute cooldown
     }
 
     /**

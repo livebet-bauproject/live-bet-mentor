@@ -18,6 +18,7 @@ const LOCKS_FILE = path.join(__dirname, 'engine_signal_locks.json');
 export class AutonomousSignalEngine {
     constructor() {
         this.isRunning = false;
+        this.isScanning = false;
         this.intervalId = null;
         this.lastGlobalSignalTime = 0;
         this.minGlobalSignalIntervalMs = 5 * 60 * 1000; // Minimum 5 mins between system signals
@@ -47,6 +48,100 @@ export class AutonomousSignalEngine {
             }
             fs.writeFileSync(LOCKS_FILE, JSON.stringify(clean, null, 2), 'utf8');
         } catch (e) {}
+    }
+
+    parseChoiceVal(choice) {
+        if (!choice) return null;
+        for (const k of ['decimalValue', 'value']) {
+            if (choice[k] !== undefined && choice[k] !== null) {
+                const v = parseFloat(choice[k]);
+                if (!isNaN(v) && v > 0) return parseFloat(v.toFixed(2));
+            }
+        }
+        const frac = choice.fractionalValue || choice.initialFractionalValue;
+        if (frac) {
+            const parts = String(frac).trim().split('/');
+            if (parts.length === 2) {
+                const num = parseFloat(parts[0]);
+                const den = parseFloat(parts[1]);
+                if (!isNaN(num) && !isNaN(den) && den > 0) {
+                    return parseFloat(((num / den) + 1.0).toFixed(2));
+                }
+            } else {
+                const v = parseFloat(frac);
+                if (!isNaN(v) && v > 0) return parseFloat(v.toFixed(2));
+            }
+        }
+        return null;
+    }
+
+    getRealMarketOdds(eventId, marketKey, params = {}) {
+        if (!eventId) return null;
+        const oddsPath = path.join(STATS_DIR, `${eventId}_odds.json`);
+        let oddsData = null;
+        if (fs.existsSync(oddsPath)) {
+            try {
+                oddsData = JSON.parse(fs.readFileSync(oddsPath, 'utf8'));
+            } catch (e) {}
+        }
+        if (!oddsData || !Array.isArray(oddsData.markets)) return null;
+
+        if (marketKey === 'market_over_goals') {
+            const targetLine = String(params.targetLine || '2.5');
+            const mgMarkets = oddsData.markets.filter(m => 
+                (m.marketGroup === 'Match goals' || m.marketName === 'Match goals' || m.marketId === 9) &&
+                String(m.choiceGroup) === targetLine
+            );
+            const liveMarket = mgMarkets.find(m => m.isLive && !m.suspended) || mgMarkets.find(m => !m.suspended) || mgMarkets[0];
+            if (liveMarket && Array.isArray(liveMarket.choices)) {
+                const overChoice = liveMarket.choices.find(c => (c.name || '').toLowerCase() === 'over');
+                const val = this.parseChoiceVal(overChoice);
+                if (val && val >= 1.05 && val <= 25.0) {
+                    return { odds: val, isLive: !!liveMarket.isLive, suspended: !!liveMarket.suspended };
+                }
+            }
+        }
+
+        if (marketKey === 'market_next_goal_home' || marketKey === 'market_next_goal_away') {
+            const isHome = marketKey === 'market_next_goal_home';
+            const teamName = (params.teamName || '').toLowerCase().trim();
+            const ngMarkets = oddsData.markets.filter(m => 
+                m.marketGroup === 'Next goal' || m.marketName === 'Next goal' || m.marketId === 8
+            );
+            const liveMarket = ngMarkets.find(m => m.isLive && !m.suspended) || ngMarkets.find(m => !m.suspended) || ngMarkets[0];
+            if (liveMarket && Array.isArray(liveMarket.choices) && liveMarket.choices.length >= 2) {
+                let choice = null;
+                if (teamName) {
+                    choice = liveMarket.choices.find(c => {
+                        const n = (c.name || '').toLowerCase();
+                        return n.includes(teamName) || teamName.includes(n);
+                    });
+                }
+                if (!choice) {
+                    choice = isHome ? liveMarket.choices[0] : (liveMarket.choices[2] || liveMarket.choices[1]);
+                }
+                const val = this.parseChoiceVal(choice);
+                if (val && val >= 1.05 && val <= 25.0) {
+                    return { odds: val, isLive: !!liveMarket.isLive, suspended: !!liveMarket.suspended };
+                }
+            }
+        }
+
+        if (marketKey === 'market_btts') {
+            const bttsMarkets = oddsData.markets.filter(m => 
+                m.marketGroup === 'Both teams to score' || m.marketName === 'Both teams to score' || m.marketId === 5
+            );
+            const liveMarket = bttsMarkets.find(m => m.isLive && !m.suspended) || bttsMarkets.find(m => !m.suspended) || bttsMarkets[0];
+            if (liveMarket && Array.isArray(liveMarket.choices)) {
+                const yesChoice = liveMarket.choices.find(c => (c.name || '').toLowerCase() === 'yes');
+                const val = this.parseChoiceVal(yesChoice);
+                if (val && val >= 1.05 && val <= 25.0) {
+                    return { odds: val, isLive: !!liveMarket.isLive, suspended: !!liveMarket.suspended };
+                }
+            }
+        }
+
+        return null;
     }
 
     parseStats(statsData) {
@@ -127,12 +222,13 @@ export class AutonomousSignalEngine {
         // Filter out heavy blowouts
         if (Math.abs(curHome - curAway) > 2) return null;
 
-        // Check match lock
+        // Check match lock (Strict 50-min lock per score state to prevent duplicates)
         const lockKey = String(ev.id);
         const existingLock = this.matchLocks.get(lockKey);
         if (existingLock) {
             const timeSince = Date.now() - existingLock.timestamp;
-            if (existingLock.score === scoreStr && timeSince < 25 * 60 * 1000) {
+            const cooldown = existingLock.score === scoreStr ? 50 * 60 * 1000 : 25 * 60 * 1000;
+            if (timeSince < cooldown) {
                 return null;
             }
         }
@@ -174,11 +270,16 @@ export class AutonomousSignalEngine {
 
         // 1. One-Sided Heavy Dominance (Next Goal)
         if (hPoss >= 62 && hSOT >= (aSOT + 3) && hBox >= 12 && curHome <= curAway) {
+            const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_home', { teamName: homeTeam });
+            if (oddsRes?.suspended) return null;
+
+            const oddsVal = oddsRes?.odds || parseFloat((1.65 + (minute / 90) * 0.45).toFixed(2));
             selectedSetup = {
                 level: 'ALPHA',
                 marketKey: 'market_next_goal_home',
                 marketLabel: `Sıradaki Gol: ${homeTeam}`,
-                odds: 1.78,
+                odds: oddsVal,
+                isRealOdds: !!oddsRes?.odds,
                 confidence: 86,
                 reasoning: [
                     `${homeTeam} yoğun hücum baskısı ve ceza sahası hakimiyeti (%${hPoss} topla oynama)`,
@@ -187,11 +288,16 @@ export class AutonomousSignalEngine {
                 ]
             };
         } else if (aPoss >= 62 && aSOT >= (hSOT + 3) && aBox >= 12 && curAway <= curHome) {
+            const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_away', { teamName: awayTeam });
+            if (oddsRes?.suspended) return null;
+
+            const oddsVal = oddsRes?.odds || parseFloat((1.70 + (minute / 90) * 0.50).toFixed(2));
             selectedSetup = {
                 level: 'ALPHA',
                 marketKey: 'market_next_goal_away',
                 marketLabel: `Sıradaki Gol: ${awayTeam}`,
-                odds: 1.82,
+                odds: oddsVal,
+                isRealOdds: !!oddsRes?.odds,
                 confidence: 85,
                 reasoning: [
                     `${awayTeam} deplasmanda yoğun baskı kurdu (%${aPoss} topla oynama)`,
@@ -200,14 +306,30 @@ export class AutonomousSignalEngine {
                 ]
             };
         }
-        // 2. High Threat In-Play Over Goals
+        // 2. High Threat In-Play Over Goals (Next Goal Threshold: totalGoals + 0.5)
         else if (totalSOT >= 5 && totalBox >= 16 && minute >= 25 && minute <= 72) {
-            const targetLine = totalGoals === 0 ? '1.5' : totalGoals === 1 ? '2.5' : (totalGoals + 1.5).toFixed(1);
+            // Correct in-play line: always look for the NEXT goal (+0.5) so score 2-1 targets 3.5, NOT 4.5!
+            const targetLine = (totalGoals === 0 && minute < 35) ? '1.5' : (totalGoals + 0.5).toFixed(1);
+            
+            const oddsRes = this.getRealMarketOdds(ev.id, 'market_over_goals', { targetLine });
+            if (oddsRes?.suspended) return null;
+
+            let oddsVal = null;
+            if (oddsRes?.odds) {
+                oddsVal = oddsRes.odds;
+            } else {
+                // Dynamic time-decay Poisson model instead of static 1.84
+                const remainingMin = Math.max(15, 95 - minute);
+                const dynamicVal = 1.15 + (68 / remainingMin) * 0.42;
+                oddsVal = parseFloat(Math.min(2.80, Math.max(1.35, dynamicVal)).toFixed(2));
+            }
+
             selectedSetup = {
                 level: totalSOT >= 7 ? 'ALPHA' : 'ALEV',
                 marketKey: 'market_over_goals',
                 marketLabel: `Maçta ${targetLine} Üst Gol`,
-                odds: 1.84,
+                odds: oddsVal,
+                isRealOdds: !!oddsRes?.odds,
                 confidence: 84,
                 reasoning: [
                     `Yüksek maç temposu ve ${totalSOT} isabetli şut`,
@@ -218,11 +340,24 @@ export class AutonomousSignalEngine {
         }
         // 3. BTTS Opportunity
         else if ((curHome === 0 || curAway === 0) && hSOT >= 3 && aSOT >= 3 && minute >= 30 && minute <= 70) {
+            const oddsRes = this.getRealMarketOdds(ev.id, 'market_btts');
+            if (oddsRes?.suspended) return null;
+
+            let oddsVal = null;
+            if (oddsRes?.odds) {
+                oddsVal = oddsRes.odds;
+            } else {
+                const remainingMin = Math.max(20, 95 - minute);
+                const dynamicVal = 1.35 + (65 / remainingMin) * 0.42;
+                oddsVal = parseFloat(Math.min(2.75, Math.max(1.40, dynamicVal)).toFixed(2));
+            }
+
             selectedSetup = {
                 level: 'ALEV',
                 marketKey: 'market_btts',
                 marketLabel: 'Karşılıklı Gol Var (KG Var)',
-                odds: 1.88,
+                odds: oddsVal,
+                isRealOdds: !!oddsRes?.odds,
                 confidence: 82,
                 reasoning: [
                     `İki takım da karşılıklı tehlikeli ataklar geliştiriyor`,
@@ -248,6 +383,7 @@ export class AutonomousSignalEngine {
                 marketKey: selectedSetup.marketKey,
                 marketLabel: selectedSetup.marketLabel,
                 odds: selectedSetup.odds,
+                isRealOdds: selectedSetup.isRealOdds,
                 confidence: selectedSetup.confidence,
                 reasoning: selectedSetup.reasoning
             },
@@ -268,8 +404,10 @@ export class AutonomousSignalEngine {
     }
 
     async scanCycle() {
-        if (!fs.existsSync(SOFASCORE_FILE)) return;
+        if (this.isScanning) return; // Concurrency guard: never overlap scans
+        this.isScanning = true;
         try {
+            if (!fs.existsSync(SOFASCORE_FILE)) return;
             const raw = fs.readFileSync(SOFASCORE_FILE, 'utf8');
             const data = JSON.parse(raw);
             if (!data || !Array.isArray(data.events)) return;
@@ -285,20 +423,26 @@ export class AutonomousSignalEngine {
                 if (alert) {
                     console.log(`[AUTONOMOUS_ENGINE] 🎯 Found high-value setup: ${alert.homeTeam} vs ${alert.awayTeam} [${alert.level}] -> ${alert.recommendation.marketLabel}`);
                     
+                    // Immediately lock match and update cooldown BEFORE async network dispatch to prevent race conditions
+                    this.lastGlobalSignalTime = Date.now();
+                    this.matchLocks.set(String(ev.id), {
+                        timestamp: Date.now(),
+                        score: alert.score,
+                        marketKey: alert.recommendation.marketKey,
+                        minute: alert.minute
+                    });
+                    this.saveLocks();
+
                     const result = await telegramBot.processAlert(alert);
                     if (result && result.sent) {
-                        this.lastGlobalSignalTime = Date.now();
-                        this.matchLocks.set(String(ev.id), {
-                            timestamp: Date.now(),
-                            score: alert.score
-                        });
-                        this.saveLocks();
                         break; // 1 curated signal per cycle
                     }
                 }
             }
         } catch (e) {
             console.error('[AUTONOMOUS_ENGINE] Scan error:', e.message);
+        } finally {
+            this.isScanning = false;
         }
     }
 

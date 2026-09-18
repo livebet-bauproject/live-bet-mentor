@@ -21,8 +21,13 @@ export function resolveMarketText(alert, lang = 'tr') {
     if (team.toLowerCase() === 'away') team = away;
 
     const oddsVal = rec.odds || alert.odds;
+    const numOdds = parseFloat(oddsVal);
     const hasExistingOdds = /\(Oran:|\(Odds:|\(Quote:/i.test(label || '') || /\(Oran:|\(Odds:|\(Quote:/i.test(rec.predictionText || '');
-    const oddsStr = (oddsVal && !hasExistingOdds) ? (isTr ? ` (Oran: ${oddsVal})` : isDe ? ` (Quote: ${oddsVal})` : ` (Odds: ${oddsVal})`) : '';
+    const oddsStr = (!hasExistingOdds && oddsVal) ? 
+        (!isNaN(numOdds) && numOdds > 1.0 ? 
+            (isTr ? ` (Oran: ${numOdds.toFixed(2)})` : isDe ? ` (Quote: ${numOdds.toFixed(2)})` : ` (Odds: ${numOdds.toFixed(2)})`) :
+            (isTr ? ` (Canlı Piyasa)` : isDe ? ` (Live-Quote)` : ` (Live Market)`)
+        ) : '';
 
     // Direct explicit prediction if provided
     if (rec.predictionText) {
@@ -222,7 +227,9 @@ export function formatVIPSignal(alert, lang = 'tr') {
 
     const badge = alert.level === 'ALPHA' ? (isTr ? '💎 ALFA SİNYAL' : isDe ? '💎 ALPHA-SIGNAL' : '💎 ALPHA SIGNAL') : (isTr ? '🔥 CANLI ALARM' : isDe ? '🔥 LIVE-ALARM' : '🔥 LIVE ALERT');
     const marketText = resolveMarketText(alert, lang);
-    const oddsVal = alert.recommendation?.odds || alert.odds || '1.80';
+    const rawOdds = alert.recommendation?.odds || alert.odds;
+    const numOdds = parseFloat(rawOdds);
+    const oddsVal = (!isNaN(numOdds) && numOdds > 1.0) ? numOdds.toFixed(2) : (isTr ? 'Canlı Piyasa' : isDe ? 'Live-Quote' : 'Live Market');
     const conf = alert.recommendation?.confidence || 82;
     const stake = alert.level === 'ALPHA' ? '1.5' : '1.0';
 
