@@ -6,6 +6,11 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+if (process.env.VERCEL || process.env.NOW_BUILDER || process.env.CI) {
+    console.log('[DEPS] Vercel/CI environment detected. Skipping Python dependencies.');
+    process.exit(0);
+}
+
 const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
 
 function run(cmd) {
