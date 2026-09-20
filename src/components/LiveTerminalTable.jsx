@@ -6,6 +6,7 @@ import { CONFIG } from '../config';
 import { MatchLiveStatsCard } from './MatchLiveStatsCard';
 import { AttackMomentumGraph as DefaultAttackGraph } from './AttackMomentumGraph';
 import { MatchIncidentsTimeline as DefaultIncidentsTimeline } from './MatchIncidentsTimeline';
+import { GlobalConsensusCard } from './GlobalConsensusCard';
 
 export const LiveTerminalTable = ({
     matches = [],
@@ -736,6 +737,10 @@ export const LiveTerminalTable = ({
                                                                 <span><strong>{lang === 'tr' ? 'Gecikme:' : (lang === 'de' ? 'Latenz:' : 'Latency:')}</strong> <span style={{ color: '#38bdf8', fontWeight: 800 }}>{latencyMs}ms</span></span>
                                                             </div>
                                                         </div>
+
+                                                        {/* 🌐 Global Consensus External Prediction Radar */}
+                                                        <GlobalConsensusCard match={m} lang={lang} t={t} />
+
                                                         {hasTrend && (
                                                             <div className="tb-trend-box">
                                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -349,7 +349,16 @@ app.get('/api/debug', async (req, res) => {
         },
         memoryLiveDataEvents: memoryLiveData?.events?.length || 0,
         memoryStatsCount: Object.keys(memoryStatsCache || {}).length,
-        uptimeSeconds: Math.floor(process.uptime())
+        uptimeSeconds: Math.floor(process.uptime()),
+        memoryUsage: (() => {
+            const m = process.memoryUsage();
+            return {
+                rssMB: (m.rss / 1024 / 1024).toFixed(1),
+                heapUsedMB: (m.heapUsed / 1024 / 1024).toFixed(1),
+                heapTotalMB: (m.heapTotal / 1024 / 1024).toFixed(1),
+                externalMB: (m.external / 1024 / 1024).toFixed(1)
+            };
+        })()
     });
 });
 
@@ -420,9 +429,89 @@ app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
 // --- IN-MEMORY DATA STORE (for cloud mode) ---
 let memoryLiveData = null;
 let memoryConsensusData = null;
+let memoryOddsData = null;
 let memoryStatsCache = {};
 let lastUploadTime = 0;
 const pendingRenderRequests = new Set();
+
+const MAX_MEMORY_STATS_ENTRIES = 120; // Maximum active matches stored in RAM
+const STATS_CACHE_TTL_MS = 35 * 60 * 1000; // 35 minutes TTL for inactive matches
+const STATS_FILE_MAX_AGE_MS = 3 * 60 * 60 * 1000; // 3 hours max age for disk files
+
+// Memory leak guard: Evicts finished/inactive matches from RAM
+function pruneMemoryStatsCache() {
+    const now = Date.now();
+    const activeIds = new Set(
+        (memoryLiveData?.events || [])
+            .filter(e => e.status?.type === 'inprogress')
+            .map(e => String(e.id))
+    );
+
+    const keys = Object.keys(memoryStatsCache);
+    if (keys.length === 0) return;
+
+    // 1. Remove entries older than TTL unless currently in progress
+    for (const id of keys) {
+        const entry = memoryStatsCache[id];
+        const age = now - (entry?.time || 0);
+        if (age > STATS_CACHE_TTL_MS && !activeIds.has(String(id))) {
+            delete memoryStatsCache[id];
+        }
+    }
+
+    // 2. If still exceeds MAX_MEMORY_STATS_ENTRIES, keep newest
+    const remainingKeys = Object.keys(memoryStatsCache);
+    if (remainingKeys.length > MAX_MEMORY_STATS_ENTRIES) {
+        remainingKeys.sort((a, b) => (memoryStatsCache[b]?.time || 0) - (memoryStatsCache[a]?.time || 0));
+        for (let i = MAX_MEMORY_STATS_ENTRIES; i < remainingKeys.length; i++) {
+            delete memoryStatsCache[remainingKeys[i]];
+        }
+    }
+}
+
+// Disk leak guard: Cleans old match JSON files from server/stats
+function pruneStatsDirectory() {
+    if (!fs.existsSync(STATS_DIR)) return;
+    try {
+        const files = fs.readdirSync(STATS_DIR);
+        const now = Date.now();
+        let deletedCount = 0;
+
+        for (const file of files) {
+            if (!file.endsWith('.json')) continue;
+            const fullPath = path.join(STATS_DIR, file);
+            try {
+                const stat = fs.statSync(fullPath);
+                if (now - stat.mtimeMs > STATS_FILE_MAX_AGE_MS) {
+                    fs.unlinkSync(fullPath);
+                    deletedCount++;
+                }
+            } catch (e) {}
+        }
+        if (deletedCount > 0) {
+            console.log(`[PRUNE] Cleaned up ${deletedCount} stale stats files from disk.`);
+        }
+    } catch (err) {
+        console.warn('[PRUNE] Error during stats directory cleanup:', err.message);
+    }
+}
+
+// Run periodic cleanup
+setInterval(pruneMemoryStatsCache, 5 * 60 * 1000); // Every 5 minutes
+setInterval(pruneStatsDirectory, 30 * 60 * 1000); // Every 30 minutes
+setTimeout(pruneStatsDirectory, 10000); // Initial disk prune on start
+
+// Periodic health & memory log
+setInterval(() => {
+    const mem = process.memoryUsage();
+    const rssMb = (mem.rss / 1024 / 1024).toFixed(1);
+    const heapUsedMb = (mem.heapUsed / 1024 / 1024).toFixed(1);
+    const heapTotalMb = (mem.heapTotal / 1024 / 1024).toFixed(1);
+    console.log(`[SYS_HEALTH] RSS: ${rssMb}MB | Heap: ${heapUsedMb}MB/${heapTotalMb}MB | CachedMatches: ${Object.keys(memoryStatsCache).length}`);
+    if (global.gc && mem.heapUsed > 250 * 1024 * 1024) {
+        try { global.gc(); } catch(e) {}
+    }
+}, 10 * 60 * 1000);
 
 const RENDER_UPLOAD_SECRET = process.env.UPLOAD_SECRET || 'lbm-sync-2026';
 
@@ -464,11 +553,11 @@ app.post('/api/sync/stats/:id', express.json({ limit: '5mb' }), (req, res) => {
 });
 
 // Unified Bundle Sync Endpoint (Syncs live list, consensus and active matches stats in 1 fast call)
-app.post('/api/sync/bundle', express.json({ limit: '50mb' }), (req, res) => {
+app.post('/api/sync/bundle', express.json({ limit: '15mb' }), (req, res) => {
     if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
         return res.status(403).json({ error: 'Forbidden' });
     }
-    const { live, consensus, stats } = req.body || {};
+    const { live, consensus, stats, odds } = req.body || {};
     let statsSaved = 0;
 
     if (live) {
@@ -483,6 +572,11 @@ app.post('/api/sync/bundle', express.json({ limit: '50mb' }), (req, res) => {
     if (consensus) {
         memoryConsensusData = consensus;
         try { fs.writeFileSync(CONSENSUS_FILE, JSON.stringify(consensus), 'utf8'); } catch(e) {}
+    }
+
+    if (odds) {
+        memoryOddsData = odds;
+        try { fs.writeFileSync(ODDS_FILE, JSON.stringify(odds), 'utf8'); } catch(e) {}
     }
 
     if (stats && typeof stats === 'object') {
@@ -516,7 +610,9 @@ app.post('/api/sync/bundle', express.json({ limit: '50mb' }), (req, res) => {
 
     const pendingIds = Array.from(pendingRenderRequests);
     pendingRenderRequests.clear();
-    console.log(`[SYNC_BUNDLE] Synced: live=${live?.events?.length || 0} events, statsSaved=${statsSaved} matches, pendingReqs=${pendingIds.length}`);
+    // Prune memory immediately after each sync to prevent buildup
+    pruneMemoryStatsCache();
+    console.log(`[SYNC_BUNDLE] Synced: live=${live?.events?.length || 0} events, statsSaved=${statsSaved} matches, cached=${Object.keys(memoryStatsCache).length}, pendingReqs=${pendingIds.length}`);
     res.json({ ok: true, liveEvents: live?.events?.length || 0, statsSaved, pendingRequests: pendingIds });
 });
 
@@ -1010,6 +1106,8 @@ app.get('/api/odds/live', (req, res) => {
         } catch (e) {
             res.status(500).json({ error: "Odds parse error" });
         }
+    } else if (memoryOddsData) {
+        res.json(memoryOddsData);
     } else {
         res.json({ matches: [], timestamp: 0, message: 'Odds scraper not running yet' });
     }
@@ -2925,6 +3023,14 @@ app.listen(PORT, '0.0.0.0', async () => {
                     } catch (e) {}
                 }
 
+                // 2.5 Read live odds if present
+                let oddsData = null;
+                if (fs.existsSync(ODDS_FILE)) {
+                    try {
+                        oddsData = JSON.parse(fs.readFileSync(ODDS_FILE, 'utf8'));
+                    } catch (e) {}
+                }
+
                 // 3. Gather stats for active in-progress football matches & auto-resolve Telegram signals
                 if (liveData && Array.isArray(liveData.events)) {
                     telegramBot.autoResolveSignals(liveData.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
@@ -2964,10 +3070,11 @@ app.listen(PORT, '0.0.0.0', async () => {
                 }
 
                 // 4. Send Bundle to Render
-                if (liveData || Object.keys(statsBundle).length > 0) {
+                if (liveData || oddsData || Object.keys(statsBundle).length > 0) {
                     const payload = {
                         live: liveData,
                         consensus: consensusData,
+                        odds: oddsData,
                         stats: statsBundle
                     };
 

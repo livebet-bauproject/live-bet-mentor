@@ -6,6 +6,7 @@ import { CONFIG } from '../config';
 import { MatchLiveStatsCard } from './MatchLiveStatsCard';
 import { AttackMomentumGraph as DefaultAttackGraph } from './AttackMomentumGraph';
 import { MatchIncidentsTimeline as DefaultIncidentsTimeline } from './MatchIncidentsTimeline';
+import { GlobalConsensusCard } from './GlobalConsensusCard';
 
 export const LiveTerminalMobile = ({
     matches = [],
@@ -631,6 +632,9 @@ export const LiveTerminalMobile = ({
                                             <span>{lang === 'tr' ? 'Gecikme:' : (lang === 'de' ? 'Latenz:' : 'Lat:')} <strong style={{ color: '#38bdf8' }}>{latencyMs}ms</strong></span>
                                         </div>
                                     </div>
+
+                                    {/* 🌐 Global Consensus External Prediction Radar */}
+                                    <GlobalConsensusCard match={m} lang={lang} t={t} compact />
 
                                     {/* European Market Flow Detail */}
                                     {hasTrend && (

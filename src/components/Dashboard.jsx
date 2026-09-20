@@ -903,6 +903,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     if (type === 'finished' || desc.includes('ended') || desc.includes('ft') || desc.includes('finished')) {
                         return false;
                     }
+                } else {
+                    // Match was live or scheduled earlier today (> 105 mins ago), but is no longer in active SofaScore live feed -> It has finished!
+                    const isPastKickoff = m.minutesUntilKickoff !== undefined && m.minutesUntilKickoff < -105;
+                    const hasLiveMinute = String(m.time || '').includes("'") || String(m.time || '').toLowerCase().includes('ht');
+                    if (isPastKickoff || hasLiveMinute || m.isLive) {
+                        return false;
+                    }
                 }
             }
 
@@ -1894,7 +1901,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
                 const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
                 try {
-                    const res = await fetch(`${proxyBase}/api/odds/live`);
+                    const res = await fetch(`${proxyBase}/api/odds/live`, { signal: AbortSignal.timeout(3500) });
                     if (res.ok) {
                         const data = await res.json();
                         if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
@@ -1903,16 +1910,32 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             return;
                         }
                     }
-                } catch (pe) { /* fallback to firebase */ }
+                } catch (pe) { /* fallback to cloud / firebase */ }
 
-                // 2. Fallback to Firebase
-                const snapshot = await get(ref(database, 'live_odds'));
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    setLiveOdds(data);
-                    // Pass to opportunity scorer for value detection
-                    liveOpportunityScorer.setLiveOdds(data);
+                // 2. If localhost was tried and failed, try Render cloud
+                if (isLocalHost) {
+                    try {
+                        const cloudRes = await fetch('https://live-bet-mentor.onrender.com/api/odds/live', { signal: AbortSignal.timeout(5000) });
+                        if (cloudRes.ok) {
+                            const data = await cloudRes.json();
+                            if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
+                                setLiveOdds(data);
+                                liveOpportunityScorer.setLiveOdds(data);
+                                return;
+                            }
+                        }
+                    } catch (ce) {}
                 }
+
+                // 3. Fallback to Firebase
+                try {
+                    const snapshot = await get(ref(database, 'live_odds'));
+                    if (snapshot.exists()) {
+                        const data = snapshot.val();
+                        setLiveOdds(data);
+                        liveOpportunityScorer.setLiveOdds(data);
+                    }
+                } catch (fe) {}
             } catch (e) {
                 console.log('[ODDS] Odds fetch failed:', e.message);
             }
@@ -4074,7 +4097,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     boxShadow: '0 2px 10px rgba(168, 85, 247, 0.4)'
                                 }}
                             >
-                                ⚡ {lang === 'tr' ? '%30 İndirimle VIP\'ye Geç' : (lang === 'de' ? 'Upgrade auf VIP (30% Rabatt)' : 'Upgrade to VIP (30% OFF)')}
+                                ⚡ {lang === 'tr' ? 'VIP\'ye Yükselt' : (lang === 'de' ? 'Upgrade auf VIP' : 'Upgrade to VIP')}
                             </button>
                             <button
                                 onClick={() => setDismissTrialBanner(true)}

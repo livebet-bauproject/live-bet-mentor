@@ -15,19 +15,33 @@ async function getLiveOddsMap() {
     if (centralOddsCache && (now - centralOddsCacheTime < 25000)) {
         return centralOddsCache;
     }
+    const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const primaryUrl = isLocalDev
+        ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
     try {
-        const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        const apiBase = isLocalDev
-            ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-        const res = await fetch(`${apiBase}/api/odds/live`, { signal: AbortSignal.timeout(3500) });
+        const res = await fetch(`${primaryUrl}/api/odds/live`, { signal: AbortSignal.timeout(3500) });
         if (res.ok) {
             const data = await res.json();
             centralOddsCache = data;
             centralOddsCacheTime = now;
             return data;
         }
-    } catch (e) {}
+    } catch (e) {
+        // Fallback to Render cloud if local dev proxy was unreachable
+        if (isLocalDev && (primaryUrl.includes('localhost') || primaryUrl.includes('127.0.0.1'))) {
+            try {
+                const cloudRes = await fetch('https://live-bet-mentor.onrender.com/api/odds/live', { signal: AbortSignal.timeout(4000) });
+                if (cloudRes.ok) {
+                    const data = await cloudRes.json();
+                    centralOddsCache = data;
+                    centralOddsCacheTime = now;
+                    return data;
+                }
+            } catch (cloudErr) {}
+        }
+    }
     return centralOddsCache || {};
 }
 
@@ -77,16 +91,31 @@ export const sofaScoreAdapter = {
             const isProduction = !isLocalDev;
 
             if (isLocalDev) {
-                // LOCAL DEVELOPMENT: Use local proxy (faster, no Firebase quota)
+                // LOCAL DEVELOPMENT: Try local proxy first (faster, no Firebase quota)
                 const proxyUrl = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001') + '/api/sofascore/live';
-                const response = await fetch(proxyUrl);
+                let data = null;
 
-                if (!response.ok) {
-                    console.warn('[SOFASCORE_ADAPTER] Proxy offline or error:', response.status);
-                    return [];
+                try {
+                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
+                    if (response.ok) {
+                        data = await response.json();
+                    }
+                } catch (localErr) {
+                    // Local proxy offline -> proceed to cloud fallback
                 }
 
-                const data = await response.json();
+                // If local proxy failed or returned empty events, fallback to Render cloud
+                if (!data || !data.events || data.events.length === 0) {
+                    try {
+                        const cloudUrl = 'https://live-bet-mentor.onrender.com/api/sofascore/live';
+                        const cloudRes = await fetch(cloudUrl, { signal: AbortSignal.timeout(8000) });
+                        if (cloudRes.ok) {
+                            data = await cloudRes.json();
+                        }
+                    } catch (cloudErr) {
+                        console.warn('[SOFASCORE_ADAPTER] Render fallback error:', cloudErr.message);
+                    }
+                }
 
                 if (data && data.events) {
                     const normalized = [];
@@ -100,7 +129,7 @@ export const sofaScoreAdapter = {
                     }
 
                     const totalMatches = data.events.length;
-                    console.log(`[SOFASCORE_ADAPTER] LOCAL: Discovered ${totalMatches} total. After normalization: ${normalized.length} active football matches.`);
+                    console.log(`[SOFASCORE_ADAPTER] Discovered ${totalMatches} total. After normalization: ${normalized.length} active football matches.`);
                     
                     if (normalized.length === 0 && totalMatches > 0) {
                         console.warn('[SOFASCORE_ADAPTER] All matches were filtered out. Check normalizeEvent() logic.');
@@ -229,18 +258,33 @@ export const sofaScoreAdapter = {
             const isProduction = !isLocalDev;
 
             if (isLocalDev) {
-                // LOCAL DEVELOPMENT: Use local proxy for stats
+                // LOCAL DEVELOPMENT: Try local proxy for stats, fallback to Render cloud
                 const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
-                const [detailRes, statsRes] = await Promise.all([
-                    fetch(`${proxyBase}/api/sofascore/event/${eventId}`),
-                    fetch(`${proxyBase}/api/sofascore/event/${eventId}/statistics`)
-                ]);
+                let detailRes = null;
+                let statsRes = null;
+
+                try {
+                    [detailRes, statsRes] = await Promise.all([
+                        fetch(`${proxyBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(3500) }),
+                        fetch(`${proxyBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(3500) })
+                    ]);
+                } catch (localErr) {
+                    // Local proxy offline -> fallback to Render cloud
+                    try {
+                        const renderBase = 'https://live-bet-mentor.onrender.com';
+                        [detailRes, statsRes] = await Promise.all([
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(7000) }),
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(7000) })
+                        ]);
+                    } catch (cloudErr) {
+                        return null;
+                    }
+                }
 
                 const latency = Date.now() - startTime;
 
                 // Detail must be successful (200) - 202 means "queued, not ready yet"
-                if (!detailRes.ok && detailRes.status !== 202) {
-                    console.warn(`[SOFASCORE_ADAPTER] LOCAL detail fetch failed: ${detailRes.status}`);
+                if (!detailRes || (!detailRes.ok && detailRes.status !== 202)) {
                     return null;
                 }
 

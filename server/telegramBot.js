@@ -851,6 +851,20 @@ class TelegramBot {
         this.isPolling = true;
         console.log('[TELEGRAM] 🤖 Bot polling started for commands...');
         this._poll();
+
+        // Periodic memory cleanup for in-memory Maps (prevent RAM leak on Render)
+        setInterval(() => {
+            const now = Date.now();
+            const maxAge = 2 * 60 * 60 * 1000; // 2 hours
+            let cleaned = 0;
+            for (const [key, ts] of this.sentSignals) {
+                if (now - ts > maxAge) { this.sentSignals.delete(key); cleaned++; }
+            }
+            for (const [key, ts] of this.recentMessageHashes) {
+                if (now - ts > 60 * 1000) { this.recentMessageHashes.delete(key); cleaned++; }
+            }
+            if (cleaned > 0) console.log(`[TELEGRAM] Pruned ${cleaned} stale entries from in-memory maps.`);
+        }, 15 * 60 * 1000); // Every 15 minutes
     }
 
     async _poll() {

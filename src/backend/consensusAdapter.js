@@ -273,9 +273,15 @@ export const consensusAdapter = {
                     matchMap[key].ranks = { home: hStandings.rank, away: aStandings.rank };
                     matchMap[key].points = { home: hStandings.points, away: aStandings.points };
                 } else {
-                    // Update missing date/time if this source has it
+                    // Update missing date/time if this source has it, and prefer valid HH:MM over live minute strings (e.g. '17:30' over '33'')
                     if (!matchMap[key].date && m.date) matchMap[key].date = m.date;
-                    if (!matchMap[key].time && m.time) matchMap[key].time = m.time;
+                    const isValidTime = (t) => typeof t === 'string' && /^\d{1,2}:\d{2}$/.test(t.trim());
+                    if (!matchMap[key].time && m.time) {
+                        matchMap[key].time = m.time;
+                    } else if (m.time && isValidTime(m.time) && !isValidTime(matchMap[key].time)) {
+                        matchMap[key].time = m.time;
+                    }
+                    if (!matchMap[key].timestamp && m.timestamp) matchMap[key].timestamp = m.timestamp;
 
                     // Prefer cleaner league name if current one is messy
                     const isNewLeagueBetter = m.league &&
@@ -338,7 +344,7 @@ export const consensusAdapter = {
 
         // Post-process for Divergence, Value, and Timing Status
         Object.values(matchMap).forEach(m => {
-            const timeStatus = this.getMatchTimeStatus(m.date, m.time);
+            const timeStatus = this.getMatchTimeStatus(m.date, m.time, m.timestamp);
             m.status = timeStatus.status;
             m.isFinished = timeStatus.isFinished;
             m.isLive = timeStatus.isLive;
@@ -381,7 +387,7 @@ export const consensusAdapter = {
     /**
      * Determines match kickoff and lifecycle status based on date and time strings
      */
-    getMatchTimeStatus(matchDate, matchTime) {
+    getMatchTimeStatus(matchDate, matchTime, matchTimestamp = null) {
         const now = new Date();
         const currentDay = now.getDate();
         const currentMonth = now.getMonth() + 1;
@@ -463,6 +469,50 @@ export const consensusAdapter = {
         }
 
         let timeStr = matchTime.includes(' ') ? matchTime.split(' ').pop() : matchTime;
+        const lowerTime = timeStr.toLowerCase();
+
+        // 1. Explicit finished tokens (FT, MS, Fin, Ended, Bitti)
+        if (lowerTime.includes('ft') || lowerTime.includes('ms') || lowerTime.includes('fin') || lowerTime.includes('ended') || lowerTime.includes('bitti')) {
+            return {
+                status: 'FINISHED',
+                isFinished: true,
+                isLive: false,
+                isUpcoming: false,
+                kickoffTimestamp: now.getTime() - (120 * 60 * 1000),
+                minutesUntilKickoff: -120
+            };
+        }
+
+        // 2. In-play match minute tokens (e.g. 33', 45', HT, İY)
+        if (timeStr.includes("'") || lowerTime.includes('ht') || lowerTime.includes('iy')) {
+            // Check if scraped timestamp is old enough for the match to have finished
+            if (matchTimestamp) {
+                const tsDate = new Date(matchTimestamp);
+                if (!isNaN(tsDate.getTime())) {
+                    const elapsedMinutes = Math.round((now.getTime() - tsDate.getTime()) / 60000);
+                    const minuteVal = parseInt(timeStr.replace(/\D/g, ''), 10) || 45;
+                    if (elapsedMinutes + minuteVal > 105) {
+                        return {
+                            status: 'FINISHED',
+                            isFinished: true,
+                            isLive: false,
+                            isUpcoming: false,
+                            kickoffTimestamp: now.getTime() - (120 * 60 * 1000),
+                            minutesUntilKickoff: -120
+                        };
+                    }
+                }
+            }
+            return {
+                status: 'LIVE',
+                isFinished: false,
+                isLive: true,
+                isUpcoming: false,
+                kickoffTimestamp: now.getTime() - (45 * 60 * 1000),
+                minutesUntilKickoff: -45
+            };
+        }
+
         const [hStr, minStr] = timeStr.split(':');
         const matchHour = parseInt(hStr, 10);
         const matchMin = parseInt(minStr, 10);

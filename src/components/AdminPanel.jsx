@@ -966,6 +966,9 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         if (profile.status === 'rejected') {
             return { label: t.statusRejected, color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.1)' };
         }
+        if (profile.status === 'pending_telegram') {
+            return { label: lang === 'tr' ? 'TELEGRAM ONAYI BEKLİYOR' : (lang === 'de' ? 'TELEGRAM WARTEND' : 'PENDING TELEGRAM'), color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)' };
+        }
         if (profile.status === 'pending' || !profile.status) {
             return { label: t.statusPending, color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.1)' };
         }
@@ -2236,17 +2239,28 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                 </span>
                                             </td>
                                             <td style={{ padding: '1rem' }}>
-                                                <span style={{
-                                                    padding: '0.2rem 0.6rem',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.65rem',
-                                                    fontWeight: 900,
-                                                    background: planInfo.color + '15',
-                                                    color: planInfo.color,
-                                                    border: `1px solid ${planInfo.color}30`
-                                                }}>
-                                                    {planInfo.label}
-                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEditingUser(isEditing ? null : profile.id)}
+                                                    style={{
+                                                        padding: '0.25rem 0.6rem',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: 900,
+                                                        background: planInfo.color + '15',
+                                                        color: planInfo.color,
+                                                        border: `1px solid ${planInfo.color}40`,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px',
+                                                        transition: 'all 0.2s'
+                                                    }}
+                                                    title={lang === 'tr' ? 'Paketi değiştirmek için tıkla' : 'Click to change plan'}
+                                                >
+                                                    <span>{planInfo.label}</span>
+                                                    <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>✏️</span>
+                                                </button>
                                             </td>
                                             <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
                                                 {profile.subscription_end ? new Date(profile.subscription_end).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
@@ -2256,7 +2270,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                             </td>
                                             <td style={{ padding: '1rem', textAlign: 'right' }}>
                                                 <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', position: 'relative' }}>
-                                                    {(profile.status === 'pending' || !profile.status) && !profile.is_banned && (
+                                                    {(profile.status === 'pending' || profile.status === 'pending_telegram' || !profile.status) && !profile.is_banned && (
                                                         <>
                                                             <button
                                                                 onClick={() => approveUser(profile, profile.plan === 'trial' ? 3 : subscriptionDays, profile.plan || selectedPlan)}
@@ -2274,8 +2288,8 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                                                         </>
                                                     )}
 
-                                                    {/* Edit Mode */}
-                                                    {profile.status === 'approved' && !profile.is_banned && (
+                                                    {/* Edit Mode (Available for all non-banned members) */}
+                                                    {!profile.is_banned && (
                                                         isEditing ? (
                                                             <div style={{
                                                                 position: 'absolute',
