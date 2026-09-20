@@ -846,9 +846,15 @@ class TelegramBot {
     /**
      * Start polling for bot commands (/start, /vip, /stats)
      */
-    startPolling() {
+    async startPolling() {
         if (!this.token || this.isPolling) return;
         this.isPolling = true;
+
+        // Ensure any conflicting webhook is deleted so getUpdates always succeeds
+        try {
+            await fetch(`https://api.telegram.org/bot${this.token}/deleteWebhook?drop_pending_updates=false`);
+        } catch (e) {}
+
         console.log('[TELEGRAM] 🤖 Bot polling started for commands...');
         this._poll();
 
@@ -1056,6 +1062,41 @@ _Bol kazançlar dileriz! Live Bet Mentor VIP Syndicate_
 
         // If not a command (doesn't start with /)
         if (!text.startsWith('/')) {
+            // Check if user pasted the trial activation code directly as a message (e.g. trial_xxxx)
+            const trialMatch = text.match(/\b(trial_[a-z0-9_]+)\b/i);
+            if (trialMatch) {
+                const trialCode = trialMatch[1].trim();
+                const approveRes = vipManager.approveWebTrial(trialCode, chatId, username);
+                const isTr = userLang === 'tr';
+                const isDe = userLang === 'de';
+
+                if (approveRes.success) {
+                    const inviteLink = await this.createInviteLink(username, 72);
+                    let successMsg = `🎉 *3 GÜNLÜK VIP DENEMENİZ AKTİFLEŞTİRİLDİ!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n\n✅ *Web Paneliniz Açıldı:* Web sitesindeki oturumunuz onaylandı, hemen giriş yapabilirsiniz.\n⏰ *Süre:* 3 Gün (72 Saat Tam Erişim - Hafta Sonu Bülteni Dahil)\n💎 *Paket:* VIP PRO Deneme\n\n🎟️ *VIP Telegram Kanal Linkiniz:*\n👉 ${inviteLink || 'Kanal yöneticisi tarafından ekleneceksiniz'}\n\n_3 gün sonunda VIP üyelik paketleri için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+
+                    if (isDe) {
+                        successMsg = `🎉 *3-TAGE VIP-TESTPASS AKTIVIERT!* 🎉\n━━━━━━━━━━━━━━━━━━\nWillkommen @${username},\n\n✅ *Web-Panel freigeschaltet!*\n⏰ *Dauer:* 3 Tage (72 Stunden)\n💎 *Paket:* Kostenloser VIP PRO-Pass\n\n🎟️ *Ihr persönlicher VIP-Kanal Link:*\n👉 ${inviteLink || 'Link wird generiert...'}\n\n_Tippen Sie /vip für Verlängerungen._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    } else if (!isTr) {
+                        successMsg = `🎉 *3-DAY VIP TRIAL ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\n\n✅ *Web Dashboard Unlocked!*\n⏰ *Duration:* 3 Days (72 Hours - Full Weekend Matchday)\n💎 *Tier:* VIP PRO Complimentary Pass\n\n🎟️ *Your One-Time VIP Telegram Channel Pass:*\n👉 ${inviteLink || 'Generating access...'}\n\n_To upgrade or extend, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    }
+
+                    await this.sendMessage(chatId, successMsg);
+                    return;
+                } else if (approveRes.reason === 'TELEGRAM_ALREADY_USED') {
+                    const errMsg = isTr
+                        ? `⚠️ *ÜCRETSİZ DENEME HAKKINIZ DAHA ÖNCE KULLANILMIŞTIR!*\n━━━━━━━━━━━━━━━━━━\nBu Telegram hesabıyla daha önce 3 günlük deneme hakkı kullanılmıştır. Sistem kötüye kullanımını önlemek amacıyla her Telegram hesabına yalnızca 1 kez deneme hakkı tanınır.\n\n💎 *VIP Üyelik Satın Almak İçin:*\n👉 /vip yazarak avantajlı üyelik paketlerimizi inceleyebilirsiniz.`
+                        : `⚠️ *TRIAL ALREADY CLAIMED!*\n━━━━━━━━━━━━━━━━━━\nThis Telegram account has already redeemed a 3-day trial pass. To prevent multi-account abuse, only 1 trial is permitted per Telegram user.\n\n💎 *To upgrade to VIP:*\n👉 Type /vip to view packages.`;
+                    await this.sendMessage(chatId, errMsg);
+                    return;
+                } else {
+                    const notFoundMsg = isTr
+                        ? `⚠️ *Geçersiz veya Süresi Dolmuş Aktivasyon Kodu.*\nLütfen web sitesinden tekrar kayıt olmayı deneyin veya yardım için /destek yazın.`
+                        : `⚠️ *Invalid or Expired Activation Code.*\nPlease try registering again on the website or type /help.`;
+                    await this.sendMessage(chatId, notFoundMsg);
+                    return;
+                }
+            }
+
             // If sender is NOT an admin, relay payment proof / question to Admin
             if (!isAdmin && (text || hasPhoto)) {
                 console.log(`[TELEGRAM] 📩 Customer submission from @${username} (${chatId}): ${text || '[Photo]'}`);
