@@ -23,6 +23,15 @@ import {
     isValidNumericId, 
     createRateLimiter 
 } from './securityUtils.js';
+import { 
+    loadMembers, 
+    saveMembers, 
+    loadDeviceTrials, 
+    saveDeviceTrials, 
+    loadUpgradeRequests, 
+    saveUpgradeRequests,
+    initPersistence
+} from './persistenceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,26 +165,7 @@ const BLOCKED_DISPOSABLE_DOMAINS = new Set([
     'temp-mail.io', 'mytemp.email', 'nada.ltd', 'burnermail.io'
 ]);
 
-function loadDeviceTrials() {
-    try {
-        if (fs.existsSync(DEVICE_TRIALS_FILE)) {
-            return JSON.parse(fs.readFileSync(DEVICE_TRIALS_FILE, 'utf8'));
-        }
-    } catch (e) {
-        console.error('[DEVICE_TRIALS] Error reading device_trials.json:', e.message);
-    }
-    return {};
-}
 
-function saveDeviceTrials(trials) {
-    try {
-        fs.writeFileSync(DEVICE_TRIALS_FILE, JSON.stringify(trials, null, 2), 'utf8');
-        return true;
-    } catch (e) {
-        console.error('[DEVICE_TRIALS] Error saving device_trials.json:', e.message);
-        return false;
-    }
-}
 
 const TRIAL_ABUSE_FILE = path.join(__dirname, 'trial_abuse_logs.json');
 
@@ -218,47 +208,7 @@ function logTrialAbuse(entry) {
     }
 }
 
-function loadUpgradeRequests() {
-    try {
-        if (fs.existsSync(UPGRADE_REQUESTS_FILE)) {
-            return JSON.parse(fs.readFileSync(UPGRADE_REQUESTS_FILE, 'utf8'));
-        }
-    } catch (e) {
-        console.error('[UPGRADE] Error reading upgrade_requests.json:', e.message);
-    }
-    return [];
-}
 
-function saveUpgradeRequests(reqs) {
-    try {
-        fs.writeFileSync(UPGRADE_REQUESTS_FILE, JSON.stringify(reqs, null, 2), 'utf8');
-        return true;
-    } catch (e) {
-        console.error('[UPGRADE] Error saving upgrade_requests.json:', e.message);
-        return false;
-    }
-}
-
-function loadMembers() {
-    try {
-        if (fs.existsSync(MEMBERS_FILE)) {
-            return JSON.parse(fs.readFileSync(MEMBERS_FILE, 'utf8'));
-        }
-    } catch (e) {
-        console.error('[MEMBERS] Error reading web_members.json:', e.message);
-    }
-    return [];
-}
-
-function saveMembers(members) {
-    try {
-        fs.writeFileSync(MEMBERS_FILE, JSON.stringify(members, null, 2), 'utf8');
-        return true;
-    } catch (e) {
-        console.error('[MEMBERS] Error saving web_members.json:', e.message);
-        return false;
-    }
-}
 
 function sanitizeMember(m) {
     if (!m || typeof m !== 'object') return m;
@@ -1174,7 +1124,7 @@ const isAdminRequest = (req) => {
 
         // 3. Cryptographically signed JWT verification
         const payload = verifySecureToken(cleanToken, JWT_SECRET);
-        if (payload && (payload.role === 'admin' || payload.plan === 'admin' || payload.email === 'admin@livebetmentor.com')) {
+        if (payload && (payload.role === 'admin' || payload.plan === 'admin' || payload.email === 'admin@livebetmentor.com' || payload.email === 'karabulut.hamza@gmail.com')) {
             return true;
         }
     }
@@ -4273,6 +4223,9 @@ function startConsensusScraper() {
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`[PROXY SERVER] Running on http://0.0.0.0:${PORT} (accessible from network)`);
     console.log(`[PROXY] Environment: ${IS_CLOUD ? 'CLOUD (Render)' : 'LOCAL'}`);
+
+    // Restore ephemeral cloud backup for members & VIP users
+    await initPersistence();
 
     // Initialize Telegram Bot
     const botStatus = await telegramBot.validateToken();

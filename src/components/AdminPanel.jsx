@@ -1359,6 +1359,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         loading: 'Yükleniyor...',
         noUsers: 'Kullanıcı bulunamadı.',
         quickDurations: 'Hızlı:',
+        tabUpgrades: 'YÜKSELTME TALEPLERİ',
         requestedPlan: 'TALEP EDİLEN',
         currentPlan: 'MEVCUT PLAN',
         tabSettings: 'SİSTEM AYARLARI',
@@ -1719,25 +1720,31 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
 
     const getAdminHeaders = () => {
         let token = '';
+        let email = 'admin@livebetmentor.com';
         try {
-            const adminStored = localStorage.getItem('lbm_admin_session');
-            if (adminStored) {
-                const parsed = JSON.parse(adminStored);
-                token = parsed.token || parsed.access_token || '';
+            // 1. URL auth query parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlAuth = urlParams.get('auth');
+            if (urlAuth) {
+                token = urlAuth;
             }
+
+            // 2. Admin session from localStorage
             if (!token) {
-                const memberStored = localStorage.getItem('lbm_member_session');
-                if (memberStored) {
-                    const parsed = JSON.parse(memberStored);
+                const adminStored = localStorage.getItem('lbm_admin_session');
+                if (adminStored) {
+                    const parsed = JSON.parse(adminStored);
                     token = parsed.token || parsed.access_token || '';
+                    if (parsed.user?.email) email = parsed.user.email;
                 }
             }
+            // CRITICAL: NEVER fall back to lbm_member_session. Member tokens lack admin privileges and cause 403 Forbidden!
         } catch (e) {}
 
         const effectiveToken = token || 'master-admin-token';
         const headers = {
             'Content-Type': 'application/json',
-            'x-admin-sender': 'admin@livebetmentor.com',
+            'x-admin-sender': email || 'admin@livebetmentor.com',
             'Authorization': `Bearer ${effectiveToken}`,
             'x-admin-token': effectiveToken
         };
@@ -2782,7 +2789,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         gap: '0.5rem'
                     }}
                 >
-                    {t.tabUpgrades}
+                    {t.tabUpgrades || (lang === 'tr' ? 'YÜKSELTME TALEPLERİ' : lang === 'de' ? 'UPGRADE-ANFRAGEN' : 'UPGRADE REQUESTS')}
                     {upgradeRequests.length > 0 && (
                         <span style={{
                             background: '#a78bfa',

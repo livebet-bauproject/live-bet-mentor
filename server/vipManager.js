@@ -10,6 +10,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { loadVipUsers, saveVipUsers, loadMembers, saveMembers } from './persistenceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,25 +24,11 @@ export class VipManager {
     }
 
     loadUsers() {
-        try {
-            if (fs.existsSync(this.filePath)) {
-                this.users = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
-            } else {
-                this.users = {};
-                this.saveUsers();
-            }
-        } catch (e) {
-            console.error('[VIP_MANAGER] Error loading vip_users.json:', e.message);
-            this.users = {};
-        }
+        this.users = loadVipUsers();
     }
 
     saveUsers() {
-        try {
-            fs.writeFileSync(this.filePath, JSON.stringify(this.users, null, 2), 'utf8');
-        } catch (e) {
-            console.error('[VIP_MANAGER] Error saving vip_users.json:', e.message);
-        }
+        saveVipUsers(this.users);
     }
 
     isAdmin(chatId) {
@@ -244,16 +231,7 @@ export class VipManager {
      */
     approveWebTrial(trialCode, chatId, username = 'User') {
         const id = String(chatId);
-        const membersFile = path.join(__dirname, 'web_members.json');
-        let members = [];
-        try {
-            if (fs.existsSync(membersFile)) {
-                members = JSON.parse(fs.readFileSync(membersFile, 'utf8'));
-            }
-        } catch (e) {
-            console.error('[VIP_MANAGER] Error reading web_members.json:', e.message);
-        }
-
+        const members = loadMembers();
         const cleanCode = (trialCode || '').trim();
         const member = members.find(m => m.trial_code && m.trial_code.toLowerCase() === cleanCode.toLowerCase());
 
@@ -265,7 +243,7 @@ export class VipManager {
             };
         }
 
-        return this._executeMemberApproval(member, members, membersFile, id, username);
+        return this._executeMemberApproval(member, members, id, username);
     }
 
     /**
@@ -273,16 +251,7 @@ export class VipManager {
      */
     approveWebTrialByEmail(email, chatId, username = 'User') {
         const id = String(chatId);
-        const membersFile = path.join(__dirname, 'web_members.json');
-        let members = [];
-        try {
-            if (fs.existsSync(membersFile)) {
-                members = JSON.parse(fs.readFileSync(membersFile, 'utf8'));
-            }
-        } catch (e) {
-            console.error('[VIP_MANAGER] Error reading web_members.json:', e.message);
-        }
-
+        const members = loadMembers();
         const cleanEmail = (email || '').trim().toLowerCase();
         // Look for pending member with this email
         const member = members.find(m => m.email && m.email.toLowerCase() === cleanEmail && m.status === 'pending_telegram');
@@ -305,13 +274,13 @@ export class VipManager {
             };
         }
 
-        return this._executeMemberApproval(member, members, membersFile, id, username);
+        return this._executeMemberApproval(member, members, id, username);
     }
 
     /**
      * Core approval executor with strict multi-account protection while allowing owner renewals
      */
-    _executeMemberApproval(member, members, membersFile, id, username) {
+    _executeMemberApproval(member, members, id, username) {
         // Anti-Abuse: Prevent 1 Telegram user from farming multiple DIFFERENT email accounts
         const otherApprovedMember = members.find(m => 
             String(m.telegram_chat_id) === String(id) && 
@@ -344,11 +313,7 @@ export class VipManager {
         member.subscription_end = trialEnd.toISOString();
         member.trial_verified_at = now.toISOString();
 
-        try {
-            fs.writeFileSync(membersFile, JSON.stringify(members, null, 2), 'utf8');
-        } catch (e) {
-            console.error('[VIP_MANAGER] Error saving web_members.json:', e.message);
-        }
+        saveMembers(members);
 
         return {
             success: true,

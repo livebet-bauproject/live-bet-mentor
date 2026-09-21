@@ -8,21 +8,23 @@ export const getAdminHeaders = (extraHeaders = {}) => {
     let email = 'admin@livebetmentor.com';
 
     try {
-        const adminStored = localStorage.getItem('lbm_admin_session');
-        if (adminStored) {
-            const parsed = JSON.parse(adminStored);
-            token = parsed.token || parsed.access_token || '';
-            if (parsed.user?.email) email = parsed.user.email;
+        if (typeof window !== 'undefined') {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlAuth = urlParams.get('auth');
+            if (urlAuth) {
+                token = urlAuth;
+            }
         }
 
         if (!token) {
-            const memberStored = localStorage.getItem('lbm_member_session');
-            if (memberStored) {
-                const parsed = JSON.parse(memberStored);
+            const adminStored = localStorage.getItem('lbm_admin_session');
+            if (adminStored) {
+                const parsed = JSON.parse(adminStored);
                 token = parsed.token || parsed.access_token || '';
                 if (parsed.user?.email) email = parsed.user.email;
             }
         }
+        // CRITICAL: Do NOT fall back to lbm_member_session! Regular member tokens cause 403 on admin routes.
     } catch (e) {
         console.error('[AUTH] Error reading admin session:', e);
     }
