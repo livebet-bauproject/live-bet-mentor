@@ -1280,6 +1280,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                 const p = new URLSearchParams(window.location.search);
                 if (p.get('tab') === 'support_staff' || p.get('tab') === 'support' || p.get('session')) return 'support_staff';
                 if (p.get('tab') === 'web_analytics') return 'web_analytics';
+                if (p.get('tab') === 'audit' || p.get('tab') === 'internal_audit') return 'audit';
             }
         } catch (e) {}
         return 'pending';
@@ -1411,7 +1412,8 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         resetStats: 'İSTATİSTİKLERİ SIFIRLA',
         resetConfirm: 'Tüm strateji performans verilerini sıfırlamak istediğinize emin misiniz?',
         tabOffice: 'OTONOM KOMUTA (3 GÖREVLİ)',
-        tabSupportStaff: 'CANLI DESTEK & PERSONEL'
+        tabSupportStaff: 'CANLI DESTEK & PERSONEL',
+        tabAudit: 'İÇ DENETİM & KONTROL KULESİ'
     } : lang === 'de' ? {
         title: '🛡️ ADMINISTRATOR-KONTROLLZENTRUM',
         addMember: 'NEUES MITGLIED HINZUFÜGEN',
@@ -1508,7 +1510,8 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         resetStats: 'STATISTIKEN ZURÜCKSETZEN',
         resetConfirm: 'Möchten Sie wirklich alle Strategie-Performancedaten zurücksetzen?',
         tabOffice: 'AUTONOMES KOMMANDO (3 AGENTEN)',
-        tabSupportStaff: 'LIVE-SUPPORT & MITARBEITER'
+        tabSupportStaff: 'LIVE-SUPPORT & MITARBEITER',
+        tabAudit: 'INTERNES AUDIT & KONTROLLTURM'
     } : {
         title: '🛡️ ADMIN CONTROL CENTER',
         addMember: 'ADD NEW MEMBER',
@@ -1605,7 +1608,8 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         resetStats: 'RESET STATS',
         resetConfirm: 'Are you sure you want to reset all strategy performance analytics?',
         tabOffice: 'AUTONOMOUS COMMAND (3 AGENTS)',
-        tabSupportStaff: 'LIVE SUPPORT & STAFF'
+        tabSupportStaff: 'LIVE SUPPORT & STAFF',
+        tabAudit: 'INTERNAL AUDIT & COCKPIT'
     };
 
     const [strategySettings, setStrategySettings] = useState({});
@@ -2945,6 +2949,36 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         </span>
                     )}
                 </button>
+                <button
+                    onClick={() => setActiveTab('audit')}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'audit' ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), rgba(245, 158, 11, 0.25))' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'audit' ? '#ef4444' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'audit' ? '#ef4444' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: activeTab === 'audit' ? '0 0 15px rgba(239, 68, 68, 0.3)' : 'none'
+                    }}
+                >
+                    <span>🛡️</span>
+                    <span>{t.tabAudit || 'İÇ DENETİM & KONTROL KULESİ'}</span>
+                    <span style={{
+                        background: '#ef4444',
+                        color: '#fff',
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: '8px',
+                        fontSize: '0.65rem',
+                        fontWeight: 900
+                    }}>
+                        CANLI
+                    </span>
+                </button>
             </div>
 
             {/* Content Section */}
@@ -2970,7 +3004,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         </span>
                     </div>
                 )}
-                {activeTab !== 'web_analytics' && activeTab !== 'trading_desk' && activeTab !== 'support_staff' && (
+                {activeTab !== 'web_analytics' && activeTab !== 'trading_desk' && activeTab !== 'support_staff' && activeTab !== 'audit' && (
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', fontWeight: 800 }}>
                         {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : activeTab === 'analytics' ? t.strategyScorecardTitle : activeTab === 'office' ? t.tabOffice : t.memberList}
                     </h3>
@@ -3015,6 +3049,14 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         handleClearClosedSessions={handleClearClosedSessions}
                         handleGrantVipFromChat={handleGrantVipFromChat}
                         targetTelegramSessionId={initialSessionId || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session') : null)}
+                    />
+                ) : activeTab === 'audit' ? (
+                    <AuditCockpit
+                        lang={lang}
+                        proxyBase={getProxyBase()}
+                        getAdminHeaders={getAdminHeaders}
+                        onRefreshRequest={fetchProfiles}
+                        mode="full"
                     />
                 ) : activeTab === 'web_analytics' ? (
                     <AnalyticsDashboard lang={lang} />
