@@ -35,21 +35,45 @@ const SupportStaffDesk = ({
     handleAddOperator,
     handleToggleOperator,
     handleDeleteOperator,
-    handleCloseSupportSession
+    handleCloseSupportSession,
+    handleArchiveSupportSession = () => {},
+    handleUnarchiveSupportSession = () => {},
+    handleDeleteSupportSession = () => {},
+    handleClearClosedSessions = () => {},
+    handleGrantVipFromChat = () => {},
+    targetTelegramSessionId = null
 }) => {
     const isTr = lang === 'tr';
     const isDe = lang === 'de';
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [isMobileScreen, setIsMobileScreen] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 900 : false);
+    const [mobileShowChat, setMobileShowChat] = useState(() => Boolean(targetTelegramSessionId || activeSupportSession));
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobileScreen(window.innerWidth < 900);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    useEffect(() => {
+        if (activeSupportSession || targetTelegramSessionId) {
+            setMobileShowChat(true);
+        }
+    }, [activeSupportSession?.sessionId, targetTelegramSessionId]);
 
     const waitingSessions = supportSessions.filter(s => s.status === 'waiting_admin');
     const activeSessions = supportSessions.filter(s => s.status === 'active');
     const closedSessions = supportSessions.filter(s => s.status === 'closed');
+    const archivedSessions = supportSessions.filter(s => s.status === 'archived');
 
     const filteredSessions = supportSessions.filter(s => {
         if (supportFilter === 'waiting' && s.status !== 'waiting_admin') return false;
         if (supportFilter === 'active' && s.status !== 'active') return false;
         if (supportFilter === 'closed' && s.status !== 'closed') return false;
+        if (supportFilter === 'archived' && s.status !== 'archived') return false;
 
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
@@ -174,37 +198,59 @@ const SupportStaffDesk = ({
             {/* SUBTAB 1: LIVE CHATS & SESSIONS */}
             {supportSubTab === 'chats' && (
                 <div>
-                    {/* Filter Pills */}
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', flexWrap: 'wrap' }}>
-                        {[
-                            { key: 'all', label: isTr ? `Tümü (${supportSessions.length})` : `All (${supportSessions.length})` },
-                            { key: 'waiting', label: `🟡 ${isTr ? 'Yanıt Bekleyenler' : 'Waiting'} (${waitingSessions.length})` },
-                            { key: 'active', label: `🟢 ${isTr ? 'Aktif' : 'Active'} (${activeSessions.length})` },
-                            { key: 'closed', label: `⚪ ${isTr ? 'Çözüldü' : 'Closed'} (${closedSessions.length})` }
-                        ].map(f => (
+                    {/* Filter Pills & Actions */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            {[
+                                { key: 'all', label: isTr ? `Tümü (${supportSessions.length})` : `All (${supportSessions.length})` },
+                                { key: 'waiting', label: `🟡 ${isTr ? 'Yanıt Bekleyenler' : 'Waiting'} (${waitingSessions.length})` },
+                                { key: 'active', label: `🟢 ${isTr ? 'Aktif' : 'Active'} (${activeSessions.length})` },
+                                { key: 'closed', label: `⚪ ${isTr ? 'Çözüldü' : 'Closed'} (${closedSessions.length})` },
+                                { key: 'archived', label: `📁 ${isTr ? 'Arşiv' : 'Archived'} (${archivedSessions.length})` }
+                            ].map(f => (
+                                <button
+                                    key={f.key}
+                                    onClick={() => setSupportFilter(f.key)}
+                                    style={{
+                                        padding: '0.4rem 0.9rem',
+                                        borderRadius: '20px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        background: supportFilter === f.key ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
+                                        color: supportFilter === f.key ? '#38bdf8' : '#94a3b8',
+                                        border: `1px solid ${supportFilter === f.key ? '#38bdf8' : 'rgba(255,255,255,0.08)'}`
+                                    }}
+                                >
+                                    {f.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {(closedSessions.length > 0 || archivedSessions.length > 0) && (
                             <button
-                                key={f.key}
-                                onClick={() => setSupportFilter(f.key)}
+                                onClick={handleClearClosedSessions}
                                 style={{
-                                    padding: '0.4rem 0.9rem',
-                                    borderRadius: '20px',
-                                    fontSize: '0.72rem',
+                                    padding: '0.35rem 0.8rem',
+                                    borderRadius: '6px',
+                                    fontSize: '0.7rem',
                                     fontWeight: 700,
                                     cursor: 'pointer',
-                                    background: supportFilter === f.key ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
-                                    color: supportFilter === f.key ? '#38bdf8' : '#94a3b8',
-                                    border: `1px solid ${supportFilter === f.key ? '#38bdf8' : 'rgba(255,255,255,0.08)'}`
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    color: '#ef4444',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)'
                                 }}
+                                title={isTr ? 'Çözülmüş ve arşivlenmiş tüm sohbetleri kalıcı olarak siler' : 'Permanently remove closed and archived sessions'}
                             >
-                                {f.label}
+                                🧹 {isTr ? 'Eskileri Temizle' : 'Clear Old'}
                             </button>
-                        ))}
+                        )}
                     </div>
 
                     {/* Master-Detail Split Grid */}
                     <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'minmax(300px, 380px) 1fr',
+                        display: isMobileScreen ? 'block' : 'grid',
+                        gridTemplateColumns: isMobileScreen ? '1fr' : 'minmax(300px, 380px) 1fr',
                         gap: '1.2rem',
                         alignItems: 'start'
                     }}>
@@ -214,8 +260,9 @@ const SupportStaffDesk = ({
                             borderRadius: '12px',
                             border: '1px solid rgba(255,255,255,0.08)',
                             padding: '1rem',
-                            maxHeight: '620px',
-                            overflowY: 'auto'
+                            maxHeight: isMobileScreen ? 'none' : '620px',
+                            overflowY: 'auto',
+                            display: (isMobileScreen && mobileShowChat && activeSupportSession) ? 'none' : 'block'
                         }}>
                             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.8rem', textTransform: 'uppercase' }}>
                                 {isTr ? 'Sohbet Oturumları' : 'Chat Sessions'} ({filteredSessions.length})
@@ -251,47 +298,120 @@ const SupportStaffDesk = ({
                                     {filteredSessions.map(sess => {
                                         const isSelected = activeSupportSession?.sessionId === sess.sessionId;
                                         const isWaiting = sess.status === 'waiting_admin';
+                                        const isTargetFromTelegram = Boolean(targetTelegramSessionId && sess.sessionId === targetTelegramSessionId);
+                                        const isMember = Boolean(
+                                            sess.userInfo?.isMember || 
+                                            (sess.userInfo?.email && !sess.userInfo?.email.toLowerCase().includes('ziyaretci') && sess.userInfo?.email !== 'Misafir')
+                                        );
+                                        const isMobile = sess.userInfo?.device?.isMobile;
+
                                         return (
                                             <div
                                                 key={sess.sessionId}
-                                                onClick={() => fetchSessionDetail(sess.sessionId)}
+                                                onClick={() => {
+                                                    fetchSessionDetail(sess.sessionId);
+                                                    if (isMobileScreen) setMobileShowChat(true);
+                                                }}
                                                 style={{
                                                     padding: '0.8rem',
                                                     borderRadius: '8px',
-                                                    background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
-                                                    border: `1px solid ${isSelected ? '#38bdf8' : isWaiting ? '#fbbf24' : 'rgba(255,255,255,0.06)'}`,
+                                                    background: isTargetFromTelegram
+                                                        ? (isSelected ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.1)')
+                                                        : (isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)'),
+                                                    border: isTargetFromTelegram
+                                                        ? '2px solid #f59e0b'
+                                                        : `1px solid ${isSelected ? '#38bdf8' : isWaiting ? '#fbbf24' : 'rgba(255,255,255,0.06)'}`,
+                                                    boxShadow: isTargetFromTelegram ? '0 0 12px rgba(245, 158, 11, 0.35)' : 'none',
                                                     cursor: 'pointer',
                                                     transition: 'all 0.15s'
                                                 }}
                                             >
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                                                    <span style={{ fontWeight: 800, fontSize: '0.8rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                        <span>👤</span>
-                                                        <span style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                            {sess.userInfo?.email || sess.userInfo?.name || 'Ziyaretçi'}
+                                                {/* Top row: Target badge if from telegram, or status badge */}
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                        <span style={{ fontSize: '0.85rem' }}>{isMember ? '👑' : '🌐'}</span>
+                                                        <span style={{
+                                                            fontSize: '0.62rem',
+                                                            fontWeight: 900,
+                                                            padding: '0.12rem 0.4rem',
+                                                            borderRadius: '4px',
+                                                            background: isMember ? 'rgba(245, 158, 11, 0.2)' : 'rgba(148, 163, 184, 0.15)',
+                                                            color: isMember ? '#fbbf24' : '#94a3b8',
+                                                            border: `1px solid ${isMember ? 'rgba(245, 158, 11, 0.4)' : 'rgba(148, 163, 184, 0.25)'}`
+                                                        }}>
+                                                            {isMember ? (isTr ? 'KAYITLI ÜYE' : 'MEMBER') : (isTr ? 'MİSAFİR' : 'GUEST')}
                                                         </span>
-                                                    </span>
+                                                        {isTargetFromTelegram && (
+                                                            <span style={{
+                                                                fontSize: '0.6rem',
+                                                                fontWeight: 900,
+                                                                padding: '0.12rem 0.4rem',
+                                                                borderRadius: '4px',
+                                                                background: '#f59e0b',
+                                                                color: '#000',
+                                                                letterSpacing: '0.3px'
+                                                            }}>
+                                                                🎯 TELEGRAM
+                                                            </span>
+                                                        )}
+                                                    </div>
+
                                                     <span style={{
                                                         fontSize: '0.62rem',
                                                         fontWeight: 800,
                                                         padding: '0.15rem 0.45rem',
                                                         borderRadius: '6px',
-                                                        background: isWaiting ? 'rgba(251, 191, 36, 0.2)' : sess.status === 'closed' ? 'rgba(100, 116, 139, 0.2)' : 'rgba(16, 185, 129, 0.2)',
-                                                        color: isWaiting ? '#fbbf24' : sess.status === 'closed' ? '#94a3b8' : '#10b981',
-                                                        border: `1px solid ${isWaiting ? '#fbbf24' : sess.status === 'closed' ? '#94a3b8' : '#10b981'}`
+                                                        background: isWaiting
+                                                            ? 'rgba(251, 191, 36, 0.2)'
+                                                            : sess.status === 'closed'
+                                                            ? 'rgba(100, 116, 139, 0.2)'
+                                                            : sess.status === 'archived'
+                                                            ? 'rgba(167, 139, 250, 0.2)'
+                                                            : 'rgba(16, 185, 129, 0.2)',
+                                                        color: isWaiting
+                                                            ? '#fbbf24'
+                                                            : sess.status === 'closed'
+                                                            ? '#94a3b8'
+                                                            : sess.status === 'archived'
+                                                            ? '#a78bfa'
+                                                            : '#10b981',
+                                                        border: `1px solid ${
+                                                            isWaiting
+                                                                ? '#fbbf24'
+                                                                : sess.status === 'closed'
+                                                                ? '#94a3b8'
+                                                                : sess.status === 'archived'
+                                                                ? '#a78bfa'
+                                                                : '#10b981'
+                                                        }`
                                                     }}>
-                                                        {isWaiting ? (isTr ? 'YANIT BEKLİYOR' : 'WAITING') : sess.status === 'closed' ? (isTr ? 'ÇÖZÜLDÜ' : 'CLOSED') : (isTr ? 'AKTİF' : 'ACTIVE')}
+                                                        {isWaiting
+                                                            ? (isTr ? 'YANIT BEKLİYOR' : 'WAITING')
+                                                            : sess.status === 'closed'
+                                                            ? (isTr ? 'ÇÖZÜLDÜ' : 'CLOSED')
+                                                            : sess.status === 'archived'
+                                                            ? (isTr ? 'ARŞİV' : 'ARCHIVED')
+                                                            : (isTr ? 'AKTİF' : 'ACTIVE')}
                                                     </span>
                                                 </div>
 
-                                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'flex', gap: '0.4rem', marginBottom: '0.4rem' }}>
-                                                    <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
+                                                {/* Customer identifier */}
+                                                <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#fff', marginBottom: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    {sess.userInfo?.email || sess.userInfo?.name || (isTr ? `Ziyaretçi #${sess.sessionId.substring(sess.sessionId.length - 6)}` : `Guest #${sess.sessionId.substring(sess.sessionId.length - 6)}`)}
+                                                </div>
+
+                                                {/* Meta badges: Language, Plan, Device */}
+                                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'flex', gap: '0.4rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                                                    <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
                                                         {(sess.lang || 'tr').toUpperCase()}
                                                     </span>
-                                                    <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
-                                                        {sess.userInfo?.plan || 'Misafir'}
+                                                    <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px', color: isMember ? '#fbbf24' : '#94a3b8' }}>
+                                                        {sess.userInfo?.plan || (isMember ? 'PRO' : 'Misafir')}
                                                     </span>
-                                                    <span style={{ opacity: 0.6 }}>
+                                                    <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                                                        {isMobile ? '📱 Mobil' : '💻 Masaüstü'}
+                                                    </span>
+                                                    <span style={{ opacity: 0.6, marginLeft: 'auto' }}>
                                                         #{sess.sessionId.substring(sess.sessionId.length - 6)}
                                                     </span>
                                                 </div>
@@ -320,11 +440,38 @@ const SupportStaffDesk = ({
                             background: 'rgba(15, 23, 42, 0.6)',
                             borderRadius: '12px',
                             border: '1px solid rgba(255,255,255,0.08)',
-                            padding: '1.2rem',
-                            display: 'flex',
+                            padding: isMobileScreen ? '0.85rem' : '1.2rem',
+                            display: (isMobileScreen && (!mobileShowChat || !activeSupportSession)) ? 'none' : 'flex',
                             flexDirection: 'column',
                             minHeight: '500px'
                         }}>
+                            {/* Mobile Back to Sessions Button */}
+                            {isMobileScreen && activeSupportSession && (
+                                <button
+                                    type="button"
+                                    onClick={() => setMobileShowChat(false)}
+                                    style={{
+                                        alignSelf: 'flex-start',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
+                                        padding: '0.45rem 0.85rem',
+                                        borderRadius: '8px',
+                                        background: 'rgba(255,255,255,0.08)',
+                                        border: '1px solid rgba(255,255,255,0.18)',
+                                        color: '#38bdf8',
+                                        fontWeight: 800,
+                                        fontSize: '0.75rem',
+                                        cursor: 'pointer',
+                                        marginBottom: '0.9rem'
+                                    }}
+                                >
+                                    <span>←</span>
+                                    <span>{isTr ? 'Tüm Sohbetler Listesine Dön' : 'Back to Sessions List'}</span>
+                                    <span style={{ opacity: 0.6, fontSize: '0.68rem' }}>({filteredSessions.length})</span>
+                                </button>
+                            )}
+
                             {!activeSupportSession ? (
                                 <div style={{
                                     display: 'flex',
@@ -349,70 +496,236 @@ const SupportStaffDesk = ({
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1 }}>
-                                    {/* Active Session Header */}
-                                    <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        paddingBottom: '0.8rem',
-                                        borderBottom: '1px solid rgba(255,255,255,0.08)',
-                                        marginBottom: '1rem',
-                                        flexWrap: 'wrap',
-                                        gap: '0.5rem'
-                                    }}>
-                                        <div>
-                                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                <span>👤</span>
-                                                <span>{activeSupportSession.userInfo?.email || activeSupportSession.userInfo?.name || 'Misafir Müşteri'}</span>
-                                                <span style={{
-                                                    fontSize: '0.65rem',
-                                                    padding: '0.1rem 0.4rem',
-                                                    borderRadius: '4px',
-                                                    background: 'rgba(56, 189, 248, 0.15)',
-                                                    color: '#38bdf8'
-                                                }}>
-                                                    {activeSupportSession.userInfo?.plan || 'Misafir'}
-                                                </span>
+                                    {/* High-visibility Target Banner if opened from Telegram */}
+                                    {targetTelegramSessionId && activeSupportSession.sessionId === targetTelegramSessionId && (
+                                        <div style={{
+                                            background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.25), rgba(217, 119, 6, 0.15))',
+                                            border: '1px solid #f59e0b',
+                                            borderRadius: '8px',
+                                            padding: '0.7rem 1rem',
+                                            marginBottom: '0.9rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            gap: '0.8rem',
+                                            boxShadow: '0 0 15px rgba(245, 158, 11, 0.2)'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                <span style={{ fontSize: '1.4rem' }}>🎯</span>
+                                                <div>
+                                                    <div style={{ fontWeight: 900, fontSize: '0.82rem', color: '#fef08a' }}>
+                                                        {isTr ? 'TELEGRAM BİLDİRİMİNDEN BAĞLANILDI' : 'CONNECTED VIA TELEGRAM NOTIFICATION'}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.72rem', color: '#fde047', opacity: 0.9 }}>
+                                                        {isTr ? 'Telegram botunuza mesaj atan müşteri bu kişidir. Doğrudan bu ekrandan yazışabilirsiniz.' : 'Directly replying to the user who triggered the Telegram bot notification.'}
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>
-                                                Oturum: <code style={{ color: '#38bdf8' }}>{activeSupportSession.sessionId}</code> | Dil: {(activeSupportSession.lang || 'tr').toUpperCase()}
-                                            </div>
+                                            <span style={{ fontSize: '0.65rem', background: '#f59e0b', color: '#000', fontWeight: 900, padding: '0.2rem 0.5rem', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                                                {isTr ? 'DOĞRU KİŞİ SEÇİLDİ ✓' : 'TARGET MATCHED ✓'}
+                                            </span>
                                         </div>
+                                    )}
 
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <button
-                                                onClick={() => handleCloseSupportSession(activeSupportSession.sessionId)}
-                                                style={{
-                                                    padding: '0.4rem 0.8rem',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    background: activeSupportSession.status === 'closed' ? 'rgba(255,255,255,0.05)' : 'rgba(239, 68, 68, 0.15)',
-                                                    color: activeSupportSession.status === 'closed' ? '#94a3b8' : '#ef4444',
-                                                    border: '1px solid currentColor'
-                                                }}
-                                            >
-                                                {activeSupportSession.status === 'closed' ? '✓ Çözüldü' : '🔒 Oturumu Kapat'}
-                                            </button>
-                                            <button
-                                                onClick={() => fetchSessionDetail(activeSupportSession.sessionId)}
-                                                disabled={sessionChatLoading}
-                                                style={{
-                                                    padding: '0.4rem 0.8rem',
-                                                    borderRadius: '6px',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 700,
-                                                    cursor: 'pointer',
-                                                    background: 'rgba(255,255,255,0.05)',
-                                                    color: '#38bdf8',
-                                                    border: '1px solid #38bdf8'
-                                                }}
-                                            >
-                                                {sessionChatLoading ? '...' : '🔄'}
-                                            </button>
-                                        </div>
-                                    </div>
+                                    {/* Active Session Header with Details and Actions */}
+                                    {(() => {
+                                        const isMember = Boolean(
+                                            activeSupportSession.userInfo?.isMember || 
+                                            (activeSupportSession.userInfo?.email && !activeSupportSession.userInfo?.email.toLowerCase().includes('ziyaretci') && activeSupportSession.userInfo?.email !== 'Misafir')
+                                        );
+                                        const isMobile = activeSupportSession.userInfo?.device?.isMobile;
+
+                                        return (
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'flex-start',
+                                                paddingBottom: '0.8rem',
+                                                borderBottom: '1px solid rgba(255,255,255,0.08)',
+                                                marginBottom: '1rem',
+                                                flexWrap: 'wrap',
+                                                gap: '0.8rem'
+                                            }}>
+                                                <div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                        <span style={{ fontSize: '1.1rem' }}>{isMember ? '👑' : '🌐'}</span>
+                                                        <span style={{ fontWeight: 900, fontSize: '1rem', color: '#fff' }}>
+                                                            {activeSupportSession.userInfo?.email || activeSupportSession.userInfo?.name || (isTr ? 'Misafir Müşteri' : 'Guest Visitor')}
+                                                        </span>
+                                                        <span style={{
+                                                            fontSize: '0.65rem',
+                                                            padding: '0.15rem 0.5rem',
+                                                            borderRadius: '4px',
+                                                            fontWeight: 800,
+                                                            background: isMember ? 'rgba(245, 158, 11, 0.2)' : 'rgba(148, 163, 184, 0.15)',
+                                                            color: isMember ? '#fbbf24' : '#94a3b8',
+                                                            border: `1px solid ${isMember ? 'rgba(245, 158, 11, 0.4)' : 'rgba(148, 163, 184, 0.3)'}`
+                                                        }}>
+                                                            {isMember ? (isTr ? 'KAYITLI ÜYE' : 'MEMBER') : (isTr ? 'MİSAFİR (Üye Girişi Yok)' : 'GUEST')}
+                                                        </span>
+                                                        <span style={{
+                                                            fontSize: '0.65rem',
+                                                            padding: '0.15rem 0.5rem',
+                                                            borderRadius: '4px',
+                                                            fontWeight: 800,
+                                                            background: 'rgba(56, 189, 248, 0.15)',
+                                                            color: '#38bdf8',
+                                                            border: '1px solid rgba(56, 189, 248, 0.3)'
+                                                        }}>
+                                                            {activeSupportSession.userInfo?.plan || (isMember ? 'PRO' : 'Misafir')}
+                                                        </span>
+                                                        <span style={{
+                                                            fontSize: '0.65rem',
+                                                            padding: '0.15rem 0.5rem',
+                                                            borderRadius: '4px',
+                                                            background: 'rgba(255,255,255,0.05)',
+                                                            color: '#cbd5e1'
+                                                        }}>
+                                                            {isMobile ? '📱 Mobil Cihaz' : '💻 Masaüstü / PC'}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.35rem', display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                                                        <span>Oturum: <code style={{ color: '#38bdf8' }}>{activeSupportSession.sessionId}</code></span>
+                                                        <span>•</span>
+                                                        <span>Dil: <strong>{(activeSupportSession.lang || 'tr').toUpperCase()}</strong></span>
+                                                        <span>•</span>
+                                                        <span>Durum: <strong style={{ color: activeSupportSession.status === 'closed' ? '#94a3b8' : activeSupportSession.status === 'archived' ? '#a78bfa' : '#10b981' }}>
+                                                            {activeSupportSession.status === 'closed' ? 'Çözüldü' : activeSupportSession.status === 'archived' ? 'Arşiv' : 'Aktif'}
+                                                        </strong></span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Action Buttons */}
+                                                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    {/* Quick VIP Buttons */}
+                                                    <button
+                                                        onClick={() => handleGrantVipFromChat(activeSupportSession.sessionId, 30, 'pro')}
+                                                        title={isTr ? 'Bu müşteriye anında 30 Gün VIP tanımlar ve sohbete kutlama mesajı geçer' : 'Grant 30 Days VIP'}
+                                                        style={{
+                                                            padding: '0.35rem 0.65rem',
+                                                            borderRadius: '6px',
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 800,
+                                                            cursor: 'pointer',
+                                                            background: 'rgba(16, 185, 129, 0.15)',
+                                                            color: '#10b981',
+                                                            border: '1px solid #10b981'
+                                                        }}
+                                                    >
+                                                        💎 +30G VIP
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleGrantVipFromChat(activeSupportSession.sessionId, 3, 'trial')}
+                                                        title={isTr ? '3 Günlük Deneme Paketi tanımlar' : 'Grant 3 Days Trial'}
+                                                        style={{
+                                                            padding: '0.35rem 0.65rem',
+                                                            borderRadius: '6px',
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 800,
+                                                            cursor: 'pointer',
+                                                            background: 'rgba(56, 189, 248, 0.15)',
+                                                            color: '#38bdf8',
+                                                            border: '1px solid #38bdf8'
+                                                        }}
+                                                    >
+                                                        🚀 +3G Deneme
+                                                    </button>
+
+                                                    {/* Archive / Unarchive */}
+                                                    {activeSupportSession.status === 'archived' ? (
+                                                        <button
+                                                            onClick={() => handleUnarchiveSupportSession(activeSupportSession.sessionId)}
+                                                            style={{
+                                                                padding: '0.35rem 0.65rem',
+                                                                borderRadius: '6px',
+                                                                fontSize: '0.68rem',
+                                                                fontWeight: 700,
+                                                                cursor: 'pointer',
+                                                                background: 'rgba(167, 139, 250, 0.15)',
+                                                                color: '#a78bfa',
+                                                                border: '1px solid #a78bfa'
+                                                            }}
+                                                            title={isTr ? 'Arşivden çıkar ve aktife al' : 'Unarchive session'}
+                                                        >
+                                                            🔄 Arşivden Çıkar
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => handleArchiveSupportSession(activeSupportSession.sessionId)}
+                                                            style={{
+                                                                padding: '0.35rem 0.65rem',
+                                                                borderRadius: '6px',
+                                                                fontSize: '0.68rem',
+                                                                fontWeight: 700,
+                                                                cursor: 'pointer',
+                                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                                color: '#cbd5e1',
+                                                                border: '1px solid rgba(255, 255, 255, 0.2)'
+                                                            }}
+                                                            title={isTr ? 'Sohbeti arşive kaldır' : 'Archive session'}
+                                                        >
+                                                            📁 Arşivle
+                                                        </button>
+                                                    )}
+
+                                                    {/* Close / Resolve */}
+                                                    <button
+                                                        onClick={() => handleCloseSupportSession(activeSupportSession.sessionId)}
+                                                        style={{
+                                                            padding: '0.35rem 0.65rem',
+                                                            borderRadius: '6px',
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer',
+                                                            background: activeSupportSession.status === 'closed' ? 'rgba(255,255,255,0.05)' : 'rgba(239, 68, 68, 0.15)',
+                                                            color: activeSupportSession.status === 'closed' ? '#94a3b8' : '#ef4444',
+                                                            border: '1px solid currentColor'
+                                                        }}
+                                                        title={activeSupportSession.status === 'closed' ? 'Zaten Çözüldü' : 'Oturumu Kapat / Çözüldü'}
+                                                    >
+                                                        {activeSupportSession.status === 'closed' ? '✓ Çözüldü' : '🔒 Kapat'}
+                                                    </button>
+
+                                                    {/* Delete session */}
+                                                    <button
+                                                        onClick={() => handleDeleteSupportSession(activeSupportSession.sessionId)}
+                                                        style={{
+                                                            padding: '0.35rem 0.65rem',
+                                                            borderRadius: '6px',
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer',
+                                                            background: 'rgba(239, 68, 68, 0.1)',
+                                                            color: '#ef4444',
+                                                            border: '1px solid rgba(239, 68, 68, 0.3)'
+                                                        }}
+                                                        title={isTr ? 'Bu sohbeti tamamen sil' : 'Delete chat session'}
+                                                    >
+                                                        🗑️ Sil
+                                                    </button>
+
+                                                    {/* Refresh */}
+                                                    <button
+                                                        onClick={() => fetchSessionDetail(activeSupportSession.sessionId)}
+                                                        disabled={sessionChatLoading}
+                                                        style={{
+                                                            padding: '0.35rem 0.6rem',
+                                                            borderRadius: '6px',
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer',
+                                                            background: 'rgba(255,255,255,0.05)',
+                                                            color: '#38bdf8',
+                                                            border: '1px solid #38bdf8'
+                                                        }}
+                                                        title="Yenile"
+                                                    >
+                                                        {sessionChatLoading ? '...' : '🔄'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Messages Box */}
                                     <div style={{
@@ -1401,6 +1714,97 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         } catch (e) {}
     };
 
+    const handleArchiveSupportSession = async (sessionId) => {
+        try {
+            const proxyBase = getProxyBase();
+            await fetch(`${proxyBase}/api/admin/support/sessions/${sessionId}/archive`, {
+                method: 'POST',
+                headers: getAdminHeaders()
+            });
+            if (activeSupportSession?.sessionId === sessionId) {
+                setActiveSupportSession(prev => prev ? { ...prev, status: 'archived' } : null);
+            }
+            fetchSupportData();
+        } catch (e) {}
+    };
+
+    const handleUnarchiveSupportSession = async (sessionId) => {
+        try {
+            const proxyBase = getProxyBase();
+            await fetch(`${proxyBase}/api/admin/support/sessions/${sessionId}/unarchive`, {
+                method: 'POST',
+                headers: getAdminHeaders()
+            });
+            if (activeSupportSession?.sessionId === sessionId) {
+                setActiveSupportSession(prev => prev ? { ...prev, status: 'active' } : null);
+            }
+            fetchSupportData();
+        } catch (e) {}
+    };
+
+    const handleDeleteSupportSession = async (sessionId) => {
+        if (!window.confirm('Bu sohbet oturumunu ve tüm mesaj geçmişini kalıcı olarak silmek istediğinize emin misiniz?')) {
+            return;
+        }
+        try {
+            const proxyBase = getProxyBase();
+            await fetch(`${proxyBase}/api/admin/support/sessions/${sessionId}`, {
+                method: 'DELETE',
+                headers: getAdminHeaders()
+            });
+            if (activeSupportSession?.sessionId === sessionId) {
+                setActiveSupportSession(null);
+            }
+            fetchSupportData();
+            setStatus({ type: 'success', message: 'Sohbet başarıyla silindi.' });
+        } catch (e) {
+            setStatus({ type: 'error', message: 'Sohbet silinemedi.' });
+        }
+    };
+
+    const handleClearClosedSessions = async () => {
+        if (!window.confirm('Çözülen ve arşivlenen tüm eski sohbetleri kalıcı olarak temizlemek istiyor musunuz?')) {
+            return;
+        }
+        try {
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/admin/support/sessions/clear-closed`, {
+                method: 'POST',
+                headers: getAdminHeaders()
+            });
+            const data = await res.json();
+            if (data.success) {
+                setStatus({ type: 'success', message: `${data.purgedCount || 0} eski sohbet temizlendi.` });
+                if (activeSupportSession?.status === 'closed' || activeSupportSession?.status === 'archived') {
+                    setActiveSupportSession(null);
+                }
+                fetchSupportData();
+            }
+        } catch (e) {}
+    };
+
+    const handleGrantVipFromChat = async (sessionId, days = 30, plan = 'pro') => {
+        try {
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/admin/support/sessions/${sessionId}/grant-vip`, {
+                method: 'POST',
+                headers: getAdminHeaders(),
+                body: JSON.stringify({ days, plan })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setStatus({ type: 'success', message: `Kullanıcıya başarıyla +${days} Günlük ${plan.toUpperCase()} tanımlandı!` });
+                fetchSessionDetail(sessionId);
+                fetchSupportData();
+                fetchMembers();
+            } else {
+                setStatus({ type: 'error', message: data.error || 'VIP tanımlanamadı.' });
+            }
+        } catch (e) {
+            setStatus({ type: 'error', message: e.message });
+        }
+    };
+
     const handleSendTelegramReport = async () => {
         setTelegramLoading(true);
         try {
@@ -2365,6 +2769,12 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         handleToggleOperator={handleToggleOperator}
                         handleDeleteOperator={handleDeleteOperator}
                         handleCloseSupportSession={handleCloseSupportSession}
+                        handleArchiveSupportSession={handleArchiveSupportSession}
+                        handleUnarchiveSupportSession={handleUnarchiveSupportSession}
+                        handleDeleteSupportSession={handleDeleteSupportSession}
+                        handleClearClosedSessions={handleClearClosedSessions}
+                        handleGrantVipFromChat={handleGrantVipFromChat}
+                        targetTelegramSessionId={initialSessionId || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session') : null)}
                     />
                 ) : activeTab === 'web_analytics' ? (
                     <AnalyticsDashboard lang={lang} />

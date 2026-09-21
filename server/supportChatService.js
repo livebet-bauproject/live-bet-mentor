@@ -359,18 +359,26 @@ class SupportChatService {
      */
     async forwardToAdminTelegram(session, latestText, telegramBot) {
         try {
+            const isMember = session.userInfo?.isMember || !!session.userInfo?.email;
+            const memberStatusText = isMember 
+                ? `👑 *KAYITLI ÜYE:* ${session.userInfo?.email} [${(session.userInfo?.plan || 'trial').toUpperCase()}]`
+                : `🌐 *MİSAFİR ZİYARETÇİ:* #${session.sessionId.slice(-6)} (Kayıtsız)`;
+            const deviceText = session.userInfo?.device?.isMobile ? '📱 Mobil' : '💻 Masaüstü';
+
             const adminAlert = `💬 *YENİ SİTE CANLI DESTEK MESAJI!* 💬
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-🆔 *Oturum Kodu:* \`${session.sessionId}\`
-👤 *Kullanıcı:* ${session.userInfo?.email || session.userInfo?.name || 'Site Ziyaretçisi'} (${session.userInfo?.plan || 'Misafir'})
+👤 ${memberStatusText}
+📱 *Cihaz:* ${deviceText}
 🌐 *Dil:* ${(session.lang || 'tr').toUpperCase()}
+🆔 *Oturum:* \`${session.sessionId}\`
+
 📝 *Mesaj:*
 "${latestText}"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 💬 *Müşteriye Cevap Vermek İçin:*
-👉 Bu mesaja Telegram'da doğrudan **"Yanıtla" (Reply)** yapıp cevabınızı yazın!
-(Veya komutla: \`/webchat ${session.sessionId} Mesajınız\`)
+👉 Bu mesaja Telegram'da doğrudan **"Yanıtla" (Reply)** yaparak yazabilirsiniz!
+👉 Veya tek tıkla web paneline bağlanmak için aşağıdaki butona basın:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ *LiveBet Mentor Canlı Destek Masası*`;
 
@@ -408,14 +416,18 @@ class SupportChatService {
      */
     async notifyAdminSilently(session, userQuery, aiAnswer, telegramBot) {
         try {
+            const isMember = session.userInfo?.isMember || !!session.userInfo?.email;
+            const memberStatusText = isMember 
+                ? `👑 ${session.userInfo?.email} [${(session.userInfo?.plan || 'trial').toUpperCase()}]`
+                : `🌐 Misafir #${session.sessionId.slice(-6)}`;
+
             const preview = `🤖 *SİTE ASİSTANI (Otomatik Yanıtlandı)*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-🆔 *Oturum:* \`${session.sessionId}\`
-👤 *Kullanıcı:* ${session.userInfo?.email || 'Ziyaretçi'}
+👤 *Kullanıcı:* ${memberStatusText}
 💬 *Soru:* "${userQuery.substring(0, 100)}"
 💡 *AI Yanıtı:* "${aiAnswer.substring(0, 120)}..."
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-_Müdahale etmek veya sohbete bağlanmak için aşağıdaki butona tıklayabilirsiniz:_`;
+_Müdahale etmek veya sohbete bağlanmak için butona basabilirsiniz:_`;
 
             const quickToken = this.generateQuickAuthToken(session.sessionId);
             const webUrl = `${APP_ORIGIN}/?tab=support_staff&session=${encodeURIComponent(session.sessionId)}&auth=${quickToken}`;
@@ -440,6 +452,68 @@ _Müdahale etmek veya sohbete bağlanmak için aşağıdaki butona tıklayabilir
                 }
             }
         } catch (e) {}
+    }
+
+    /**
+     * Get the most recently active web chat session
+     */
+    getLastActiveSession() {
+        let best = null;
+        let bestTime = 0;
+        for (const session of this.chats.values()) {
+            if (session.status !== 'closed' && (session.updatedAt || 0) > bestTime) {
+                bestTime = session.updatedAt;
+                best = session;
+            }
+        }
+        return best;
+    }
+
+    closeSession(sessionId) {
+        const session = this.chats.get(sessionId);
+        if (!session) return false;
+        session.status = 'closed';
+        session.updatedAt = Date.now();
+        this.saveChats();
+        return true;
+    }
+
+    archiveSession(sessionId) {
+        const session = this.chats.get(sessionId);
+        if (!session) return false;
+        session.status = 'archived';
+        session.updatedAt = Date.now();
+        this.saveChats();
+        return true;
+    }
+
+    unarchiveSession(sessionId) {
+        const session = this.chats.get(sessionId);
+        if (!session) return false;
+        session.status = 'active';
+        session.updatedAt = Date.now();
+        this.saveChats();
+        return true;
+    }
+
+    deleteSession(sessionId) {
+        const deleted = this.chats.delete(sessionId);
+        if (deleted) {
+            this.saveChats();
+        }
+        return deleted;
+    }
+
+    clearClosedSessions() {
+        let count = 0;
+        for (const [id, session] of this.chats.entries()) {
+            if (session.status === 'closed' || session.status === 'archived') {
+                this.chats.delete(id);
+                count++;
+            }
+        }
+        if (count > 0) this.saveChats();
+        return count;
     }
 
     /**

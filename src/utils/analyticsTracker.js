@@ -35,6 +35,9 @@ class AnalyticsTracker {
         this.scrollCheckpoints = new Set();
         this.scrollListenerAttached = false;
         this.clickListenerAttached = false;
+        this.activeSeconds = 0;
+        this.lastUserActivityTime = Date.now();
+        this.activeTimer = null;
     }
 
     /**
@@ -64,6 +67,7 @@ class AnalyticsTracker {
         // Setup automated telemetry sensors
         this.initAutoClickTracker();
         this.initScrollDepthTracker();
+        this.initActiveFocusTracker();
 
         // Listen for visibility changes (pause heartbeat when tab is hidden, resume when visible)
         document.addEventListener('visibilitychange', () => {
@@ -239,8 +243,36 @@ class AnalyticsTracker {
             userPlan: this.userProfile?.plan || 'guest',
             userId: this.userProfile?.id || undefined,
             userEmail: this.userProfile?.email || undefined,
-            userStatus: this.userProfile?.status || 'anonymous'
+            userStatus: this.userProfile?.status || 'anonymous',
+            activeDurationSeconds: this.activeSeconds
         };
+    }
+
+    /**
+     * Active Focus & Engagement Tracker (Distinguishes actual attention from idle background tabs)
+     */
+    initActiveFocusTracker() {
+        if (typeof window === 'undefined') return;
+
+        const recordActivity = () => {
+            this.lastUserActivityTime = Date.now();
+        };
+
+        window.addEventListener('mousemove', recordActivity, { passive: true });
+        window.addEventListener('keydown', recordActivity, { passive: true });
+        window.addEventListener('touchstart', recordActivity, { passive: true });
+        window.addEventListener('scroll', recordActivity, { passive: true });
+        window.addEventListener('click', recordActivity, { passive: true });
+
+        if (this.activeTimer) clearInterval(this.activeTimer);
+        this.activeTimer = setInterval(() => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+                // User must have performed an action within the last 60 seconds to be considered active
+                if (Date.now() - this.lastUserActivityTime < 60000) {
+                    this.activeSeconds++;
+                }
+            }
+        }, 1000);
     }
 
     /**

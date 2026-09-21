@@ -144,6 +144,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         } catch (e) {}
         return 'DASHBOARD';
     });
+
+    useEffect(() => {
+        try {
+            if (typeof window !== 'undefined') {
+                const p = new URLSearchParams(window.location.search);
+                if (p.get('view') === 'ADMIN' || p.get('tab') === 'support_staff' || p.get('tab') === 'support' || p.get('session')) {
+                    setView('ADMIN');
+                }
+            }
+        } catch (e) {}
+    }, []);
     const [consensusData, setConsensusData] = useState({});
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [dismissTrialBanner, setDismissTrialBanner] = useState(false);
@@ -1896,10 +1907,40 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     useEffect(() => {
         if (selectedMatch) {
             dataWorker.setSelectedMatch(selectedMatch.id);
+            try {
+                const home = selectedMatch.homeTeam?.name || selectedMatch.home || 'Ev Sahibi';
+                const away = selectedMatch.awayTeam?.name || selectedMatch.away || 'Deplasman';
+                const league = selectedMatch.tournament?.name || selectedMatch.league || 'Futbol';
+                trackAnalyticsEvent('match_inspect', {
+                    matchId: selectedMatch.id,
+                    homeTeam: home,
+                    awayTeam: away,
+                    league: league
+                });
+            } catch (e) {}
         } else {
             dataWorker.setSelectedMatch(null);
         }
     }, [selectedMatch]);
+
+    useEffect(() => {
+        if (selectedPlanForUpgrade) {
+            try {
+                trackAnalyticsEvent('vip_modal_open', {
+                    plan: selectedPlanForUpgrade?.id || 'vip',
+                    price: selectedPlanForUpgrade?.price
+                });
+            } catch (e) {}
+        }
+    }, [selectedPlanForUpgrade]);
+
+    useEffect(() => {
+        if (showPlanComparison) {
+            try {
+                trackAnalyticsEvent('vip_pricing_view', { source: 'plan_comparison' });
+            } catch (e) {}
+        }
+    }, [showPlanComparison]);
 
     // Live Odds Fetching for Opportunity Scoring (Local Proxy first, then Firebase)
     useEffect(() => {

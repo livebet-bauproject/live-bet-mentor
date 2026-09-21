@@ -19,9 +19,59 @@ const isLocal = typeof window !== 'undefined' && (
 const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
 
 
+const resolveTelegramAdminQuickAuth = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const auth = urlParams.get('auth');
+    if (!auth) return null;
+
+    const parts = auth.trim().split('.');
+    if (parts.length >= 2) {
+      let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4 !== 0) {
+        b64 += '=';
+      }
+      const rawPayload = window.atob(b64);
+      const jsonStr = decodeURIComponent(
+        rawPayload.split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join('')
+      );
+      const payload = JSON.parse(jsonStr);
+
+      if (
+        (payload.role === 'admin' || payload.purpose === 'quick_support' || payload.email === 'admin@livebetmentor.com') &&
+        (!payload.exp || Date.now() < (payload.exp > 10000000000 ? payload.exp : payload.exp * 1000))
+      ) {
+        const sessionPayload = {
+          user: {
+            id: payload.id || 'admin-super',
+            email: payload.email || 'admin@livebetmentor.com',
+            plan: 'admin',
+            role: 'admin',
+            display_name: 'LiveBet Admin',
+            status: 'active',
+            subscription_end: '2099-12-31T23:59:59.000Z'
+          },
+          token: auth
+        };
+        try {
+          localStorage.setItem('lbm_admin_session', JSON.stringify(sessionPayload));
+        } catch (e) {}
+        return sessionPayload;
+      }
+    }
+  } catch (e) {
+    console.warn('[AUTH] Quick auth sync decoding error:', e);
+  }
+  return null;
+};
+
 function App() {
   const [session, setSession] = useState(() => {
     try {
+      const quickSession = resolveTelegramAdminQuickAuth();
+      if (quickSession) return quickSession;
+
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) {
         const parsed = JSON.parse(savedAdmin);
@@ -37,9 +87,18 @@ function App() {
     } catch (e) {}
     return null;
   });
-  const [loading, setLoading] = useState(() => !localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session'));
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('auth')) return false;
+    }
+    return !localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session');
+  });
   const [page, setPage] = useState(() => {
     try {
+      const quickSession = resolveTelegramAdminQuickAuth();
+      if (quickSession) return 'dashboard';
+
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) return 'dashboard';
       const savedMember = localStorage.getItem('lbm_member_session');
@@ -55,6 +114,9 @@ function App() {
   });
   const [userProfile, setUserProfile] = useState(() => {
     try {
+      const quickSession = resolveTelegramAdminQuickAuth();
+      if (quickSession) return quickSession.user;
+
       const savedAdmin = localStorage.getItem('lbm_admin_session');
       if (savedAdmin) {
         return {
@@ -185,7 +247,13 @@ function App() {
       const auth = urlParams.get('auth');
       const tab = urlParams.get('tab');
       
-      if (auth) {
+      const quick = resolveTelegramAdminQuickAuth();
+      if (quick) {
+        setSession(quick);
+        setUserProfile(quick.user);
+        setPage('dashboard');
+        setLoading(false);
+      } else if (auth) {
         fetch(`${proxyBase}/api/admin/quick-auth?token=${encodeURIComponent(auth)}`)
           .then(res => res.json())
           .then(data => {
@@ -442,7 +510,7 @@ function App() {
         setSession(session);
         checkUserStatus(session.user);
       } else {
-        if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session')) {
+        if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session') && !resolveTelegramAdminQuickAuth()) {
           setSession(null);
           setUserProfile(null);
           setPage('landing');
@@ -451,7 +519,7 @@ function App() {
       setLoading(false);
     }).catch(err => {
       console.warn('Supabase getSession error (offline/bypassed):', err?.message || err);
-      if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session')) {
+      if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session') && !resolveTelegramAdminQuickAuth()) {
         setSession(null);
         setUserProfile(null);
         setPage('landing');
@@ -464,7 +532,7 @@ function App() {
       if (session) {
         setSession(session);
         checkUserStatus(session.user);
-      } else if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session')) {
+      } else if (!localStorage.getItem('lbm_admin_session') && !localStorage.getItem('lbm_member_session') && !resolveTelegramAdminQuickAuth()) {
         setSession(null);
         setUserProfile(null);
         setPage('landing');

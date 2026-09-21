@@ -1272,6 +1272,18 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                     }
                 }
 
+                // 1.5 Fallback: Check if there is an active Web Live Support session within last 2 hours
+                const lastWebSession = supportChatService.getLastActiveSession();
+                if (lastWebSession && (Date.now() - (lastWebSession.updatedAt || 0) < 2 * 60 * 60 * 1000)) {
+                    const senderName = isOperator ? (supportChatService.getOperatorName(chatId) || 'Destek Yetkilisi') : 'LiveBet Destek Masası';
+                    const delivered = supportChatService.addAdminReply(lastWebSession.sessionId, text || '[Görsel Gönderildi]', senderName);
+                    if (delivered) {
+                        const userLabel = lastWebSession.userInfo?.email || lastWebSession.userInfo?.name || `Misafir #${lastWebSession.sessionId.slice(-6)}`;
+                        await this.sendMessage(chatId, `✅ *Cevabınız web canlı destek kutusuna iletildi!*\n👤 Alıcı: *${userLabel}*\n🆔 Oturum: \`${lastWebSession.sessionId}\`\n💬 İletilen: "${text || ''}"\n\n_💡 Farklı bir müşteriye yazmak isterseniz o müşterinin bildirimine "Yanıtla" (Reply) yapabilir veya altındaki [⚡ Sohbete Bağlan] butonunu kullanabilirsiniz._`);
+                        return;
+                    }
+                }
+
                 // 2. Fallback: if not replying to a specific message, use last customer within 60 minutes
                 if (!targetChatId && this.lastCustomer && (Date.now() - (this.lastCustomer.timestamp || 0) < 60 * 60 * 1000)) {
                     targetChatId = this.lastCustomer.customerChatId;

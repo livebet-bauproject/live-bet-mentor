@@ -163,8 +163,54 @@ export const LiveSupportChat = ({
         }
     }, [messages, isOpen]);
 
-    const handleSendMessage = async (textToSend) => {
-        const text = (textToSend || inputText).trim();
+    const getResolvedUserInfo = () => {
+        let name = userProfile?.display_name || userProfile?.name || '';
+        let email = userProfile?.email || null;
+        let plan = userProfile?.plan || '';
+        let isMember = false;
+
+        if (!email) {
+            try {
+                const savedMember = localStorage.getItem('lbm_member_session');
+                if (savedMember) {
+                    const p = JSON.parse(savedMember);
+                    const prof = p.memberProfile || p.user;
+                    email = p.user?.email || prof?.email || email;
+                    name = prof?.full_name || p.user?.user_metadata?.display_name || email?.split('@')[0] || name;
+                    plan = prof?.plan || 'trial';
+                    isMember = true;
+                }
+            } catch (e) {}
+        }
+        if (!email) {
+            try {
+                const savedAdmin = localStorage.getItem('lbm_admin_session');
+                if (savedAdmin) {
+                    const p = JSON.parse(savedAdmin);
+                    email = p.user?.email || 'admin@livebetmentor.com';
+                    name = 'LiveBet Admin';
+                    plan = 'admin';
+                    isMember = true;
+                }
+            } catch (e) {}
+        }
+
+        const isMobile = typeof window !== 'undefined' ? (window.innerWidth <= 768 || /Mobi|Android|iPhone/i.test(navigator?.userAgent || '')) : false;
+
+        return {
+            name: name || (email ? email.split('@')[0] : 'Misafir Ziyaretçi'),
+            email: email || null,
+            plan: plan || (email ? 'trial' : 'guest'),
+            isMember: isMember || !!email,
+            device: {
+                isMobile,
+                type: isMobile ? 'Mobil' : 'Masaüstü'
+            }
+        };
+    };
+
+    const handleSendMessage = async (customText = null) => {
+        const text = (customText !== null ? customText : inputText).trim();
         if (!text || isSending) return;
 
         setIsSending(true);
@@ -180,15 +226,12 @@ export const LiveSupportChat = ({
         setMessages(prev => [...prev, tempMsg]);
 
         try {
+            const resolvedUser = getResolvedUserInfo();
             const payload = {
                 sessionId,
                 text,
                 lang,
-                userInfo: {
-                    name: userProfile?.display_name || userProfile?.name || 'Ziyaretçi',
-                    email: userProfile?.email || null,
-                    plan: userProfile?.plan || 'trial'
-                }
+                userInfo: resolvedUser
             };
 
             const res = await fetch(`${activeApiBase}/api/support/message`, {
