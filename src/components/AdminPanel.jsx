@@ -49,6 +49,9 @@ const SupportStaffDesk = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [isMobileScreen, setIsMobileScreen] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 900 : false);
     const [mobileShowChat, setMobileShowChat] = useState(() => Boolean(targetTelegramSessionId || activeSupportSession));
+    const [liveTranslatedText, setLiveTranslatedText] = useState('');
+    const [isTranslating, setIsTranslating] = useState(false);
+    const [extraTranslations, setExtraTranslations] = useState({});
 
     useEffect(() => {
         const handleResize = () => {
@@ -63,6 +66,63 @@ const SupportStaffDesk = ({
             setMobileShowChat(true);
         }
     }, [activeSupportSession?.sessionId, targetTelegramSessionId]);
+
+    // Live Debounced Translation Preview when Admin is typing in Turkish to foreign user (DE / EN)
+    useEffect(() => {
+        if (!activeSupportSession || !adminSupportReply.trim()) {
+            setLiveTranslatedText('');
+            setIsTranslating(false);
+            return;
+        }
+
+        const targetLang = activeSupportSession.lang || 'tr';
+        if (targetLang === 'tr') {
+            setLiveTranslatedText('');
+            setIsTranslating(false);
+            return;
+        }
+
+        setIsTranslating(true);
+        const timer = setTimeout(async () => {
+            try {
+                const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+                    ? 'http://localhost:3001'
+                    : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+                const res = await fetch(`${proxyBase}/api/support/translate?text=${encodeURIComponent(adminSupportReply.trim())}&source=tr&target=${targetLang}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.translatedText) {
+                        setLiveTranslatedText(data.translatedText);
+                    }
+                }
+            } catch (err) {
+                console.warn('[TRANSLATE] Live preview error:', err);
+            } finally {
+                setIsTranslating(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [adminSupportReply, activeSupportSession?.sessionId, activeSupportSession?.lang]);
+
+    const handleTranslateSingleMessage = async (msgId, text, sourceLang) => {
+        try {
+            const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+                ? 'http://localhost:3001'
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+
+            const res = await fetch(`${proxyBase}/api/support/translate?text=${encodeURIComponent(text)}&source=${sourceLang || 'auto'}&target=tr`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.translatedText) {
+                    setExtraTranslations(prev => ({ ...prev, [msgId]: data.translatedText }));
+                }
+            }
+        } catch (e) {
+            console.warn('Translate error:', e);
+        }
+    };
 
     const waitingSessions = supportSessions.filter(s => s.status === 'waiting_admin');
     const activeSessions = supportSessions.filter(s => s.status === 'active');
@@ -777,9 +837,78 @@ const SupportStaffDesk = ({
                                                             {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                                                         </span>
                                                     </div>
-                                                    <div style={{ fontSize: '0.82rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
-                                                        {msg.text}
-                                                    </div>
+                                                    {/* Message Content with Multi-Language Translation */}
+                                                    {isUser && (
+                                                        <div>
+                                                            <div style={{ fontSize: '0.82rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                                                                {msg.text}
+                                                            </div>
+                                                            {/* Automatic Turkish Translation for Foreign Customer */}
+                                                            {(msg.translatedText || extraTranslations[msg.id]) ? (
+                                                                <div style={{
+                                                                    marginTop: '0.45rem',
+                                                                    paddingTop: '0.45rem',
+                                                                    borderTop: '1px dashed rgba(255, 255, 255, 0.2)',
+                                                                    fontSize: '0.78rem',
+                                                                    color: '#34d399',
+                                                                    display: 'flex',
+                                                                    alignItems: 'flex-start',
+                                                                    gap: '0.4rem'
+                                                                }}>
+                                                                    <span>🇹🇷</span>
+                                                                    <div>
+                                                                        <strong style={{ color: '#a7f3d0' }}>Türkçe Çevirisi:</strong> {msg.translatedText || extraTranslations[msg.id]}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (activeSupportSession.lang && activeSupportSession.lang !== 'tr' && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleTranslateSingleMessage(msg.id, msg.text, activeSupportSession.lang)}
+                                                                    style={{
+                                                                        marginTop: '0.35rem',
+                                                                        background: 'none',
+                                                                        border: 'none',
+                                                                        color: '#38bdf8',
+                                                                        fontSize: '0.68rem',
+                                                                        cursor: 'pointer',
+                                                                        padding: 0,
+                                                                        textDecoration: 'underline'
+                                                                    }}
+                                                                >
+                                                                    🇹🇷 Türkçeye Çevir
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {isBot && (
+                                                        <div style={{ fontSize: '0.82rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                                                            {msg.text}
+                                                        </div>
+                                                    )}
+
+                                                    {!isUser && !isBot && (
+                                                        <div>
+                                                            <div style={{ fontSize: '0.82rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                                                                {msg.originalText || msg.text}
+                                                            </div>
+                                                            {msg.originalText && msg.originalText !== msg.text && (
+                                                                <div style={{
+                                                                    marginTop: '0.35rem',
+                                                                    paddingTop: '0.35rem',
+                                                                    borderTop: '1px dashed rgba(255,255,255,0.2)',
+                                                                    fontSize: '0.72rem',
+                                                                    color: '#cbd5e1',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.35rem'
+                                                                }}>
+                                                                    <span>{msg.targetLang === 'de' ? '🇩🇪' : (msg.targetLang === 'en' ? '🇬🇧' : '🌐')}</span>
+                                                                    <span><strong>Müşteriye İletilen:</strong> <em>{msg.text}</em></span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
@@ -808,40 +937,92 @@ const SupportStaffDesk = ({
                                         ))}
                                     </div>
 
-                                    {/* Reply Box */}
-                                    <form onSubmit={handleSendSupportReply} style={{ display: 'flex', gap: '0.6rem' }}>
-                                        <input
-                                            type="text"
-                                            value={adminSupportReply}
-                                            onChange={(e) => setAdminSupportReply(e.target.value)}
-                                            placeholder={isTr ? "Müşteriye yanıt yazın..." : "Type reply to customer..."}
-                                            style={{
-                                                flex: 1,
-                                                padding: '0.75rem 1rem',
-                                                background: 'rgba(0,0,0,0.3)',
-                                                border: '1px solid rgba(255,255,255,0.15)',
+                                    {/* Reply Box with Live Debounced Translation */}
+                                    <form onSubmit={(e) => handleSendSupportReply(e, liveTranslatedText)} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.6rem' }}>
+                                            <input
+                                                type="text"
+                                                value={adminSupportReply}
+                                                onChange={(e) => setAdminSupportReply(e.target.value)}
+                                                placeholder={
+                                                    activeSupportSession?.lang === 'de'
+                                                        ? "Türkçe yazın, otomatik Almancaya çevrilecektir..."
+                                                        : (activeSupportSession?.lang === 'en'
+                                                            ? "Türkçe yazın, otomatik İngilizceye çevrilecektir..."
+                                                            : (isTr ? "Müşteriye yanıt yazın..." : "Type reply to customer..."))
+                                                }
+                                                style={{
+                                                    flex: 1,
+                                                    padding: '0.75rem 1rem',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    border: '1px solid rgba(255,255,255,0.15)',
+                                                    borderRadius: '8px',
+                                                    color: '#fff',
+                                                    fontSize: '0.85rem'
+                                                }}
+                                            />
+                                            <button
+                                                type="submit"
+                                                disabled={replySending || !adminSupportReply.trim()}
+                                                style={{
+                                                    padding: '0.75rem 1.4rem',
+                                                    background: '#10b981',
+                                                    border: 'none',
+                                                    borderRadius: '8px',
+                                                    color: '#000',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.85rem',
+                                                    cursor: 'pointer',
+                                                    opacity: replySending || !adminSupportReply.trim() ? 0.5 : 1,
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                {replySending ? '...' : (
+                                                    activeSupportSession?.lang === 'de'
+                                                        ? '🇩🇪 Çevir & Gönder'
+                                                        : (activeSupportSession?.lang === 'en' ? '🇬🇧 Çevir & Gönder' : (isTr ? 'Gönder' : 'Send'))
+                                                )}
+                                            </button>
+                                        </div>
+
+                                        {/* Real-time Live Translation Preview Box */}
+                                        {activeSupportSession?.lang && activeSupportSession.lang !== 'tr' && adminSupportReply.trim() && (
+                                            <div style={{
+                                                padding: '0.5rem 0.8rem',
                                                 borderRadius: '8px',
-                                                color: '#fff',
-                                                fontSize: '0.85rem'
-                                            }}
-                                        />
-                                        <button
-                                            type="submit"
-                                            disabled={replySending || !adminSupportReply.trim()}
-                                            style={{
-                                                padding: '0.75rem 1.4rem',
-                                                background: '#10b981',
-                                                border: 'none',
-                                                borderRadius: '8px',
-                                                color: '#000',
-                                                fontWeight: 800,
-                                                fontSize: '0.85rem',
-                                                cursor: 'pointer',
-                                                opacity: replySending || !adminSupportReply.trim() ? 0.5 : 1
-                                            }}
-                                        >
-                                            {replySending ? '...' : (isTr ? 'Gönder' : 'Send')}
-                                        </button>
+                                                background: 'rgba(16, 185, 129, 0.12)',
+                                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: '0.6rem'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                                                    <span style={{ fontSize: '1.2rem' }}>
+                                                        {activeSupportSession.lang === 'de' ? '🇩🇪' : (activeSupportSession.lang === 'en' ? '🇬🇧' : '🌐')}
+                                                    </span>
+                                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                                        <div style={{ fontSize: '0.66rem', fontWeight: 800, color: '#34d399', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                                                            {isTranslating ? '⏳ ÇEVRİLİYOR...' : (activeSupportSession.lang === 'de' ? 'Almanca Çeviri Önizlemesi (Müşteriye Gidecek Olan)' : 'İngilizce Çeviri Önizlemesi (Müşteriye Gidecek Olan)')}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.82rem', color: '#fff', fontStyle: 'italic', wordBreak: 'break-word', marginTop: '2px' }}>
+                                                            {isTranslating ? 'Metin çevriliyor...' : (liveTranslatedText || '...')}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <span style={{
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 700,
+                                                    padding: '0.2rem 0.5rem',
+                                                    borderRadius: '12px',
+                                                    background: 'rgba(255,255,255,0.08)',
+                                                    color: '#a7f3d0',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    ⚡ Canlı Çeviri Aktif
+                                                </span>
+                                            </div>
+                                        )}
                                     </form>
                                 </div>
                             )}
@@ -1615,18 +1796,23 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         }
     };
 
-    const handleSendSupportReply = async (e) => {
+    const handleSendSupportReply = async (e, customTranslatedText = null) => {
         if (e) e.preventDefault();
         if (!activeSupportSession || !adminSupportReply.trim()) return;
         setReplySending(true);
         try {
             const proxyBase = getProxyBase();
+            const textToSend = (customTranslatedText && typeof customTranslatedText === 'string' && customTranslatedText.trim())
+                ? customTranslatedText.trim()
+                : adminSupportReply.trim();
+
             const res = await fetch(`${proxyBase}/api/admin/support/reply`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({
                     sessionId: activeSupportSession.sessionId,
-                    text: adminSupportReply.trim(),
+                    text: textToSend,
+                    originalText: adminSupportReply.trim(),
                     senderName: 'Destek Masası'
                 })
             });

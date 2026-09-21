@@ -26,8 +26,64 @@ class SupportChatService {
         this.chats = new Map(); // sessionId -> sessionData
         this.telegramMsgMap = new Map(); // telegramMsgId -> sessionId
         this.operators = []; // [{ id, name, telegramChatId, telegramUsername, active, addedAt }]
+        this.translationCache = new Map(); // cacheKey -> translatedText
         this.loadChats();
         this.loadOperators();
+    }
+
+    /**
+     * 🌐 High-Speed Free Translation Engine (Cached & Safe)
+     * Auto-detects or translates between TR, DE, EN with fallback
+     */
+    async translateText(text, sourceLang = 'auto', targetLang = 'tr') {
+        if (!text || !text.trim()) return '';
+        const cleanText = text.trim();
+        const sLang = (sourceLang || 'auto').toLowerCase();
+        const tLang = (targetLang || 'tr').toLowerCase();
+
+        if (sLang === tLang) return cleanText;
+
+        const cacheKey = `${sLang}->${tLang}:${cleanText}`;
+        if (this.translationCache && this.translationCache.has(cacheKey)) {
+            return this.translationCache.get(cacheKey);
+        }
+
+        try {
+            const pair = `${sLang === 'auto' ? 'autodetect' : sLang}|${tLang}`;
+            const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(cleanText)}&langpair=${pair}&de=support@livebetmentor.com`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const res = await fetch(url, {
+                headers: { 'User-Agent': 'LiveBetMentorSupport/1.0' },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (res.ok) {
+                const data = await res.json();
+                let trans = data?.responseData?.translatedText;
+                if (trans && typeof trans === 'string' && !trans.toUpperCase().includes('MYMEMORY WARNING') && trans.trim()) {
+                    trans = trans
+                        .replace(/&amp;/g, '&')
+                        .replace(/&lt;/g, '<')
+                        .replace(/&gt;/g, '>')
+                        .replace(/&quot;/g, '"')
+                        .replace(/&#39;/g, "'")
+                        .replace(/&apos;/g, "'")
+                        .replace(/&#x([0-9a-fA-F]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)))
+                        .replace(/&#([0-9]+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+                        .trim();
+
+                    if (!this.translationCache) this.translationCache = new Map();
+                    this.translationCache.set(cacheKey, trans);
+                    return trans;
+                }
+            }
+        } catch (e) {
+            console.warn(`[SUPPORT] Translation warning (${sLang}->${tLang}):`, e.message);
+        }
+
+        return cleanText;
     }
 
     loadChats() {
@@ -293,10 +349,22 @@ class SupportChatService {
         const cleanText = (text || '').trim();
         if (!cleanText) return { success: false, error: 'Empty message' };
 
+        // Real-time automatic translation to Turkish for admin & Telegram team if customer uses DE/EN
+        let translatedText = null;
+        if (session.lang && session.lang !== 'tr') {
+            try {
+                translatedText = await this.translateText(cleanText, session.lang, 'tr');
+            } catch (e) {
+                console.warn('[SUPPORT] Failed to auto-translate customer message:', e.message);
+            }
+        }
+
         const userMsg = {
             id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
             sender: 'user',
             text: cleanText,
+            translatedText: (session.lang !== 'tr' && translatedText && translatedText !== cleanText) ? translatedText : null,
+            lang: session.lang || 'tr',
             timestamp: Date.now()
         };
         session.messages.push(userMsg);
@@ -317,7 +385,7 @@ class SupportChatService {
 
             // Also silently inform admin & operators on Telegram so team is aware
             if (telegramBotInstance) {
-                this.notifyAdminSilently(session, cleanText, aiAnswer, telegramBotInstance);
+                this.notifyAdminSilently(session, cleanText, aiAnswer, telegramBotInstance, userMsg.translatedText);
             }
 
             return {
@@ -344,7 +412,7 @@ class SupportChatService {
 
         // Forward to all Admin & Support Operator Telegrams with 1-click Reply capability
         if (telegramBotInstance) {
-            await this.forwardToAdminTelegram(session, cleanText, telegramBotInstance);
+            await this.forwardToAdminTelegram(session, cleanText, telegramBotInstance, userMsg.translatedText);
         }
 
         return {
@@ -357,7 +425,7 @@ class SupportChatService {
     /**
      * Send instant alert to Admin and all active Support Operators on Telegram
      */
-    async forwardToAdminTelegram(session, latestText, telegramBot) {
+    async forwardToAdminTelegram(session, latestText, telegramBot, translatedText = null) {
         try {
             const isMember = session.userInfo?.isMember || !!session.userInfo?.email;
             const memberStatusText = isMember 
@@ -365,19 +433,29 @@ class SupportChatService {
                 : `🌐 *MİSAFİR ZİYARETÇİ:* #${session.sessionId.slice(-6)} (Kayıtsız)`;
             const deviceText = session.userInfo?.device?.isMobile ? '📱 Mobil' : '💻 Masaüstü';
 
+            const isForeign = session.lang && session.lang !== 'tr';
+            const langName = session.lang === 'de' ? '🇩🇪 ALMANCA' : (session.lang === 'en' ? '🇬🇧 İNGİLİZCE' : (session.lang || 'tr').toUpperCase());
+
+            const translationSection = (isForeign && translatedText)
+                ? `\n🇹🇷 *Türkçe Çevirisi:*\n"${translatedText}"\n`
+                : '';
+
+            const replyHelp = isForeign
+                ? `👉 Bu mesaja Telegram'da doğrudan **"Yanıtla" (Reply)** yaparak Türkçe yazabilirsiniz (sistem müşteriye ${session.lang === 'de' ? 'Almanca' : 'İngilizce'} olarak iletir)!`
+                : `👉 Bu mesaja Telegram'da doğrudan **"Yanıtla" (Reply)** yaparak yazabilirsiniz!`;
+
             const adminAlert = `💬 *YENİ SİTE CANLI DESTEK MESAJI!* 💬
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 👤 ${memberStatusText}
 📱 *Cihaz:* ${deviceText}
-🌐 *Dil:* ${(session.lang || 'tr').toUpperCase()}
+🌐 *Dil:* ${langName}
 🆔 *Oturum:* \`${session.sessionId}\`
 
-📝 *Mesaj:*
+📝 *Orijinal Mesaj:*
 "${latestText}"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━
+${translationSection}━━━━━━━━━━━━━━━━━━━━━━━━━━
 💬 *Müşteriye Cevap Vermek İçin:*
-👉 Bu mesaja Telegram'da doğrudan **"Yanıtla" (Reply)** yaparak yazabilirsiniz!
+${replyHelp}
 👉 Veya tek tıkla web paneline bağlanmak için aşağıdaki butona basın:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ *LiveBet Mentor Canlı Destek Masası*`;
@@ -414,17 +492,22 @@ class SupportChatService {
     /**
      * Silently log AI conversation to Admin and active Operators
      */
-    async notifyAdminSilently(session, userQuery, aiAnswer, telegramBot) {
+    async notifyAdminSilently(session, userQuery, aiAnswer, telegramBot, translatedText = null) {
         try {
             const isMember = session.userInfo?.isMember || !!session.userInfo?.email;
             const memberStatusText = isMember 
                 ? `👑 ${session.userInfo?.email} [${(session.userInfo?.plan || 'trial').toUpperCase()}]`
                 : `🌐 Misafir #${session.sessionId.slice(-6)}`;
 
+            const isForeign = session.lang && session.lang !== 'tr';
+            const translationSection = (isForeign && translatedText)
+                ? `\n🇹🇷 *Çeviri:* "${translatedText.substring(0, 100)}..."`
+                : '';
+
             const preview = `🤖 *SİTE ASİSTANI (Otomatik Yanıtlandı)*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 👤 *Kullanıcı:* ${memberStatusText}
-💬 *Soru:* "${userQuery.substring(0, 100)}"
+💬 *Soru:* "${userQuery.substring(0, 100)}"${translationSection}
 💡 *AI Yanıtı:* "${aiAnswer.substring(0, 120)}..."
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 _Müdahale etmek veya sohbete bağlanmak için butona basabilirsiniz:_`;
@@ -518,18 +601,47 @@ _Müdahale etmek veya sohbete bağlanmak için butona basabilirsiniz:_`;
 
     /**
      * Deliver reply from Admin or Support Staff to the user's web session
+     * Automatically translates to session language (e.g. DE, EN) if needed
      */
-    addAdminReply(sessionId, replyText, senderName = null) {
+    async addAdminReply(sessionId, replyText, senderName = null, originalText = null) {
         const session = this.chats.get(sessionId);
         if (!session) {
             console.warn(`[SUPPORT] Session not found for admin reply: ${sessionId}`);
             return false;
         }
 
+        const cleanReply = (replyText || '').trim();
+        if (!cleanReply) return false;
+
+        let deliveredText = cleanReply;
+        let savedOriginalText = originalText ? originalText.trim() : cleanReply;
+
+        // If target customer language is not Turkish, ensure deliveredText is translated into customer's language
+        if (session.lang && session.lang !== 'tr') {
+            if (originalText && originalText.trim() && originalText.trim() !== cleanReply) {
+                // Caller explicitly provided pre-translated text in cleanReply and Turkish in originalText
+                deliveredText = cleanReply;
+                savedOriginalText = originalText.trim();
+            } else {
+                // Admin replied in Turkish -> translate to customer's session language
+                try {
+                    const autoTranslated = await this.translateText(cleanReply, 'tr', session.lang);
+                    if (autoTranslated && autoTranslated.trim()) {
+                        deliveredText = autoTranslated.trim();
+                        savedOriginalText = cleanReply;
+                    }
+                } catch (e) {
+                    console.warn(`[SUPPORT] Failed auto-translating reply to ${session.lang}:`, e.message);
+                }
+            }
+        }
+
         const adminMsg = {
             id: 'msg_admin_' + Date.now(),
             sender: 'admin',
-            text: replyText.trim(),
+            text: deliveredText,
+            originalText: savedOriginalText,
+            targetLang: session.lang || 'tr',
             senderName: senderName || 'Destek Yetkilisi',
             timestamp: Date.now()
         };
@@ -538,8 +650,8 @@ _Müdahale etmek veya sohbete bağlanmak için butona basabilirsiniz:_`;
         session.status = 'active';
         session.updatedAt = Date.now();
         this.saveChats();
-        console.log(`[SUPPORT] ✅ Reply delivered to session ${sessionId} by ${senderName || 'Staff'}: "${replyText.substring(0, 40)}..."`);
-        return true;
+        console.log(`[SUPPORT] ✅ Reply delivered to session ${sessionId} (${session.lang}): "${deliveredText.substring(0, 40)}..." (orig: "${savedOriginalText.substring(0, 40)}...")`);
+        return { success: true, adminMsg };
     }
 
     getSessionHistory(sessionId) {

@@ -1232,9 +1232,12 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
 
                     if (webSessionId) {
                         const senderName = isOperator ? (supportChatService.getOperatorName(chatId) || 'Destek Yetkilisi') : 'LiveBet Mentor Destek';
-                        const delivered = supportChatService.addAdminReply(webSessionId, text || '[Görsel Gönderildi]', senderName);
+                        const delivered = await supportChatService.addAdminReply(webSessionId, text || '[Görsel Gönderildi]', senderName);
                         if (delivered) {
-                            await this.sendMessage(chatId, `✅ *Cevabınız web sitesindeki canlı destek kutusuna iletildi!*\n🆔 Oturum: \`${webSessionId}\`\n💬 Cevap: "${text || ''}"`);
+                            const adminMsg = delivered.adminMsg;
+                            const isTrans = adminMsg && adminMsg.originalText && adminMsg.originalText !== adminMsg.text;
+                            const transNote = isTrans ? `\n🌐 *Müşteriye İletilen (${(adminMsg.targetLang || 'de').toUpperCase()}):* "${adminMsg.text}"` : '';
+                            await this.sendMessage(chatId, `✅ *Cevabınız web sitesine canlı iletildi!*\n🆔 Oturum: \`${webSessionId}\`\n💬 Cevabınız (TR): "${text || ''}"${transNote}`);
                         } else {
                             await this.sendMessage(chatId, `❌ *Hata:* Web oturumu bulunamadı veya süresi doldu (\`${webSessionId}\`).`);
                         }
@@ -1276,10 +1279,13 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                 const lastWebSession = supportChatService.getLastActiveSession();
                 if (lastWebSession && (Date.now() - (lastWebSession.updatedAt || 0) < 2 * 60 * 60 * 1000)) {
                     const senderName = isOperator ? (supportChatService.getOperatorName(chatId) || 'Destek Yetkilisi') : 'LiveBet Destek Masası';
-                    const delivered = supportChatService.addAdminReply(lastWebSession.sessionId, text || '[Görsel Gönderildi]', senderName);
+                    const delivered = await supportChatService.addAdminReply(lastWebSession.sessionId, text || '[Görsel Gönderildi]', senderName);
                     if (delivered) {
                         const userLabel = lastWebSession.userInfo?.email || lastWebSession.userInfo?.name || `Misafir #${lastWebSession.sessionId.slice(-6)}`;
-                        await this.sendMessage(chatId, `✅ *Cevabınız web canlı destek kutusuna iletildi!*\n👤 Alıcı: *${userLabel}*\n🆔 Oturum: \`${lastWebSession.sessionId}\`\n💬 İletilen: "${text || ''}"\n\n_💡 Farklı bir müşteriye yazmak isterseniz o müşterinin bildirimine "Yanıtla" (Reply) yapabilir veya altındaki [⚡ Sohbete Bağlan] butonunu kullanabilirsiniz._`);
+                        const adminMsg = delivered.adminMsg;
+                        const isTrans = adminMsg && adminMsg.originalText && adminMsg.originalText !== adminMsg.text;
+                        const transNote = isTrans ? `\n🌐 *Müşteriye İletilen (${(adminMsg.targetLang || 'de').toUpperCase()}):* "${adminMsg.text}"` : '';
+                        await this.sendMessage(chatId, `✅ *Cevabınız web canlı destek kutusuna iletildi!*\n👤 Alıcı: *${userLabel}*\n🆔 Oturum: \`${lastWebSession.sessionId}\`\n💬 Yazılan (TR): "${text || ''}"${transNote}\n\n_💡 Farklı bir müşteriye yazmak isterseniz o müşterinin bildirimine "Yanıtla" (Reply) yapabilir veya altındaki [⚡ Sohbete Bağlan] butonunu kullanabilirsiniz._`);
                         return;
                     }
                 }
@@ -1647,9 +1653,12 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                     break;
                 }
                 const senderName = isOp ? (supportChatService.getOperatorName(chatId) || 'Destek Yetkilisi') : 'LiveBet Mentor Destek';
-                const delivered = supportChatService.addAdminReply(targetSessionId, replyText, senderName);
+                const delivered = await supportChatService.addAdminReply(targetSessionId, replyText, senderName);
                 if (delivered) {
-                    await this.sendMessage(chatId, `✅ *Cevabınız web sitesine canlı iletildi!*\n🆔 Oturum: \`${targetSessionId}\``);
+                    const adminMsg = delivered.adminMsg;
+                    const isTrans = adminMsg && adminMsg.originalText && adminMsg.originalText !== adminMsg.text;
+                    const transNote = isTrans ? `\n🌐 *Müşteriye İletilen (${(adminMsg.targetLang || 'de').toUpperCase()}):* "${adminMsg.text}"` : '';
+                    await this.sendMessage(chatId, `✅ *Cevabınız web sitesine canlı iletildi!*\n🆔 Oturum: \`${targetSessionId}\`\n💬 Yazılan (TR): "${replyText}"${transNote}`);
                 } else {
                     await this.sendMessage(chatId, `❌ *Hata:* Belirtilen web oturumu bulunamadı (\`${targetSessionId}\`).`);
                 }

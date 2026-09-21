@@ -2011,6 +2011,20 @@ app.get('/api/support/poll', (req, res) => {
     }
 });
 
+// 3.6 Real-Time Translation Endpoint (Free auto-translation between TR, DE, EN)
+app.get('/api/support/translate', async (req, res) => {
+    try {
+        const { text, source = 'auto', target = 'tr' } = req.query;
+        if (!text || !text.trim()) {
+            return res.json({ success: true, translatedText: '' });
+        }
+        const translatedText = await supportChatService.translateText(text, source, target);
+        res.json({ success: true, translatedText, source, target });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // Helper to check if request is from Admin or an assigned Support Operator
 const isSupportStaffRequest = (req) => {
     if (isAdminRequest(req)) return true;
@@ -2176,24 +2190,25 @@ app.get('/api/admin/support/sessions/:id', (req, res) => {
 });
 
 // 10. Admin / Staff: Reply to customer session directly from Web Panel
-app.post('/api/admin/support/reply', (req, res) => {
+app.post('/api/admin/support/reply', async (req, res) => {
     try {
         if (!isSupportStaffRequest(req)) {
             return res.status(403).json({ error: 'Unauthorized: Mesaj gönderme yetkiniz yok.' });
         }
-        const { sessionId, text, senderName } = req.body || {};
+        const { sessionId, text, originalText, senderName } = req.body || {};
         if (!sessionId || !text || !text.trim()) {
             return res.status(400).json({ error: 'Oturum ID ve mesaj zorunludur.' });
         }
-        const delivered = supportChatService.addAdminReply(
+        const delivered = await supportChatService.addAdminReply(
             sessionId,
             text.trim(),
-            senderName || 'LiveBet Destek Masası'
+            senderName || 'LiveBet Destek Masası',
+            originalText ? originalText.trim() : null
         );
         if (!delivered) {
             return res.status(404).json({ error: 'Oturum bulunamadı veya kapalı.' });
         }
-        res.json({ success: true });
+        res.json({ success: true, adminMsg: delivered.adminMsg });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
