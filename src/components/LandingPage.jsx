@@ -3,6 +3,7 @@ import { supabase } from '../backend/supabaseClient';
 import { translations } from '../locales/translations';
 import { LegalModal } from './LegalModal';
 import { StakingCalculator } from './StakingCalculator';
+import { LiveSupportChat } from './LiveSupportChat';
 import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import { trackAnalyticsEvent } from '../utils/analyticsTracker';
 import '../styles/global.css';
@@ -18,6 +19,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
     const [agreedToTerms, setAgreedToTerms] = useState(true);
     const [isLegalModalOpen, setIsLegalModalOpen] = useState(false);
     const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+    const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
     const [activeFaqIndex, setActiveFaqIndex] = useState(0);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -326,18 +328,17 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                 </div>
 
                 <div className="landing-nav-actions" style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
-                    <a 
-                        href={telegramSupportUrl} 
-                        target="_blank" 
-                        rel="noreferrer" 
+                    <button 
+                        type="button"
+                        onClick={() => setIsSupportChatOpen(true)}
                         className="header-telegram-support-btn landing-nav-tg"
-                        title={lang === 'tr' ? `7/24 Canlı Telegram Destek Hattı (@${telegramUsername})` : (lang === 'de' ? `24/7 Live Telegram Support (@${telegramUsername})` : `24/7 Live Telegram Support (@${telegramUsername})`)}
+                        title={lang === 'tr' ? '7/24 Canlı Destek Masası & AI Asistanı' : (lang === 'de' ? '24/7 Live-Support & KI-Assistent' : '24/7 Live Support & AI Assistant')}
                     >
                         <span className="tg-live-dot" title="Online"></span>
-                        <span className="tg-icon">✈️</span>
-                        <span className="tg-label-full">{lang === 'tr' ? '7/24 Telegram Destek' : (lang === 'de' ? '24/7 Telegram-Support' : '24/7 Telegram Support')}</span>
+                        <span className="tg-icon">💬</span>
+                        <span className="tg-label-full">{lang === 'tr' ? '7/24 Canlı Destek' : (lang === 'de' ? '24/7 Live-Support' : '24/7 Live Support')}</span>
                         <span className="tg-label-short">{lang === 'tr' ? '7/24 Destek' : (lang === 'de' ? '24/7 Support' : '24/7 Support')}</span>
-                    </a>
+                    </button>
 
                     <div className="landing-lang-switcher" style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', padding: '2px' }}>
                         {['tr', 'en', 'de'].map(l => (
@@ -1287,22 +1288,23 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <a
-                        href={`https://t.me/Livebetdeskbot?start=lang_${lang || 'tr'}`}
-                        target="_blank"
-                        rel="noreferrer"
+                    <button
+                        type="button"
+                        onClick={() => setIsSupportChatOpen(true)}
                         style={{
+                            background: 'transparent',
+                            border: 'none',
                             color: '#38bdf8',
-                            textDecoration: 'none',
                             fontSize: '0.78rem',
                             fontWeight: 700,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px'
+                            gap: '4px',
+                            cursor: 'pointer'
                         }}
                     >
-                        ✈️ {lang === 'tr' ? 'Telegram Canlı Destek' : (lang === 'de' ? 'Telegram Live-Support' : 'Telegram Live Support')}
-                    </a>
+                        💬 {lang === 'tr' ? '7/24 Canlı Destek' : (lang === 'de' ? '24/7 Live-Support' : '24/7 Live Support')}
+                    </button>
                     <span style={{ opacity: 0.3 }}>|</span>
                     <button
                         onClick={() => setIsLegalModalOpen(true)}
@@ -1326,6 +1328,14 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
             <LegalModal
                 isOpen={isLegalModalOpen}
                 onClose={() => setIsLegalModalOpen(false)}
+                lang={lang}
+            />
+
+            {/* Native 100% Anonymous Live Support Chatbot & Telegram Bridge */}
+            <LiveSupportChat
+                isOpen={isSupportChatOpen}
+                onOpen={() => setIsSupportChatOpen(true)}
+                onClose={() => setIsSupportChatOpen(false)}
                 lang={lang}
             />
 

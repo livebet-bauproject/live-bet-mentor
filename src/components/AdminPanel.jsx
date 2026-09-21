@@ -4,6 +4,739 @@ import { bankrollManager } from '../logic/bankrollManager';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { TradingDesk } from './TradingDesk';
 
+const SupportStaffDesk = ({
+    lang = 'tr',
+    supportOperators = [],
+    supportSessions = [],
+    supportLoading = false,
+    activeSupportSession = null,
+    sessionChatLoading = false,
+    adminSupportReply = '',
+    setAdminSupportReply,
+    replySending = false,
+    supportSubTab = 'chats',
+    setSupportSubTab,
+    supportFilter = 'all',
+    setSupportFilter,
+    newOpName,
+    setNewOpName,
+    newOpChatId,
+    setNewOpChatId,
+    newOpUsername,
+    setNewOpUsername,
+    newOpEmail,
+    setNewOpEmail,
+    selectedMemberForOp,
+    setSelectedMemberForOp,
+    profiles = [],
+    fetchSupportData,
+    fetchSessionDetail,
+    handleSendSupportReply,
+    handleAddOperator,
+    handleToggleOperator,
+    handleDeleteOperator,
+    handleCloseSupportSession
+}) => {
+    const isTr = lang === 'tr';
+    const isDe = lang === 'de';
+
+    const waitingSessions = supportSessions.filter(s => s.status === 'waiting_admin');
+    const activeSessions = supportSessions.filter(s => s.status === 'active');
+    const closedSessions = supportSessions.filter(s => s.status === 'closed');
+
+    const filteredSessions = supportSessions.filter(s => {
+        if (supportFilter === 'waiting') return s.status === 'waiting_admin';
+        if (supportFilter === 'active') return s.status === 'active';
+        if (supportFilter === 'closed') return s.status === 'closed';
+        return true;
+    });
+
+    const quickTemplates = isTr ? [
+        "👋 Merhaba! Size nasıl yardımcı olabilirim?",
+        "💎 VIP PRO üyelik ücretimiz aylık 29€'dur. Kredi kartı veya kripto ile anında açılır.",
+        "🚀 3 Günlük ücretsiz denemeniz hesabınıza tanımlandı. Bol kazançlar!",
+        "💳 Havale/EFT bilgisi: Garanti BBVA IBAN: TR..."
+    ] : isDe ? [
+        "👋 Hallo! Wie kann ich Ihnen behilflich sein?",
+        "💎 VIP PRO Pass kostet 29€ / Monat (inkl. aller Live-xG-Radare).",
+        "🚀 Ihr 3-Tage-Kostenlos-Test wurde freigeschaltet. Viel Erfolg!",
+        "💳 Für Banküberweisung kontaktieren Sie uns bitte hier."
+    ] : [
+        "👋 Hello! How may I assist you today?",
+        "💎 VIP PRO Monthly Pass is 29€ / mo (instant activation via Card / Crypto).",
+        "🚀 Your 3-Day complimentary trial pass is active. Good luck!",
+        "💳 Wire / Bank transfer details requested."
+    ];
+
+    return (
+        <div style={{ maxWidth: '1200px' }}>
+            {/* Header Controls */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                padding: '1.2rem',
+                borderRadius: '12px',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(56, 189, 248, 0.08))',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                marginBottom: '1.5rem'
+            }}>
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span style={{ fontSize: '1.4rem' }}>🎧</span>
+                        <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#fff' }}>
+                            {isTr ? 'CANLI DESTEK MASASI & PERSONEL YÖNETİMİ' : (isDe ? 'LIVE-SUPPORT & MITARBEITER' : 'LIVE SUPPORT DESK & STAFF')}
+                        </span>
+                        {waitingSessions.length > 0 && (
+                            <span style={{
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '20px',
+                                fontSize: '0.7rem',
+                                fontWeight: 900,
+                                background: '#ef4444',
+                                color: '#fff'
+                            }}>
+                                ⚠️ {waitingSessions.length} {isTr ? 'YANIT BEKLİYOR' : (isDe ? 'WARTET' : 'WAITING')}
+                            </span>
+                        )}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: '0.3rem' }}>
+                        {isTr
+                            ? 'Web sitesindeki müşteri sohbetlerini anlık izleyin, cevaplayın ve Telegram üzerinden cevap verebilecek personeller atayın.'
+                            : 'Monitor web live chats, reply in real-time, and manage support operators with Telegram bridge.'}
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+                    <button
+                        onClick={() => setSupportSubTab('chats')}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '8px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            background: supportSubTab === 'chats' ? '#10b981' : 'rgba(255,255,255,0.05)',
+                            color: supportSubTab === 'chats' ? '#000' : '#e2e8f0',
+                            border: `1px solid ${supportSubTab === 'chats' ? '#10b981' : 'rgba(255,255,255,0.1)'}`
+                        }}
+                    >
+                        💬 {isTr ? 'Canlı Sohbetler' : 'Live Chats'} ({supportSessions.length})
+                    </button>
+                    <button
+                        onClick={() => setSupportSubTab('operators')}
+                        style={{
+                            padding: '0.5rem 1rem',
+                            borderRadius: '8px',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            background: supportSubTab === 'operators' ? '#38bdf8' : 'rgba(255,255,255,0.05)',
+                            color: supportSubTab === 'operators' ? '#000' : '#e2e8f0',
+                            border: `1px solid ${supportSubTab === 'operators' ? '#38bdf8' : 'rgba(255,255,255,0.1)'}`
+                        }}
+                    >
+                        👥 {isTr ? 'Destek Personeli' : 'Support Staff'} ({supportOperators.length})
+                    </button>
+                    <button
+                        onClick={fetchSupportData}
+                        disabled={supportLoading}
+                        style={{
+                            padding: '0.5rem 0.8rem',
+                            borderRadius: '8px',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.3)'
+                        }}
+                    >
+                        {supportLoading ? '...' : '🔄'}
+                    </button>
+                </div>
+            </div>
+
+            {/* SUBTAB 1: LIVE CHATS & SESSIONS */}
+            {supportSubTab === 'chats' && (
+                <div>
+                    {/* Filter Pills */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.2rem', flexWrap: 'wrap' }}>
+                        {[
+                            { key: 'all', label: isTr ? `Tümü (${supportSessions.length})` : `All (${supportSessions.length})` },
+                            { key: 'waiting', label: `🟡 ${isTr ? 'Yanıt Bekleyenler' : 'Waiting'} (${waitingSessions.length})` },
+                            { key: 'active', label: `🟢 ${isTr ? 'Aktif' : 'Active'} (${activeSessions.length})` },
+                            { key: 'closed', label: `⚪ ${isTr ? 'Çözüldü' : 'Closed'} (${closedSessions.length})` }
+                        ].map(f => (
+                            <button
+                                key={f.key}
+                                onClick={() => setSupportFilter(f.key)}
+                                style={{
+                                    padding: '0.4rem 0.9rem',
+                                    borderRadius: '20px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    background: supportFilter === f.key ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.03)',
+                                    color: supportFilter === f.key ? '#38bdf8' : '#94a3b8',
+                                    border: `1px solid ${supportFilter === f.key ? '#38bdf8' : 'rgba(255,255,255,0.08)'}`
+                                }}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Master-Detail Split Grid */}
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(300px, 380px) 1fr',
+                        gap: '1.2rem',
+                        alignItems: 'start'
+                    }}>
+                        {/* Left: Session List */}
+                        <div style={{
+                            background: 'rgba(15, 23, 42, 0.6)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            padding: '1rem',
+                            maxHeight: '620px',
+                            overflowY: 'auto'
+                        }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.8rem', textTransform: 'uppercase' }}>
+                                {isTr ? 'Sohbet Oturumları' : 'Chat Sessions'} ({filteredSessions.length})
+                            </div>
+
+                            {filteredSessions.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
+                                    {isTr ? 'Bu filtreye uygun aktif sohbet oturumu bulunamadı.' : 'No chat sessions match this filter.'}
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                    {filteredSessions.map(sess => {
+                                        const isSelected = activeSupportSession?.sessionId === sess.sessionId;
+                                        const isWaiting = sess.status === 'waiting_admin';
+                                        return (
+                                            <div
+                                                key={sess.sessionId}
+                                                onClick={() => fetchSessionDetail(sess.sessionId)}
+                                                style={{
+                                                    padding: '0.8rem',
+                                                    borderRadius: '8px',
+                                                    background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.03)',
+                                                    border: `1px solid ${isSelected ? '#38bdf8' : isWaiting ? '#fbbf24' : 'rgba(255,255,255,0.06)'}`,
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.15s'
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
+                                                    <span style={{ fontWeight: 800, fontSize: '0.8rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                        <span>👤</span>
+                                                        <span style={{ maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {sess.userInfo?.email || sess.userInfo?.name || 'Ziyaretçi'}
+                                                        </span>
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: '0.62rem',
+                                                        fontWeight: 800,
+                                                        padding: '0.15rem 0.45rem',
+                                                        borderRadius: '6px',
+                                                        background: isWaiting ? 'rgba(251, 191, 36, 0.2)' : sess.status === 'closed' ? 'rgba(100, 116, 139, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                                                        color: isWaiting ? '#fbbf24' : sess.status === 'closed' ? '#94a3b8' : '#10b981',
+                                                        border: `1px solid ${isWaiting ? '#fbbf24' : sess.status === 'closed' ? '#94a3b8' : '#10b981'}`
+                                                    }}>
+                                                        {isWaiting ? (isTr ? 'YANIT BEKLİYOR' : 'WAITING') : sess.status === 'closed' ? (isTr ? 'ÇÖZÜLDÜ' : 'CLOSED') : (isTr ? 'AKTİF' : 'ACTIVE')}
+                                                    </span>
+                                                </div>
+
+                                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'flex', gap: '0.4rem', marginBottom: '0.4rem' }}>
+                                                    <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
+                                                        {(sess.lang || 'tr').toUpperCase()}
+                                                    </span>
+                                                    <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.3rem', borderRadius: '4px' }}>
+                                                        {sess.userInfo?.plan || 'Misafir'}
+                                                    </span>
+                                                    <span style={{ opacity: 0.6 }}>
+                                                        #{sess.sessionId.substring(sess.sessionId.length - 6)}
+                                                    </span>
+                                                </div>
+
+                                                {sess.lastMessage && (
+                                                    <div style={{
+                                                        fontSize: '0.72rem',
+                                                        color: sess.lastMessage.sender === 'user' ? '#38bdf8' : '#cbd5e1',
+                                                        fontStyle: 'italic',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        "{sess.lastMessage.text}"
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right: Live Chat Window */}
+                        <div style={{
+                            background: 'rgba(15, 23, 42, 0.6)',
+                            borderRadius: '12px',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            padding: '1.2rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            minHeight: '500px'
+                        }}>
+                            {!activeSupportSession ? (
+                                <div style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flex: 1,
+                                    color: '#64748b',
+                                    textAlign: 'center',
+                                    gap: '1rem',
+                                    padding: '3rem'
+                                }}>
+                                    <span style={{ fontSize: '2.5rem' }}>💬</span>
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#94a3b8' }}>
+                                        {isTr ? 'Sohbet Ayrıntıları' : 'Chat Details'}
+                                    </div>
+                                    <div style={{ fontSize: '0.78rem', maxWidth: '320px' }}>
+                                        {isTr
+                                            ? 'Müşteriyle canlı yazışmaları görmek veya yanıt vermek için sol listeden bir oturum seçin.'
+                                            : 'Select a chat session from the list on the left to read messages and reply.'}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{ display: 'flex', flexDirection: 'column', height: '100%', flex: 1 }}>
+                                    {/* Active Session Header */}
+                                    <div style={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        paddingBottom: '0.8rem',
+                                        borderBottom: '1px solid rgba(255,255,255,0.08)',
+                                        marginBottom: '1rem',
+                                        flexWrap: 'wrap',
+                                        gap: '0.5rem'
+                                    }}>
+                                        <div>
+                                            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <span>👤</span>
+                                                <span>{activeSupportSession.userInfo?.email || activeSupportSession.userInfo?.name || 'Misafir Müşteri'}</span>
+                                                <span style={{
+                                                    fontSize: '0.65rem',
+                                                    padding: '0.1rem 0.4rem',
+                                                    borderRadius: '4px',
+                                                    background: 'rgba(56, 189, 248, 0.15)',
+                                                    color: '#38bdf8'
+                                                }}>
+                                                    {activeSupportSession.userInfo?.plan || 'Misafir'}
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                                                Oturum: <code style={{ color: '#38bdf8' }}>{activeSupportSession.sessionId}</code> | Dil: {(activeSupportSession.lang || 'tr').toUpperCase()}
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button
+                                                onClick={() => handleCloseSupportSession(activeSupportSession.sessionId)}
+                                                style={{
+                                                    padding: '0.4rem 0.8rem',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    background: activeSupportSession.status === 'closed' ? 'rgba(255,255,255,0.05)' : 'rgba(239, 68, 68, 0.15)',
+                                                    color: activeSupportSession.status === 'closed' ? '#94a3b8' : '#ef4444',
+                                                    border: '1px solid currentColor'
+                                                }}
+                                            >
+                                                {activeSupportSession.status === 'closed' ? '✓ Çözüldü' : '🔒 Oturumu Kapat'}
+                                            </button>
+                                            <button
+                                                onClick={() => fetchSessionDetail(activeSupportSession.sessionId)}
+                                                disabled={sessionChatLoading}
+                                                style={{
+                                                    padding: '0.4rem 0.8rem',
+                                                    borderRadius: '6px',
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 700,
+                                                    cursor: 'pointer',
+                                                    background: 'rgba(255,255,255,0.05)',
+                                                    color: '#38bdf8',
+                                                    border: '1px solid #38bdf8'
+                                                }}
+                                            >
+                                                {sessionChatLoading ? '...' : '🔄'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Messages Box */}
+                                    <div style={{
+                                        flex: 1,
+                                        maxHeight: '380px',
+                                        minHeight: '260px',
+                                        overflowY: 'auto',
+                                        padding: '0.8rem',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.8rem',
+                                        background: 'rgba(0,0,0,0.25)',
+                                        borderRadius: '8px',
+                                        marginBottom: '1rem'
+                                    }}>
+                                        {(activeSupportSession.messages || []).map((msg, idx) => {
+                                            const isUser = msg.sender === 'user';
+                                            const isBot = msg.sender === 'bot';
+
+                                            return (
+                                                <div
+                                                    key={msg.id || idx}
+                                                    style={{
+                                                        alignSelf: isUser ? 'flex-start' : isBot ? 'flex-start' : 'flex-end',
+                                                        maxWidth: '85%',
+                                                        background: isUser
+                                                            ? '#1e293b'
+                                                            : isBot
+                                                            ? 'rgba(15, 23, 42, 0.9)'
+                                                            : 'linear-gradient(135deg, #059669, #047857)',
+                                                        border: isBot ? '1px solid #38bdf8' : 'none',
+                                                        borderRadius: '10px',
+                                                        padding: '0.7rem 0.9rem',
+                                                        color: '#fff',
+                                                        boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        fontSize: '0.62rem',
+                                                        fontWeight: 800,
+                                                        color: isUser ? '#38bdf8' : isBot ? '#38bdf8' : '#a7f3d0',
+                                                        marginBottom: '0.25rem',
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        gap: '0.6rem'
+                                                    }}>
+                                                        <span>{isUser ? '👤 Müşteri' : isBot ? '🤖 AI Canlı Asistan' : `🛡️ ${msg.senderName || 'Destek Yetkilisi'}`}</span>
+                                                        <span style={{ opacity: 0.6, fontWeight: 400 }}>
+                                                            {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.82rem', lineHeight: '1.4', whiteSpace: 'pre-wrap' }}>
+                                                        {msg.text}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* Quick Response Chips */}
+                                    <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: '0.6rem', marginBottom: '0.6rem' }}>
+                                        {quickTemplates.map((tmpl, idx) => (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => setAdminSupportReply(tmpl)}
+                                                style={{
+                                                    whiteSpace: 'nowrap',
+                                                    padding: '0.3rem 0.6rem',
+                                                    borderRadius: '15px',
+                                                    background: 'rgba(255,255,255,0.05)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    color: '#cbd5e1',
+                                                    fontSize: '0.68rem',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                💡 {tmpl.substring(0, 35)}...
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Reply Box */}
+                                    <form onSubmit={handleSendSupportReply} style={{ display: 'flex', gap: '0.6rem' }}>
+                                        <input
+                                            type="text"
+                                            value={adminSupportReply}
+                                            onChange={(e) => setAdminSupportReply(e.target.value)}
+                                            placeholder={isTr ? "Müşteriye yanıt yazın..." : "Type reply to customer..."}
+                                            style={{
+                                                flex: 1,
+                                                padding: '0.75rem 1rem',
+                                                background: 'rgba(0,0,0,0.3)',
+                                                border: '1px solid rgba(255,255,255,0.15)',
+                                                borderRadius: '8px',
+                                                color: '#fff',
+                                                fontSize: '0.85rem'
+                                            }}
+                                        />
+                                        <button
+                                            type="submit"
+                                            disabled={replySending || !adminSupportReply.trim()}
+                                            style={{
+                                                padding: '0.75rem 1.4rem',
+                                                background: '#10b981',
+                                                border: 'none',
+                                                borderRadius: '8px',
+                                                color: '#000',
+                                                fontWeight: 800,
+                                                fontSize: '0.85rem',
+                                                cursor: 'pointer',
+                                                opacity: replySending || !adminSupportReply.trim() ? 0.5 : 1
+                                            }}
+                                        >
+                                            {replySending ? '...' : (isTr ? 'Gönder' : 'Send')}
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* SUBTAB 2: OPERATORS & SUPPORT STAFF MANAGEMENT */}
+            {supportSubTab === 'operators' && (
+                <div>
+                    {/* Information Security Box */}
+                    <div style={{
+                        padding: '1.2rem',
+                        borderRadius: '10px',
+                        background: 'rgba(56, 189, 248, 0.08)',
+                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                        marginBottom: '1.5rem',
+                        fontSize: '0.8rem',
+                        lineHeight: '1.6',
+                        color: '#cbd5e1'
+                    }}>
+                        <div style={{ fontWeight: 800, color: '#38bdf8', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>
+                            🛡️ {isTr ? 'GÜVENLİ DESTEK PERSONELİ (ROLE-BASED SUPPORT STAFF)' : 'ROLE-BASED SUPPORT STAFF SECURITY'}
+                        </div>
+                        <div>
+                            • <strong>{isTr ? 'Sıfır Risk & Tam İzolasyon:' : 'Zero Risk & Isolation:'}</strong> {isTr ? 'Burada yetkilendirdiğiniz operatörler sadece canlı sohbet mesajlarını okuyabilir ve cevaplayabilir. VIP verme, bakiye, kullanıcı silme veya finansal ayarlara ASLA erişemezler.' : 'Assigned operators can only view and answer live chat inquiries. They have ZERO access to billing, VIP grants, or admin controls.'}
+                        </div>
+                        <div>
+                            • <strong>{isTr ? '100% Gizlilik Garantisi:' : '100% Privacy:'}</strong> {isTr ? 'Personelin kişisel Telegram hesabı veya telefon numarası müşteriye ASLA gösterilmez. Müşteri ekranda daima "LiveBet Mentor Destek Masası" görür.' : 'Personal Telegram handles and phone numbers are completely concealed. Customers only see LiveBet Mentor Support.'}
+                        </div>
+                        <div>
+                            • <strong>{isTr ? 'Anlık Telegram Köprüsü:' : 'Instant Telegram Bridge:'}</strong> {isTr ? 'Müşteri destek kutusuna yazdığında, görevlendirdiğiniz personelin Telegram\'ına anında bildirim düşer. Personel telefonundan Telegram\'daki bildirime "Yanıtla" yaparak veya bu web panelinden doğrudan cevap verebilir.' : 'When a customer needs help, operators receive instant notifications in Telegram and can reply directly by quoting the message or using this dashboard.'}
+                        </div>
+                    </div>
+
+                    {/* Add Operator Form */}
+                    <div className="glass-panel" style={{
+                        padding: '1.5rem',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        marginBottom: '2rem'
+                    }}>
+                        <h4 style={{ color: '#38bdf8', fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            ➕ {isTr ? 'YENİ DESTEK OPERATÖRÜ / PERSONEL ATAMA' : 'ASSIGN NEW SUPPORT OPERATOR'}
+                        </h4>
+
+                        {/* Quick Picker from Registered Members */}
+                        {profiles && profiles.length > 0 && (
+                            <div style={{ marginBottom: '1.2rem', padding: '0.8rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, marginBottom: '0.4rem' }}>
+                                    ⚡ {isTr ? 'Hızlı Seçim: Sitede Kayıtlı Üyelerden Personel Olarak Ata' : 'Fast Select from Registered Members'}
+                                </label>
+                                <select
+                                    value={selectedMemberForOp}
+                                    onChange={(e) => {
+                                        const emailVal = e.target.value;
+                                        setSelectedMemberForOp(emailVal);
+                                        const found = profiles.find(p => p.email === emailVal);
+                                        if (found) {
+                                            setNewOpName(found.full_name || found.email.split('@')[0]);
+                                            setNewOpEmail(found.email);
+                                        }
+                                    }}
+                                    style={{ width: '100%', padding: '0.6rem', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff', fontSize: '0.78rem' }}
+                                >
+                                    <option value="">-- {isTr ? 'Kayıtlı bir üyeyi seçin (İsteğe bağlı)' : 'Select member (optional)'} --</option>
+                                    {profiles.map(p => (
+                                        <option key={p.id} value={p.email}>
+                                            {p.email} {p.full_name ? `(${p.full_name})` : ''} - {p.plan || 'Trial'}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleAddOperator} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr)) 140px', gap: '0.8rem', alignItems: 'end' }}>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.7, marginBottom: '0.4rem' }}>
+                                    {isTr ? 'Personel Adı / Unvanı *' : 'Staff Name *'}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newOpName}
+                                    onChange={(e) => setNewOpName(e.target.value)}
+                                    placeholder={isTr ? "Örn: Ahmet - Canlı Destek" : "Staff Name"}
+                                    style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff', fontSize: '0.8rem' }}
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.7rem', color: '#fbbf24', fontWeight: 800, marginBottom: '0.4rem' }}>
+                                    {isTr ? 'Telegram Chat ID * (Zorunlu)' : 'Telegram Chat ID * (Required)'}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newOpChatId}
+                                    onChange={(e) => setNewOpChatId(e.target.value)}
+                                    placeholder="Örn: 589412345"
+                                    style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid #fbbf24', borderRadius: '6px', color: '#fff', fontSize: '0.8rem' }}
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.7, marginBottom: '0.4rem' }}>
+                                    {isTr ? 'Telegram Kullanıcı Adı (İsteğe Bağlı)' : 'Telegram Username (Optional)'}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newOpUsername}
+                                    onChange={(e) => setNewOpUsername(e.target.value)}
+                                    placeholder="@kullaniciadi"
+                                    style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff', fontSize: '0.8rem' }}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.7, marginBottom: '0.4rem' }}>
+                                    {isTr ? 'Site E-posta (Hesap Eşleme)' : 'Site Account Email'}
+                                </label>
+                                <input
+                                    type="email"
+                                    value={newOpEmail}
+                                    onChange={(e) => setNewOpEmail(e.target.value)}
+                                    placeholder="personel@mail.com"
+                                    style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff', fontSize: '0.8rem' }}
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                style={{
+                                    padding: '0.75rem',
+                                    background: '#38bdf8',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    color: '#000',
+                                    fontWeight: 900,
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem'
+                                }}
+                            >
+                                {isTr ? '➕ Yetkilendir' : '➕ Authorize'}
+                            </button>
+                        </form>
+
+                        {/* Helper tip on finding Telegram Chat ID */}
+                        <div style={{ marginTop: '0.8rem', fontSize: '0.72rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                            💡 <strong>{isTr ? 'Personelin Telegram Chat ID\'si Nasıl Bulunur?' : 'How to find Telegram Chat ID?'}</strong> {isTr ? 'Personeliniz Telegram\'da botumuza (@Livebetmentorbot) /start yazabilir veya Telegram\'da @userinfobot botunu başlatıp ID\'sini anında alabilir.' : 'Your staff can message @Livebetmentorbot or @userinfobot on Telegram to immediately get their numeric ID.'}
+                        </div>
+                    </div>
+
+                    {/* Active Operators List */}
+                    <div>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', color: '#fff' }}>
+                            👥 {isTr ? 'YETKİLİ DESTEK PERSONELİ LİSTESİ' : 'AUTHORIZED SUPPORT STAFF'} ({supportOperators.length})
+                        </h4>
+
+                        {supportOperators.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '2.5rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', color: '#64748b' }}>
+                                {isTr
+                                    ? 'Henüz atanmış bir destek operatörü yok. Yukarıdaki formdan ekleyebilirsiniz.'
+                                    : 'No support operators assigned yet. Add one using the form above.'}
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8' }}>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'PERSONEL / UNVAN' : 'STAFF NAME'}</th>
+                                            <th style={{ padding: '0.8rem' }}>TELEGRAM CHAT ID</th>
+                                            <th style={{ padding: '0.8rem' }}>TELEGRAM USER</th>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'SİTE HESABI' : 'SITE ACCOUNT'}</th>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'DURUM' : 'STATUS'}</th>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'İŞLEM' : 'ACTION'}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {supportOperators.map(op => (
+                                            <tr key={op.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                <td style={{ padding: '0.8rem', fontWeight: 800, color: '#fff' }}>
+                                                    {op.name}
+                                                </td>
+                                                <td style={{ padding: '0.8rem', color: '#fbbf24', fontFamily: 'monospace', fontWeight: 700 }}>
+                                                    {op.telegramChatId}
+                                                </td>
+                                                <td style={{ padding: '0.8rem', color: '#38bdf8' }}>
+                                                    {op.telegramUsername ? `@${op.telegramUsername}` : '-'}
+                                                </td>
+                                                <td style={{ padding: '0.8rem', color: '#94a3b8' }}>
+                                                    {op.email || '-'}
+                                                </td>
+                                                <td style={{ padding: '0.8rem' }}>
+                                                    <button
+                                                        onClick={() => handleToggleOperator(op.id)}
+                                                        style={{
+                                                            padding: '0.25rem 0.6rem',
+                                                            borderRadius: '12px',
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 800,
+                                                            cursor: 'pointer',
+                                                            background: op.active ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+                                                            color: op.active ? '#10b981' : '#ef4444',
+                                                            border: `1px solid ${op.active ? '#10b981' : '#ef4444'}`
+                                                        }}
+                                                    >
+                                                        {op.active ? (isTr ? '● AKTİF' : 'ACTIVE') : (isTr ? '○ PASİF' : 'INACTIVE')}
+                                                    </button>
+                                                </td>
+                                                <td style={{ padding: '0.8rem' }}>
+                                                    <button
+                                                        onClick={() => handleDeleteOperator(op.id, op.name)}
+                                                        style={{
+                                                            padding: '0.35rem 0.7rem',
+                                                            borderRadius: '6px',
+                                                            background: 'rgba(239, 68, 68, 0.1)',
+                                                            border: '1px solid #ef4444',
+                                                            color: '#ef4444',
+                                                            cursor: 'pointer',
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 700
+                                                        }}
+                                                    >
+                                                        🗑️ {isTr ? 'Sil' : 'Delete'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
 export const AdminPanel = ({ lang = 'tr' }) => {
     const [profiles, setProfiles] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -21,6 +754,22 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [officeStatus, setOfficeStatus] = useState(null);
     const [officeLoading, setOfficeLoading] = useState(false);
     const [officeActionLoading, setOfficeActionLoading] = useState(false);
+
+    // Support Staff & Live Chat States
+    const [supportOperators, setSupportOperators] = useState([]);
+    const [supportSessions, setSupportSessions] = useState([]);
+    const [supportLoading, setSupportLoading] = useState(false);
+    const [activeSupportSession, setActiveSupportSession] = useState(null);
+    const [sessionChatLoading, setSessionChatLoading] = useState(false);
+    const [adminSupportReply, setAdminSupportReply] = useState('');
+    const [replySending, setReplySending] = useState(false);
+    const [supportSubTab, setSupportSubTab] = useState('chats'); // 'chats' | 'operators'
+    const [supportFilter, setSupportFilter] = useState('all'); // 'all' | 'waiting' | 'active' | 'closed'
+    const [newOpName, setNewOpName] = useState('');
+    const [newOpChatId, setNewOpChatId] = useState('');
+    const [newOpUsername, setNewOpUsername] = useState('');
+    const [newOpEmail, setNewOpEmail] = useState('');
+    const [selectedMemberForOp, setSelectedMemberForOp] = useState('');
 
     const PLANS = {
         trial: { label: 'Trial', color: '#10b981' },
@@ -123,7 +872,8 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         clvBeat: 'Piyasayı Yenme Gücü',
         resetStats: 'İSTATİSTİKLERİ SIFIRLA',
         resetConfirm: 'Tüm strateji performans verilerini sıfırlamak istediğinize emin misiniz?',
-        tabOffice: 'OTONOM KOMUTA (3 GÖREVLİ)'
+        tabOffice: 'OTONOM KOMUTA (3 GÖREVLİ)',
+        tabSupportStaff: 'CANLI DESTEK & PERSONEL'
     } : lang === 'de' ? {
         title: '🛡️ ADMINISTRATOR-KONTROLLZENTRUM',
         addMember: 'NEUES MITGLIED HINZUFÜGEN',
@@ -219,7 +969,8 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         clvBeat: 'Marktschlagende Stärke',
         resetStats: 'STATISTIKEN ZURÜCKSETZEN',
         resetConfirm: 'Möchten Sie wirklich alle Strategie-Performancedaten zurücksetzen?',
-        tabOffice: 'AUTONOMES KOMMANDO (3 AGENTEN)'
+        tabOffice: 'AUTONOMES KOMMANDO (3 AGENTEN)',
+        tabSupportStaff: 'LIVE-SUPPORT & MITARBEITER'
     } : {
         title: '🛡️ ADMIN CONTROL CENTER',
         addMember: 'ADD NEW MEMBER',
@@ -315,7 +1066,8 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         clvBeat: 'Beating The Market',
         resetStats: 'RESET STATS',
         resetConfirm: 'Are you sure you want to reset all strategy performance analytics?',
-        tabOffice: 'AUTONOMOUS COMMAND (3 AGENTS)'
+        tabOffice: 'AUTONOMOUS COMMAND (3 AGENTS)',
+        tabSupportStaff: 'LIVE SUPPORT & STAFF'
     };
 
     const [strategySettings, setStrategySettings] = useState({});
@@ -363,6 +1115,7 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         fetchTelegramStatus();
         fetchOfficeStatus();
         loadStrategyAnalytics();
+        fetchSupportData();
         
         // Load strategy settings from localStorage
         let savedStrats = {};
@@ -385,6 +1138,19 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             ...savedStrats
         });
     }, []);
+
+    useEffect(() => {
+        if (activeTab === 'support_staff') {
+            fetchSupportData();
+            const interval = setInterval(() => {
+                fetchSupportData();
+                if (activeSupportSession?.sessionId) {
+                    fetchSessionDetail(activeSupportSession.sessionId);
+                }
+            }, 4000);
+            return () => clearInterval(interval);
+        }
+    }, [activeTab, activeSupportSession?.sessionId]);
 
     const handleToggleStrategy = (key) => {
         const newSettings = { ...strategySettings, [key]: !strategySettings[key] };
@@ -437,6 +1203,149 @@ export const AdminPanel = ({ lang = 'tr' }) => {
         } catch (e) {
             console.error('Error fetching telegram status:', e);
         }
+    };
+
+    const fetchSupportData = async () => {
+        setSupportLoading(true);
+        try {
+            const proxyBase = getProxyBase();
+            const headers = getAdminHeaders();
+            const [opRes, sessRes] = await Promise.all([
+                fetch(`${proxyBase}/api/admin/support/operators`, { headers }).catch(() => null),
+                fetch(`${proxyBase}/api/admin/support/sessions`, { headers }).catch(() => null)
+            ]);
+            if (opRes && opRes.ok) {
+                const opData = await opRes.json();
+                if (opData.success) setSupportOperators(opData.operators || []);
+            }
+            if (sessRes && sessRes.ok) {
+                const sessData = await sessRes.json();
+                if (sessData.success) setSupportSessions(sessData.sessions || []);
+            }
+        } catch (e) {
+            console.error('Error fetching support data:', e);
+        } finally {
+            setSupportLoading(false);
+        }
+    };
+
+    const fetchSessionDetail = async (sessionId) => {
+        setSessionChatLoading(true);
+        try {
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/admin/support/sessions/${sessionId}`, {
+                headers: getAdminHeaders()
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success) {
+                    setActiveSupportSession(data.session);
+                }
+            }
+        } catch (e) {
+            console.error('Error fetching session detail:', e);
+        } finally {
+            setSessionChatLoading(false);
+        }
+    };
+
+    const handleSendSupportReply = async (e) => {
+        if (e) e.preventDefault();
+        if (!activeSupportSession || !adminSupportReply.trim()) return;
+        setReplySending(true);
+        try {
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/admin/support/reply`, {
+                method: 'POST',
+                headers: getAdminHeaders(),
+                body: JSON.stringify({
+                    sessionId: activeSupportSession.sessionId,
+                    text: adminSupportReply.trim(),
+                    senderName: 'Destek Masası'
+                })
+            });
+            if (res.ok) {
+                setAdminSupportReply('');
+                await fetchSessionDetail(activeSupportSession.sessionId);
+                fetchSupportData();
+            }
+        } catch (e) {
+            console.error('Error sending support reply:', e);
+        } finally {
+            setReplySending(false);
+        }
+    };
+
+    const handleAddOperator = async (e) => {
+        if (e) e.preventDefault();
+        if (!newOpChatId.trim()) {
+            setStatus({ type: 'error', message: 'Telegram Chat ID zorunludur!' });
+            return;
+        }
+        try {
+            const proxyBase = getProxyBase();
+            const res = await fetch(`${proxyBase}/api/admin/support/operators`, {
+                method: 'POST',
+                headers: getAdminHeaders(),
+                body: JSON.stringify({
+                    name: newOpName.trim() || 'Destek Temsilcisi',
+                    telegramChatId: newOpChatId.trim(),
+                    telegramUsername: newOpUsername.trim(),
+                    email: newOpEmail.trim()
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setStatus({ type: 'success', message: 'Operatör başarıyla eklendi!' });
+                setNewOpName('');
+                setNewOpChatId('');
+                setNewOpUsername('');
+                setNewOpEmail('');
+                setSelectedMemberForOp('');
+                fetchSupportData();
+            } else {
+                setStatus({ type: 'error', message: data.error || 'Operatör eklenemedi.' });
+            }
+        } catch (e) {
+            setStatus({ type: 'error', message: e.message });
+        }
+    };
+
+    const handleToggleOperator = async (id) => {
+        try {
+            const proxyBase = getProxyBase();
+            await fetch(`${proxyBase}/api/admin/support/operators/${id}/toggle`, {
+                method: 'POST',
+                headers: getAdminHeaders()
+            });
+            fetchSupportData();
+        } catch (e) {}
+    };
+
+    const handleDeleteOperator = async (id, name) => {
+        if (!window.confirm(`${name || 'Bu personeli'} silmek istediğinize emin misiniz? Artık destek mesajlarını göremeyecek.`)) return;
+        try {
+            const proxyBase = getProxyBase();
+            await fetch(`${proxyBase}/api/admin/support/operators/${id}`, {
+                method: 'DELETE',
+                headers: getAdminHeaders()
+            });
+            fetchSupportData();
+        } catch (e) {}
+    };
+
+    const handleCloseSupportSession = async (sessionId) => {
+        try {
+            const proxyBase = getProxyBase();
+            await fetch(`${proxyBase}/api/admin/support/sessions/${sessionId}/close`, {
+                method: 'POST',
+                headers: getAdminHeaders()
+            });
+            if (activeSupportSession?.sessionId === sessionId) {
+                setActiveSupportSession(prev => prev ? { ...prev, status: 'closed' } : null);
+            }
+            fetchSupportData();
+        } catch (e) {}
     };
 
     const handleSendTelegramReport = async () => {
@@ -1307,6 +2216,38 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                 >
                     🎯 {t.tabAnalytics}
                 </button>
+                <button
+                    onClick={() => { setActiveTab('support_staff'); fetchSupportData(); }}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'support_staff' ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(56, 189, 248, 0.2))' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'support_staff' ? '#10b981' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'support_staff' ? '#10b981' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: activeTab === 'support_staff' ? '0 0 15px rgba(16, 185, 129, 0.25)' : 'none'
+                    }}
+                >
+                    <span>🎧</span>
+                    <span>{t.tabSupportStaff || 'CANLI DESTEK & PERSONEL'}</span>
+                    {supportSessions.filter(s => s.status === 'waiting_admin').length > 0 && (
+                        <span style={{
+                            background: '#ef4444',
+                            color: '#fff',
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '8px',
+                            fontSize: '0.65rem',
+                            fontWeight: 900
+                        }}>
+                            {supportSessions.filter(s => s.status === 'waiting_admin').length}
+                        </span>
+                    )}
+                </button>
             </div>
 
             {/* Content Section */}
@@ -1332,13 +2273,47 @@ export const AdminPanel = ({ lang = 'tr' }) => {
                         </span>
                     </div>
                 )}
-                {activeTab !== 'web_analytics' && activeTab !== 'trading_desk' && (
+                {activeTab !== 'web_analytics' && activeTab !== 'trading_desk' && activeTab !== 'support_staff' && (
                     <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem', fontWeight: 800 }}>
                         {activeTab === 'upgrades' ? t.tabUpgrades : activeTab === 'settings' ? t.tabSettings : activeTab === 'analytics' ? t.strategyScorecardTitle : activeTab === 'office' ? t.tabOffice : t.memberList}
                     </h3>
                 )}
 
-                {activeTab === 'web_analytics' ? (
+                {activeTab === 'support_staff' ? (
+                    <SupportStaffDesk
+                        lang={lang}
+                        supportOperators={supportOperators}
+                        supportSessions={supportSessions}
+                        supportLoading={supportLoading}
+                        activeSupportSession={activeSupportSession}
+                        sessionChatLoading={sessionChatLoading}
+                        adminSupportReply={adminSupportReply}
+                        setAdminSupportReply={setAdminSupportReply}
+                        replySending={replySending}
+                        supportSubTab={supportSubTab}
+                        setSupportSubTab={setSupportSubTab}
+                        supportFilter={supportFilter}
+                        setSupportFilter={setSupportFilter}
+                        newOpName={newOpName}
+                        setNewOpName={setNewOpName}
+                        newOpChatId={newOpChatId}
+                        setNewOpChatId={setNewOpChatId}
+                        newOpUsername={newOpUsername}
+                        setNewOpUsername={setNewOpUsername}
+                        newOpEmail={newOpEmail}
+                        setNewOpEmail={setNewOpEmail}
+                        selectedMemberForOp={selectedMemberForOp}
+                        setSelectedMemberForOp={setSelectedMemberForOp}
+                        profiles={profiles}
+                        fetchSupportData={fetchSupportData}
+                        fetchSessionDetail={fetchSessionDetail}
+                        handleSendSupportReply={handleSendSupportReply}
+                        handleAddOperator={handleAddOperator}
+                        handleToggleOperator={handleToggleOperator}
+                        handleDeleteOperator={handleDeleteOperator}
+                        handleCloseSupportSession={handleCloseSupportSession}
+                    />
+                ) : activeTab === 'web_analytics' ? (
                     <AnalyticsDashboard lang={lang} />
                 ) : activeTab === 'trading_desk' ? (
                     <TradingDesk lang={lang} />

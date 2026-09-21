@@ -28,6 +28,8 @@ server/vip_users.json
 server/device_trials.json
 server/upgrade_requests.json
 server/telegram_signal_history.json
+server/support_chats.json
+server/support_operators.json
 
 # Environment
 .env

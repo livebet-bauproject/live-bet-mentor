@@ -28,6 +28,7 @@ import { cashOutEngine } from './cashOutEngine.js';
 import { vipManager } from './vipManager.js';
 import { consensusReader } from './consensusReader.js';
 import { cryptoPay } from './cryptoPay.js';
+import { supportChatService } from './supportChatService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1055,6 +1056,8 @@ _Bol kazançlar dileriz! Live Bet Mentor VIP Syndicate_
         const chatId = msg.chat.id;
         const username = msg.from?.username || msg.from?.first_name || 'User';
         const isAdmin = vipManager.isAdmin(chatId);
+        const isOperator = supportChatService.isOperator(chatId);
+        const isStaff = isAdmin || isOperator;
         let userLang = vipManager.getUserLang(chatId) || 'tr';
 
         // 0. Auto-detect forwarded channel or group ID
@@ -1105,8 +1108,8 @@ _Bol kazançlar dileriz! Live Bet Mentor VIP Syndicate_
                 }
             }
 
-            // A. If sender is NOT an admin, relay support message / question / payment proof to Admin
-            if (!isAdmin && (text || hasPhoto)) {
+            // A. If sender is NOT an admin or support operator, relay support message / question / payment proof to Admin
+            if (!isStaff && (text || hasPhoto)) {
                 console.log(`[TELEGRAM] 📩 Customer submission from @${username} (${chatId}): ${text || '[Photo]'}`);
 
                 this.lastCustomer = {
@@ -1213,8 +1216,38 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                 return;
             }
 
-            // B. If sender IS an admin and message is not a command, forward admin reply to customer
-            if (isAdmin && (text || hasPhoto)) {
+            // B. If sender IS an admin or support operator and message is not a command, forward reply to customer
+            if (isStaff && (text || hasPhoto)) {
+                // B.0 Check if replying to a Web Live Support Session
+                if (msg.reply_to_message) {
+                    const rMsgId = msg.reply_to_message.message_id;
+                    let webSessionId = supportChatService.telegramMsgMap.get(rMsgId);
+                    if (!webSessionId) {
+                        const quotedText = msg.reply_to_message.text || msg.reply_to_message.caption || '';
+                        const matchSession = quotedText.match(/(?:Oturum Kodu|Oturum|Session ID|Session):\s*`?([a-zA-Z0-9_\-]+)`?/i);
+                        if (matchSession) {
+                            webSessionId = matchSession[1].trim();
+                        }
+                    }
+
+                    if (webSessionId) {
+                        const senderName = isOperator ? (supportChatService.getOperatorName(chatId) || 'Destek Yetkilisi') : 'LiveBet Mentor Destek';
+                        const delivered = supportChatService.addAdminReply(webSessionId, text || '[Görsel Gönderildi]', senderName);
+                        if (delivered) {
+                            await this.sendMessage(chatId, `✅ *Cevabınız web sitesindeki canlı destek kutusuna iletildi!*\n🆔 Oturum: \`${webSessionId}\`\n💬 Cevap: "${text || ''}"`);
+                        } else {
+                            await this.sendMessage(chatId, `❌ *Hata:* Web oturumu bulunamadı veya süresi doldu (\`${webSessionId}\`).`);
+                        }
+                        return;
+                    }
+                }
+
+                // If user is support operator (not super admin) and did not reply to a specific session:
+                if (isOperator && !isAdmin) {
+                    await this.sendMessage(chatId, `🎧 *LiveBet Canlı Destek Personel Paneli*\n━━━━━━━━━━━━━━━━━━\nWeb sitesindeki canlı destek mesajlarına cevap vermek için:\n1️⃣ Bildirim mesajına doğrudan **Yanıtla (Reply)** yaparak yazın\n2️⃣ Veya: \`/webchat <OturumID> <Cevabınız>\` komutunu kullanın.`);
+                    return;
+                }
+
                 let targetChatId = null;
                 let targetUsername = null;
 
@@ -1585,6 +1618,29 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                 }
                 await this.sendMessage(targetId, `📩 *VIP Destek Ekibinden Mesaj:*\n\n${replyMsg}\n\n━━━━━━━━━━━━━━━━━━\n💎 *Live Bet Mentor VIP*`);
                 await this.sendMessage(chatId, `✅ *Mesaj başarıyla iletildi:* \`${targetId}\``);
+                break;
+            }
+
+            case '/webchat':
+            case '/sitechat': {
+                const isOp = supportChatService.isOperator(chatId);
+                if (!vipManager.isAdmin(chatId) && !isOp) {
+                    await this.sendMessage(chatId, `⛔ *Yetkisiz Erişim:* Bu komutu yalnızca yönetici ve yetkili destek personeli kullanabilir.`);
+                    break;
+                }
+                const targetSessionId = arg1;
+                const replyText = parts.slice(2).join(' ');
+                if (!targetSessionId || !replyText) {
+                    await this.sendMessage(chatId, `ℹ️ *Kullanım:* \`/webchat <OturumID> <Mesajınız>\`\nÖrnek: \`/webchat web_abc123 Merhaba, yardımcı olabilirim!\``);
+                    break;
+                }
+                const senderName = isOp ? (supportChatService.getOperatorName(chatId) || 'Destek Yetkilisi') : 'LiveBet Mentor Destek';
+                const delivered = supportChatService.addAdminReply(targetSessionId, replyText, senderName);
+                if (delivered) {
+                    await this.sendMessage(chatId, `✅ *Cevabınız web sitesine canlı iletildi!*\n🆔 Oturum: \`${targetSessionId}\``);
+                } else {
+                    await this.sendMessage(chatId, `❌ *Hata:* Belirtilen web oturumu bulunamadı (\`${targetSessionId}\`).`);
+                }
                 break;
             }
 

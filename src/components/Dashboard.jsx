@@ -21,6 +21,7 @@ import { AttackMomentumGraph } from './AttackMomentumGraph';
 import { MatchIncidentsTimeline } from './MatchIncidentsTimeline';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { LegalModal } from './LegalModal';
+import { LiveSupportChat } from './LiveSupportChat';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
 import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
@@ -104,6 +105,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [decisionMode, setDecisionMode] = useState(dataWorker.decisionMode);
     const [showFAQ, setShowFAQ] = useState(false);
     const [faqMode, setFaqMode] = useState('live');
+    const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
 
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [activeTierFilter, setActiveTierFilter] = useState('ALL');
@@ -3746,19 +3748,18 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     </div>
 
                     <div className="terminal-header-actions">
-                        {/* 7/24 Telegram Live Support Button - Prominent Top Placement */}
-                        <a
-                            href={telegramSupportUrl}
-                            target="_blank"
-                            rel="noreferrer"
+                        {/* 7/24 Live Support & AI Chatbot Button */}
+                        <button
+                            type="button"
+                            onClick={() => setIsSupportChatOpen(true)}
                             className="header-telegram-support-btn"
-                            title={lang === 'tr' ? `7/24 Canlı Telegram Destek Hattı (@${telegramUsername})` : (lang === 'de' ? `24/7 Live Telegram Support (@${telegramUsername})` : `24/7 Live Telegram Support (@${telegramUsername})`)}
+                            title={lang === 'tr' ? '7/24 Canlı Destek Masası & AI Asistanı' : (lang === 'de' ? '24/7 Live-Support & KI-Assistent' : '24/7 Live Support & AI Assistant')}
                         >
                             <span className="tg-live-dot" title="Online"></span>
-                            <span className="tg-icon">✈️</span>
-                            <span className="tg-label-full">{lang === 'tr' ? '7/24 Telegram Destek' : (lang === 'de' ? '24/7 Telegram-Support' : '24/7 Telegram Support')}</span>
+                            <span className="tg-icon">💬</span>
+                            <span className="tg-label-full">{lang === 'tr' ? '7/24 Canlı Destek' : (lang === 'de' ? '24/7 Live-Support' : '24/7 Live Support')}</span>
                             <span className="tg-label-short">{lang === 'tr' ? '7/24 Destek' : (lang === 'de' ? '24/7 Support' : '24/7 Support')}</span>
-                        </a>
+                        </button>
 
                         {/* Notification Mode Toggle */}
                         <button
@@ -7955,22 +7956,23 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     {t.legal_disclaimer_text}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center' }}>
-                    <a
-                        href={telegramSupportUrl}
-                        target="_blank"
-                        rel="noreferrer"
+                    <button
+                        type="button"
+                        onClick={() => setIsSupportChatOpen(true)}
                         style={{
+                            background: 'transparent',
+                            border: 'none',
                             color: '#38bdf8',
-                            textDecoration: 'none',
                             fontSize: '0.78rem',
                             fontWeight: 700,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px'
+                            gap: '4px',
+                            cursor: 'pointer'
                         }}
                     >
-                        ✈️ {lang === 'tr' ? '7/24 Telegram Destek' : (lang === 'de' ? '24/7 Telegram-Support' : '24/7 Telegram Support')}
-                    </a>
+                        💬 {lang === 'tr' ? '7/24 Canlı Destek' : (lang === 'de' ? '24/7 Live-Support' : '24/7 Live Support')}
+                    </button>
                     <span style={{ opacity: 0.3 }}>|</span>
                     <button
                         onClick={() => setIsLegalModalOpen(true)}
@@ -7993,6 +7995,15 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 isOpen={isLegalModalOpen}
                 onClose={() => setIsLegalModalOpen(false)}
                 lang={lang}
+            />
+
+            {/* Native 100% Anonymous Live Support Chatbot & Telegram Bridge */}
+            <LiveSupportChat
+                isOpen={isSupportChatOpen}
+                onOpen={() => setIsSupportChatOpen(true)}
+                onClose={() => setIsSupportChatOpen(false)}
+                lang={lang}
+                userProfile={userProfile}
             />
 
             {/* Mobile Bottom Navigation Bar (Sticky app-like navigation on screens <= 768px) */}

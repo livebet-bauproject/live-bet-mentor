@@ -13,6 +13,7 @@ import { autonomousSignalEngine } from './autonomousSignalEngine.js';
 import { autonomousOffice } from './autonomousOffice.js';
 import { quantTradingDesk } from './quantTradingDesk.js';
 import { geminiTradingBridge } from './geminiTradingBridge.js';
+import { supportChatService } from './supportChatService.js';
 import { 
     hashPassword, 
     verifyPassword, 
@@ -1945,7 +1946,207 @@ app.post('/api/members/reject', (req, res) => {
     }
 });
 
-// 6. Extend member subscription
+// ============================================================================
+// 💬 LIVE WEB SUPPORT CHAT & TELEGRAM BRIDGE ENDPOINTS
+// ============================================================================
+
+// 1. Post a user message to Live Support (Handled by AI or forwarded to Admin Telegram)
+app.post('/api/support/message', generalApiLimiter, async (req, res) => {
+    try {
+        const { sessionId, text, lang = 'tr', userInfo = {} } = req.body || {};
+        if (!text || !text.trim()) {
+            return res.status(400).json({ error: 'Message cannot be empty' });
+        }
+
+        const result = await supportChatService.handleUserMessage(
+            sessionId,
+            text,
+            lang,
+            userInfo,
+            telegramBot
+        );
+
+        res.json(result);
+    } catch (e) {
+        console.error('[SUPPORT] Error processing message:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 2. Fetch full chat history for a session
+app.get('/api/support/history', (req, res) => {
+    try {
+        const { sessionId, lang = 'tr' } = req.query;
+        if (!sessionId) {
+            const session = supportChatService.getOrCreateSession(null, lang);
+            return res.json({ sessionId: session.sessionId, messages: session.messages, status: session.status });
+        }
+
+        const session = supportChatService.getOrCreateSession(sessionId, lang);
+        res.json({
+            sessionId: session.sessionId,
+            status: session.status,
+            messages: session.messages
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 3. Poll for new messages (especially Admin replies from Telegram)
+app.get('/api/support/poll', (req, res) => {
+    try {
+        const { sessionId, lastTimestamp } = req.query;
+        if (!sessionId) {
+            return res.json({ messages: [] });
+        }
+
+        const newMessages = supportChatService.getNewMessages(sessionId, lastTimestamp);
+        res.json({
+            sessionId,
+            messages: newMessages
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// Helper to check if request is from Admin or an assigned Support Operator
+const isSupportStaffRequest = (req) => {
+    if (isAdminRequest(req)) return true;
+    const rawToken = req.headers['authorization'] || req.headers['x-admin-token'];
+    if (rawToken) {
+        const cleanToken = rawToken.startsWith('Bearer ') ? rawToken.slice(7).trim() : rawToken.trim();
+        const payload = verifySecureToken(cleanToken, JWT_SECRET);
+        if (payload && payload.email) {
+            return supportChatService.isOperatorEmail(payload.email);
+        }
+    }
+    return false;
+};
+
+// 4. Admin: Get operators list
+app.get('/api/admin/support/operators', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler operatör listesine erişebilir.' });
+        }
+        res.json({ success: true, operators: supportChatService.getOperators() });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 5. Admin: Add new support operator
+app.post('/api/admin/support/operators', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler operatör ekleyebilir.' });
+        }
+        const { name, telegramChatId, telegramUsername, email } = req.body || {};
+        if (!telegramChatId) {
+            return res.status(400).json({ error: 'Telegram Chat ID zorunludur.' });
+        }
+        const result = supportChatService.addOperator({ name, telegramChatId, telegramUsername, email });
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 6. Admin: Toggle operator active state
+app.post('/api/admin/support/operators/:id/toggle', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const result = supportChatService.toggleOperator(req.params.id);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 7. Admin: Remove operator
+app.delete('/api/admin/support/operators/:id', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const result = supportChatService.removeOperator(req.params.id);
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 8. Admin / Staff: Get all live chat sessions summary
+app.get('/api/admin/support/sessions', (req, res) => {
+    try {
+        if (!isSupportStaffRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Canlı destek oturumlarına erişim yetkiniz yok.' });
+        }
+        const sessions = supportChatService.getAllSessionsSummary();
+        res.json({ success: true, sessions });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 9. Admin / Staff: Get specific session full chat history
+app.get('/api/admin/support/sessions/:id', (req, res) => {
+    try {
+        if (!isSupportStaffRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const session = supportChatService.chats.get(req.params.id);
+        if (!session) {
+            return res.status(404).json({ error: 'Oturum bulunamadı.' });
+        }
+        res.json({ success: true, session });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 10. Admin / Staff: Reply to customer session directly from Web Panel
+app.post('/api/admin/support/reply', (req, res) => {
+    try {
+        if (!isSupportStaffRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Mesaj gönderme yetkiniz yok.' });
+        }
+        const { sessionId, text, senderName } = req.body || {};
+        if (!sessionId || !text || !text.trim()) {
+            return res.status(400).json({ error: 'Oturum ID ve mesaj zorunludur.' });
+        }
+        const delivered = supportChatService.addAdminReply(
+            sessionId,
+            text.trim(),
+            senderName || 'LiveBet Destek Masası'
+        );
+        if (!delivered) {
+            return res.status(404).json({ error: 'Oturum bulunamadı veya kapalı.' });
+        }
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 11. Admin / Staff: Close support session
+app.post('/api/admin/support/sessions/:id/close', (req, res) => {
+    try {
+        if (!isSupportStaffRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized.' });
+        }
+        const closed = supportChatService.closeSession(req.params.id);
+        res.json({ success: closed });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 12. Extend member subscription
 app.post('/api/members/extend', (req, res) => {
     try {
         if (!isAdminRequest(req)) {
