@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Dashboard } from './components/Dashboard'
 import { LandingPage } from './components/LandingPage'
+import { LiveSupportChat } from './components/LiveSupportChat'
 import { supabase } from './backend/supabaseClient'
 import { translations } from './locales/translations'
 import { CONFIG } from './config'
@@ -79,6 +80,7 @@ function App() {
     return null;
   });
   const [systemSettings, setSystemSettings] = useState({})
+  const [isSupportChatOpen, setIsSupportChatOpen] = useState(false)
   const [lang, setLang] = useState(() => {
     try {
       // 1. Check URL Search Param (?lang=tr|en|de) for Search Engine Crawlers & Direct Links
@@ -518,13 +520,9 @@ function App() {
     );
   }
 
-  const telegramUsername = systemSettings?.telegram_support || systemSettings?.telegram || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot';
-  const cleanTelegram = telegramUsername.replace('@', '');
-
   // Pending Approval Screen
   if (page === 'pending') {
     const userEmail = session?.user?.email || '';
-    const telegramUrl = `https://t.me/${cleanTelegram}`;
 
     return (
       <div style={{
@@ -560,28 +558,28 @@ function App() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              <a
-                href={telegramUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => setIsSupportChatOpen(true)}
                 style={{
-                  background: 'linear-gradient(135deg, #0088cc, #0077b5)',
+                  background: 'linear-gradient(135deg, #0284c7, #0369a1)',
                   color: '#fff',
+                  border: 'none',
+                  cursor: 'pointer',
                   padding: '0.9rem 1.5rem',
                   borderRadius: '10px',
                   fontWeight: 800,
                   fontSize: '0.95rem',
-                  textDecoration: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 15px rgba(0, 136, 204, 0.3)'
+                  boxShadow: '0 4px 15px rgba(2, 132, 199, 0.35)'
                 }}
               >
-                <span>✈️</span>
-                <span>{lang === 'tr' ? 'Telegram ile Lisans Aktivasyonu' : (lang === 'de' ? 'Lizenzaktivierung via Telegram' : 'Contact via Telegram for Activation')}</span>
-              </a>
+                <span>💬</span>
+                <span>{lang === 'tr' ? '7/24 Canlı Destek Masası (Aktivasyon)' : (lang === 'de' ? '24/7 Live-Support Desk (Aktivierung)' : '24/7 Live Support Desk (Activation)')}</span>
+              </button>
 
             <button
               onClick={handleLogout}
@@ -600,13 +598,21 @@ function App() {
             </button>
           </div>
         </div>
+
+        {/* Native 100% Anonymous Live Support Chatbot & Operator Desk */}
+        <LiveSupportChat
+          isOpen={isSupportChatOpen}
+          onOpen={() => setIsSupportChatOpen(true)}
+          onClose={() => setIsSupportChatOpen(false)}
+          lang={lang}
+          userProfile={userProfile}
+        />
       </div>
     );
   }
 
   // Subscription Expired / Trial Converted Screen
   if (page === 'expired') {
-    const telegramUrl = `https://t.me/${cleanTelegram}`;
     const shopierUrl = systemSettings?.shopier_link || 'https://www.shopier.com/QuantDataLabs';
     const endDate = userProfile?.subscription_end 
       ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: 'numeric', month: 'long', year: 'numeric' })
@@ -706,28 +712,28 @@ function App() {
               <span>{lang === 'tr' ? 'Kredi Kartı ile VIP Satın Al (Anında Açılır)' : (lang === 'de' ? 'Sofortige Kartenzahlung (Shopier)' : 'Instant Card Checkout (Shopier)')}</span>
             </a>
 
-            <a
-              href={telegramUrl}
-              target="_blank"
-              rel="noreferrer"
+            <button
+              type="button"
+              onClick={() => setIsSupportChatOpen(true)}
               style={{
-                background: 'linear-gradient(135deg, #0088cc, #0077b5)',
+                background: 'linear-gradient(135deg, #0284c7, #0369a1)',
                 color: '#fff',
+                border: 'none',
+                cursor: 'pointer',
                 padding: '0.85rem 1.5rem',
                 borderRadius: '12px',
                 fontWeight: 800,
                 fontSize: '0.9rem',
-                textDecoration: 'none',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                boxShadow: '0 4px 15px rgba(0, 136, 204, 0.3)'
+                boxShadow: '0 4px 15px rgba(2, 132, 199, 0.35)'
               }}
             >
-              <span>✈️</span>
-              <span>{lang === 'tr' ? 'Telegram ile İndirimli VIP Talebi (@Livebetdeskbot)' : (lang === 'de' ? 'Telegram VIP-Anfrage (@Livebetdeskbot)' : 'Contact Telegram (@Livebetdeskbot)')}</span>
-            </a>
+              <span>💬</span>
+              <span>{lang === 'tr' ? '7/24 Canlı Destek Masası (VIP & Kripto Talebi)' : (lang === 'de' ? '24/7 Live-Support Desk (VIP & Krypto)' : '24/7 Live Support Desk (VIP & Crypto)')}</span>
+            </button>
 
             {/* Freemium Entry Option: Keeps users engaged with locked signals */}
             <button
@@ -769,6 +775,15 @@ function App() {
             </button>
           </div>
         </div>
+
+        {/* Native 100% Anonymous Live Support Chatbot & Operator Desk */}
+        <LiveSupportChat
+          isOpen={isSupportChatOpen}
+          onOpen={() => setIsSupportChatOpen(true)}
+          onClose={() => setIsSupportChatOpen(false)}
+          lang={lang}
+          userProfile={userProfile}
+        />
       </div>
     );
   }

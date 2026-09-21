@@ -9,8 +9,6 @@ import { trackAnalyticsEvent } from '../utils/analyticsTracker';
 import '../styles/global.css';
 
 export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, settings = {} }) => {
-    const telegramUsername = (settings?.telegram_support || settings?.telegram || '@Livebetdeskbot').replace(/^@/, '');
-    const telegramSupportUrl = `https://t.me/${telegramUsername}?start=lang_${lang || 'tr'}`;
     const [view, setView] = useState('login'); // 'login' or 'register'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -970,23 +968,25 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                                         <span>💬</span>
                                         <span>{lang === 'tr' ? 'Sorunuz mu var?' : (lang === 'de' ? 'Haben Sie Fragen?' : 'Need support?')}</span>
                                     </div>
-                                    <a
-                                        href={`https://t.me/Livebetdeskbot?start=lang_${lang || 'tr'}`}
-                                        target="_blank"
-                                        rel="noreferrer"
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsSupportChatOpen(true)}
                                         style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            padding: 0,
                                             color: '#38bdf8',
                                             fontSize: '0.74rem',
                                             fontWeight: 800,
-                                            textDecoration: 'none',
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '3px'
                                         }}
                                     >
-                                        <span>Telegram Masası</span>
+                                        <span>{lang === 'tr' ? '7/24 Canlı Destek' : (lang === 'de' ? '24/7 Live-Support' : '24/7 Live Support')}</span>
                                         <span>→</span>
-                                    </a>
+                                    </button>
                                 </div>
                             </>
                         )}

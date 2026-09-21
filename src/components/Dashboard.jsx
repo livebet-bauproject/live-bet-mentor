@@ -94,8 +94,6 @@ export const renderMatchMinute = (minute, t, withLabel = false) => {
 };
 
 export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings = {} }) => {
-    const telegramUsername = (settings?.telegram_support || settings?.telegram || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace(/^@/, '');
-    const telegramSupportUrl = `https://t.me/${telegramUsername}?start=lang_${lang || 'tr'}`;
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
     const [bankState, setBankState] = useState(bankrollManager.getState());
@@ -733,7 +731,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     : '✅ Upgrade request submitted successfully! Admin has been notified, awaiting approval.'));
         } catch (err) {
             console.error('Request Error:', err);
-            alert(lang === 'tr' ? 'Bir hata oluştu. Lütfen tekrar deneyin veya Telegram üzerinden iletişime geçin.' : (lang === 'de' ? 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie uns über Telegram.' : 'An error occurred. Please try again or contact via Telegram.'));
+            alert(lang === 'tr' ? 'Bir hata oluştu. Lütfen tekrar deneyin veya Canlı Destek üzerinden iletişime geçin.' : (lang === 'de' ? 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie unseren Live-Support.' : 'An error occurred. Please try again or contact Live Support.'));
         } finally {
             setRequestLoading(false);
         }
@@ -1272,8 +1270,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         {isTrial ? (
                             <button
                                 onClick={() => {
-                                    const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
-                                    window.open(`https://t.me/${tgUser}?start=deneme`, '_blank');
+                                    setIsSupportChatOpen(true);
                                     setSelectedPlanForUpgrade(null);
                                     setShowPlanComparison(false);
                                 }}
@@ -1323,14 +1320,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                 <button
                                     onClick={() => {
-                                        const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
-                                        const startParam = isYearly ? `yearly_${p.id}` : p.id;
-                                        window.open(`https://t.me/${tgUser}?start=vip_${startParam}`, '_blank');
+                                        setIsSupportChatOpen(true);
                                         setSelectedPlanForUpgrade(null);
+                                        setShowPlanComparison(false);
                                     }}
                                     className="btn btn-primary"
                                     style={{
-                                        background: '#0088cc',
+                                        background: 'linear-gradient(135deg, #0284c7, #0369a1)',
                                         border: 'none',
                                         padding: '1rem',
                                         borderRadius: '12px',
@@ -1344,7 +1340,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    ⚡ {lang === 'tr' ? `CryptoBot / Telegram ile Anında Öde (${actualCharge})` : (lang === 'de' ? `Sofortzahlung per CryptoBot / Telegram (${actualCharge})` : `Instant Pay via Telegram / CryptoBot`)}
+                                    💬 {lang === 'tr' ? `Canlı Destek ile Satın Al (Kripto / Havale - ${actualCharge})` : (lang === 'de' ? `Über Live-Support kaufen (Krypto / Manuell - ${actualCharge})` : `Pay via Live Support (Crypto / Transfer - ${actualCharge})`)}
                                 </button>
 
                                 <button
@@ -6757,15 +6753,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             <span>💳</span> {lang === 'tr' ? 'Kredi Kartı ile VIP Satın Al (Shopier)' : (lang === 'de' ? 'VIP mit Kreditkarte kaufen (Shopier)' : 'Pay with Card (Shopier)')}
                                         </a>
                                         <button
+                                            type="button"
                                             onClick={() => {
-                                                const tgUser = (settings?.telegram_support || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace('@', '');
-                                                window.open(`https://t.me/${tgUser}`, '_blank');
+                                                setShowUserMenu(false);
+                                                setIsSupportChatOpen(true);
                                             }}
                                             style={{
                                                 marginTop: '0.3rem',
-                                                background: 'rgba(0, 136, 204, 0.1)',
-                                                color: '#0088cc',
-                                                border: '1px solid #0088cc',
+                                                background: 'rgba(56, 189, 248, 0.12)',
+                                                color: '#38bdf8',
+                                                border: '1px solid rgba(56, 189, 248, 0.3)',
                                                 padding: '0.6rem',
                                                 borderRadius: '8px',
                                                 fontWeight: 800,
@@ -6777,7 +6774,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 fontSize: '0.7rem'
                                             }}
                                         >
-                                            <span style={{ fontSize: '1rem' }}>✈️</span> {t.telegram_upgrade}
+                                            <span style={{ fontSize: '1rem' }}>💬</span> {lang === 'tr' ? '7/24 Canlı Destek Masası' : (lang === 'de' ? '24/7 Live-Support Desk' : '24/7 Live Support Desk')}
                                         </button>
                                     </div>
                                 </div>
