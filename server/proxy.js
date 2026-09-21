@@ -1372,6 +1372,192 @@ app.post('/api/autonomous-office/trigger-action', async (req, res) => {
     }
 });
 
+// ==================== 🛡️ INTERNAL AUDIT & OPERATIONS WATCHDOG COCKPIT API ====================
+
+// 1. Get complete internal audit & watchdog status
+app.get('/api/admin/audit-cockpit', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler iç denetim paneline erişebilir.' });
+        }
+
+        const now = Date.now();
+
+        // 1. Data Freshness & Scraper SLA
+        let sofascoreAgeSec = null;
+        let liveMatchCount = 0;
+        try {
+            if (fs.existsSync(SOFASCORE_FILE)) {
+                const stat = fs.statSync(SOFASCORE_FILE);
+                sofascoreAgeSec = Math.round((now - stat.mtimeMs) / 1000);
+                const raw = JSON.parse(fs.readFileSync(SOFASCORE_FILE, 'utf8'));
+                if (Array.isArray(raw)) liveMatchCount = raw.length;
+                else if (raw && Array.isArray(raw.events)) liveMatchCount = raw.events.length;
+            }
+        } catch (e) {}
+
+        let oddsAgeSec = null;
+        try {
+            if (fs.existsSync(ODDS_FILE)) {
+                const stat = fs.statSync(ODDS_FILE);
+                oddsAgeSec = Math.round((now - stat.mtimeMs) / 1000);
+            }
+        } catch (e) {}
+
+        let dataStatus = 'HEALTHY';
+        if (sofascoreAgeSec === null || sofascoreAgeSec > 180) {
+            dataStatus = 'CRITICAL';
+        } else if (sofascoreAgeSec > 60) {
+            dataStatus = 'WARNING';
+        }
+
+        // 2. Autonomous Signal Engine Status & Kill-Switch
+        const signalEngineStatus = autonomousSignalEngine ? autonomousSignalEngine.getStatus() : { isRunning: false, emergencyHalt: false };
+
+        // 3. Support SLA Check
+        let supportWaitingCount = 0;
+        let oldestWaitingSec = 0;
+        try {
+            if (supportChatService && typeof supportChatService.getSessions === 'function') {
+                const sessions = supportChatService.getSessions();
+                const waitingSessions = sessions.filter(s => s.status === 'waiting_admin');
+                supportWaitingCount = waitingSessions.length;
+                if (waitingSessions.length > 0) {
+                    const oldestTime = Math.min(...waitingSessions.map(s => new Date(s.updatedAt || s.createdAt).getTime() || now));
+                    oldestWaitingSec = Math.max(0, Math.round((now - oldestTime) / 1000));
+                }
+            }
+        } catch (e) {}
+
+        let supportStatus = 'HEALTHY';
+        if (supportWaitingCount > 0 && oldestWaitingSec > 600) {
+            supportStatus = 'CRITICAL';
+        } else if (supportWaitingCount > 0) {
+            supportStatus = 'WARNING';
+        }
+
+        // 4. Trial Abuse & Fraud Defense
+        const abuseLogs = loadTrialAbuseLogs();
+        const totalAbuseBlocked = abuseLogs.length;
+        const deviceTrials = loadDeviceTrials();
+        const totalDeviceTrials = Object.keys(deviceTrials).length;
+
+        // 5. Autonomous Office Status
+        let officeStatus = null;
+        try {
+            officeStatus = autonomousOffice ? autonomousOffice.getStatus() : null;
+        } catch (e) {}
+
+        // 6. Overall System Health Score (0 - 100)
+        let healthScore = 100;
+        if (dataStatus === 'CRITICAL') healthScore -= 40;
+        else if (dataStatus === 'WARNING') healthScore -= 15;
+
+        if (signalEngineStatus.emergencyHalt) healthScore -= 20; // Deliberate halt reduces score to draw attention
+        if (supportStatus === 'CRITICAL') healthScore -= 20;
+        else if (supportStatus === 'WARNING') healthScore -= 10;
+
+        res.json({
+            success: true,
+            healthScore: Math.max(10, Math.min(100, healthScore)),
+            dataSla: {
+                sofascoreAgeSec,
+                oddsAgeSec,
+                liveMatchCount,
+                status: dataStatus,
+                isStale: dataStatus === 'CRITICAL'
+            },
+            signalEngine: signalEngineStatus,
+            supportSla: {
+                waitingCount: supportWaitingCount,
+                oldestWaitingSec,
+                status: supportStatus
+            },
+            securityAndAbuse: {
+                totalAbuseBlocked,
+                totalDeviceTrials,
+                recentLogs: abuseLogs.slice(0, 15)
+            },
+            office: officeStatus,
+            serverTimestamp: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error('[PROXY] Error in /api/admin/audit-cockpit:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// 2. Trigger Audit & Emergency Actions
+app.post('/api/admin/audit-cockpit/action', async (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler iç denetim aksiyonu alabilir.' });
+        }
+
+        const { action, payload } = req.body || {};
+        if (!action) {
+            return res.status(400).json({ error: 'Eylem (action) parametresi zorunludur.' });
+        }
+
+        switch (action) {
+            case 'toggle_kill_switch': {
+                const currentState = autonomousSignalEngine.emergencyHalt;
+                const newState = autonomousSignalEngine.setEmergencyHalt(!currentState);
+                if (autonomousOffice) {
+                    autonomousOffice.logAction(
+                        'OFFICE',
+                        newState ? 'ALERT' : 'SUCCESS',
+                        `Süper Admin Acil Durum Kilidini (Kill-Switch) ${newState ? 'DEVREYE ALDI (Sinyaller Durduruldu)' : 'KAPATTI (Sinyaller Yayında)'}.`
+                    );
+                }
+                return res.json({
+                    success: true,
+                    emergencyHalt: newState,
+                    message: newState ? '🛑 Acil sinyal kilidi devreye alındı. Sinyal üretimi donduruldu.' : '▶️ Sinyal kilidi açıldı. Normal yayın devam ediyor.'
+                });
+            }
+
+            case 'clear_locks': {
+                autonomousSignalEngine.clearLocks();
+                if (autonomousOffice) {
+                    autonomousOffice.selfHealLocks();
+                    autonomousOffice.logAction('SENTINEL', 'SUCCESS', 'Tüm maç sinyal kilitleri admin tarafından temizlendi.');
+                }
+                return res.json({
+                    success: true,
+                    message: '🔄 Sinyal kilitleri sıfırlandı.'
+                });
+            }
+
+            case 'clear_abuse_logs': {
+                saveTrialAbuseLogs([]);
+                return res.json({
+                    success: true,
+                    message: '🛡️ Deneme kaçak kayıtları temizlendi.'
+                });
+            }
+
+            case 'remove_device_trial': {
+                const { deviceId } = payload || {};
+                if (!deviceId) return res.status(400).json({ error: 'DeviceId zorunludur.' });
+                const trials = loadDeviceTrials();
+                delete trials[deviceId];
+                saveDeviceTrials(trials);
+                return res.json({
+                    success: true,
+                    message: `Cihaz kilidi (${deviceId}) sıfırlandı.`
+                });
+            }
+
+            default:
+                return res.status(400).json({ error: `Bilinmeyen denetim eylemi: ${action}` });
+        }
+    } catch (e) {
+        console.error('[PROXY] Error in /api/admin/audit-cockpit/action:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ==================== QUANTITATIVE TRADING DESK & SPORTSBOOK API ====================
 // 1. Get Live Scanned & Filtered Opportunities (Admin Only)
 app.get('/api/admin/trading-desk/opportunities', (req, res) => {
@@ -1549,6 +1735,14 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
         if (deviceId && deviceTrials[deviceId]) {
             const existingTrial = deviceTrials[deviceId];
             if (existingTrial.email !== cleanEmail) {
+                logTrialAbuse({
+                    deviceId,
+                    ip: clientIp,
+                    attemptedEmail: cleanEmail,
+                    originalEmail: existingTrial.email,
+                    reason: 'DEVICE_TRIAL_REUSED',
+                    blocked: true
+                });
                 return res.status(403).json({
                     error: '⚠️ Bu cihazdan daha önce 3 günlük ücretsiz deneme hakkı kullanılmıştır. Lütfen mevcut hesabınıza giriş yapın veya VIP üyeliğe geçin.',
                     deviceUsed: true
@@ -1945,21 +2139,40 @@ app.post('/api/members/approve', (req, res) => {
             return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler üye onaylayabilir.' });
         }
         const { id, email, days, plan } = req.body || {};
-        const members = loadMembers();
-        const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
-        if (!member) {
-            return res.status(404).json({ error: 'Üye bulunamadı.' });
-        }
+        const cleanEmail = (email || '').trim().toLowerCase();
+        let members = loadMembers();
+        let member = members.find(m => (id && m.id === id) || (cleanEmail && m.email && m.email.trim().toLowerCase() === cleanEmail));
 
         const subDays = Number(days) || 7;
         const now = new Date();
         const end = new Date(now.getTime() + subDays * 24 * 60 * 60 * 1000);
 
-        member.status = 'approved';
-        if (plan) member.plan = plan;
-        member.subscription_start = now.toISOString();
-        member.subscription_end = end.toISOString();
-        member.approved_at = now.toISOString();
+        if (!member) {
+            if (!cleanEmail && !id) {
+                return res.status(400).json({ error: 'E-posta veya üye ID zorunludur.' });
+            }
+            member = {
+                id: id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                email: cleanEmail || `${id}@user.local`,
+                password: '',
+                salt: '',
+                full_name: cleanEmail ? cleanEmail.split('@')[0] : 'Member',
+                phone: '',
+                status: 'approved',
+                plan: plan || 'trial',
+                created_at: now.toISOString(),
+                subscription_start: now.toISOString(),
+                subscription_end: end.toISOString(),
+                approved_at: now.toISOString()
+            };
+            members.unshift(member);
+        } else {
+            member.status = 'approved';
+            if (plan) member.plan = plan;
+            member.subscription_start = now.toISOString();
+            member.subscription_end = end.toISOString();
+            member.approved_at = now.toISOString();
+        }
 
         saveMembers(members);
         res.json({ success: true, member: sanitizeMember(member), members: sanitizeMemberList(members) });
@@ -2393,10 +2606,30 @@ app.post('/api/members/extend', (req, res) => {
             return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler süre uzatabilir.' });
         }
         const { id, email, days, plan, resetDays } = req.body || {};
-        const members = loadMembers();
-        const member = members.find(m => (id && m.id === id) || (email && m.email === email.trim().toLowerCase()));
+        const cleanEmail = (email || '').trim().toLowerCase();
+        let members = loadMembers();
+        let member = members.find(m => (id && m.id === id) || (cleanEmail && m.email && m.email.trim().toLowerCase() === cleanEmail));
+
+        const now = new Date();
+
         if (!member) {
-            return res.status(404).json({ error: 'Üye bulunamadı.' });
+            if (!cleanEmail && !id) {
+                return res.status(400).json({ error: 'E-posta veya üye ID zorunludur.' });
+            }
+            member = {
+                id: id || `user_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                email: cleanEmail || `${id}@user.local`,
+                password: '',
+                salt: '',
+                full_name: cleanEmail ? cleanEmail.split('@')[0] : 'Member',
+                phone: '',
+                status: 'approved',
+                plan: plan || 'trial',
+                created_at: now.toISOString(),
+                subscription_start: now.toISOString(),
+                subscription_end: now.toISOString()
+            };
+            members.unshift(member);
         }
 
         if (plan) {
@@ -2405,18 +2638,33 @@ app.post('/api/members/extend', (req, res) => {
 
         if (resetDays !== undefined && resetDays !== null) {
             const numReset = Number(resetDays);
-            const newEnd = new Date(Date.now() + numReset * 24 * 60 * 60 * 1000);
+            const newEnd = new Date(now.getTime() + numReset * 24 * 60 * 60 * 1000);
             member.subscription_end = newEnd.toISOString();
         } else if (days !== undefined && days !== null && Number(days) !== 0) {
             const addDays = Number(days);
-            let baseDate = member.subscription_end ? new Date(member.subscription_end) : new Date();
-            if (baseDate < new Date()) baseDate = new Date();
+            let baseDate = member.subscription_end ? new Date(member.subscription_end) : now;
+            if (isNaN(baseDate.getTime()) || baseDate < now) baseDate = now;
             const newEnd = new Date(baseDate.getTime() + addDays * 24 * 60 * 60 * 1000);
             member.subscription_end = newEnd.toISOString();
         }
 
         member.status = 'approved';
         saveMembers(members);
+
+        // Sync with Telegram VIP Manager if chat ID or email matches
+        const tgDays = resetDays ? Number(resetDays) : (days ? Number(days) : 30);
+        if (member.telegram_chat_id) {
+            vipManager.addVip(member.telegram_chat_id, tgDays, member.telegram_username || member.full_name || 'VIP Member', (member.plan || 'VIP').toUpperCase());
+        } else if (member.email) {
+            for (const [tgChatId, tgUser] of Object.entries(vipManager.users)) {
+                if (tgUser.email && tgUser.email.toLowerCase() === member.email.toLowerCase()) {
+                    vipManager.addVip(tgChatId, tgDays, tgUser.username || 'VIP Member', (member.plan || 'VIP').toUpperCase());
+                }
+            }
+        }
+
+        console.log(`[MEMBERS] Extended member: ${member.email} -> End: ${member.subscription_end}, Plan: ${member.plan}`);
+
         res.json({ success: true, member: sanitizeMember(member), members: sanitizeMemberList(members) });
     } catch (e) {
         res.status(500).json({ error: e.message });

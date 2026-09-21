@@ -3,6 +3,7 @@ import { supabase } from '../backend/supabaseClient';
 import { bankrollManager } from '../logic/bankrollManager';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { TradingDesk } from './TradingDesk';
+import { AuditCockpit } from './AuditCockpit';
 
 const SupportStaffDesk = ({
     lang = 'tr',
@@ -2104,7 +2105,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
             console.warn('Supabase connection warning:', sbErr);
         }
 
-        // 2. Fetch from Backend proxy and merge any missing
+        // 2. Fetch from Backend proxy and merge with Supabase records (backend proxy takes priority for live subscription data)
         try {
             const res = await fetch(`${proxyBase}/api/members`, {
                 headers: getAdminHeaders()
@@ -2114,7 +2115,20 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                 if (data && Array.isArray(data.members)) {
                     data.members.forEach(m => {
                         const normEmail = (m.email || '').toLowerCase().trim();
-                        if (normEmail && !seen.has(normEmail)) {
+                        const existingIdx = merged.findIndex(p => 
+                            ((p.email || '').toLowerCase().trim() === normEmail) || 
+                            (p.id && m.id && p.id === m.id)
+                        );
+                        if (existingIdx >= 0) {
+                            merged[existingIdx] = {
+                                ...merged[existingIdx],
+                                ...m,
+                                id: merged[existingIdx].id || m.id,
+                                plan: m.plan || merged[existingIdx].plan,
+                                status: m.status || merged[existingIdx].status,
+                                subscription_end: m.subscription_end || merged[existingIdx].subscription_end
+                            };
+                        } else if (normEmail && !seen.has(normEmail)) {
                             seen.add(normEmail);
                             merged.push(m);
                         }
@@ -2474,55 +2488,87 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
 
     const updateSubscription = async (profileId, days, plan, userEmail = null, resetExactDays = null) => {
         const proxyBase = getProxyBase();
+        const currentProfile = profiles.find(p => (profileId && p.id === profileId) || (userEmail && (p.email || '').toLowerCase() === userEmail.toLowerCase()));
         
-        // 1. Update backend proxy
+        let targetEnd = null;
+        if (resetExactDays) {
+            targetEnd = new Date(Date.now() + resetExactDays * 24 * 60 * 60 * 1000).toISOString();
+        } else if (days !== undefined && days !== null && Number(days) !== 0) {
+            let baseDate = currentProfile?.subscription_end ? new Date(currentProfile.subscription_end) : new Date();
+            if (isNaN(baseDate.getTime()) || baseDate < new Date()) baseDate = new Date();
+            targetEnd = new Date(baseDate.getTime() + Number(days) * 24 * 60 * 60 * 1000).toISOString();
+        }
+
+        const updates = {
+            status: 'approved'
+        };
+        if (targetEnd) updates.subscription_end = targetEnd;
+        if (plan) updates.plan = plan;
+
+        // 1. Immediate optimistic UI update so the table and modal update instantly
+        setProfiles(prev => prev.map(p => {
+            const matches = (profileId && p.id === profileId) || 
+                            (userEmail && (p.email || '').toLowerCase() === (userEmail || '').toLowerCase());
+            if (matches) {
+                return {
+                    ...p,
+                    ...updates,
+                    plan: plan || p.plan || 'trial',
+                    subscription_end: targetEnd || p.subscription_end,
+                    status: 'approved'
+                };
+            }
+            return p;
+        }));
+
+        // 2. Update backend proxy (authoritative source)
         try {
-            await fetch(`${proxyBase}/api/members/extend`, {
+            const res = await fetch(`${proxyBase}/api/members/extend`, {
                 method: 'POST',
                 headers: getAdminHeaders(),
                 body: JSON.stringify({ 
                     id: profileId, 
-                    email: userEmail,
+                    email: userEmail || currentProfile?.email,
                     days: days !== undefined && days !== null ? days : null,
                     plan: plan || null,
                     resetDays: resetExactDays || null
                 })
             });
-        } catch (e) {}
-
-        // 2. Update Supabase
-        const updates = {};
-        if (resetExactDays) {
-            const endDate = new Date(Date.now() + resetExactDays * 24 * 60 * 60 * 1000);
-            updates.subscription_end = endDate.toISOString();
-        } else if (days !== undefined && days !== null && Number(days) !== 0) {
-            const currentProfile = profiles.find(p => p.id === profileId || (userEmail && (p.email || '').toLowerCase() === userEmail.toLowerCase()));
-            let baseDate = currentProfile?.subscription_end ? new Date(currentProfile.subscription_end) : new Date();
-            if (baseDate < new Date()) baseDate = new Date();
-            const endDate = new Date(baseDate.getTime() + Number(days) * 24 * 60 * 60 * 1000);
-            updates.subscription_end = endDate.toISOString();
-        }
-        if (plan) {
-            updates.plan = plan;
-        }
-        updates.status = 'approved';
-
-        try {
-            let query = supabase.from('profiles').update(updates);
-            if (profileId && userEmail) {
-                query = query.or(`id.eq.${profileId},email.eq.${userEmail}`);
-            } else if (profileId) {
-                query = query.eq('id', profileId);
-            } else if (userEmail) {
-                query = query.eq('email', userEmail);
+            if (res.ok) {
+                const data = await res.json();
+                if (data?.member) {
+                    setProfiles(prev => prev.map(p => {
+                        const matches = (profileId && p.id === profileId) || 
+                                        (userEmail && (p.email || '').toLowerCase() === (userEmail || '').toLowerCase());
+                        if (matches) {
+                            return {
+                                ...p,
+                                ...data.member,
+                                id: p.id || data.member.id
+                            };
+                        }
+                        return p;
+                    }));
+                }
             }
-            await query;
+        } catch (e) {
+            console.error('Backend extend error:', e);
+        }
+
+        // 3. Update Supabase
+        try {
+            const cleanEmail = (userEmail || currentProfile?.email || '').trim().toLowerCase();
+            if (cleanEmail) {
+                await supabase.from('profiles').update(updates).eq('email', cleanEmail);
+            } else if (profileId) {
+                await supabase.from('profiles').update(updates).eq('id', profileId);
+            }
         } catch (sbErr) {
             console.warn('Supabase update subscription error:', sbErr);
         }
 
-        setStatus({ type: 'success', message: t.subscriptionUpdated });
-        setEditingUser(null);
+        const successText = days ? `+${days} gün eklendi!` : (resetExactDays ? `${resetExactDays} gün tanımlandı!` : (plan ? `Paket ${plan.toUpperCase()} olarak güncellendi!` : t.subscriptionUpdated));
+        setStatus({ type: 'success', message: successText });
         fetchProfiles();
     };
 
@@ -2573,6 +2619,14 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
 
     return (
         <div className="admin-container" style={{ color: '#fff' }}>
+            {/* 🛡️ INTERNAL AUDIT & OPERATIONS WATCHDOG COCKPIT */}
+            <AuditCockpit
+                lang={lang}
+                proxyBase={getProxyBase()}
+                getAdminHeaders={getAdminHeaders}
+                onRefreshRequest={fetchProfiles}
+            />
+
             {/* Add New Member Form */}
             <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem', border: '1px solid var(--warning-color)' }}>
                 <h2 style={{ color: 'var(--warning-color)', marginBottom: '1.5rem', fontSize: '1.5rem', fontWeight: 900 }}>
