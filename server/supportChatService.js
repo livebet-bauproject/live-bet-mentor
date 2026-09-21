@@ -256,6 +256,17 @@ class SupportChatService {
             return null; // Trigger human agent escalation
         }
 
+        // 5. Selamlaşma & Giriş
+        if (/^(selam|merhaba|selamlar|slm|sa|s\.a|iyi günler|iyi aksamlar|iyi akşamlar|günaydın|gunaydin|hello|hi|hey|guten tag|hallo)\b/i.test(t)) {
+            if (isDe) {
+                return `👋 **Hallo! Willkommen beim LiveBet Mentor Support-Desk.**\n\nIch bin Ihr KI-Assistent. Wie kann ich Ihnen heute bezüglich VIP-Plänen, Testphasen oder Live-Radar-Fragen helfen? Schreiben Sie mir gerne Ihre Frage oder wählen Sie eine Option unten!`;
+            }
+            if (!isTr) {
+                return `👋 **Hello! Welcome to LiveBet Mentor Support Desk.**\n\nI am your AI assistant. How can I help you today regarding VIP plans, free trial access, or live radar strategies? Feel free to ask or pick an option below!`;
+            }
+            return `👋 **Merhaba! LiveBet Mentor Canlı Destek Masasına hoş geldiniz.**\n\nBen canlı destek asistanınızım. VIP üyelik paketleri, 3 günlük ücretsiz deneme veya canlı xG radarı hakkında size nasıl yardımcı olabilirim? Sorunuzu doğrudan yazabilir veya aşağıdaki butonları kullanabilirsiniz!`;
+        }
+
         return null;
     }
 

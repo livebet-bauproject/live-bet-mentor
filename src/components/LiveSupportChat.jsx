@@ -24,6 +24,12 @@ const playChimeSound = () => {
     } catch (e) {}
 };
 
+const defaultApiBase = (typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.startsWith('192.168.')
+)) ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+
 export const LiveSupportChat = ({
     isOpen = false,
     onClose = () => {},
@@ -32,6 +38,8 @@ export const LiveSupportChat = ({
     userProfile = null,
     apiBase = ''
 }) => {
+    const activeApiBase = apiBase || defaultApiBase;
+
     const [sessionId, setSessionId] = useState(() => {
         try {
             return localStorage.getItem('lbm_support_session_id') || '';
@@ -40,7 +48,18 @@ export const LiveSupportChat = ({
         }
     });
 
-    const [messages, setMessages] = useState([]);
+    const getInitialWelcome = () => [{
+        id: 'msg_welcome',
+        sender: 'bot',
+        text: lang === 'de'
+            ? '👋 Hallo! Willkommen beim offiziellen LiveBet Mentor Support-Desk.\n\nIch bin Ihr KI-Assistent. Wie kann ich Ihnen heute bezüglich VIP-Plänen, Testphasen oder Live-Radar-Fragen helfen?'
+            : (lang === 'en'
+                ? '👋 Hello! Welcome to the official LiveBet Mentor Support Desk.\n\nI am your AI assistant. How can I assist you with VIP memberships, trial access, or live quant radar strategies today?'
+                : '👋 Merhaba! LiveBet Mentor Resmi Destek Masasına hoş geldiniz.\n\nBen canlı destek asistanınızım. VIP üyelik paketleri, 3 günlük ücretsiz deneme veya canlı xG radarı hakkında size nasıl yardımcı olabilirim?'),
+        timestamp: Date.now()
+    }];
+
+    const [messages, setMessages] = useState(() => getInitialWelcome());
     const [inputText, setInputText] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [soundEnabled, setSoundEnabled] = useState(true);
@@ -57,7 +76,7 @@ export const LiveSupportChat = ({
         const initSession = async () => {
             try {
                 const currentSessionId = sessionId;
-                const res = await fetch(`${apiBase}/api/support/history?sessionId=${encodeURIComponent(currentSessionId || '')}&lang=${lang || 'tr'}`);
+                const res = await fetch(`${activeApiBase}/api/support/history?sessionId=${encodeURIComponent(currentSessionId || '')}&lang=${lang || 'tr'}`);
                 if (res.ok) {
                     const data = await res.json();
                     if (isMounted) {
@@ -83,7 +102,7 @@ export const LiveSupportChat = ({
         return () => {
             isMounted = false;
         };
-    }, [sessionId, lang, apiBase]);
+    }, [sessionId, lang, activeApiBase]);
 
     // Background Long-Polling for incoming Admin replies from Telegram
     useEffect(() => {
@@ -94,7 +113,7 @@ export const LiveSupportChat = ({
         const pollNewMessages = async () => {
             try {
                 const lastTs = lastTimestampRef.current || 0;
-                const res = await fetch(`${apiBase}/api/support/poll?sessionId=${encodeURIComponent(sessionId)}&lastTimestamp=${lastTs}`);
+                const res = await fetch(`${activeApiBase}/api/support/poll?sessionId=${encodeURIComponent(sessionId)}&lastTimestamp=${lastTs}`);
                 if (res.ok && active) {
                     const data = await res.json();
                     if (Array.isArray(data.messages) && data.messages.length > 0) {
@@ -134,7 +153,7 @@ export const LiveSupportChat = ({
             active = false;
             if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
         };
-    }, [sessionId, soundEnabled, isOpen, apiBase]);
+    }, [sessionId, soundEnabled, isOpen, activeApiBase]);
 
     // Scroll to bottom when messages update
     useEffect(() => {
@@ -172,7 +191,7 @@ export const LiveSupportChat = ({
                 }
             };
 
-            const res = await fetch(`${apiBase}/api/support/message`, {
+            const res = await fetch(`${activeApiBase}/api/support/message`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -209,22 +228,22 @@ export const LiveSupportChat = ({
     const quickChips = [
         {
             id: 'vip',
-            label: lang === 'tr' ? '💎 VIP Paketleri & Fiyat' : (lang === 'de' ? '💎 VIP-Pläne & Preise' : '💎 VIP Plans & Pricing'),
+            label: lang === 'tr' ? '💎 VIP Paket & Fiyat' : (lang === 'de' ? '💎 VIP & Preise' : '💎 VIP Plans & Pricing'),
             query: lang === 'tr' ? 'VIP üyelik fiyatları ve ödeme seçenekleri nelerdir?' : (lang === 'de' ? 'Was kosten die VIP-Pläne und wie kann ich bezahlen?' : 'What are VIP membership plans and payment options?')
         },
         {
             id: 'trial',
-            label: lang === 'tr' ? '🚀 3 Günlük Ücretsiz Deneme' : (lang === 'de' ? '🚀 3-Tage Gratis-Test' : '🚀 3-Day Free Trial'),
+            label: lang === 'tr' ? '🚀 3 Günlük Deneme' : (lang === 'de' ? '🚀 3 Tage Test' : '🚀 3-Day Free Trial'),
             query: lang === 'tr' ? '3 günlük ücretsiz VIP denememi nasıl başlatabilirim?' : (lang === 'de' ? 'Wie starte ich meinen 3-tägigen VIP-Testpass?' : 'How can I activate my 3-day free VIP trial?')
         },
         {
             id: 'system',
-            label: lang === 'tr' ? '📈 xG & Sistem Nasıl Çalışır?' : (lang === 'de' ? '📈 Wie funktioniert der Radar?' : '📈 How Does Quant Radar Work?'),
+            label: lang === 'tr' ? '📈 Radar Nasıl Çalışır?' : (lang === 'de' ? '📈 Wie Radar hilft' : '📈 How Radar Works'),
             query: lang === 'tr' ? 'Sistem ve canlı xG radarı nasıl çalışıyor?' : (lang === 'de' ? 'Wie funktioniert die xG-Telemetrie und der Radar?' : 'How does in-play xG radar and DQS score work?')
         },
         {
             id: 'human',
-            label: lang === 'tr' ? '👨‍💻 Canlı Temsilciye Bağlan' : (lang === 'de' ? '👨‍💻 Mitarbeiter kontaktieren' : '👨‍💻 Connect to Human Agent'),
+            label: lang === 'tr' ? '👨‍💻 Canlı Temsilci' : (lang === 'de' ? '👨‍💻 Support-Team' : '👨‍💻 Live Human Agent'),
             query: lang === 'tr' ? 'Bir canlı destek temsilcisine bağlanmak istiyorum.' : (lang === 'de' ? 'Ich möchte mit einem Support-Mitarbeiter sprechen.' : 'I would like to speak with a human support representative.')
         }
     ];
@@ -301,6 +320,13 @@ export const LiveSupportChat = ({
                                 {soundEnabled ? '🔔' : '🔕'}
                             </button>
                             <button
+                                className="support-tool-btn"
+                                onClick={onClose}
+                                title={lang === 'tr' ? 'Küçült' : (lang === 'de' ? 'Minimieren' : 'Minimize')}
+                            >
+                                —
+                            </button>
+                            <button
                                 className="support-tool-btn close-btn"
                                 onClick={onClose}
                                 title={lang === 'tr' ? 'Kapat' : 'Close'}
@@ -321,6 +347,28 @@ export const LiveSupportChat = ({
                                     : (lang === 'de' ? 'Verschlüsselte & 100% private Support-Sitzung' : 'Encrypted & 100% private official support session')}
                             </span>
                         </div>
+
+                        {/* Welcome Hero Card */}
+                        {messages.length <= 1 && (
+                            <div className="support-welcome-card">
+                                <div className="support-welcome-avatar">⚡</div>
+                                <div className="support-welcome-title">
+                                    {lang === 'tr' ? 'LiveBet Destek Masası' : (lang === 'de' ? 'LiveBet Support-Desk' : 'LiveBet Support Desk')}
+                                </div>
+                                <div className="support-welcome-desc">
+                                    {lang === 'tr'
+                                        ? 'Merhaba! Size nasıl yardımcı olabiliriz? Sorunuzu doğrudan aşağıya yazabilir veya sık sorulan konulardan birini seçebilirsiniz.'
+                                        : (lang === 'de'
+                                            ? 'Hallo! Wie können wir Ihnen helfen? Schreiben Sie uns oder wählen Sie ein Thema.'
+                                            : 'Hello! How can we assist you? Type your question below or pick a topic.')}
+                                </div>
+                                <div className="support-welcome-badges">
+                                    <span>🛡️ %100 Gizlilik</span>
+                                    <span>⚡ Anında Yanıt</span>
+                                    <span>💳 VIP & Kripto</span>
+                                </div>
+                            </div>
+                        )}
 
                         {messages.map((msg, index) => {
                             const isUser = msg.sender === 'user';

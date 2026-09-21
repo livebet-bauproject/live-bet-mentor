@@ -2728,7 +2728,50 @@ const COUNTRY_NAMES = {
     'NO': { name: 'Norveç', flag: '🇳🇴' }
 };
 
-// 1. Ingestion Endpoint (Fast, cookieless, non-blocking)
+// 1. Telemetry Ingestion Helpers & Batch Support
+function sanitizeAnalyticsEvent(body, clientIp, userAgent, req) {
+    if (!body || typeof body !== 'object') return null;
+
+    const visitorId = generateVisitorId(clientIp, userAgent);
+    const country = extractCountry(req, body.language);
+
+    let sanitizedPath = (body.path || '/').replace(/[?&](token|access_token|password|secret|key)=[^&]*/gi, '');
+    if (sanitizedPath.length > 255) sanitizedPath = sanitizedPath.substring(0, 255);
+
+    const now = Date.now();
+    const eventTime = body.timestamp ? new Date(body.timestamp).getTime() : now;
+
+    return {
+        id: 'ev_' + now.toString(36) + '_' + Math.random().toString(36).substring(2, 7),
+        type: body.type || 'pageview', // 'pageview', 'heartbeat', 'event'
+        name: body.name ? String(body.name).slice(0, 60) : undefined,
+        visitorId,
+        sessionId: body.sessionId ? String(body.sessionId).slice(0, 64) : ('ses_' + visitorId.slice(0, 8)),
+        userId: body.userId ? String(body.userId).slice(0, 64) : undefined,
+        userEmail: body.userEmail ? String(body.userEmail).slice(0, 100) : undefined,
+        userPlan: body.userPlan || 'guest',
+        userStatus: body.userStatus || 'anonymous',
+        path: sanitizedPath,
+        title: (body.title || 'LiveBet Mentor').slice(0, 100),
+        timestamp: body.timestamp || new Date(now).toISOString(),
+        time: isNaN(eventTime) ? now : eventTime,
+        deviceType: body.deviceType || 'desktop',
+        browser: body.browser || 'Other',
+        os: body.os || 'Other',
+        country,
+        language: (body.language || 'tr').slice(0, 5),
+        referrer: body.referrer ? String(body.referrer).slice(0, 200) : undefined,
+        referrerChannel: body.referrerChannel || 'direct',
+        utmSource: body.utmSource ? String(body.utmSource).slice(0, 50) : undefined,
+        utmMedium: body.utmMedium ? String(body.utmMedium).slice(0, 50) : undefined,
+        utmCampaign: body.utmCampaign ? String(body.utmCampaign).slice(0, 50) : undefined,
+        utmContent: body.utmContent ? String(body.utmContent).slice(0, 50) : undefined,
+        durationSeconds: typeof body.durationSeconds === 'number' ? Math.max(0, Math.round(body.durationSeconds)) : 0,
+        data: body.data && typeof body.data === 'object' ? body.data : undefined
+    };
+}
+
+// 1. Ingestion Endpoint (Fast, cookieless, non-blocking, supports batching)
 app.post('/api/analytics/track', (req, res) => {
     try {
         const body = req.body || {};
@@ -2736,45 +2779,34 @@ app.post('/api/analytics/track', (req, res) => {
                          (req.headers['x-forwarded-for'] ? req.headers['x-forwarded-for'].split(',')[0].trim() : null) || 
                          req.socket?.remoteAddress || '127.0.0.1';
         const userAgent = req.headers['user-agent'] || '';
-        const visitorId = generateVisitorId(clientIp, userAgent);
-        const country = extractCountry(req, body.language);
 
-        let sanitizedPath = (body.path || '/').replace(/[?&](token|access_token|password|secret|key)=[^&]*/gi, '');
-        if (sanitizedPath.length > 255) sanitizedPath = sanitizedPath.substring(0, 255);
+        const eventsToInsert = [];
 
-        const now = Date.now();
-        const eventRecord = {
-            id: 'ev_' + now.toString(36) + '_' + Math.random().toString(36).substring(2, 6),
-            type: body.type || 'pageview', // 'pageview', 'heartbeat', 'event'
-            name: body.name || undefined,
-            visitorId,
-            sessionId: body.sessionId || ('ses_' + visitorId.slice(0, 8)),
-            path: sanitizedPath,
-            title: (body.title || 'LiveBet Mentor').slice(0, 100),
-            timestamp: body.timestamp || new Date().toISOString(),
-            time: now,
-            deviceType: body.deviceType || 'desktop',
-            browser: body.browser || 'Other',
-            os: body.os || 'Other',
-            country,
-            language: (body.language || 'tr').slice(0, 5),
-            referrer: body.referrer ? body.referrer.slice(0, 200) : undefined,
-            referrerChannel: body.referrerChannel || 'direct',
-            utmSource: body.utmSource ? body.utmSource.slice(0, 50) : undefined,
-            utmMedium: body.utmMedium ? body.utmMedium.slice(0, 50) : undefined,
-            utmCampaign: body.utmCampaign ? body.utmCampaign.slice(0, 50) : undefined,
-            userPlan: body.userPlan || 'guest',
-            userStatus: body.userStatus || 'anonymous',
-            durationSeconds: typeof body.durationSeconds === 'number' ? body.durationSeconds : 0,
-            data: body.data && typeof body.data === 'object' ? body.data : undefined
-        };
+        if (body.type === 'batch' && Array.isArray(body.events)) {
+            for (const item of body.events) {
+                const record = sanitizeAnalyticsEvent(item, clientIp, userAgent, req);
+                if (record) eventsToInsert.push(record);
+            }
+        } else if (Array.isArray(body)) {
+            for (const item of body) {
+                const record = sanitizeAnalyticsEvent(item, clientIp, userAgent, req);
+                if (record) eventsToInsert.push(record);
+            }
+        } else {
+            const record = sanitizeAnalyticsEvent(body, clientIp, userAgent, req);
+            if (record) eventsToInsert.push(record);
+        }
 
-        analyticsEvents.push(eventRecord);
-        scheduleSaveAnalyticsEvents();
+        if (eventsToInsert.length > 0) {
+            for (const rec of eventsToInsert) {
+                analyticsEvents.push(rec);
+            }
+            scheduleSaveAnalyticsEvents();
+        }
 
-        res.status(200).json({ success: true });
+        res.status(200).json({ success: true, count: eventsToInsert.length });
     } catch (e) {
-        res.status(200).json({ success: false });
+        res.status(200).json({ success: false, error: e.message });
     }
 });
 
@@ -2792,12 +2824,14 @@ app.get('/api/analytics/live', (req, res) => {
             if (!prev || evTime > prev.lastSeen) {
                 activeVisitorsMap.set(vId, {
                     visitorId: vId,
+                    sessionId: ev.sessionId,
+                    userEmail: ev.userEmail || undefined,
+                    userPlan: ev.userPlan || 'guest',
                     lastSeen: evTime,
                     currentPath: ev.path,
                     currentTitle: ev.title,
                     deviceType: ev.deviceType,
                     country: ev.country,
-                    userPlan: ev.userPlan,
                     browser: ev.browser,
                     os: ev.os
                 });
@@ -2844,9 +2878,13 @@ app.get('/api/analytics/summary', (req, res) => {
 
         // 1. Overall KPIs
         const uniqueVisitorsSet = new Set();
-        const sessionsMap = new Map(); // sessionId -> { pageviews, minTime, maxTime, duration }
+        const sessionsMap = new Map(); // sessionId -> { pageviews, events, minTime, maxTime, duration, visitorId, plan, email, paths, actions }
         let totalPageviews = 0;
         let totalEvents = 0;
+        let telegramClicksCount = 0;
+        let upgradeVipClicksCount = 0;
+        const scrollDepths = { '25': 0, '50': 0, '75': 0, '100': 0 };
+        const eventsMap = {}; // name -> { count, uniqueVisitors: Set(), lastSeen }
 
         for (const ev of filtered) {
             const evTime = ev.time || new Date(ev.timestamp).getTime();
@@ -2854,24 +2892,55 @@ app.get('/api/analytics/summary', (req, res) => {
 
             if (!sessionsMap.has(ev.sessionId)) {
                 sessionsMap.set(ev.sessionId, {
+                    sessionId: ev.sessionId,
+                    visitorId: ev.visitorId,
+                    email: ev.userEmail || null,
+                    plan: ev.userPlan || 'guest',
                     pageviews: 0,
+                    events: 0,
                     minTime: evTime,
                     maxTime: evTime,
                     duration: ev.durationSeconds || 0,
-                    visitorId: ev.visitorId,
-                    plan: ev.userPlan
+                    deviceType: ev.deviceType,
+                    browser: ev.browser,
+                    os: ev.os,
+                    country: ev.country,
+                    paths: [],
+                    actions: []
                 });
             }
             const s = sessionsMap.get(ev.sessionId);
             s.minTime = Math.min(s.minTime, evTime);
             s.maxTime = Math.max(s.maxTime, evTime);
             s.duration = Math.max(s.duration, ev.durationSeconds || 0, Math.round((s.maxTime - s.minTime) / 1000));
+            if (ev.userEmail && !s.email) s.email = ev.userEmail;
+            if (ev.userPlan && ev.userPlan !== 'guest') s.plan = ev.userPlan;
 
             if (ev.type === 'pageview') {
                 totalPageviews++;
                 s.pageviews++;
+                if (!s.paths.includes(ev.path)) s.paths.push(ev.path);
+                s.actions.push({ type: 'pageview', path: ev.path, title: ev.title, time: evTime });
             } else if (ev.type === 'event') {
                 totalEvents++;
+                s.events++;
+                const evName = ev.name || 'custom_event';
+                if (!eventsMap[evName]) {
+                    eventsMap[evName] = { name: evName, count: 0, visitors: new Set(), lastSeen: evTime };
+                }
+                eventsMap[evName].count++;
+                eventsMap[evName].visitors.add(ev.visitorId);
+                eventsMap[evName].lastSeen = Math.max(eventsMap[evName].lastSeen, evTime);
+
+                if (evName.includes('telegram')) telegramClicksCount++;
+                if (evName.includes('upgrade') || evName.includes('vip')) upgradeVipClicksCount++;
+
+                if (evName === 'scroll_depth' && ev.data?.depth) {
+                    const d = String(ev.data.depth);
+                    if (scrollDepths[d] !== undefined) scrollDepths[d]++;
+                }
+
+                s.actions.push({ type: 'event', name: evName, label: ev.data?.label || ev.data?.tag || '', time: evTime });
             }
         }
 
@@ -2901,7 +2970,6 @@ app.get('/api/analytics/summary', (req, res) => {
         // 2. Timeline series for interactive chart
         let timeline = [];
         if (period === '24h') {
-            // 24 hourly buckets
             for (let i = 23; i >= 0; i--) {
                 const bucketStart = now - (i * 60 * 60 * 1000);
                 const d = new Date(bucketStart);
@@ -2911,6 +2979,7 @@ app.get('/api/analytics/summary', (req, res) => {
                     label: hourStr,
                     timestamp: bucketStart,
                     pageviews: 0,
+                    events: 0,
                     _visitors: new Set()
                 });
             }
@@ -2921,12 +2990,12 @@ app.get('/api/analytics/summary', (req, res) => {
                     const idx = 23 - hoursAgo;
                     if (timeline[idx]) {
                         if (ev.type === 'pageview') timeline[idx].pageviews++;
+                        else if (ev.type === 'event') timeline[idx].events++;
                         timeline[idx]._visitors.add(ev.visitorId);
                     }
                 }
             }
         } else {
-            // Daily buckets (7d, 30d, all)
             const daysCount = period === '7d' ? 7 : (period === '30d' ? 30 : 30);
             for (let i = daysCount - 1; i >= 0; i--) {
                 const bucketStart = now - (i * 24 * 60 * 60 * 1000);
@@ -2937,6 +3006,7 @@ app.get('/api/analytics/summary', (req, res) => {
                     label: dayLabel,
                     timestamp: bucketStart,
                     pageviews: 0,
+                    events: 0,
                     _visitors: new Set()
                 });
             }
@@ -2947,6 +3017,7 @@ app.get('/api/analytics/summary', (req, res) => {
                     const idx = (daysCount - 1) - daysAgo;
                     if (timeline[idx]) {
                         if (ev.type === 'pageview') timeline[idx].pageviews++;
+                        else if (ev.type === 'event') timeline[idx].events++;
                         timeline[idx]._visitors.add(ev.visitorId);
                     }
                 }
@@ -2958,6 +3029,7 @@ app.get('/api/analytics/summary', (req, res) => {
             label: item.label,
             timestamp: item.timestamp,
             pageviews: item.pageviews,
+            events: item.events,
             visitors: item._visitors.size
         }));
 
@@ -2980,11 +3052,12 @@ app.get('/api/analytics/summary', (req, res) => {
                 pct: totalPageviews > 0 ? Math.round((p.views / totalPageviews) * 100) : 0
             }))
             .sort((a, b) => b.views - a.views)
-            .slice(0, 10);
+            .slice(0, 12);
 
-        // 4. Referrers & Channels
+        // 4. Referrers, Channels & UTM Campaigns
         const channelsMap = { direct: 0, telegram: 0, google: 0, social: 0, external: 0, internal: 0 };
         const referrersMap = {};
+        const campaignsMap = {};
 
         for (const ev of filtered) {
             if (ev.type === 'pageview') {
@@ -2996,6 +3069,21 @@ app.get('/api/analytics/summary', (req, res) => {
                         const host = new URL(ev.referrer).hostname.replace(/^www\./, '');
                         referrersMap[host] = (referrersMap[host] || 0) + 1;
                     } catch {}
+                }
+
+                if (ev.utmCampaign || ev.utmSource) {
+                    const cKey = `${ev.utmSource || 'direct'}_${ev.utmCampaign || 'organic'}_${ev.utmMedium || 'none'}`;
+                    if (!campaignsMap[cKey]) {
+                        campaignsMap[cKey] = {
+                            source: ev.utmSource || 'direct',
+                            campaign: ev.utmCampaign || 'organic',
+                            medium: ev.utmMedium || 'none',
+                            views: 0,
+                            visitors: new Set()
+                        };
+                    }
+                    campaignsMap[cKey].views++;
+                    campaignsMap[cKey].visitors.add(ev.visitorId);
                 }
             }
         }
@@ -3011,9 +3099,20 @@ app.get('/api/analytics/summary', (req, res) => {
         const topReferrers = Object.entries(referrersMap)
             .map(([domain, count]) => ({ domain, count }))
             .sort((a, b) => b.count - a.count)
-            .slice(0, 8);
+            .slice(0, 10);
 
-        // 5. Hardware / Device Breakdown
+        const topCampaigns = Object.values(campaignsMap)
+            .map(c => ({
+                source: c.source,
+                campaign: c.campaign,
+                medium: c.medium,
+                views: c.views,
+                visitors: c.visitors.size
+            }))
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 10);
+
+        // 5. Hardware / Device / Geo Breakdown
         const deviceCounts = { desktop: 0, mobile: 0, tablet: 0 };
         const browserCounts = {};
         const osCounts = {};
@@ -3053,7 +3152,17 @@ app.get('/api/analytics/summary', (req, res) => {
             .sort((a, b) => b.count - a.count)
             .slice(0, 10);
 
-        // 6. Conversion Funnel
+        // 6. Custom Events Summary
+        const eventsSummary = Object.values(eventsMap)
+            .map(e => ({
+                name: e.name,
+                count: e.count,
+                uniqueVisitors: e.visitors.size,
+                lastSeen: e.lastSeen
+            }))
+            .sort((a, b) => b.count - a.count);
+
+        // 7. Advanced Conversion Funnel with Drop-offs
         const funnelVisitors = uniqueVisitorsSet.size;
         const funnelRegisters = new Set(
             filtered
@@ -3067,7 +3176,7 @@ app.get('/api/analytics/summary', (req, res) => {
         ).size;
         const funnelUpgrades = new Set(
             filtered
-                .filter(ev => ev.name === 'upgrade_request_submitted' || ev.name === 'upgrade_click')
+                .filter(ev => ev.name === 'upgrade_request_submitted' || ev.name === 'upgrade_click' || ev.name?.includes('upgrade') || ev.name?.includes('vip'))
                 .map(ev => ev.visitorId)
         ).size;
         const funnelPaid = new Set(
@@ -3076,21 +3185,65 @@ app.get('/api/analytics/summary', (req, res) => {
                 .map(ev => ev.visitorId)
         ).size;
 
-        // 7. Recent Activity Stream (last 25 events, sanitized)
+        const funnel = {
+            visitors: funnelVisitors,
+            registered: funnelRegisters,
+            engaged: funnelEngaged,
+            upgradeRequests: funnelUpgrades,
+            paidUsers: funnelPaid,
+            dropoffs: {
+                step1to2: funnelVisitors > 0 ? Math.max(0, 100 - Math.round((funnelRegisters / funnelVisitors) * 100)) : 0,
+                step2to3: funnelRegisters > 0 ? Math.max(0, 100 - Math.round((funnelEngaged / funnelRegisters) * 100)) : 0,
+                step3to4: funnelEngaged > 0 ? Math.max(0, 100 - Math.round((funnelUpgrades / funnelEngaged) * 100)) : 0,
+                step4to5: funnelUpgrades > 0 ? Math.max(0, 100 - Math.round((funnelPaid / funnelUpgrades) * 100)) : 0
+            }
+        };
+
+        // 8. User-Level Journey & Audit Trail (Top 45 sessions)
+        const userJourneys = Array.from(sessionsMap.values())
+            .sort((a, b) => b.maxTime - a.maxTime)
+            .slice(0, 45)
+            .map(s => {
+                const countryMeta = COUNTRY_NAMES[s.country] || { name: s.country, flag: '🌐' };
+                return {
+                    sessionId: s.sessionId,
+                    visitorId: s.visitorId,
+                    email: s.email,
+                    plan: s.plan,
+                    durationSeconds: s.duration,
+                    pageviews: s.pageviews,
+                    eventsCount: s.events,
+                    firstSeen: s.minTime,
+                    lastSeen: s.maxTime,
+                    deviceType: s.deviceType,
+                    browser: s.browser,
+                    os: s.os,
+                    countryCode: s.country,
+                    countryName: countryMeta.name,
+                    countryFlag: countryMeta.flag,
+                    paths: s.paths,
+                    actionsCount: s.actions.length,
+                    recentActions: s.actions.slice(-8)
+                };
+            });
+
+        // 9. Recent Activity Stream (last 35 events, sanitized)
         const recentActivity = filtered
-            .slice(-30)
+            .slice(-35)
             .reverse()
             .map(ev => ({
                 id: ev.id,
                 type: ev.type,
                 name: ev.name,
+                label: ev.data?.label || ev.data?.tag || undefined,
                 path: ev.path,
                 title: ev.title,
                 time: ev.time || new Date(ev.timestamp).getTime(),
                 deviceType: ev.deviceType,
                 browser: ev.browser,
                 country: ev.country,
-                userPlan: ev.userPlan
+                userPlan: ev.userPlan,
+                userEmail: ev.userEmail
             }));
 
         res.json({
@@ -3100,26 +3253,27 @@ app.get('/api/analytics/summary', (req, res) => {
                 uniqueVisitors: uniqueVisitorsSet.size,
                 totalPageviews,
                 totalSessions,
+                totalEvents,
                 bounceRate,
                 avgDuration,
-                liveNow
+                liveNow,
+                telegramClicks: telegramClicksCount,
+                vipClicks: upgradeVipClicksCount
             },
             timeline,
             topPages,
             topChannels,
             topReferrers,
+            topCampaigns,
             devices: deviceCounts,
             browsers: browserCounts,
             operatingSystems: osCounts,
             countries: topCountries,
             userPlans: planCounts,
-            funnel: {
-                visitors: funnelVisitors,
-                registered: funnelRegisters,
-                engaged: funnelEngaged,
-                upgradeRequests: funnelUpgrades,
-                paidUsers: funnelPaid
-            },
+            eventsSummary,
+            scrollDepth: scrollDepths,
+            funnel,
+            userJourneys,
             recentActivity
         });
     } catch (e) {
@@ -3128,7 +3282,65 @@ app.get('/api/analytics/summary', (req, res) => {
     }
 });
 
-// 4. Reset Analytics Data Endpoint (Protected: Admin Only)
+// 4. Single User / Session Deep Audit Endpoint
+app.get('/api/analytics/user-detail', (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler kullanıcı detayını inceleyebilir.' });
+        }
+
+        const sid = req.query.sessionId;
+        const vid = req.query.visitorId;
+        if (!sid && !vid) {
+            return res.status(400).json({ error: 'sessionId veya visitorId gereklidir.' });
+        }
+
+        const matchingEvents = analyticsEvents.filter(ev => {
+            if (sid && ev.sessionId === sid) return true;
+            if (vid && ev.visitorId === vid) return true;
+            return false;
+        }).sort((a, b) => (a.time || 0) - (b.time || 0));
+
+        if (matchingEvents.length === 0) {
+            return res.status(404).json({ error: 'Oturum kaydı bulunamadı.' });
+        }
+
+        const first = matchingEvents[0];
+        const last = matchingEvents[matchingEvents.length - 1];
+        const countryMeta = COUNTRY_NAMES[first.country] || { name: first.country, flag: '🌐' };
+
+        res.json({
+            success: true,
+            visitorId: first.visitorId,
+            sessionId: first.sessionId,
+            userEmail: matchingEvents.find(e => e.userEmail)?.userEmail || null,
+            userPlan: matchingEvents.find(e => e.userPlan && e.userPlan !== 'guest')?.userPlan || first.userPlan || 'guest',
+            country: first.country,
+            countryName: countryMeta.name,
+            countryFlag: countryMeta.flag,
+            deviceType: first.deviceType,
+            browser: first.browser,
+            os: first.os,
+            firstSeen: first.time,
+            lastSeen: last.time,
+            totalDurationSeconds: Math.round(((last.time || 0) - (first.time || 0)) / 1000),
+            events: matchingEvents.map(e => ({
+                id: e.id,
+                type: e.type,
+                name: e.name,
+                path: e.path,
+                title: e.title,
+                time: e.time,
+                durationSeconds: e.durationSeconds,
+                data: e.data
+            }))
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 5. Reset Analytics Data Endpoint (Protected: Admin Only)
 app.post('/api/analytics/reset', (req, res) => {
     try {
         if (!isAdminRequest(req)) {

@@ -1,16 +1,20 @@
 /**
- * LIVE BET MENTOR - 1ST-PARTY IN-HOUSE ANALYTICS TRACKER
+ * LIVE BET MENTOR - 1ST-PARTY ENTERPRISE IN-HOUSE ANALYTICS TRACKER
  * 
  * High-performance, privacy-first, cookieless telemetry client.
- * Replaces Google Analytics completely with 100% ad-blocker resistance.
+ * Completely replaces & surpasses Google Analytics with 100% ad-blocker resistance.
  * 
- * Features:
- * - < 3 KB footprint, zero third-party dependencies.
+ * Enterprise Capabilities:
+ * - < 4 KB footprint, zero third-party scripts or CDNs.
  * - Non-blocking delivery using navigator.sendBeacon & fetch(keepalive).
- * - Automatic SPA route/view tracking.
+ * - High-efficiency Micro-Batch Queue (flushes every 5s, prevents network flooding).
+ * - Automatic SPA route/view tracking & duration tracking.
+ * - Automated Click & Interaction Telemetry (data-track, CTA buttons, Telegram, VIP).
+ * - Scroll Depth Tracker (25%, 50%, 75%, 100% thresholds per page).
  * - Heartbeat presence loop for accurate live active users and session length.
  * - UTM campaign & Referrer attribution (Telegram, Google, Social, Direct).
  * - Device, Browser, OS, Screen resolution, and Geo-Locale detection.
+ * - User-level audit synchronization (User ID, Email, Plan, Role).
  * - Automatic PII sanitization.
  */
 
@@ -26,8 +30,11 @@ class AnalyticsTracker {
         this.sessionId = null;
         this.sessionStartTime = Date.now();
         this.pageviewCount = 0;
-        this.queuedEvents = [];
-        this.isSending = false;
+        this.queue = [];
+        this.flushTimer = null;
+        this.scrollCheckpoints = new Set();
+        this.scrollListenerAttached = false;
+        this.clickListenerAttached = false;
     }
 
     /**
@@ -41,18 +48,22 @@ class AnalyticsTracker {
         }
 
         this.apiBaseUrl = config.apiBaseUrl || this.getDefaultApiBaseUrl();
-        this.userProfile = config.userProfile || null;
+        this.userProfile = config.userProfile || this.getStoredUserProfile();
         this.sessionId = this.getOrCreateSessionId();
 
         // Capture initial page
         this.currentPath = window.location.pathname + window.location.search + window.location.hash;
         this.currentPageTitle = document.title || 'LiveBet Mentor';
 
-        // Track initial pageview
+        // Track initial pageview immediately
         this.trackPageView(this.currentPath, this.currentPageTitle);
 
         // Start heartbeat loop (every 25s when tab is active)
         this.startHeartbeat();
+
+        // Setup automated telemetry sensors
+        this.initAutoClickTracker();
+        this.initScrollDepthTracker();
 
         // Listen for visibility changes (pause heartbeat when tab is hidden, resume when visible)
         document.addEventListener('visibilitychange', () => {
@@ -60,16 +71,21 @@ class AnalyticsTracker {
                 this.sendHeartbeat();
                 this.startHeartbeat();
             } else {
+                this.flushQueue(true);
                 this.stopHeartbeat();
             }
         });
 
-        // Listen for page unload to record end-of-session/leave
+        // Listen for page unload to record end-of-session/leave and flush pending queue
         window.addEventListener('beforeunload', () => {
             this.trackEvent('session_leave', {
                 durationSeconds: Math.round((Date.now() - this.sessionStartTime) / 1000)
             }, true);
+            this.flushQueue(true);
         });
+
+        // Periodic queue flush (every 5 seconds)
+        this.startQueueWorker();
 
         this.initialized = true;
     }
@@ -78,7 +94,8 @@ class AnalyticsTracker {
         if (typeof window === 'undefined') return 'http://localhost:3001';
         const isLocal = window.location.hostname === 'localhost' || 
                         window.location.hostname === '127.0.0.1' ||
-                        window.location.hostname.startsWith('192.168.');
+                        window.location.hostname.startsWith('192.168.') ||
+                        window.location.hostname.startsWith('10.');
         if (isLocal) return 'http://localhost:3001';
         return (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
     }
@@ -104,8 +121,42 @@ class AnalyticsTracker {
         }
     }
 
+    getStoredUserProfile() {
+        try {
+            const admin = localStorage.getItem('lbm_admin_session');
+            if (admin) {
+                const parsed = JSON.parse(admin);
+                return {
+                    id: parsed.user?.id || 'admin-super',
+                    email: parsed.user?.email || 'admin@livebetmentor.com',
+                    plan: 'admin',
+                    status: 'active'
+                };
+            }
+            const member = localStorage.getItem('lbm_member_session');
+            if (member) {
+                const parsed = JSON.parse(member);
+                const prof = parsed.memberProfile || parsed.user;
+                return {
+                    id: parsed.user?.id,
+                    email: parsed.user?.email,
+                    plan: prof?.plan || 'trial',
+                    status: prof?.status || 'approved'
+                };
+            }
+        } catch {}
+        return null;
+    }
+
     setUserProfile(profile) {
-        this.userProfile = profile;
+        if (!profile) return;
+        this.userProfile = {
+            id: profile.id || this.userProfile?.id,
+            email: profile.email || this.userProfile?.email,
+            plan: profile.plan || this.userProfile?.plan || 'guest',
+            status: profile.status || this.userProfile?.status || 'active',
+            display_name: profile.display_name || profile.full_name || this.userProfile?.display_name
+        };
     }
 
     /**
@@ -143,6 +194,7 @@ class AnalyticsTracker {
         const utmSource = urlParams.get('utm_source');
         const utmMedium = urlParams.get('utm_medium');
         const utmCampaign = urlParams.get('utm_campaign');
+        const utmContent = urlParams.get('utm_content');
 
         // Parse Referrer
         let referrer = document.referrer || '';
@@ -183,10 +235,92 @@ class AnalyticsTracker {
             utmSource: utmSource || undefined,
             utmMedium: utmMedium || undefined,
             utmCampaign: utmCampaign || undefined,
+            utmContent: utmContent || undefined,
             userPlan: this.userProfile?.plan || 'guest',
             userId: this.userProfile?.id || undefined,
+            userEmail: this.userProfile?.email || undefined,
             userStatus: this.userProfile?.status || 'anonymous'
         };
+    }
+
+    /**
+     * Automated Click & Interaction Listener
+     */
+    initAutoClickTracker() {
+        if (this.clickListenerAttached || typeof document === 'undefined') return;
+        this.clickListenerAttached = true;
+
+        document.addEventListener('click', (e) => {
+            try {
+                const target = e.target.closest('button, a, [data-track], [data-analytics]');
+                if (!target) return;
+
+                const customLabel = target.getAttribute('data-track') || target.getAttribute('data-analytics');
+                const rawText = (target.innerText || target.textContent || '').trim().slice(0, 50);
+                const href = target.getAttribute('href') || '';
+                const tag = target.tagName.toLowerCase();
+
+                // Detect notable business actions
+                let eventName = 'ui_click';
+                let isHighPriority = false;
+
+                if (customLabel) {
+                    eventName = customLabel.startsWith('click_') ? customLabel : `click_${customLabel}`;
+                    isHighPriority = true;
+                } else if (href.includes('t.me') || rawText.toLowerCase().includes('telegram')) {
+                    eventName = 'click_telegram_cta';
+                    isHighPriority = true;
+                } else if (rawText.toLowerCase().includes('vip') || rawText.toLowerCase().includes('yükselt') || rawText.toLowerCase().includes('upgrade')) {
+                    eventName = 'click_upgrade_vip';
+                    isHighPriority = true;
+                } else if (rawText.toLowerCase().includes('kayıt') || rawText.toLowerCase().includes('deneme') || rawText.toLowerCase().includes('start')) {
+                    eventName = 'click_register_cta';
+                    isHighPriority = true;
+                } else if (target.getAttribute('role') === 'tab' || target.classList?.contains('tab-btn')) {
+                    eventName = 'tab_change';
+                }
+
+                this.trackEvent(eventName, {
+                    label: rawText || customLabel || tag,
+                    tag,
+                    href: href ? href.slice(0, 100) : undefined
+                }, false, isHighPriority);
+            } catch (err) {
+                // Silently ignore DOM click parsing errors
+            }
+        }, { passive: true });
+    }
+
+    /**
+     * Scroll Depth Tracker (25%, 50%, 75%, 100%)
+     */
+    initScrollDepthTracker() {
+        if (this.scrollListenerAttached || typeof window === 'undefined') return;
+        this.scrollListenerAttached = true;
+
+        let scrollThrottle = null;
+        window.addEventListener('scroll', () => {
+            if (scrollThrottle) return;
+            scrollThrottle = setTimeout(() => {
+                scrollThrottle = null;
+                try {
+                    const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+                    if (scrollHeight <= 0) return;
+                    const scrolledPct = Math.round((window.scrollY / scrollHeight) * 100);
+
+                    const checkpoints = [25, 50, 75, 100];
+                    for (const cp of checkpoints) {
+                        if (scrolledPct >= cp && !this.scrollCheckpoints.has(cp)) {
+                            this.scrollCheckpoints.add(cp);
+                            this.trackEvent('scroll_depth', {
+                                depth: cp,
+                                path: this.currentPath
+                            }, false, false);
+                        }
+                    }
+                } catch {}
+            }, 500);
+        }, { passive: true });
     }
 
     /**
@@ -196,6 +330,7 @@ class AnalyticsTracker {
         this.currentPath = pathName;
         this.currentPageTitle = title || document.title;
         this.pageviewCount++;
+        this.scrollCheckpoints.clear(); // Reset scroll checkpoints for the new page
 
         const eventPayload = {
             type: 'pageview',
@@ -207,13 +342,14 @@ class AnalyticsTracker {
             ...extra
         };
 
+        // Pageviews are sent immediately
         this.sendPayload(eventPayload);
     }
 
     /**
      * Track a Custom Action / Conversion Event
      */
-    trackEvent(eventName, eventData = {}, useBeacon = false) {
+    trackEvent(eventName, eventData = {}, useBeacon = false, isImmediate = false) {
         if (!eventName) return;
 
         const eventPayload = {
@@ -227,7 +363,12 @@ class AnalyticsTracker {
             ...this.getClientContext()
         };
 
-        this.sendPayload(eventPayload, useBeacon);
+        if (useBeacon || isImmediate) {
+            this.sendPayload(eventPayload, useBeacon);
+        } else {
+            // Queue for batching
+            this.enqueueEvent(eventPayload);
+        }
     }
 
     /**
@@ -267,6 +408,40 @@ class AnalyticsTracker {
         };
 
         this.sendPayload(heartbeatPayload);
+    }
+
+    /**
+     * Micro-Batching Event Queue
+     */
+    enqueueEvent(event) {
+        this.queue.push(event);
+        if (this.queue.length >= 8) {
+            this.flushQueue();
+        }
+    }
+
+    startQueueWorker() {
+        if (this.flushTimer) clearInterval(this.flushTimer);
+        this.flushTimer = setInterval(() => {
+            if (this.queue.length > 0) {
+                this.flushQueue();
+            }
+        }, 5000);
+    }
+
+    flushQueue(useBeacon = false) {
+        if (this.queue.length === 0) return;
+        const eventsToSend = [...this.queue];
+        this.queue = [];
+
+        if (eventsToSend.length === 1) {
+            this.sendPayload(eventsToSend[0], useBeacon);
+        } else {
+            this.sendPayload({
+                type: 'batch',
+                events: eventsToSend
+            }, useBeacon);
+        }
     }
 
     /**
@@ -323,8 +498,8 @@ export function trackPageView(path, title, extra) {
     analyticsTracker.trackPageView(path, title, extra);
 }
 
-export function trackAnalyticsEvent(name, data, useBeacon = false) {
-    analyticsTracker.trackEvent(name, data, useBeacon);
+export function trackAnalyticsEvent(name, data, useBeacon = false, isImmediate = false) {
+    analyticsTracker.trackEvent(name, data, useBeacon, isImmediate);
 }
 
 export function updateAnalyticsUser(userProfile) {

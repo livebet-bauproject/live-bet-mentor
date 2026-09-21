@@ -16,6 +16,9 @@ const isLocal = typeof window !== 'undefined' && (
   window.location.hostname.startsWith('172.')
 );
 
+const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+
+
 function App() {
   const [session, setSession] = useState(() => {
     try {
@@ -606,6 +609,7 @@ function App() {
           onClose={() => setIsSupportChatOpen(false)}
           lang={lang}
           userProfile={userProfile}
+          apiBase={proxyBase}
         />
       </div>
     );
@@ -783,6 +787,7 @@ function App() {
           onClose={() => setIsSupportChatOpen(false)}
           lang={lang}
           userProfile={userProfile}
+          apiBase={proxyBase}
         />
       </div>
     );

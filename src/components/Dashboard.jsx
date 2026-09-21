@@ -94,6 +94,13 @@ export const renderMatchMinute = (minute, t, withLabel = false) => {
 };
 
 export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings = {} }) => {
+    const isLocal = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.')
+    );
+    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
     const [bankState, setBankState] = useState(bankrollManager.getState());
@@ -8001,6 +8008,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 onClose={() => setIsSupportChatOpen(false)}
                 lang={lang}
                 userProfile={userProfile}
+                apiBase={proxyBase}
             />
 
             {/* Mobile Bottom Navigation Bar (Sticky app-like navigation on screens <= 768px) */}

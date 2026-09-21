@@ -9,6 +9,13 @@ import { trackAnalyticsEvent } from '../utils/analyticsTracker';
 import '../styles/global.css';
 
 export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, settings = {} }) => {
+    const isLocal = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' || 
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.startsWith('192.168.')
+    );
+    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+
     const [view, setView] = useState('login'); // 'login' or 'register'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -1337,6 +1344,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                 onOpen={() => setIsSupportChatOpen(true)}
                 onClose={() => setIsSupportChatOpen(false)}
                 lang={lang}
+                apiBase={proxyBase}
             />
 
             {isCalculatorOpen && (
