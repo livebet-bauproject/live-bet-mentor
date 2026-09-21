@@ -1161,7 +1161,7 @@ _Bol kazançlar dileriz! Live Bet Mentor VIP Syndicate_
 
         // If not a command (doesn't start with /)
         if (!text.startsWith('/')) {
-            // Check if user pasted the trial activation code directly as a message (e.g. trial_xxxx)
+            // 1. Check if user pasted the trial activation code directly as a message (e.g. trial_xxxx)
             const trialMatch = text.match(/\b(trial_[a-z0-9_]+)\b/i);
             if (trialMatch) {
                 const trialCode = trialMatch[1].trim();
@@ -1189,9 +1189,44 @@ _Bol kazançlar dileriz! Live Bet Mentor VIP Syndicate_
                     return;
                 } else {
                     const notFoundMsg = isTr
-                        ? `⚠️ *Geçersiz veya Süresi Dolmuş Aktivasyon Kodu.*\nLütfen web sitesinden tekrar kayıt olmayı deneyin veya yardım için /destek yazın.`
-                        : `⚠️ *Invalid or Expired Activation Code.*\nPlease try registering again on the website or type /help.`;
+                        ? `⚠️ *Geçersiz veya Süresi Dolmuş Aktivasyon Kodu.*\n━━━━━━━━━━━━━━━━━━\n💡 *Web sitemizde yeni kayıt olduysanız:*\n• Web sitemizde kayıt olduğunuz e-posta adresinizi (örnek: *isim@domain.com*) doğrudan buraya mesaj atarak üyeliğinizi anında aktifleştirebilirsiniz.\n• Veya web sitemizdeki *[⚡ Telegram ile Tek Tıkla Başlat]* butonuna tıklayınız.\n\nDestek için: /destek`
+                        : `⚠️ *Invalid or Expired Activation Code.*\n━━━━━━━━━━━━━━━━━━\n💡 *If you recently registered:*\n• Send your registered email address as a message here to activate instantly.\n• Or click the 1-click button on the website.\n\nSupport: /help`;
                     await this.sendMessage(chatId, notFoundMsg);
+                    return;
+                }
+            }
+
+            // 2. Check if user sent their registered email address to activate pending web trial
+            const emailMatch = text.match(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/i);
+            if (emailMatch) {
+                const userEmail = emailMatch[1].trim().toLowerCase();
+                const approveRes = vipManager.approveWebTrialByEmail(userEmail, chatId, username);
+                const isTr = userLang === 'tr';
+                const isDe = userLang === 'de';
+
+                if (approveRes.success) {
+                    const inviteLink = await this.createInviteLink(username, 72);
+                    let successMsg = `🎉 *3 GÜNLÜK VIP DENEMENİZ AKTİFLEŞTİRİLDİ!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n\n✅ *E-posta Onaylandı:* ${userEmail}\n✅ *Web Paneliniz Açıldı:* Web sitesindeki oturumunuz onaylandı, hemen giriş yapabilirsiniz.\n⏰ *Süre:* 3 Gün (72 Saat Tam Erişim - Hafta Sonu Bülteni Dahil)\n💎 *Paket:* VIP PRO Deneme\n\n🎟️ *VIP Telegram Kanal Linkiniz:*\n👉 ${inviteLink || 'Kanal yöneticisi tarafından ekleneceksiniz'}\n\n_3 gün sonunda VIP üyelik paketleri için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+
+                    if (isDe) {
+                        successMsg = `🎉 *3-TAGE VIP-TESTPASS AKTIVIERT!* 🎉\n━━━━━━━━━━━━━━━━━━\nWillkommen @${username},\n\n✅ *E-Mail bestätigt:* ${userEmail}\n✅ *Web-Panel freigeschaltet!*\n⏰ *Dauer:* 3 Tage (72 Stunden)\n💎 *Paket:* Kostenloser VIP PRO-Pass\n\n🎟️ *Ihr persönlicher VIP-Kanal Link:*\n👉 ${inviteLink || 'Link wird generiert...'}\n\n_Tippen Sie /vip für Verlängerungen._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    } else if (!isTr) {
+                        successMsg = `🎉 *3-DAY VIP TRIAL ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\n\n✅ *Email Verified:* ${userEmail}\n✅ *Web Dashboard Unlocked!*\n⏰ *Duration:* 3 Days (72 Hours - Full Weekend Matchday)\n💎 *Tier:* VIP PRO Complimentary Pass\n\n🎟️ *Your One-Time VIP Telegram Channel Pass:*\n👉 ${inviteLink || 'Generating access...'}\n\n_To upgrade or extend, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                    }
+
+                    await this.sendMessage(chatId, successMsg);
+                    return;
+                } else if (approveRes.reason === 'TELEGRAM_ALREADY_USED') {
+                    const errMsg = isTr
+                        ? `⚠️ *ÜCRETSİZ DENEME HAKKINIZ DAHA ÖNCE KULLANILMIŞTIR!*\n━━━━━━━━━━━━━━━━━━\nBu Telegram hesabıyla daha önce 3 günlük deneme hakkı kullanılmıştır. Sistem kötüye kullanımını önlemek amacıyla her Telegram hesabına yalnızca 1 kez deneme hakkı tanınır.\n\n💎 *VIP Üyelik Satın Almak İçin:*\n👉 /vip yazarak avantajlı üyelik paketlerimizi inceleyebilirsiniz.`
+                        : `⚠️ *TRIAL ALREADY CLAIMED!*\n━━━━━━━━━━━━━━━━━━\nThis Telegram account has already redeemed a 3-day trial pass.\n\n💎 *To upgrade to VIP:*\n👉 Type /vip to view packages.`;
+                    await this.sendMessage(chatId, errMsg);
+                    return;
+                } else if (approveRes.reason === 'ALREADY_APPROVED') {
+                    const infoMsg = isTr
+                        ? `✅ *Hesabınız Zaten Onaylı!*\n━━━━━━━━━━━━━━━━━━\n*${userEmail}* e-posta adresine ait üyeliğiniz zaten aktif durumda. Web sitemizden hemen giriş yapabilirsiniz.\n\nVIP kanal linki veya deneme sorgusu için: /deneme veya /profil`
+                        : `✅ *Account Already Active!*\n━━━━━━━━━━━━━━━━━━\nYour account for ${userEmail} is already active. Please log in on the website.`;
+                    await this.sendMessage(chatId, infoMsg);
                     return;
                 }
             }
@@ -1429,7 +1464,7 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
             case '/start':
             case '/help':
             case '/hilfe': {
-                // Check if user came from web with a trial activation deep link: /start trial_XXXXX
+                // 1. Check if user came from web with a trial activation deep link: /start trial_XXXXX
                 if (arg1 && arg1.toLowerCase().startsWith('trial_')) {
                     const trialCode = arg1.trim();
                     const approveRes = vipManager.approveWebTrial(trialCode, chatId, username);
@@ -1456,9 +1491,31 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                         return;
                     } else {
                         const notFoundMsg = isTr
-                            ? `⚠️ *Geçersiz veya Süresi Dolmuş Aktivasyon Kodu.*\nLütfen web sitesinden tekrar kayıt olmayı deneyin veya yardım için /destek yazın.`
-                            : `⚠️ *Invalid or Expired Activation Code.*\nPlease try registering again on the website or type /help.`;
+                            ? `⚠️ *Geçersiz veya Süresi Dolmuş Aktivasyon Kodu.*\n━━━━━━━━━━━━━━━━━━\n💡 *Web sitemizde yeni kayıt olduysanız:*\n• Web sitemizde kayıt olduğunuz e-posta adresinizi (örnek: *isim@domain.com*) doğrudan buraya mesaj atarak üyeliğinizi anında aktifleştirebilirsiniz.\n• Veya web sitemizdeki *[⚡ Telegram ile Tek Tıkla Başlat]* butonuna tıklayınız.\n\nDestek için: /destek`
+                            : `⚠️ *Invalid or Expired Activation Code.*\n━━━━━━━━━━━━━━━━━━\n💡 *If you recently registered:*\n• Send your registered email address as a message here to activate instantly.\n• Or click the 1-click button on the website.\n\nSupport: /help`;
                         await this.sendMessage(chatId, notFoundMsg);
+                        return;
+                    }
+                }
+
+                // 2. Check if deep link is email: e.g. /start user@domain.com or /start email_user@domain.com
+                const possibleEmail = arg1 ? arg1.replace(/^email_/i, '').trim().toLowerCase() : null;
+                if (possibleEmail && possibleEmail.includes('@')) {
+                    const approveRes = vipManager.approveWebTrialByEmail(possibleEmail, chatId, username);
+                    const isTr = userLang === 'tr';
+                    const isDe = userLang === 'de';
+
+                    if (approveRes.success) {
+                        const inviteLink = await this.createInviteLink(username, 72);
+                        let successMsg = `🎉 *3 GÜNLÜK VIP DENEMENİZ AKTİFLEŞTİRİLDİ!* 🎉\n━━━━━━━━━━━━━━━━━━\nHoş geldiniz @${username},\n\n✅ *E-posta Onaylandı:* ${possibleEmail}\n✅ *Web Paneliniz Açıldı:* Web sitesindeki oturumunuz onaylandı, hemen giriş yapabilirsiniz.\n⏰ *Süre:* 3 Gün (72 Saat Tam Erişim - Hafta Sonu Bülteni Dahil)\n💎 *Paket:* VIP PRO Deneme\n\n🎟️ *VIP Telegram Kanal Linkiniz:*\n👉 ${inviteLink || 'Kanal yöneticisi tarafından ekleneceksiniz'}\n\n_3 gün sonunda VIP üyelik paketleri için /vip yazabilirsiniz._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+
+                        if (isDe) {
+                            successMsg = `🎉 *3-TAGE VIP-TESTPASS AKTIVIERT!* 🎉\n━━━━━━━━━━━━━━━━━━\nWillkommen @${username},\n\n✅ *E-Mail bestätigt:* ${possibleEmail}\n✅ *Web-Panel freigeschaltet!*\n⏰ *Dauer:* 3 Tage (72 Stunden)\n💎 *Paket:* Kostenloser VIP PRO-Pass\n\n🎟️ *Ihr persönlicher VIP-Kanal Link:*\n👉 ${inviteLink || 'Link wird generiert...'}\n\n_Tippen Sie /vip für Verlängerungen._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                        } else if (!isTr) {
+                            successMsg = `🎉 *3-DAY VIP TRIAL ACTIVATED!* 🎉\n━━━━━━━━━━━━━━━━━━\nWelcome @${username},\n\n✅ *Email Verified:* ${possibleEmail}\n✅ *Web Dashboard Unlocked!*\n⏰ *Duration:* 3 Days (72 Hours - Full Weekend Matchday)\n💎 *Tier:* VIP PRO Complimentary Pass\n\n🎟️ *Your One-Time VIP Telegram Channel Pass:*\n👉 ${inviteLink || 'Generating access...'}\n\n_To upgrade or extend, type /vip anytime._\n━━━━━━━━━━━━━━━━━━\n⚡ *LIVE BET MENTOR VIP SYNDICATE*`;
+                        }
+
+                        await this.sendMessage(chatId, successMsg);
                         return;
                     }
                 }

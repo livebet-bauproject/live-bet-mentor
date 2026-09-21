@@ -3948,7 +3948,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
 
                                                     {/* Delete */}
                                                     <button
-                                                        onClick={() => deleteUser(profile.id)}
+                                                        onClick={() => deleteUser(profile)}
                                                         style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', fontSize: '0.65rem' }}
                                                     >
                                                         {t.delete}

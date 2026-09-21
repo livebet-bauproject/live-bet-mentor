@@ -66,11 +66,13 @@ export class VipManager {
     /**
      * Start a 3-day instant free trial
      */
-    startTrial(chatId, username = 'User') {
+    startTrial(chatId, username = 'User', email = null) {
         const id = String(chatId);
         const existing = this.users[id];
 
-        if (existing && (existing.hadTrial || existing.plan === 'TRIAL')) {
+        const isSameEmail = email && existing?.email && existing.email.toLowerCase() === email.toLowerCase();
+
+        if (existing && (existing.hadTrial || existing.plan === 'TRIAL') && !isSameEmail) {
             const now = Date.now();
             if (existing.expiresAt > now) {
                 return {
@@ -93,6 +95,7 @@ export class VipManager {
         this.users[id] = {
             chatId: id,
             username: username || 'User',
+            email: email || existing?.email || null,
             plan: 'TRIAL',
             status: 'ACTIVE',
             hadTrial: true,
@@ -241,17 +244,6 @@ export class VipManager {
      */
     approveWebTrial(trialCode, chatId, username = 'User') {
         const id = String(chatId);
-        const existingTgUser = this.users[id];
-
-        // Anti-Abuse: If this Telegram account already had a trial, reject!
-        if (existingTgUser && (existingTgUser.hadTrial || existingTgUser.plan === 'TRIAL')) {
-            return {
-                success: false,
-                reason: 'TELEGRAM_ALREADY_USED',
-                message: 'Bu Telegram hesabı ile daha önce 3 günlük ücretsiz deneme hakkı kullanılmıştır.'
-            };
-        }
-
         const membersFile = path.join(__dirname, 'web_members.json');
         let members = [];
         try {
@@ -273,8 +265,72 @@ export class VipManager {
             };
         }
 
-        // Start Telegram trial (3 days / 72 hours)
-        this.startTrial(chatId, username);
+        return this._executeMemberApproval(member, members, membersFile, id, username);
+    }
+
+    /**
+     * Link and approve a web trial using email address sent directly in Telegram chat
+     */
+    approveWebTrialByEmail(email, chatId, username = 'User') {
+        const id = String(chatId);
+        const membersFile = path.join(__dirname, 'web_members.json');
+        let members = [];
+        try {
+            if (fs.existsSync(membersFile)) {
+                members = JSON.parse(fs.readFileSync(membersFile, 'utf8'));
+            }
+        } catch (e) {
+            console.error('[VIP_MANAGER] Error reading web_members.json:', e.message);
+        }
+
+        const cleanEmail = (email || '').trim().toLowerCase();
+        // Look for pending member with this email
+        const member = members.find(m => m.email && m.email.toLowerCase() === cleanEmail && m.status === 'pending_telegram');
+
+        if (!member) {
+            // Check if already approved
+            const alreadyApproved = members.find(m => m.email && m.email.toLowerCase() === cleanEmail && m.status === 'approved');
+            if (alreadyApproved) {
+                return {
+                    success: false,
+                    reason: 'ALREADY_APPROVED',
+                    message: 'Bu hesap zaten onaylanmıştır.',
+                    member: alreadyApproved
+                };
+            }
+            return {
+                success: false,
+                reason: 'MEMBER_NOT_FOUND',
+                message: 'Bu e-posta adresine ait onay bekleyen bir kayıt bulunamadı.'
+            };
+        }
+
+        return this._executeMemberApproval(member, members, membersFile, id, username);
+    }
+
+    /**
+     * Core approval executor with strict multi-account protection while allowing owner renewals
+     */
+    _executeMemberApproval(member, members, membersFile, id, username) {
+        // Anti-Abuse: Prevent 1 Telegram user from farming multiple DIFFERENT email accounts
+        const otherApprovedMember = members.find(m => 
+            String(m.telegram_chat_id) === String(id) && 
+            m.email && 
+            member.email && 
+            m.email.toLowerCase() !== member.email.toLowerCase() &&
+            m.status === 'approved'
+        );
+
+        if (otherApprovedMember) {
+            return {
+                success: false,
+                reason: 'TELEGRAM_ALREADY_USED',
+                message: 'Bu Telegram hesabı başka bir üyelik için kullanılmıştır.'
+            };
+        }
+
+        // Start / Renew Telegram trial (3 days / 72 hours)
+        this.startTrial(id, username, member.email);
 
         // Update Web member
         const now = new Date();
@@ -299,6 +355,42 @@ export class VipManager {
             member,
             expiresAt: trialEnd.toISOString()
         };
+    }
+
+    /**
+     * Reset user trial (used by Admin when deleting or resetting a member)
+     */
+    resetUserTrial(chatId = null, username = null, email = null) {
+        let changed = false;
+        if (chatId) {
+            const id = String(chatId);
+            if (this.users[id]) {
+                delete this.users[id];
+                changed = true;
+            }
+        }
+        if (username) {
+            const cleanUser = String(username).replace(/^@/, '').trim().toLowerCase();
+            for (const [id, u] of Object.entries(this.users)) {
+                if (u.username && String(u.username).replace(/^@/, '').trim().toLowerCase() === cleanUser) {
+                    delete this.users[id];
+                    changed = true;
+                }
+            }
+        }
+        if (email) {
+            const cleanMail = String(email).trim().toLowerCase();
+            for (const [id, u] of Object.entries(this.users)) {
+                if (u.email && String(u.email).trim().toLowerCase() === cleanMail) {
+                    delete this.users[id];
+                    changed = true;
+                }
+            }
+        }
+        if (changed) {
+            this.saveUsers();
+        }
+        return changed;
     }
 }
 

@@ -561,7 +561,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                                             gap: '0.5rem',
                                             color: '#64748b',
                                             fontSize: '0.78rem',
-                                            marginBottom: '1rem'
+                                            marginBottom: '0.6rem'
                                         }}>
                                             <span style={{
                                                 display: 'inline-block',
@@ -572,6 +572,24 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                                                 boxShadow: '0 0 8px #38bdf8'
                                             }} />
                                             <span>{lang === 'tr' ? 'Telegram onayı bekleniyor... (Otomatik algılanır)' : (lang === 'de' ? 'Warte auf Telegram-Start... (Wird automatisch erkannt)' : 'Waiting for Telegram start... (Auto-detecting)')}</span>
+                                        </div>
+
+                                        <div style={{
+                                            fontSize: '0.74rem',
+                                            color: '#94a3b8',
+                                            textAlign: 'center',
+                                            background: 'rgba(255, 255, 255, 0.03)',
+                                            border: '1px solid rgba(255, 255, 255, 0.06)',
+                                            borderRadius: '10px',
+                                            padding: '0.5rem 0.75rem',
+                                            marginBottom: '1rem',
+                                            lineHeight: '1.4'
+                                        }}>
+                                            💡 {lang === 'tr'
+                                                ? 'İpucu: Telegram açıldığında Başlat butonunu görmezseniz, bota kayıtlı e-posta adresinizi veya yukarıdaki kodu doğrudan mesaj olarak gönderebilirsiniz.'
+                                                : (lang === 'de'
+                                                    ? 'Tipp: Wenn Sie Start nicht sehen, senden Sie Ihre E-Mail oder den Code einfach als Nachricht an den Bot.'
+                                                    : 'Tip: If you do not see the Start button, simply send your registered email or the code directly as a message to the bot.')}
                                         </div>
 
                                         <button

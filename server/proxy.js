@@ -8,6 +8,7 @@ import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import { spawn, spawnSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
+import { vipManager } from './vipManager.js';
 import { learningEngine } from './learningEngine.js';
 import { autonomousSignalEngine } from './autonomousSignalEngine.js';
 import { autonomousOffice } from './autonomousOffice.js';
@@ -173,6 +174,47 @@ function saveDeviceTrials(trials) {
     } catch (e) {
         console.error('[DEVICE_TRIALS] Error saving device_trials.json:', e.message);
         return false;
+    }
+}
+
+const TRIAL_ABUSE_FILE = path.join(__dirname, 'trial_abuse_logs.json');
+
+function loadTrialAbuseLogs() {
+    try {
+        if (fs.existsSync(TRIAL_ABUSE_FILE)) {
+            return JSON.parse(fs.readFileSync(TRIAL_ABUSE_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('[TRIAL_ABUSE] Error reading trial_abuse_logs.json:', e.message);
+    }
+    return [];
+}
+
+function saveTrialAbuseLogs(logs) {
+    try {
+        fs.writeFileSync(TRIAL_ABUSE_FILE, JSON.stringify(logs, null, 2), 'utf8');
+        return true;
+    } catch (e) {
+        console.error('[TRIAL_ABUSE] Error saving trial_abuse_logs.json:', e.message);
+        return false;
+    }
+}
+
+function logTrialAbuse(entry) {
+    try {
+        const logs = loadTrialAbuseLogs();
+        const item = {
+            id: `ab_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            timestamp: new Date().toISOString(),
+            ...entry
+        };
+        logs.unshift(item);
+        if (logs.length > 100) logs.pop();
+        saveTrialAbuseLogs(logs);
+        console.warn(`[AUDIT] 🚨 Trial abuse blocked: ${item.attemptedEmail} on device ${item.deviceId} (Original: ${item.originalEmail})`);
+        return item;
+    } catch (e) {
+        console.error('[TRIAL_ABUSE] Error logging trial abuse:', e.message);
     }
 }
 
@@ -2388,9 +2430,47 @@ app.post('/api/members/delete', (req, res) => {
             return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler üye silebilir.' });
         }
         const { id, email } = req.body || {};
+        const cleanEmail = email ? email.trim().toLowerCase() : null;
         let members = loadMembers();
-        members = members.filter(m => !((id && m.id === id) || (email && m.email === email.trim().toLowerCase())));
+
+        // Find matching members to purge related locks (deviceTrials, telegram)
+        const targetMembers = members.filter(m => (id && m.id === id) || (cleanEmail && m.email && m.email.trim().toLowerCase() === cleanEmail));
+
+        // 1. Purge device trial records
+        const deviceTrials = loadDeviceTrials();
+        let deviceTrialsChanged = false;
+
+        targetMembers.forEach(m => {
+            if (m.deviceId && deviceTrials[m.deviceId]) {
+                delete deviceTrials[m.deviceId];
+                deviceTrialsChanged = true;
+            }
+            if (m.telegram_chat_id || m.telegram_username || m.email) {
+                vipManager.resetUserTrial(m.telegram_chat_id, m.telegram_username, m.email);
+            }
+        });
+
+        // Also purge any deviceTrials matching cleanEmail directly
+        if (cleanEmail) {
+            for (const [devId, dData] of Object.entries(deviceTrials)) {
+                if (dData.email && dData.email.trim().toLowerCase() === cleanEmail) {
+                    delete deviceTrials[devId];
+                    deviceTrialsChanged = true;
+                }
+            }
+            vipManager.resetUserTrial(null, null, cleanEmail);
+        }
+
+        if (deviceTrialsChanged) {
+            saveDeviceTrials(deviceTrials);
+        }
+
+        // 2. Remove member from web_members.json
+        members = members.filter(m => !((id && m.id === id) || (cleanEmail && m.email && m.email.trim().toLowerCase() === cleanEmail)));
         saveMembers(members);
+
+        console.log(`[MEMBERS] Member deleted & all trial/device locks purged: id=${id}, email=${cleanEmail}`);
+
         res.json({ success: true, members: sanitizeMemberList(members) });
     } catch (e) {
         res.status(500).json({ error: e.message });

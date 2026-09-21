@@ -18,6 +18,7 @@ const LOCKS_FILE = path.join(__dirname, 'engine_signal_locks.json');
 export class AutonomousSignalEngine {
     constructor() {
         this.isRunning = false;
+        this.emergencyHalt = false; // 🛑 Master Admin Kill-Switch
         this.isScanning = false;
         this.intervalId = null;
         this.lastGlobalSignalTime = 0;
@@ -464,7 +465,23 @@ export class AutonomousSignalEngine {
         if (this.isScanning) return; // Concurrency guard: never overlap scans
         this.isScanning = true;
         try {
+            // 🛑 Master Admin Kill-Switch Check
+            if (this.emergencyHalt) {
+                return;
+            }
+
             if (!fs.existsSync(SOFASCORE_FILE)) return;
+
+            // ⚠️ Stale Data Watchdog Guard: Protect against frozen/crashed scraper
+            try {
+                const stat = fs.statSync(SOFASCORE_FILE);
+                const fileAgeSec = Math.round((Date.now() - stat.mtimeMs) / 1000);
+                if (fileAgeSec > 180) {
+                    console.warn(`[AUTONOMOUS_ENGINE] ⚠️ Stale data guard: SofaScore verisi ${fileAgeSec}s bayat! Sinyal gönderimi askıya alındı.`);
+                    return;
+                }
+            } catch (err) {}
+
             const raw = fs.readFileSync(SOFASCORE_FILE, 'utf8');
             const data = JSON.parse(raw);
             if (!data || !Array.isArray(data.events)) return;
@@ -501,6 +518,47 @@ export class AutonomousSignalEngine {
         } finally {
             this.isScanning = false;
         }
+    }
+
+    setEmergencyHalt(halt) {
+        this.emergencyHalt = Boolean(halt);
+        console.log(`[AUTONOMOUS_ENGINE] 🛑 Master Kill-Switch is now: ${this.emergencyHalt ? 'ACTIVE (Sinyaller Durduruldu)' : 'OFF (Sinyaller Açık)'}`);
+        return this.emergencyHalt;
+    }
+
+    clearLocks() {
+        this.matchLocks.clear();
+        try {
+            if (fs.existsSync(LOCKS_FILE)) {
+                fs.writeFileSync(LOCKS_FILE, JSON.stringify({}, null, 2), 'utf8');
+            }
+        } catch (e) {}
+        console.log('[AUTONOMOUS_ENGINE] 🔄 Match locks manually cleared by Admin.');
+        return true;
+    }
+
+    getStatus() {
+        let dataAgeSec = null;
+        let eventCount = 0;
+        try {
+            if (fs.existsSync(SOFASCORE_FILE)) {
+                const stat = fs.statSync(SOFASCORE_FILE);
+                dataAgeSec = Math.round((Date.now() - stat.mtimeMs) / 1000);
+                const raw = JSON.parse(fs.readFileSync(SOFASCORE_FILE, 'utf8'));
+                if (Array.isArray(raw)) eventCount = raw.length;
+                else if (raw && Array.isArray(raw.events)) eventCount = raw.events.length;
+            }
+        } catch (e) {}
+
+        return {
+            isRunning: this.isRunning,
+            emergencyHalt: this.emergencyHalt,
+            lastGlobalSignalTime: this.lastGlobalSignalTime,
+            activeLocksCount: this.matchLocks.size,
+            dataAgeSec,
+            eventCount,
+            isDataStale: dataAgeSec !== null && dataAgeSec > 180
+        };
     }
 
     start(intervalSec = 25) {
