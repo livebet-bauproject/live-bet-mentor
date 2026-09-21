@@ -25,6 +25,7 @@ import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
 import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import { trackPageView, trackAnalyticsEvent } from '../utils/analyticsTracker';
+import { getAdminHeaders } from '../utils/adminAuth';
 import '../styles/global.css';
 import '../styles/terminal-view.css';
 
@@ -92,6 +93,8 @@ export const renderMatchMinute = (minute, t, withLabel = false) => {
 };
 
 export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings = {} }) => {
+    const telegramUsername = (settings?.telegram_support || settings?.telegram || CONFIG?.SUPPORT?.TELEGRAM || '@Livebetdeskbot').replace(/^@/, '');
+    const telegramSupportUrl = `https://t.me/${telegramUsername}?start=lang_${lang || 'tr'}`;
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
     const [bankState, setBankState] = useState(bankrollManager.getState());
@@ -537,6 +540,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [trendingFilter, setTrendingFilter] = useState('ALL');
     const [trendingSearch, setTrendingSearch] = useState('');
     const [showTrendingGuide, setShowTrendingGuide] = useState(false);
+    const [showTrendingStatsMobile, setShowTrendingStatsMobile] = useState(false);
 
     const fetchTrendingBets = useCallback(async () => {
         setTrendingLoading(true);
@@ -748,10 +752,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-signal`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'x-admin-sender': user?.email || 'admin@livebetmentor.com'
-                },
+                headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     matchId: match.id,
                     homeTeam: match.homeTeam,
@@ -803,10 +804,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-radar`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'x-admin-sender': user?.email || 'admin@livebetmentor.com'
-                },
+                headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     home: s.home,
                     away: s.away,
@@ -858,11 +856,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-combo`, {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'x-admin-sender': user?.email || 'admin@livebetmentor.com',
-                    'x-admin-token': 'master-admin-token'
-                },
+                headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ combo })
             });
             const data = await res.json().catch(() => ({}));
@@ -3135,7 +3129,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return (
             <div className="trending-view" style={{ paddingBottom: '5rem' }}>
                 {/* Header Row */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
+                <div className="trending-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1.5rem' }}>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.4rem' }}>
                             <span style={{ fontSize: '2rem' }}>🔥</span>
@@ -3162,7 +3156,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             color: '#f87171'
                         }}>
                             <span className="trending-pulse-dot"></span>
-                            <span>{t.trending_live_feed || 'CANLI HACİM AKIŞI (5 DK)'}</span>
+                            <span>{t.trending_live_feed || 'EN ÇOK OYNANANLAR (5 DK)'}</span>
                         </div>
 
                         {trendingLastUpdated && (
@@ -3196,8 +3190,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
 
                 {/* Collapsible Customer Explainer Guide */}
-                <div style={{ marginBottom: '1.8rem' }}>
+                <div style={{ marginBottom: '1.2rem' }}>
                     <button
+                        className="trending-guide-toggle-btn"
                         onClick={() => setShowTrendingGuide(!showTrendingGuide)}
                         style={{
                             width: '100%',
@@ -3296,59 +3291,138 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     )}
                 </div>
 
+                {/* Mobile Collapsible KPI Summary Toggle Bar */}
+                <button
+                    className="trending-kpi-mobile-toggle glass-panel"
+                    onClick={() => setShowTrendingStatsMobile(prev => !prev)}
+                    style={{
+                        width: '100%',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '12px',
+                        border: showTrendingStatsMobile ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                        background: showTrendingStatsMobile 
+                            ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(15, 23, 42, 0.9))'
+                            : 'linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.5))',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        cursor: 'pointer',
+                        marginBottom: '0.75rem',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '1.05rem' }}>📊</span>
+                        <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#f8fafc' }}>
+                            {t.trending_stats_summary || 'Piyasa Özeti & Metrikler'}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700 }}>
+                            <span style={{ color: '#94a3b8' }}>({groupedMatches.length} {t.trending_stats_match_unit || 'Maç'})</span>
+                            <span style={{ color: '#10b981', background: 'rgba(16,185,129,0.15)', padding: '0.12rem 0.35rem', borderRadius: '4px' }}>🟢 {approvedCount}</span>
+                            <span style={{ color: '#ef4444', background: 'rgba(239,68,68,0.15)', padding: '0.12rem 0.35rem', borderRadius: '4px' }}>🔴 {trapCount}</span>
+                            <span style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '0.12rem 0.35rem', borderRadius: '4px' }}>📊 {marketCount + cautionCount}</span>
+                        </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#38bdf8', fontSize: '0.75rem', fontWeight: 800 }}>
+                        <span>{showTrendingStatsMobile ? (t.trending_stats_toggle_hide || 'Gizle') : (t.trending_stats_toggle_show || 'Detayları Göster')}</span>
+                        <span style={{ fontSize: '0.7rem', transition: 'transform 0.2s ease', transform: showTrendingStatsMobile ? 'rotate(180deg)' : 'none' }}>▼</span>
+                    </div>
+                </button>
+
                 {/* KPI Overview Strip */}
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
-                    gap: '1rem',
-                    marginBottom: '2rem'
-                }}>
-                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className={`trending-kpi-grid ${showTrendingStatsMobile ? 'is-open' : ''}`}>
+                    <div
+                        className="glass-panel trending-kpi-card"
+                        onClick={() => setTrendingFilter('ALL')}
+                        style={{
+                            padding: '1.2rem',
+                            borderRadius: '12px',
+                            border: trendingFilter === 'ALL' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                            background: trendingFilter === 'ALL' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(15, 23, 42, 0.6))' : undefined,
+                            boxShadow: trendingFilter === 'ALL' ? '0 0 15px rgba(56, 189, 248, 0.25)' : undefined
+                        }}
+                    >
                         <div style={{ fontSize: '0.75rem', opacity: 0.6, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             {t.trending_total_tracked || 'TOPLAM TREND'}
                         </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#f8fafc' }}>
+                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#f8fafc' }}>
                             {groupedMatches.length} <span style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 600 }}>{lang === 'tr' ? 'Maç' : (lang === 'de' ? 'Spiele' : 'Matches')}</span>
                         </div>
-                        <div style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.2rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                        <div className="kpi-sub" style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.2rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                             <span style={{ color: '#34d399', fontWeight: 700 }}>● {approvedCount + trapCount} {lang === 'tr' ? 'Canlı Radarda' : (lang === 'de' ? 'im Live-Radar' : 'in Radar')}</span>
                             <span style={{ opacity: 0.4 }}>|</span>
                             <span style={{ color: '#38bdf8', fontWeight: 700 }}>● {marketCount + cautionCount} {lang === 'tr' ? 'Radar Dışı' : (lang === 'de' ? 'Außerhalb des Radars' : 'Outside Radar')}</span>
                         </div>
                     </div>
 
-                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(0,0,0,0.2))' }}>
+                    <div
+                        className="glass-panel trending-kpi-card"
+                        onClick={() => setTrendingFilter('APPROVED')}
+                        style={{
+                            padding: '1.2rem',
+                            borderRadius: '12px',
+                            border: trendingFilter === 'APPROVED' ? '2px solid #10b981' : '1px solid rgba(16, 185, 129, 0.3)',
+                            background: trendingFilter === 'APPROVED'
+                                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(0,0,0,0.3))'
+                                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(0,0,0,0.2))',
+                            boxShadow: trendingFilter === 'APPROVED' ? '0 0 15px rgba(16, 185, 129, 0.35)' : undefined
+                        }}
+                    >
                         <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             🟢 {t.trending_smart_money_count || 'ONAYLI TREND'}
                         </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#10b981' }}>
+                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#10b981' }}>
                             {approvedCount}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: '#34d399', opacity: 0.8, marginTop: '0.2rem' }}>
+                        <div className="kpi-sub" style={{ fontSize: '0.7rem', color: '#34d399', opacity: 0.8, marginTop: '0.2rem' }}>
                             {lang === 'tr' ? 'Canlı Radarda & DQS ≥ 0.50' : (lang === 'de' ? 'Im Live-Radar & DQS ≥ 0.50' : 'In Live Radar & DQS ≥ 0.50')}
                         </div>
                     </div>
 
-                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(0,0,0,0.2))' }}>
+                    <div
+                        className="glass-panel trending-kpi-card"
+                        onClick={() => setTrendingFilter('TRAP')}
+                        style={{
+                            padding: '1.2rem',
+                            borderRadius: '12px',
+                            border: trendingFilter === 'TRAP' ? '2px solid #ef4444' : '1px solid rgba(239, 68, 68, 0.3)',
+                            background: trendingFilter === 'TRAP'
+                                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(0,0,0,0.3))'
+                                : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(0,0,0,0.2))',
+                            boxShadow: trendingFilter === 'TRAP' ? '0 0 15px rgba(239, 68, 68, 0.35)' : undefined
+                        }}
+                    >
                         <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             🔴 {t.trending_trap_count || 'TUZAK UYARISI'}
                         </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#ef4444' }}>
+                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#ef4444' }}>
                             {trapCount}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: '#f87171', opacity: 0.8, marginTop: '0.2rem' }}>
+                        <div className="kpi-sub" style={{ fontSize: '0.7rem', color: '#f87171', opacity: 0.8, marginTop: '0.2rem' }}>
                             {lang === 'tr' ? 'Düşük DQS / Ölü Maç Tuzağı' : (lang === 'de' ? 'Niedriger DQS / Totes-Spiel-Falle' : 'Low DQS / Dead Match Trap')}
                         </div>
                     </div>
 
-                    <div className="glass-panel" style={{ padding: '1.2rem', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.3)', background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(0,0,0,0.2))' }}>
+                    <div
+                        className="glass-panel trending-kpi-card"
+                        onClick={() => setTrendingFilter('MARKET')}
+                        style={{
+                            padding: '1.2rem',
+                            borderRadius: '12px',
+                            border: trendingFilter === 'MARKET' ? '2px solid #38bdf8' : '1px solid rgba(56, 189, 248, 0.3)',
+                            background: trendingFilter === 'MARKET'
+                                ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(0,0,0,0.3))'
+                                : 'linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(0,0,0,0.2))',
+                            boxShadow: trendingFilter === 'MARKET' ? '0 0 15px rgba(56, 189, 248, 0.35)' : undefined
+                        }}
+                    >
                         <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                             📊 {t.trending_direct_count || 'CANLI AKIŞ'}
                         </div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#38bdf8' }}>
+                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#38bdf8' }}>
                             {marketCount + cautionCount}
                         </div>
-                        <div style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.8, marginTop: '0.2rem' }}>
+                        <div className="kpi-sub" style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.8, marginTop: '0.2rem' }}>
                             {lang === 'tr' ? 'Avrupa Hacmi (Radar Dışı / Alt Lig)' : (lang === 'de' ? 'Europäisches Volumen (Außerhalb des Radars)' : 'European Volume (Outside Radar)')}
                         </div>
                     </div>
@@ -3821,7 +3895,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
                     </div>
 
-                    <div className="terminal-header-actions">
+                        {/* 7/24 Telegram Live Support Button - Prominent Top Placement */}
+                        <a
+                            href={telegramSupportUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="header-telegram-support-btn"
+                            title={lang === 'tr' ? `7/24 Canlı Telegram Destek Hattı (@${telegramUsername})` : (lang === 'de' ? `24/7 Live Telegram Support (@${telegramUsername})` : `24/7 Live Telegram Support (@${telegramUsername})`)}
+                        >
+                            <span className="tg-live-dot" title="Online"></span>
+                            <span className="tg-icon">✈️</span>
+                            <span className="tg-label-full">{lang === 'tr' ? '7/24 Telegram Destek' : (lang === 'de' ? '24/7 Telegram-Support' : '24/7 Telegram Support')}</span>
+                            <span className="tg-label-short">{lang === 'tr' ? '7/24 Destek' : (lang === 'de' ? '24/7 Support' : '24/7 Support')}</span>
+                        </a>
+
                         {/* Notification Mode Toggle */}
                         <button
                             className="icon-ctrl-btn"
@@ -5489,6 +5576,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 mobileTableMode={terminalMobileSubView === 'TABLE'}
                                 userProfile={userProfile}
                                 onOpenUpgrade={() => setShowPlanComparison(true)}
+                                terminalCategoryFilter={terminalCategoryFilter}
                             />
 
                             <LiveTerminalMobile
@@ -5509,6 +5597,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                 hideInTableMode={terminalMobileSubView === 'TABLE'}
                                 userProfile={userProfile}
                                 onOpenUpgrade={() => setShowPlanComparison(true)}
+                                terminalCategoryFilter={terminalCategoryFilter}
                             />
 
                             {/* Global AI Section */}
@@ -8016,7 +8105,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center' }}>
                     <a
-                        href={`https://t.me/Livebetdeskbot?start=lang_${lang || 'tr'}`}
+                        href={telegramSupportUrl}
                         target="_blank"
                         rel="noreferrer"
                         style={{

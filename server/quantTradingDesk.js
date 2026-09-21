@@ -149,11 +149,67 @@ export class QuantTradingDesk {
     }
 
     /**
-     * Synthetic Expected Goals (xG) Calculation
+     * Realistic Expected Goals (xG) Calculation
+     * Grounded in actual shots on target and shot volume (like Opta / SofaScore).
+     * Does NOT allow non-shot attacks to falsely inflate xG.
      */
     computeSyntheticXg(shotsOn, shotsOff, bigChances, dangerousAttacks, goals) {
-        const xg = (shotsOn * 0.17) + (shotsOff * 0.04) + (bigChances * 0.38) + (dangerousAttacks * 0.012) + (goals * 0.28);
-        return Math.max(goals * 0.45, Math.round(xg * 100) / 100);
+        const sOn = Math.max(0, Number(shotsOn) || 0);
+        const sOff = Math.max(0, Number(shotsOff) || 0);
+        const bCh = Math.max(0, Number(bigChances) || 0);
+        const dAtt = Math.max(0, Number(dangerousAttacks) || 0);
+        const g = Math.max(0, Number(goals) || 0);
+        const totalShots = sOn + sOff;
+
+        // CRITICAL FIX: If a team has 0 total shots, their real xG cannot exceed 0.05
+        // (attacks and possession do NOT count as xG in official football analytics)
+        if (totalShots === 0) {
+            return g > 0 ? Math.round(g * 0.75 * 100) / 100 : 0.02;
+        }
+
+        // Calibrated weights:
+        // Shots on goal: ~0.22 xG conversion rate
+        // Shots off goal: ~0.04 xG
+        // Big chances: ~0.35 xG
+        // Dangerous attacks: only a micro-modifier (0.001) for sustained territory
+        let xg = (sOn * 0.22) + (sOff * 0.04) + (bCh * 0.35) + (dAtt * 0.001);
+
+        // Grounding ceiling: total xG cannot vastly exceed realistic shot potential
+        const maxReasonableXg = Math.max(g * 0.85, totalShots * 0.25 + bCh * 0.30);
+        xg = Math.min(xg, maxReasonableXg);
+
+        if (g > 0) {
+            xg = Math.max(xg, g * 0.35);
+        }
+
+        return Math.max(0.02, Math.round(xg * 100) / 100);
+    }
+
+    /**
+     * Match market odds from live_odds.json by team names
+     */
+    findMarketOdds(oddsData, homeName, awayName) {
+        if (!oddsData || typeof oddsData !== 'object') return null;
+        const clean = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const targetHome = clean(homeName);
+        const targetAway = clean(awayName);
+
+        const list = Array.isArray(oddsData.matches) ? oddsData.matches : (Array.isArray(oddsData) ? oddsData : []);
+        for (const item of list) {
+            const cHome = clean(item.homeTeam || item.home);
+            const cAway = clean(item.awayTeam || item.away);
+            if ((cHome.includes(targetHome) || targetHome.includes(cHome)) &&
+                (cAway.includes(targetAway) || targetAway.includes(cAway))) {
+                return {
+                    home: parseFloat(item.odds?.home) || null,
+                    draw: parseFloat(item.odds?.draw) || null,
+                    away: parseFloat(item.odds?.away) || null,
+                    over: parseFloat(item.odds?.over) || null,
+                    under: parseFloat(item.odds?.under) || null
+                };
+            }
+        }
+        return null;
     }
 
     /**
@@ -285,32 +341,32 @@ export class QuantTradingDesk {
             let hShots = Number(h['total shots'] ?? 0);
             let aShots = Number(a['total shots'] ?? 0);
 
-            // If stats file is queued or pending from SofaScore, synthesize baseline from current score and minute
+            // Conservative baseline when full stats are missing - do NOT invent high volume
             if (!hasLiveStats) {
-                hShots = Math.max(curHome * 2 + 2, Math.round(minute * 0.13));
-                aShots = Math.max(curAway * 2 + 1, Math.round(minute * 0.11));
+                hShots = Math.max(curHome, 1);
+                aShots = Math.max(curAway, 1);
             }
 
-            let hSOT = Number(h['shots on target'] ?? Math.max(curHome, Math.round(hShots * 0.40)));
-            let aSOT = Number(a['shots on target'] ?? Math.max(curAway, Math.round(aShots * 0.36)));
-            let hBox = Number(h['touches in penalty area'] ?? h['shots inside box'] ?? Math.round(hShots * 1.6));
-            let aBox = Number(a['touches in penalty area'] ?? a['shots inside box'] ?? Math.round(aShots * 1.5));
-            let hPoss = Number(h['ball possession'] ?? (curHome > curAway ? 55 : (curHome < curAway ? 45 : 50)));
+            let hSOT = Number(h['shots on target'] ?? (hasLiveStats ? 0 : Math.min(hShots, curHome)));
+            let aSOT = Number(a['shots on target'] ?? (hasLiveStats ? 0 : Math.min(aShots, curAway)));
+            let hBox = Number(h['touches in penalty area'] ?? h['shots inside box'] ?? 0);
+            let aBox = Number(a['touches in penalty area'] ?? a['shots inside box'] ?? 0);
+            let hPoss = Number(h['ball possession'] ?? 50);
             let aPoss = Number(h['ball possession'] ? (100 - hPoss) : 50);
-            let hCorners = Number(h['corner kicks'] ?? Math.round(hShots * 0.3));
-            let aCorners = Number(a['corner kicks'] ?? Math.round(aShots * 0.3));
-            let hAttacks = Number(h['dangerous attacks'] ?? h['final third entries'] ?? Math.round(hShots * 3.5));
-            let aAttacks = Number(a['dangerous attacks'] ?? a['final third entries'] ?? Math.round(aShots * 3.5));
-            let hBig = Number(h['big chances'] ?? (curHome + (hSOT >= 4 ? 1 : 0)));
-            let aBig = Number(a['big chances'] ?? (curAway + (aSOT >= 4 ? 1 : 0)));
+            let hCorners = Number(h['corner kicks'] ?? 0);
+            let aCorners = Number(a['corner kicks'] ?? 0);
+            let hAttacks = Number(h['dangerous attacks'] ?? h['final third entries'] ?? 0);
+            let aAttacks = Number(a['dangerous attacks'] ?? a['final third entries'] ?? 0);
+            let hBig = Number(h['big chances'] ?? curHome);
+            let aBig = Number(a['big chances'] ?? curAway);
             let hRed = Number(h['red cards'] ?? 0);
             let aRed = Number(a['red cards'] ?? 0);
 
-            // Synthetic xG Calculations
+            // Synthetic xG Calculations (Grounded on actual shots)
             const xgHome = this.computeSyntheticXg(hSOT, Math.max(0, hShots - hSOT), hBig, hAttacks, curHome);
             const xgAway = this.computeSyntheticXg(aSOT, Math.max(0, aShots - aSOT), aBig, aAttacks, curAway);
-            const totalXg = Math.round((xgHome + xgAway) * 100) / 100;
-            const xgDelta = Math.round((xgHome - xgAway) * 100) / 100;
+            const totalXg = Number((xgHome + xgAway).toFixed(2));
+            const xgDelta = Number((xgHome - xgAway).toFixed(2));
 
             // Pitch Dominance Index (-100 to +100)
             let dominanceIndex = 0;
@@ -355,8 +411,8 @@ export class QuantTradingDesk {
             // Consensus Report Link
             const consensus = this.findConsensus(consensusData, homeTeam, awayTeam);
 
-            // Live Bookmaker Odds
-            const rawOdds = oddsData[evId] || null;
+            // Live Bookmaker Odds with name-matching fallback
+            const rawOdds = this.findMarketOdds(oddsData, homeTeam, awayTeam) || oddsData[evId] || null;
 
             // ==========================================
             // GATE 3 & 4: True Probability vs Market Odds (+EV% Engine)
@@ -368,12 +424,13 @@ export class QuantTradingDesk {
             const goalPaceFactor = Math.min(1.5, Math.max(0.6, (attacksPerMin * 0.8 + (hSOT + aSOT) / Math.max(minute, 1) * 3.5)));
             
             if (dominanceIndex >= 22 && curHome <= curAway) {
-                // Home Heavy Pressure Next Goal
-                const trueProb = Math.min(88, Math.max(55, Math.round(58 + dominanceIndex * 0.28 + (hPoss > 60 ? 6 : 0))));
-                const fairOdds = Math.round((100 / trueProb) * 100) / 100;
-                // Live market odds estimation if rawOdds missing:
-                const marketOdds = rawOdds?.home ? Math.max(1.40, Math.min(3.20, rawOdds.home * 0.95)) : Math.round((fairOdds * 1.14) * 100) / 100;
-                const evPercent = Math.round(((trueProb / 100 * marketOdds) - 1) * 1000) / 10;
+                // Home Heavy Pressure Next Goal (realistic probability capped at 78%)
+                const trueProb = Math.min(78, Math.max(52, Math.round(52 + dominanceIndex * 0.25 + (hPoss > 60 ? 4 : 0))));
+                const fairOdds = Number((100 / trueProb).toFixed(2));
+                const marketOdds = rawOdds?.home 
+                    ? Number(Math.max(1.10, Math.min(3.50, rawOdds.home)).toFixed(2)) 
+                    : Number((fairOdds * 1.06).toFixed(2));
+                const evPercent = Number((((trueProb / 100 * marketOdds) - 1) * 100).toFixed(1));
 
                 candidateMarkets.push({
                     marketKey: 'NEXT_GOAL_HOME',
@@ -385,17 +442,19 @@ export class QuantTradingDesk {
                     marketOdds,
                     evPercent,
                     rationale: [
-                        `${homeTeam} yoğun abluka kurdu (Dominans: +%${dominanceIndex})`,
+                        `${homeTeam} yoğun hücum baskısı kurdu (Dominans: +%${dominanceIndex})`,
                         `Ceza sahası etkinliği (${hBox} temas & ${hSOT} isabetli şut)`,
                         `xG üstünlüğü (${xgHome.toFixed(2)} vs ${xgAway.toFixed(2)})`
                     ]
                 });
             } else if (dominanceIndex <= -22 && curAway <= curHome) {
                 // Away Heavy Pressure Next Goal
-                const trueProb = Math.min(88, Math.max(55, Math.round(58 + Math.abs(dominanceIndex) * 0.28 + (aPoss > 60 ? 6 : 0))));
-                const fairOdds = Math.round((100 / trueProb) * 100) / 100;
-                const marketOdds = rawOdds?.away ? Math.max(1.40, Math.min(3.20, rawOdds.away * 0.95)) : Math.round((fairOdds * 1.15) * 100) / 100;
-                const evPercent = Math.round(((trueProb / 100 * marketOdds) - 1) * 1000) / 10;
+                const trueProb = Math.min(78, Math.max(52, Math.round(52 + Math.abs(dominanceIndex) * 0.25 + (aPoss > 60 ? 4 : 0))));
+                const fairOdds = Number((100 / trueProb).toFixed(2));
+                const marketOdds = rawOdds?.away 
+                    ? Number(Math.max(1.10, Math.min(3.50, rawOdds.away)).toFixed(2)) 
+                    : Number((fairOdds * 1.06).toFixed(2));
+                const evPercent = Number((((trueProb / 100 * marketOdds) - 1) * 100).toFixed(1));
 
                 candidateMarkets.push({
                     marketKey: 'NEXT_GOAL_AWAY',
@@ -417,10 +476,12 @@ export class QuantTradingDesk {
             // 2. Over Goals Market
             const targetOverLine = totalGoals === 0 ? '0.5' : (totalGoals + 0.5).toFixed(1);
             if ((hSOT + aSOT) >= 5 && (hBox + aBox) >= 14 && minute <= 78) {
-                const trueProb = Math.min(92, Math.max(58, Math.round(52 + (hSOT + aSOT) * 3.5 + goalPaceFactor * 12)));
-                const fairOdds = Math.round((100 / trueProb) * 100) / 100;
-                const marketOdds = Math.round((fairOdds * 1.12) * 100) / 100;
-                const evPercent = Math.round(((trueProb / 100 * marketOdds) - 1) * 1000) / 10;
+                const trueProb = Math.min(85, Math.max(55, Math.round(52 + (hSOT + aSOT) * 3.0 + goalPaceFactor * 10)));
+                const fairOdds = Number((100 / trueProb).toFixed(2));
+                const marketOdds = rawOdds?.over 
+                    ? Number(rawOdds.over.toFixed(2)) 
+                    : Number((fairOdds * 1.06).toFixed(2));
+                const evPercent = Number((((trueProb / 100 * marketOdds) - 1) * 100).toFixed(1));
 
                 candidateMarkets.push({
                     marketKey: `OVER_${targetOverLine.replace('.', '_')}`,
@@ -441,10 +502,10 @@ export class QuantTradingDesk {
 
             // 3. Both Teams To Score (BTTS / KG Var)
             if ((curHome === 0 || curAway === 0) && hSOT >= 3 && aSOT >= 3 && minute >= 25 && minute <= 72) {
-                const trueProb = Math.min(86, Math.max(60, Math.round(55 + (hSOT + aSOT) * 2.8)));
-                const fairOdds = Math.round((100 / trueProb) * 100) / 100;
-                const marketOdds = Math.round((fairOdds * 1.15) * 100) / 100;
-                const evPercent = Math.round(((trueProb / 100 * marketOdds) - 1) * 1000) / 10;
+                const trueProb = Math.min(82, Math.max(55, Math.round(54 + (hSOT + aSOT) * 2.5)));
+                const fairOdds = Number((100 / trueProb).toFixed(2));
+                const marketOdds = Number((fairOdds * 1.06).toFixed(2));
+                const evPercent = Number((((trueProb / 100 * marketOdds) - 1) * 100).toFixed(1));
 
                 candidateMarkets.push({
                     marketKey: 'BTTS_YES',
@@ -463,12 +524,37 @@ export class QuantTradingDesk {
                 });
             }
 
-            // 4. Double Chance / Win Market
-            if (dominanceIndex >= 30 && curHome >= curAway) {
-                const trueProb = Math.min(94, Math.max(68, Math.round(65 + dominanceIndex * 0.3)));
-                const fairOdds = Math.round((100 / trueProb) * 100) / 100;
-                const marketOdds = Math.round((fairOdds * 1.10) * 100) / 100;
-                const evPercent = Math.round(((trueProb / 100 * marketOdds) - 1) * 1000) / 10;
+            // 4. Double Chance / Win Market (Game-State & Minute Aware)
+            if (curHome >= curAway && (dominanceIndex >= 15 || scoreDiff > 0)) {
+                let trueProb = 70;
+                if (scoreDiff >= 2) {
+                    // Leading by 2+ goals: win/draw probability is practically certain
+                    trueProb = Math.min(99, Math.round(96 + (minute / 90) * 3));
+                } else if (scoreDiff === 1) {
+                    // Leading by 1 goal (e.g. AC Milan 1-0 Lecce at 31')
+                    // Home favorite leading by 1 at 31' has ~92-96% chance to not lose (1X)
+                    const timeDecayFactor = (minute / 90) * 5;
+                    const domBonus = Math.max(-2, Math.min(4, Math.round(dominanceIndex * 0.05)));
+                    trueProb = Math.min(98, Math.max(90, Math.round(92 + timeDecayFactor + domBonus)));
+                } else {
+                    // Drawing (0-0, 1-1, etc.)
+                    trueProb = Math.min(86, Math.max(62, Math.round(62 + dominanceIndex * 0.22)));
+                }
+
+                const fairOdds = Number((100 / trueProb).toFixed(2));
+                
+                // Real bookmaker Double Chance (1X) derivation if 1X2 odds available
+                let marketOdds = null;
+                if (rawOdds?.home && rawOdds?.draw) {
+                    const pImplied = (1 / rawOdds.home) + (1 / rawOdds.draw);
+                    marketOdds = Number((Math.max(1.01, (1 / pImplied) * 1.03)).toFixed(2));
+                } else {
+                    // Realistic in-play market odds reflecting actual game state (e.g. 1.03-1.07 when leading)
+                    const marginMultiplier = scoreDiff > 0 ? 1.02 : 1.06;
+                    marketOdds = Number(Math.max(1.02, Number((fairOdds * marginMultiplier).toFixed(2))));
+                }
+
+                const evPercent = Number((((trueProb / 100 * marketOdds) - 1) * 100).toFixed(1));
 
                 candidateMarkets.push({
                     marketKey: 'DOUBLE_CHANCE_1X',
@@ -480,9 +566,11 @@ export class QuantTradingDesk {
                     marketOdds,
                     evPercent,
                     rationale: [
-                        `${homeTeam} evinde oyunu domine ediyor (+%${dominanceIndex} üstünlük)`,
-                        `Rakip savunma ablukadan çıkamıyor`,
-                        `Skor koruma ve farkı açma olasılığı yüksek`
+                        scoreDiff > 0 
+                            ? `${homeTeam} skorda önde (${scoreStr}) ve oyun dengesini koruyor` 
+                            : `${homeTeam} evinde oyunu domine ediyor (+%${dominanceIndex} üstünlük)`,
+                        `Dakika ${minute}' itibarıyla puan alma olasılığı: %${trueProb}`,
+                        `Adil Çifte Şans Oranı: @${fairOdds.toFixed(2)}`
                     ]
                 });
             }

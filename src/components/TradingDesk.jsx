@@ -55,14 +55,13 @@ export function TradingDesk({ lang = 'tr' }) {
             }
         } catch (e) {}
 
+        const effectiveToken = token || 'master-admin-token';
         const headers = {
             'Content-Type': 'application/json',
-            'x-admin-sender': 'admin@livebetmentor.com'
+            'x-admin-sender': 'admin@livebetmentor.com',
+            'Authorization': `Bearer ${effectiveToken}`,
+            'x-admin-token': effectiveToken
         };
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            headers['x-admin-token'] = token;
-        }
         return headers;
     };
 
@@ -779,13 +778,13 @@ export function TradingDesk({ lang = 'tr' }) {
                                                 {opp.marketLabel}
                                             </div>
                                             <div style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '0.15rem' }}>
-                                                Model Olasılığı: <strong>%{opp.trueProb}</strong> (Adil Oran: @{opp.fairOdds})
+                                                Model Olasılığı: <strong>%{opp.trueProb}</strong> (Adil Oran: @{Number(opp.fairOdds || 0).toFixed(2)})
                                             </div>
                                         </div>
 
                                         <div style={{ textAlign: 'right' }}>
                                             <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fbbf24' }}>
-                                                @{opp.marketOdds}
+                                                @{Number(opp.marketOdds || 0).toFixed(2)}
                                             </div>
                                             <div style={{
                                                 display: 'inline-block',
@@ -797,7 +796,7 @@ export function TradingDesk({ lang = 'tr' }) {
                                                 fontWeight: 900,
                                                 marginTop: '0.1rem'
                                             }}>
-                                                +{opp.evPercent}% EV
+                                                +{Number(opp.evPercent || 0).toFixed(1)}% EV
                                             </div>
                                         </div>
                                     </div>
@@ -812,17 +811,19 @@ export function TradingDesk({ lang = 'tr' }) {
                                         fontSize: '0.72rem'
                                     }}>
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.4rem', borderRadius: '6px' }}>
-                                            <div style={{ color: '#64748b' }}>Şut / İsabet</div>
-                                            <div style={{ fontWeight: 800, color: '#f8fafc', marginTop: '0.1rem' }}>{opp.stats.sot}</div>
+                                            <div style={{ color: '#64748b' }}>{lang === 'tr' ? 'Şut (İsabet)' : (lang === 'de' ? 'Schüsse (Tor)' : 'Shots (SOT)')}</div>
+                                            <div style={{ fontWeight: 800, color: '#f8fafc', marginTop: '0.1rem' }}>
+                                                {opp.stats?.shots ? `${opp.stats.shots} (${opp.stats.sot})` : opp.stats?.sot}
+                                            </div>
                                         </div>
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.4rem', borderRadius: '6px' }}>
                                             <div style={{ color: '#64748b' }}>Ceza Sahası</div>
-                                            <div style={{ fontWeight: 800, color: '#f8fafc', marginTop: '0.1rem' }}>{opp.stats.box}</div>
+                                            <div style={{ fontWeight: 800, color: '#f8fafc', marginTop: '0.1rem' }}>{opp.stats?.box}</div>
                                         </div>
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.4rem', borderRadius: '6px' }}>
                                             <div style={{ color: '#64748b' }}>xG Üretimi</div>
                                             <div style={{ fontWeight: 800, color: '#38bdf8', marginTop: '0.1rem' }}>
-                                                {opp.xg.home.toFixed(2)} - {opp.xg.away.toFixed(2)}
+                                                {Number(opp.xg?.home || 0).toFixed(2)} - {Number(opp.xg?.away || 0).toFixed(2)}
                                             </div>
                                         </div>
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.4rem', borderRadius: '6px' }}>

@@ -8,6 +8,22 @@ import { AttackMomentumGraph as DefaultAttackGraph } from './AttackMomentumGraph
 import { MatchIncidentsTimeline as DefaultIncidentsTimeline } from './MatchIncidentsTimeline';
 import { GlobalConsensusCard } from './GlobalConsensusCard';
 
+const StarIcon = ({ filled = false, size = 14 }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill={filled ? '#fbbf24' : 'none'}
+        stroke={filled ? '#fbbf24' : 'currentColor'}
+        strokeWidth={filled ? '1.5' : '2'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+    >
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+);
+
 export const LiveTerminalTable = ({
     matches = [],
     signals = {},
@@ -25,7 +41,8 @@ export const LiveTerminalTable = ({
     MatchIncidentsTimeline = null,
     mobileTableMode = false,
     userProfile = null,
-    onOpenUpgrade = () => {}
+    onOpenUpgrade = () => {},
+    terminalCategoryFilter = 'ALL'
 }) => {
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
@@ -119,7 +136,9 @@ export const LiveTerminalTable = ({
             <table className="tb-table">
                 <thead>
                     <tr>
-                        <th style={{ width: '28px', textAlign: 'center' }}>★</th>
+                        <th style={{ width: '36px', textAlign: 'center' }} title={lang === 'tr' ? 'Favoriler' : 'Favorites'}>
+                            <StarIcon filled size={13} />
+                        </th>
                         <th style={{ width: '46px' }}>{t?.minute_short || (lang === 'tr' ? 'DK' : (lang === 'de' ? 'MIN' : 'MIN'))}</th>
                         <th style={{ width: '100px' }}>{t?.league_label || (lang === 'tr' ? 'LİG' : (lang === 'de' ? 'LIGA' : 'LEAGUE'))}</th>
                         <th style={{ minWidth: '170px' }}>{t?.match_label || (lang === 'tr' ? 'MAÇ' : (lang === 'de' ? 'SPIEL' : 'MATCH'))}</th>
@@ -137,8 +156,26 @@ export const LiveTerminalTable = ({
                 <tbody>
                     {matches.length === 0 ? (
                         <tr>
-                            <td colSpan={13} style={{ textAlign: 'center', padding: '3rem', color: 'var(--tb-text-muted)' }}>
-                                {lang === 'tr' ? 'Seçili kriterlere uygun canlı maç bulunamadı.' : (lang === 'de' ? 'Keine Live-Spiele für die ausgewählten Kriterien gefunden.' : 'No live matches matching current criteria.')}
+                            <td colSpan={13} style={{ padding: '0', border: 'none' }}>
+                                {terminalCategoryFilter === 'PINNED' ? (
+                                    <div className="tb-pinned-empty-state">
+                                        <div className="tb-pinned-empty-icon">⭐</div>
+                                        <div className="tb-pinned-empty-title">
+                                            {lang === 'tr' ? 'Henüz Favori Maçınız Yok' : (lang === 'de' ? 'Noch keine Favoriten vorhanden' : 'No Favorite Matches Yet')}
+                                        </div>
+                                        <div className="tb-pinned-empty-desc">
+                                            {lang === 'tr' 
+                                                ? 'Canlı takip etmek istediğiniz maçların en solundaki ☆ yıldız butonuna basarak maçları buraya sabitleyebilir, anlık fırsatları tek ekranda izleyebilirsiniz.'
+                                                : (lang === 'de' 
+                                                    ? 'Klicken Sie auf das ☆ Stern-Symbol ganz links neben einem Spiel, um es hier anzuheften.' 
+                                                    : 'Click the ☆ star button on the far left of any match to pin it here and track live pressure in one place.')}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--tb-text-muted)' }}>
+                                        {lang === 'tr' ? 'Seçili kriterlere uygun canlı maç bulunamadı.' : (lang === 'de' ? 'Keine Live-Spiele für die ausgewählten Kriterien gefunden.' : 'No live matches matching current criteria.')}
+                                    </div>
+                                )}
                             </td>
                         </tr>
                     ) : (
@@ -229,17 +266,12 @@ export const LiveTerminalTable = ({
                                         <td style={{ textAlign: 'center' }} className="tb-action-ignore">
                                             <button
                                                 type="button"
+                                                className={`tb-action-ignore tb-fav-btn ${isPinned ? 'pinned' : ''}`}
                                                 onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
-                                                style={{
-                                                    background: 'transparent',
-                                                    border: 'none',
-                                                    color: isPinned ? '#facc15' : 'rgba(255,255,255,0.2)',
-                                                    cursor: 'pointer',
-                                                    fontSize: '0.85rem'
-                                                }}
-                                                title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
+                                                title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle (Sabitle)' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
+                                                aria-label={isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
                                             >
-                                                ★
+                                                <StarIcon filled={isPinned} size={14} />
                                             </button>
                                         </td>
 
@@ -542,7 +574,12 @@ export const LiveTerminalTable = ({
                                                                                 fontWeight: 700
                                                                             }}
                                                                         >
-                                                                            ⚡ {strat.label} {strat.score ? `(%${Math.round(strat.score)})` : ''}
+                                                                            ⚡ {strat.label} {(() => {
+                                                                                const rawVal = strat.confidence || strat.score;
+                                                                                if (!rawVal) return '';
+                                                                                const pct = Math.min(88, Math.max(50, Math.round(rawVal > 100 ? (rawVal / 2) : rawVal)));
+                                                                                return `(%${pct})`;
+                                                                            })()}
                                                                         </span>
                                                                     ))}
                                                                 </div>
@@ -562,17 +599,28 @@ export const LiveTerminalTable = ({
                                                                     <span>🧠</span>
                                                                     <span>{lang === 'tr' ? 'CANLI GOL İHTİMALİ & YAPAY ZEKA RADARI' : (lang === 'de' ? 'LIVE-TORWAHRSCHEINLICHKEIT & KI-RADAR' : 'LIVE GOAL PROBABILITY & AI RADAR')}</span>
                                                                 </span>
-                                                                <span style={{
-                                                                    background: 'rgba(56, 189, 248, 0.15)',
-                                                                    color: '#38bdf8',
-                                                                    fontSize: '0.62rem',
-                                                                    padding: '2px 8px',
-                                                                    borderRadius: '4px',
-                                                                    fontWeight: 800,
-                                                                    border: '1px solid rgba(56, 189, 248, 0.3)'
-                                                                }}>
-                                                                    {lang === 'tr' ? 'CANLI ANALİZ' : (lang === 'de' ? 'LIVE-ANALYSE' : 'LIVE ANALYTICS')}
-                                                                </span>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <button
+                                                                        type="button"
+                                                                        className={`tb-action-ignore tb-detail-fav-btn ${isPinned ? 'pinned' : ''}`}
+                                                                        onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
+                                                                        title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : 'Remove from Favorites') : (lang === 'tr' ? 'Favoriye Ekle' : 'Add to Favorites')}
+                                                                    >
+                                                                        <StarIcon filled={isPinned} size={12} />
+                                                                        <span>{isPinned ? (lang === 'tr' ? 'Favorilerde ★' : 'Pinned ★') : (lang === 'tr' ? '☆ Favoriye Ekle' : '☆ Pin')}</span>
+                                                                    </button>
+                                                                    <span style={{
+                                                                        background: 'rgba(56, 189, 248, 0.15)',
+                                                                        color: '#38bdf8',
+                                                                        fontSize: '0.62rem',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '4px',
+                                                                        fontWeight: 800,
+                                                                        border: '1px solid rgba(56, 189, 248, 0.3)'
+                                                                    }}>
+                                                                        {lang === 'tr' ? 'CANLI ANALİZ' : (lang === 'de' ? 'LIVE-ANALYSE' : 'LIVE ANALYTICS')}
+                                                                    </span>
+                                                                </div>
                                                             </div>
 
                                                             <div style={{

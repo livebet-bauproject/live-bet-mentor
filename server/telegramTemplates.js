@@ -847,8 +847,9 @@ export function formatFomoWinningCard(signal, result, finalScore = null, lang = 
     
     const home = cleanMd(signal.homeTeam || signal.match?.split(' vs ')[0] || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
     const away = cleanMd(signal.awayTeam || signal.match?.split(' vs ')[1] || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
-    const market = cleanMd(resolveMarketText(signal, lang) || signal.market || (isTr ? 'Tahmin' : isDe ? 'Tipp' : 'Pick'));
-    const odds = signal.recommendation?.odds || signal.odds || '1.80';
+    const rawOdds = signal.recommendation?.odds || signal.odds;
+    const numOdds = parseFloat(rawOdds);
+    const oddsStr = (!isNaN(numOdds) && numOdds > 1.0) ? numOdds.toFixed(2) : (isTr ? 'Canlı Oran' : isDe ? 'Live-Quote' : 'Live Odds');
     const alertMin = signal.minute ? `${signal.minute}'` : '';
     const scoreStr = finalScore ? (typeof finalScore === 'object' ? `${finalScore.home}-${finalScore.away}` : finalScore) : (signal.resultScore || '');
 
@@ -858,7 +859,7 @@ export function formatFomoWinningCard(signal, result, finalScore = null, lang = 
 ⚽ *${home} vs ${away}* ${scoreStr ? `[*${scoreStr}*]` : ''}
 ⏱️ *Sinyal Dakikası:* ${alertMin || 'Canlı'}
 🎯 *Hedef Bahis:* *${market}* ✅
-📊 *Yakalanan Oran:* *${odds}* | *Kâr Kasaya Eklendi!*
+📊 *Yakalanan Oran:* *${oddsStr}* | *Kâr Kasaya Eklendi!*
 
 🔒 _VIP Kulübümüz bu değeri 0 saniye gecikmeyle canlıda yakaladı._
 
@@ -874,7 +875,7 @@ export function formatFomoWinningCard(signal, result, finalScore = null, lang = 
 ⚽ *${home} vs ${away}* ${scoreStr ? `[*${scoreStr}*]` : ''}
 ⏱️ *Signal-Minute:* ${alertMin || 'Live'}
 🎯 *Erfolgreicher Tipp:* *${market}* ✅
-📊 *Quote:* *${odds}* | *Gewinn verbucht!*
+📊 *Quote:* *${oddsStr}* | *Gewinn verbucht!*
 
 🔒 _Unser VIP-Syndikat hat diesen Pick mit 0s Latenz live erfasst._
 

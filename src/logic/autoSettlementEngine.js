@@ -150,10 +150,11 @@ export class AutoSettlementEngine {
             // Determine Outcome
             const isWin = this.evaluateBetOutcome(bet.market, bet, match);
             const stake = Number(bet.stake_amount) || 100;
-            const oddsTaken = Number(bet.odds_taken) || 1.85;
+            const liveMatchOdds = Number(match.odds?.current?.homeWin || match.odds?.closing);
+            const oddsTaken = (Number(bet.odds_taken) > 1.0) ? Number(bet.odds_taken) : (liveMatchOdds > 1.0 ? liveMatchOdds : 1.75);
 
             // Closing line odds for CLV calculation
-            const closingOdds = Number(match.odds?.current?.homeWin || match.odds?.closing || (oddsTaken * 0.95));
+            const closingOdds = liveMatchOdds > 1.0 ? liveMatchOdds : (oddsTaken * 0.95);
             const clv = closingOdds > 0 ? parseFloat((((oddsTaken / closingOdds) - 1) * 100).toFixed(1)) : 0;
 
             // Process settlement in Bankroll Manager

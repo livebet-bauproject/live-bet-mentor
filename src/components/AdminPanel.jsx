@@ -321,7 +321,23 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [strategySettings, setStrategySettings] = useState({});
     const [strategyAnalytics, setStrategyAnalytics] = useState([]);
 
-    const loadStrategyAnalytics = () => {
+    const loadStrategyAnalytics = async () => {
+        try {
+            const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
+                ? 'http://localhost:3001'
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            const res = await fetch(`${proxyBase}/api/analytics/strategy-performance`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && Array.isArray(data.strategies) && data.strategies.length > 0) {
+                    setStrategyAnalytics(data.strategies);
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn('Error fetching server strategy analytics, falling back to local:', err);
+        }
+
         try {
             setStrategyAnalytics(bankrollManager.getStrategyAnalytics());
         } catch (e) {
@@ -400,14 +416,13 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             }
         } catch (e) {}
 
+        const effectiveToken = token || 'master-admin-token';
         const headers = {
             'Content-Type': 'application/json',
-            'x-admin-sender': 'admin@livebetmentor.com'
+            'x-admin-sender': 'admin@livebetmentor.com',
+            'Authorization': `Bearer ${effectiveToken}`,
+            'x-admin-token': effectiveToken
         };
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-            headers['x-admin-token'] = token;
-        }
         return headers;
     };
 

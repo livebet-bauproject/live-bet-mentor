@@ -183,7 +183,8 @@ class BankrollManager {
         const stratId = primaryStrat.id || 'GENERIC';
         const stratLabel = primaryStrat.label || signal?.reason || signal?.mainReason || 'Genel Strateji';
 
-        const oddsTaken = Number(signal?.odds || signal?.marketOdds || signal?.bestEV?.marketOdds || fixture.odds?.home || 1.85);
+        const rawOdds = signal?.odds || signal?.marketOdds || signal?.bestEV?.marketOdds || fixture.odds?.home;
+        const oddsTaken = (rawOdds && Number(rawOdds) > 1.0) ? Number(rawOdds) : null;
         const marketName = signal?.suggestedMarket || signal?.market || primaryStrat.id || 'NEXT_GOAL';
         const scoreAtBet = { home: fixture.score?.home ?? 0, away: fixture.score?.away ?? 0 };
 

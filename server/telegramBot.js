@@ -70,6 +70,8 @@ class TelegramBot {
         // State
         this.sentSignals = new Map(); // matchId -> timestamp (duplicate guard)
         this.recentMessageHashes = new Map(); // chatId_text -> timestamp (30s duplicate delivery shield)
+        this.adminSupportMap = new Map(); // adminMsgId -> { customerChatId, customerUsername, timestamp }
+        this.lastCustomer = null; // { customerChatId, customerUsername, timestamp }
         this.messageQueue = [];
         this.isProcessing = false;
         this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
@@ -869,6 +871,11 @@ class TelegramBot {
             for (const [key, ts] of this.recentMessageHashes) {
                 if (now - ts > 60 * 1000) { this.recentMessageHashes.delete(key); cleaned++; }
             }
+            if (this.adminSupportMap) {
+                for (const [key, entry] of this.adminSupportMap) {
+                    if (now - (entry?.timestamp || 0) > 24 * 60 * 60 * 1000) { this.adminSupportMap.delete(key); cleaned++; }
+                }
+            }
             if (cleaned > 0) console.log(`[TELEGRAM] Pruned ${cleaned} stale entries from in-memory maps.`);
         }, 15 * 60 * 1000); // Every 15 minutes
     }
@@ -1048,6 +1055,7 @@ _Bol kazançlar dileriz! Live Bet Mentor VIP Syndicate_
         const chatId = msg.chat.id;
         const username = msg.from?.username || msg.from?.first_name || 'User';
         const isAdmin = vipManager.isAdmin(chatId);
+        let userLang = vipManager.getUserLang(chatId) || 'tr';
 
         // 0. Auto-detect forwarded channel or group ID
         if (msg.forward_from_chat) {
@@ -1097,57 +1105,181 @@ _Bol kazançlar dileriz! Live Bet Mentor VIP Syndicate_
                 }
             }
 
-            // If sender is NOT an admin, relay payment proof / question to Admin
+            // A. If sender is NOT an admin, relay support message / question / payment proof to Admin
             if (!isAdmin && (text || hasPhoto)) {
                 console.log(`[TELEGRAM] 📩 Customer submission from @${username} (${chatId}): ${text || '[Photo]'}`);
 
-                // A. Professional receipt acknowledgement to customer
-                const customerAck = `📩 *Submission Received!*
+                this.lastCustomer = {
+                    customerChatId: String(chatId),
+                    customerUsername: username,
+                    timestamp: Date.now()
+                };
+
+                const isPayment = hasPhoto || /\b(dekont|makbuz|odeme|ödeme|transfer|tutar|fatura|tx|hash|crypto|usdt|ton|shopier)\b/i.test(text);
+
+                // Professional acknowledgment to customer tailored to message type & language
+                if (isPayment) {
+                    const customerAck = userLang === 'de'
+                        ? `📩 *Zahlungsbeleg erhalten!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hallo @${username},
+Unser Team hat Ihren Beleg erhalten. Nach Prüfung wird Ihr VIP-Zugangslink direkt hier im Chat bereitgestellt.
+_Durchschnittliche Bearbeitungszeit: 2–5 Minuten._
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *LIVE BET MENTOR VIP*`
+                        : userLang === 'en'
+                        ? `📩 *Payment Submission Received!*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 Dear @${username},
-Our quantitative verification desk has received your submission.
-
-⏱️ *Status:* Under Verification
-Once verified, your private single-use VIP Syndicate access link will be delivered directly here in this chat.
-
+Our verification desk has received your submission. Once verified, your VIP access link will be delivered directly here in this chat.
 _Average activation time: 2–5 minutes._
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-💎 *LIVE BET MENTOR VIP SYNDICATE*`;
-                await this.sendMessage(chatId, customerAck);
-
-                // B. Relay alert directly to Admin
-                const adminAlert = `🔔 *NEW PAYMENT / RECEIPT SUBMITTED!* 🔔
+💎 *LIVE BET MENTOR VIP*`
+                        : `📩 *Ödeme Bildiriminiz Alındı!*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-👤 *User:* @${username}
+Sayın @${username},
+Ödeme dekontunuz / bildiriminiz destek ekibimize ulaştı. Kontrol tamamlandığında tek kullanımlık özel VIP giriş linkiniz doğrudan bu sohbete iletilecektir.
+_Ortalama aktivasyon süresi: 2–5 dakika._
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *LIVE BET MENTOR VIP*`;
+                    await this.sendMessage(chatId, customerAck);
+                } else {
+                    const customerAck = userLang === 'de'
+                        ? `👋 *Support-Anfrage erhalten!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Hallo @${username},
+Ihre Nachricht ist bei unserem Support-Team eingegangen. Wir werden Ihnen in Kürze direkt hier im Chat antworten.
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ *Live Bet Mentor Support*`
+                        : userLang === 'en'
+                        ? `👋 *Support Request Received!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Dear @${username},
+Your message has reached our live support desk. Our team will reply to you directly in this chat shortly.
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ *Live Bet Mentor Live Support*`
+                        : `👋 *Mesajınız Canlı Destek Ekibimize İletildi!*
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sayın @${username},
+Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa sürede doğrudan bu sohbete yazarak size yanıt verecektir.
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚡ *Live Bet Mentor Canlı Destek*`;
+                    await this.sendMessage(chatId, customerAck);
+                }
+
+                // Alert directly to Admin with intuitive 1-click reply instructions
+                const adminAlert = isPayment ? `🔔 *YENİ ÖDEME / DEKONT BİLDİRİMİ!* 🔔
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 *Kullanıcı:* @${username}
 🆔 *Chat ID:* \`${chatId}\`
-💬 *Note:* ${text || '(Receipt screenshot attached)'}
+💬 *Not:* ${text || '(Ekran görüntüsü / Dekont eklendi)'}
 
-⚡ *One-Tap VIP Approval:*
-• 30 Days: \`/grantvip ${chatId} 30\`
-• 7 Days: \`/grantvip ${chatId} 7\`
-• 90 Days: \`/grantvip ${chatId} 90\`
+⚡ *Hızlı VIP Onaylama:*
+• 30 Gün: \`/grantvip ${chatId} 30\`
+• 7 Gün: \`/grantvip ${chatId} 7\`
+• 90 Gün: \`/grantvip ${chatId} 90\`
 
-💬 *To reply to user:*
-\`/reply ${chatId} Your message here...\`
+💬 *Müşteriye Cevap Vermek İçin:*
+👉 Bu mesaja Telegram'da doğrudan **"Yanıtla" (Reply)** yapıp yazmanız yeterlidir!
+(Veya komutla: \`/reply ${chatId} Mesajınız\`)
+━━━━━━━━━━━━━━━━━━━━━━━━━━` : `💬 *YENİ MÜŞTERİ CANLI DESTEK MESAJI!* 💬
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 *Kullanıcı:* @${username}
+🆔 *Chat ID:* \`${chatId}\`
+📝 *Mesaj:* ${text || '(Medya gönderildi)'}
+
+💬 *Müşteriye Cevap Vermek İçin:*
+👉 Bu mesaja Telegram'da doğrudan **"Yanıtla" (Reply)** yapıp cevabınızı yazın!
+(Veya komutla: \`/reply ${chatId} Mesajınız\`)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
                 for (const adminId of vipManager.adminIds) {
                     if (adminId && adminId !== 'admin' && adminId !== '12345678') {
+                        let sentMsg = null;
                         if (hasPhoto) {
-                            await this.sendPhoto(adminId, photoFileId, adminAlert);
+                            sentMsg = await this.sendPhoto(adminId, photoFileId, adminAlert);
                         } else {
-                            await this.sendMessage(adminId, adminAlert);
+                            sentMsg = await this.sendMessage(adminId, adminAlert);
+                        }
+                        if (sentMsg && sentMsg.message_id) {
+                            this.adminSupportMap.set(sentMsg.message_id, {
+                                customerChatId: String(chatId),
+                                customerUsername: username,
+                                timestamp: Date.now()
+                            });
                         }
                     }
                 }
                 return;
             }
+
+            // B. If sender IS an admin and message is not a command, forward admin reply to customer
+            if (isAdmin && (text || hasPhoto)) {
+                let targetChatId = null;
+                let targetUsername = null;
+
+                // 1. Check if admin replied directly to a message in Telegram (msg.reply_to_message)
+                if (msg.reply_to_message) {
+                    const rMsgId = msg.reply_to_message.message_id;
+                    const mapped = this.adminSupportMap.get(rMsgId);
+                    if (mapped) {
+                        targetChatId = mapped.customerChatId;
+                        targetUsername = mapped.customerUsername;
+                    } else {
+                        // Regex fallback from quoted text or caption
+                        const quotedText = msg.reply_to_message.text || msg.reply_to_message.caption || '';
+                        const matchId = quotedText.match(/(?:Chat ID|🆔):\s*`?([0-9\-]+)`?/i);
+                        if (matchId) {
+                            targetChatId = matchId[1].trim();
+                        }
+                        const matchUser = quotedText.match(/(?:User|Kullanıcı|👤):\s*@?([a-zA-Z0-9_]+)/i);
+                        if (matchUser) {
+                            targetUsername = matchUser[1].trim();
+                        }
+                    }
+                }
+
+                // 2. Fallback: if not replying to a specific message, use last customer within 60 minutes
+                if (!targetChatId && this.lastCustomer && (Date.now() - (this.lastCustomer.timestamp || 0) < 60 * 60 * 1000)) {
+                    targetChatId = this.lastCustomer.customerChatId;
+                    targetUsername = this.lastCustomer.customerUsername;
+                }
+
+                if (targetChatId) {
+                    const custLang = vipManager.getUserLang(targetChatId) || 'tr';
+                    const supportTitle = custLang === 'de' 
+                        ? '💬 *Live Bet Mentor Support:*'
+                        : custLang === 'en'
+                        ? '💬 *Live Bet Mentor Support Desk:*'
+                        : '💬 *Live Bet Mentor Destek:*';
+
+                    const forwardText = `${supportTitle}\n\n${text}\n\n━━━━━━━━━━━━━━━━━━\n💎 *Live Bet Mentor*`;
+
+                    let delivered = null;
+                    if (hasPhoto) {
+                        delivered = await this.sendPhoto(targetChatId, photoFileId, forwardText);
+                    } else {
+                        delivered = await this.sendMessage(targetChatId, forwardText);
+                    }
+
+                    if (delivered) {
+                        await this.sendMessage(chatId, `✅ *Cevabınız başarıyla iletildi!*\n👤 Alıcı: @${targetUsername || targetChatId} (\`${targetChatId}\`)`);
+                    } else {
+                        await this.sendMessage(chatId, `❌ *Hata:* Mesaj müşteriye iletilemedi (\`${targetChatId}\`). Müşteri botu engellemiş veya sohbeti silmiş olabilir.`);
+                    }
+                    return;
+                } else {
+                    await this.sendMessage(chatId, `ℹ️ *Müşteri Belirlenemedi*\n\nMüşteriye cevap vermek için lütfen gelen mesaja Telegram'da **"Yanıtla" (Reply)** seçeneğini kullanarak yazınız veya komut kullanınız:\n\`/reply <ChatID> <Mesaj>\``);
+                    return;
+                }
+            }
+
             return;
         }
 
         console.log(`[TELEGRAM] Command from ${username}: ${text}`);
 
-        let userLang = vipManager.getUserLang(chatId);
+        userLang = vipManager.getUserLang(chatId) || userLang;
 
         const parts = text.split(/\s+/);
         const cmd = parts[0].toLowerCase();

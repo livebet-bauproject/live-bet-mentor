@@ -190,10 +190,17 @@ export const aiAnalystService = {
         const bigChancesAway = rawBigChancesAway > 0 ? rawBigChancesAway : (shotsAway >= 5 ? 2 : (shotsAway >= 2 ? 1 : 0));
 
         // 2. Synthetic & Validated xG Engine
-        // When provider sends 0 xG or null, compute realistic Synthetic xG (Expected Threat)
+        // When provider sends 0 xG or null, compute realistic Synthetic xG
         const calcSyntheticXg = (shotsOn, shotsOff, bigCh, attacks, goals) => {
-            let xg = (shotsOn * 0.18) + (shotsOff * 0.04) + (bigCh * 0.35) + (attacks * 0.012) + (goals * 0.25);
-            return Math.max(goals * 0.40, Math.round(xg * 100) / 100);
+            const sOn = Math.max(0, Number(shotsOn) || 0);
+            const sOff = Math.max(0, Number(shotsOff) || 0);
+            const totalShots = sOn + sOff;
+            if (totalShots === 0) {
+                return (Number(goals) || 0) > 0 ? Math.round(goals * 0.75 * 100) / 100 : 0.02;
+            }
+            let xg = (sOn * 0.22) + (sOff * 0.04) + (bigCh * 0.35) + (attacks * 0.001);
+            if (goals > 0) xg = Math.max(xg, goals * 0.35);
+            return Math.max(0.02, Math.round(xg * 100) / 100);
         };
 
         const rawXgHome = Number(stats.xg?.home ?? 0);

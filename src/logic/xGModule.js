@@ -25,15 +25,31 @@ export class XGModule {
             xgAway = stats.xg.away || 0;
             source = 'PRIMARY_DATA';
         } else {
-            // Simplified xG calculation for Live Test fallback
-            // SOG ≈ 0.15 xG, Dangerous Attack ≈ 0.02 xG, Big Chance ≈ 0.45 xG
-            xgHome = (stats?.shotsOnGoal?.home || 0) * 0.15 +
-                (stats?.dangerousAttacks?.home || 0) * 0.02 +
-                (stats?.bigChances?.home || 0) * 0.45;
+            // Grounded fallback xG calculation:
+            // Shots and goals are the primary driver of xG (Opta / StatsBomb standard)
+            const sogH = Number(stats?.shotsOnGoal?.home || 0);
+            const sogA = Number(stats?.shotsOnGoal?.away || 0);
+            const tsH = Number(stats?.totalShots?.home || 0);
+            const tsA = Number(stats?.totalShots?.away || 0);
+            const bcH = Number(stats?.bigChances?.home || 0);
+            const bcA = Number(stats?.bigChances?.away || 0);
+            const daH = Number(stats?.dangerousAttacks?.home || 0);
+            const daA = Number(stats?.dangerousAttacks?.away || 0);
 
-            xgAway = (stats?.shotsOnGoal?.away || 0) * 0.15 +
-                (stats?.dangerousAttacks?.away || 0) * 0.02 +
-                (stats?.bigChances?.away || 0) * 0.45;
+            // If 0 total shots, xG cannot exceed 0.05 unless goal scored
+            if (tsH === 0 && sogH === 0) {
+                xgHome = (score?.home || 0) > 0 ? Number((score.home * 0.75).toFixed(2)) : 0.02;
+            } else {
+                xgHome = (sogH * 0.22) + (Math.max(0, tsH - sogH) * 0.04) + (bcH * 0.35) + (daH * 0.001);
+                if ((score?.home || 0) > 0) xgHome = Math.max(xgHome, score.home * 0.35);
+            }
+
+            if (tsA === 0 && sogA === 0) {
+                xgAway = (score?.away || 0) > 0 ? Number((score.away * 0.75).toFixed(2)) : 0.02;
+            } else {
+                xgAway = (sogA * 0.22) + (Math.max(0, tsA - sogA) * 0.04) + (bcA * 0.35) + (daA * 0.001);
+                if ((score?.away || 0) > 0) xgAway = Math.max(xgAway, score.away * 0.35);
+            }
         }
 
         // Tactical Red Card xG Modifier

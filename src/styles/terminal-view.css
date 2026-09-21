@@ -1277,3 +1277,161 @@
     display: none !important;
   }
 }
+
+/* ==========================================================================
+   FAVORITE / PIN MATCH ACTION SYSTEM (Modern Glass Button & Drawer Actions)
+   ========================================================================== */
+
+/* Standalone Glass Star Button in Card Header & Table */
+.tb-fav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  padding: 0;
+  margin-right: 2px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  position: relative;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tb-fav-btn:hover {
+  border-color: rgba(251, 191, 36, 0.5);
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  transform: scale(1.08);
+}
+
+.tb-fav-btn:active {
+  transform: scale(0.92);
+}
+
+.tb-fav-btn.pinned {
+  border-color: rgba(245, 158, 11, 0.65);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(217, 119, 6, 0.12));
+  color: #fbbf24;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4), inset 0 0 6px rgba(245, 158, 11, 0.15);
+  animation: tbFavPop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes tbFavPop {
+  0% { transform: scale(0.8); }
+  50% { transform: scale(1.24); }
+  100% { transform: scale(1); }
+}
+
+/* Expanded Card Drawer - Big Clear Action Button */
+.tb-drawer-fav-action {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--tb-text-secondary, #cbd5e1);
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.tb-drawer-fav-action:hover {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
+.tb-drawer-fav-action.pinned {
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.18);
+}
+
+/* Desktop Table Row Detail Action Button */
+.tb-detail-fav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--tb-text-secondary, #cbd5e1);
+  transition: all 0.2s ease;
+}
+
+.tb-detail-fav-btn:hover {
+  border-color: rgba(251, 191, 36, 0.45);
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.tb-detail-fav-btn.pinned {
+  border-color: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+/* Onboarding Empty State for Pinned Filter */
+.tb-pinned-empty-state {
+  padding: 2.8rem 1.5rem;
+  text-align: center;
+  background: radial-gradient(circle at center, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%);
+  border: 1px dashed rgba(245, 158, 11, 0.35);
+  border-radius: 14px;
+  margin: 1rem 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.tb-pinned-empty-icon {
+  font-size: 2.4rem;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.5));
+  animation: tbPulseGlow 2.5s infinite ease-in-out;
+}
+
+.tb-pinned-empty-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #fbbf24;
+  letter-spacing: 0.3px;
+}
+
+.tb-pinned-empty-desc {
+  font-size: 0.82rem;
+  color: var(--tb-text-muted, #94a3b8);
+  max-width: 440px;
+  line-height: 1.5;
+}
+
+@keyframes tbPulseGlow {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.4)); }
+  50% { transform: scale(1.1); filter: drop-shadow(0 0 16px rgba(245, 158, 11, 0.7)); }
+}
+

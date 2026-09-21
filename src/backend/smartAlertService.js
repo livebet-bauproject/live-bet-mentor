@@ -1,5 +1,6 @@
 import { CONFIG } from '../config.js';
 import { aiUsageLimiter } from './aiUsageLimiter.js';
+import { getAdminHeaders } from '../utils/adminAuth.js';
 
 class SmartAlertService {
     constructor() {
@@ -1103,7 +1104,7 @@ class SmartAlertService {
 
             fetch(`${proxyBase}/api/telegram/send-signal`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     id: alert.id,
                     matchId: alert.matchId,
@@ -1157,7 +1158,7 @@ class SmartAlertService {
 
             fetch(`${proxyBase}/api/telegram/resolve-signal`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAdminHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({
                     id: alert.id,
                     matchId: alert.matchId,

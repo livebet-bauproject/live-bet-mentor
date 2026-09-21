@@ -8,6 +8,22 @@ import { AttackMomentumGraph as DefaultAttackGraph } from './AttackMomentumGraph
 import { MatchIncidentsTimeline as DefaultIncidentsTimeline } from './MatchIncidentsTimeline';
 import { GlobalConsensusCard } from './GlobalConsensusCard';
 
+const StarIcon = ({ filled = false, size = 14 }) => (
+    <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill={filled ? '#fbbf24' : 'none'}
+        stroke={filled ? '#fbbf24' : 'currentColor'}
+        strokeWidth={filled ? '1.5' : '2'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0 }}
+    >
+        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+);
+
 export const LiveTerminalMobile = ({
     matches = [],
     signals = {},
@@ -25,7 +41,8 @@ export const LiveTerminalMobile = ({
     MatchIncidentsTimeline = null,
     hideInTableMode = false,
     userProfile = null,
-    onOpenUpgrade = () => {}
+    onOpenUpgrade = () => {},
+    terminalCategoryFilter = 'ALL'
 }) => {
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
@@ -111,6 +128,24 @@ export const LiveTerminalMobile = ({
     };
 
     if (!Array.isArray(matches) || matches.length === 0) {
+        if (terminalCategoryFilter === 'PINNED') {
+            return (
+                <div className="tb-pinned-empty-state">
+                    <div className="tb-pinned-empty-icon">⭐</div>
+                    <div className="tb-pinned-empty-title">
+                        {lang === 'tr' ? 'Henüz Favori Maçınız Yok' : (lang === 'de' ? 'Noch keine Favoriten vorhanden' : 'No Favorite Matches Yet')}
+                    </div>
+                    <div className="tb-pinned-empty-desc">
+                        {lang === 'tr' 
+                            ? 'Canlı takip etmek istediğiniz maçların solundaki ☆ yıldız butonuna basarak maçları buraya sabitleyebilir, anlık baskı ve gol fırsatlarını tek ekranda izleyebilirsiniz.'
+                            : (lang === 'de' 
+                                ? 'Tippen Sie auf das ☆ Stern-Symbol links neben einem Spiel, um es hier anzuheften.' 
+                                : 'Tap the ☆ star button on the left of any match card to pin it here and track live pressure and alerts.')}
+                    </div>
+                </div>
+            );
+        }
+
         return (
             <div className="tb-mobile-empty" style={{
                 padding: '2.5rem 1rem',
@@ -225,18 +260,12 @@ export const LiveTerminalMobile = ({
                                 <div className="tb-m-min-league">
                                     <button
                                         type="button"
+                                        className={`tb-action-ignore tb-fav-btn ${isPinned ? 'pinned' : ''}`}
                                         onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: isPinned ? '#facc15' : 'rgba(255,255,255,0.25)',
-                                            fontSize: '0.9rem',
-                                            padding: '0 2px',
-                                            cursor: 'pointer'
-                                        }}
-                                        title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
+                                        title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle (Sabitle)' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
+                                        aria-label={isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
                                     >
-                                        ★
+                                        <StarIcon filled={isPinned} size={14} />
                                     </button>
                                     <span className="tb-m-min">
                                         <span className="tb-pulse-dot" style={{ display: 'inline-block', marginRight: '4px' }} />
@@ -448,6 +477,21 @@ export const LiveTerminalMobile = ({
                             {/* Mobile Drawer on Click */}
                             {isExpanded && (
                                 <div className="tb-m-drawer tb-action-ignore">
+                                    {/* Quick Favorite Action Button */}
+                                    <button
+                                        type="button"
+                                        className={`tb-drawer-fav-action ${isPinned ? 'pinned' : ''}`}
+                                        onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
+                                    >
+                                        <StarIcon filled={isPinned} size={15} />
+                                        <span>
+                                            {isPinned 
+                                                ? (lang === 'tr' ? 'Favorilerden Çıkar (Sabitlendi ★)' : (lang === 'de' ? 'Aus Favoriten entfernen (Fixiert ★)' : 'Remove from Favorites (Pinned ★)'))
+                                                : (lang === 'tr' ? '☆ Bu Maçı Favorilere Ekle / Sabitle' : (lang === 'de' ? '☆ Zu Favoriten hinzufügen / Anheften' : '☆ Add Match to Favorites / Pin'))
+                                            }
+                                        </span>
+                                    </button>
+
                                     {/* Momentum Graph */}
                                     {EffectiveAttackGraph && (
                                         <div style={{ background: 'rgba(0,0,0,0.2)', padding: '6px', borderRadius: '8px' }}>
@@ -502,7 +546,12 @@ export const LiveTerminalMobile = ({
                                                                 fontWeight: 700
                                                             }}
                                                         >
-                                                            ⚡ {strat.label} {strat.score ? `(%${Math.round(strat.score)})` : ''}
+                                                            ⚡ {strat.label} {(() => {
+                                                                const rawVal = strat.confidence || strat.score;
+                                                                if (!rawVal) return '';
+                                                                const pct = Math.min(88, Math.max(50, Math.round(rawVal > 100 ? (rawVal / 2) : rawVal)));
+                                                                return `(%${pct})`;
+                                                            })()}
                                                         </span>
                                                     ))}
                                                 </div>

@@ -273,8 +273,10 @@ export class AutonomousSignalEngine {
             const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_home', { teamName: homeTeam });
             if (oddsRes?.suspended) return null;
 
-            const oddsVal = oddsRes?.odds || parseFloat((1.65 + (minute / 90) * 0.45).toFixed(2));
+            const oddsVal = oddsRes?.odds || null;
             selectedSetup = {
+                strategyId: 'PRESS',
+                strategyLabel: 'Baskı Dominasyonu',
                 level: 'ALPHA',
                 marketKey: 'market_next_goal_home',
                 marketLabel: `Sıradaki Gol: ${homeTeam}`,
@@ -291,8 +293,10 @@ export class AutonomousSignalEngine {
             const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_away', { teamName: awayTeam });
             if (oddsRes?.suspended) return null;
 
-            const oddsVal = oddsRes?.odds || parseFloat((1.70 + (minute / 90) * 0.50).toFixed(2));
+            const oddsVal = oddsRes?.odds || null;
             selectedSetup = {
+                strategyId: 'PRESS',
+                strategyLabel: 'Baskı Dominasyonu',
                 level: 'ALPHA',
                 marketKey: 'market_next_goal_away',
                 marketLabel: `Sıradaki Gol: ${awayTeam}`,
@@ -314,17 +318,13 @@ export class AutonomousSignalEngine {
             const oddsRes = this.getRealMarketOdds(ev.id, 'market_over_goals', { targetLine });
             if (oddsRes?.suspended) return null;
 
-            let oddsVal = null;
-            if (oddsRes?.odds) {
-                oddsVal = oddsRes.odds;
-            } else {
-                // Dynamic time-decay Poisson model instead of static 1.84
-                const remainingMin = Math.max(15, 95 - minute);
-                const dynamicVal = 1.15 + (68 / remainingMin) * 0.42;
-                oddsVal = parseFloat(Math.min(2.80, Math.max(1.35, dynamicVal)).toFixed(2));
-            }
+            const oddsVal = oddsRes?.odds || null;
+            const stratId = minute >= 70 ? 'MOMENTUM' : (minute <= 40 ? 'FHG' : 'PRESS');
+            const stratLabel = minute >= 70 ? 'Son 15dk Patlaması' : (minute <= 40 ? 'İY 0.5 Üst Erken Gol' : 'Baskı Dominasyonu');
 
             selectedSetup = {
+                strategyId: stratId,
+                strategyLabel: stratLabel,
                 level: totalSOT >= 7 ? 'ALPHA' : 'ALEV',
                 marketKey: 'market_over_goals',
                 marketLabel: `Maçta ${targetLine} Üst Gol`,
@@ -343,16 +343,11 @@ export class AutonomousSignalEngine {
             const oddsRes = this.getRealMarketOdds(ev.id, 'market_btts');
             if (oddsRes?.suspended) return null;
 
-            let oddsVal = null;
-            if (oddsRes?.odds) {
-                oddsVal = oddsRes.odds;
-            } else {
-                const remainingMin = Math.max(20, 95 - minute);
-                const dynamicVal = 1.35 + (65 / remainingMin) * 0.42;
-                oddsVal = parseFloat(Math.min(2.75, Math.max(1.40, dynamicVal)).toFixed(2));
-            }
+            const oddsVal = oddsRes?.odds || null;
 
             selectedSetup = {
+                strategyId: 'BTTS',
+                strategyLabel: 'KG Var Dinamiği',
                 level: 'ALEV',
                 marketKey: 'market_btts',
                 marketLabel: 'Karşılıklı Gol Var (KG Var)',
@@ -369,6 +364,10 @@ export class AutonomousSignalEngine {
 
         if (!selectedSetup) return null;
 
+        const predText = selectedSetup.odds
+            ? `${selectedSetup.marketLabel} (Oran: ${selectedSetup.odds})`
+            : selectedSetup.marketLabel;
+
         return {
             id: `sig_${ev.id}_${minute}`,
             matchId: String(ev.id),
@@ -379,7 +378,7 @@ export class AutonomousSignalEngine {
             minute,
             level: selectedSetup.level,
             recommendation: {
-                predictionText: `${selectedSetup.marketLabel} (Oran: ${selectedSetup.odds})`,
+                predictionText: predText,
                 marketKey: selectedSetup.marketKey,
                 marketLabel: selectedSetup.marketLabel,
                 odds: selectedSetup.odds,
@@ -388,13 +387,18 @@ export class AutonomousSignalEngine {
                 reasoning: selectedSetup.reasoning
             },
             activeStrategies: [
-                { icon: selectedSetup.level === 'ALPHA' ? '💎' : '🔥', label: 'Canlı İvme Radarı', verdict: selectedSetup.reasoning[0] }
+                {
+                    id: selectedSetup.strategyId,
+                    icon: selectedSetup.level === 'ALPHA' ? '💎' : '🔥',
+                    label: selectedSetup.strategyLabel,
+                    verdict: selectedSetup.reasoning[0]
+                }
             ],
             maxEV: 0.12,
             bestEV: {
                 ev: 12,
                 label: selectedSetup.marketLabel,
-                fairOdds: (selectedSetup.odds * 0.88).toFixed(2),
+                fairOdds: selectedSetup.odds ? (selectedSetup.odds * 0.88).toFixed(2) : null,
                 marketOdds: selectedSetup.odds,
                 trueProb: selectedSetup.confidence
             },

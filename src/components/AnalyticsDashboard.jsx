@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getAdminHeaders } from '../utils/adminAuth';
 
 export const AnalyticsDashboard = ({ lang = 'tr' }) => {
     const [period, setPeriod] = useState('24h'); // '24h', '7d', '30d', 'all'
@@ -172,12 +173,6 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         return isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
     };
-
-    const getAdminHeaders = () => ({
-        'Content-Type': 'application/json',
-        'x-admin-sender': 'admin@livebetmentor.com',
-        'x-admin-token': 'master-admin-token'
-    });
 
     const fetchSummary = async (isManual = false) => {
         if (isManual) setRefreshing(true);

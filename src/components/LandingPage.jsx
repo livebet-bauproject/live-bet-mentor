@@ -7,7 +7,9 @@ import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import { trackAnalyticsEvent } from '../utils/analyticsTracker';
 import '../styles/global.css';
 
-export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
+export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, settings = {} }) => {
+    const telegramUsername = (settings?.telegram_support || settings?.telegram || '@Livebetdeskbot').replace(/^@/, '');
+    const telegramSupportUrl = `https://t.me/${telegramUsername}?start=lang_${lang || 'tr'}`;
     const [view, setView] = useState('login'); // 'login' or 'register'
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -325,7 +327,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang }) => {
 
                 <div className="landing-nav-actions" style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
                     <a 
-                        href={`https://t.me/Livebetdeskbot?start=lang_${lang || 'tr'}`} 
+                        href={telegramSupportUrl} 
                         target="_blank" 
                         rel="noreferrer" 
                         className="landing-nav-tg"

@@ -68,13 +68,38 @@ export const strategyEngine = {
             if (pressure.dominantTeam === 'HOME' && isHomeLeadingComfortably) return { active: false };
             if (pressure.dominantTeam === 'AWAY' && isAwayLeadingComfortably) return { active: false };
 
+            // 3. MOMENTUM ÇELİŞKİSİ VETOSU (Stale Cumulative Stats Guard):
+            // Maçın genelinde ev sahibi topla oynamış olsa bile, son 15-20 dakikada rakip takım
+            // sahayı tek kaleye çevirmişse (örn: +10 atak, %75+ momentum), oyunu düşmüş takıma sıradaki gol önerilemez!
+            const history = (match.history && match.history.length > 0) ? match.history : (match.minuteHistory || []);
+            if (history && history.length >= 2) {
+                const latest = history[0];
+                const prev = history.find(h => (latest.timestamp - h.timestamp) >= 10 * 60 * 1000) || history[history.length - 1];
+                if (prev && latest.stats && prev.stats) {
+                    const daHomeRecent = (latest.stats.dangerousAttacks?.home || 0) - (prev.stats.dangerousAttacks?.home || 0);
+                    const daAwayRecent = (latest.stats.dangerousAttacks?.away || 0) - (prev.stats.dangerousAttacks?.away || 0);
+                    
+                    if (pressure.dominantTeam === 'HOME' && daAwayRecent >= (daHomeRecent + 8)) {
+                        return { active: false }; // Ev sahibinin temposu çöktü, deplasman yükleniyor
+                    }
+                    if (pressure.dominantTeam === 'AWAY' && daHomeRecent >= (daAwayRecent + 8)) {
+                        return { active: false }; // Deplasmanın temposu çöktü, ev sahibi yükleniyor
+                    }
+                }
+            }
+
             const team = pressure.dominantTeam === 'HOME' ? (match.homeTeam || 'Ev Sahibi') : (match.awayTeam || 'Deplasman');
+            // Calibrate confidence percentage realistically (55% - 82%)
+            const confidence = Math.min(82, Math.max(55, Math.round(55 + (pressure.total - threshold) * 0.4)));
+
             return {
                 active: true,
                 id: 'PRESS',
                 label: `Sıradaki Gol: ${team}`,
                 icon: '🔥',
-                score: pressure.total,
+                score: confidence,
+                confidence,
+                pressureScore: pressure.total,
                 verdict: `${pressure.dominantTeam === 'HOME' ? 'Ev' : 'Dep'} Baskısı: ${pressure.total.toFixed(0)} Puan`,
                 team
             };
@@ -110,12 +135,14 @@ export const strategyEngine = {
         const growth = attThen > 0 ? (attNow - attThen) / Math.max(1, attThen) : 0;
 
         if (growth > 0.35 && observations.pressure?.total > 50) {
+            const confidence = Math.min(85, Math.max(58, Math.round(55 + Math.min(growth, 1.0) * 25)));
             return {
                 active: true,
                 id: 'MOMENTUM',
                 label: 'SON 15DK PATLAMASI',
                 icon: '⚡',
-                score: growth * 100,
+                score: confidence,
+                confidence,
                 verdict: `Son 15dk: %${(growth * 100).toFixed(0)} İvme Artışı`
             };
         }
@@ -133,12 +160,14 @@ export const strategyEngine = {
         const pressure = observations.pressure?.total || 0;
 
         if (minute > 10 && minute < 35 && score.home === 0 && score.away === 0 && pressure > 65) {
+            const confidence = Math.min(82, Math.max(58, Math.round(50 + Math.min(pressure, 100) * 0.3)));
             return {
                 active: true,
                 id: 'FHG',
                 label: 'İY 0.5 ÜST',
                 icon: '🏆',
-                score: pressure,
+                score: confidence,
+                confidence,
                 verdict: `Dk:${minute} Erken Baskı Mevcut`
             };
         }
@@ -163,12 +192,14 @@ export const strategyEngine = {
         const isAwayTrailing = score.away < score.home && pressure.dominantTeam === 'AWAY';
 
         if ((isHomeTrailing || isAwayTrailing) && pressure.total > 60) {
+            const confidence = Math.min(80, Math.max(55, Math.round(52 + Math.min(pressure.total, 100) * 0.28)));
             return {
                 active: true,
                 id: 'COMEBACK',
                 label: 'GERİ DÖNÜŞ',
                 icon: '💪',
-                score: pressure.total,
+                score: confidence,
+                confidence,
                 verdict: `Geriye Düşen Takım Baskıyı Artırdı`,
                 team: isHomeTrailing ? match.homeTeam : match.awayTeam
             };
@@ -198,12 +229,14 @@ export const strategyEngine = {
         const isAwayTrailing = score.away < score.home && isAwayFav && pressure.dominantTeam === 'AWAY';
 
         if ((isHomeTrailing || isAwayTrailing) && pressure.total > 75) {
+            const confidence = Math.min(84, Math.max(60, Math.round(55 + Math.min(pressure.total, 100) * 0.28)));
             return {
                 active: true,
                 id: 'ADV_COMEBACK',
                 label: 'FAVORİ GERİ DÖNÜŞ',
                 icon: '🚀',
-                score: pressure.total + 10,
+                score: confidence,
+                confidence,
                 verdict: `Haksız Skor (Favori Baskıda)`,
                 team: isHomeTrailing ? match.homeTeam : match.awayTeam
             };
@@ -225,12 +258,14 @@ export const strategyEngine = {
         const totalSog = (stats.shotsOnGoal?.home || 0) + (stats.shotsOnGoal?.away || 0);
 
         if (totalPressure > 130 && totalSog > 8 && minute > 50 && minute < 85) {
+            const confidence = Math.min(84, Math.max(58, Math.round(55 + Math.min(totalPressure - 130, 70) * 0.35)));
             return {
                 active: true,
                 id: 'OVER_EXPOSURE',
                 label: 'SKOR MARUZİYETİ',
                 icon: '📈',
-                score: totalPressure / 1.5,
+                score: confidence,
+                confidence,
                 verdict: `Açık Oyun & Çift Taraflı Baskı`
             };
         }
@@ -283,7 +318,8 @@ export const strategyEngine = {
                 id: 'STATS',
                 label: `Sıradaki Gol: ${team}`,
                 icon: '📊',
-                score: 80,
+                score: 76,
+                confidence: 76,
                 verdict: `${isHome ? 'Ev' : 'Dep'} Net İstatistik Üstünlüğü`,
                 team
             };
@@ -317,12 +353,15 @@ export const strategyEngine = {
 
         if ((cornersNow - cornersThen) >= 3) {
             const dominantTeam = (match.stats?.corners?.home || 0) > (match.stats?.corners?.away || 0) ? (match.homeTeam || 'Ev Sahibi') : (match.awayTeam || 'Deplasman');
+            const diff = cornersNow - cornersThen;
+            const confidence = Math.min(78, Math.max(55, Math.round(55 + diff * 6)));
             return {
                 active: true,
                 id: 'CORNERS',
                 label: `Sıradaki Gol: ${dominantTeam}`,
                 icon: '🚩',
-                score: (cornersNow - cornersThen) * 20,
+                score: confidence,
+                confidence,
                 verdict: `Son 10dk: ${cornersNow - cornersThen} Yeni Korner`,
                 team: dominantTeam
             };
