@@ -40,14 +40,26 @@ const SupportStaffDesk = ({
     const isTr = lang === 'tr';
     const isDe = lang === 'de';
 
+    const [searchQuery, setSearchQuery] = useState('');
+
     const waitingSessions = supportSessions.filter(s => s.status === 'waiting_admin');
     const activeSessions = supportSessions.filter(s => s.status === 'active');
     const closedSessions = supportSessions.filter(s => s.status === 'closed');
 
     const filteredSessions = supportSessions.filter(s => {
-        if (supportFilter === 'waiting') return s.status === 'waiting_admin';
-        if (supportFilter === 'active') return s.status === 'active';
-        if (supportFilter === 'closed') return s.status === 'closed';
+        if (supportFilter === 'waiting' && s.status !== 'waiting_admin') return false;
+        if (supportFilter === 'active' && s.status !== 'active') return false;
+        if (supportFilter === 'closed' && s.status !== 'closed') return false;
+
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase().trim();
+            const email = (s.userInfo?.email || '').toLowerCase();
+            const name = (s.userInfo?.name || '').toLowerCase();
+            const sId = (s.sessionId || '').toLowerCase();
+            const msgMatch = (s.messages || []).some(m => (m.text || '').toLowerCase().includes(q));
+            return email.includes(q) || name.includes(q) || sId.includes(q) || msgMatch;
+        }
+
         return true;
     });
 
@@ -207,6 +219,27 @@ const SupportStaffDesk = ({
                         }}>
                             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.8rem', textTransform: 'uppercase' }}>
                                 {isTr ? 'Sohbet Oturumları' : 'Chat Sessions'} ({filteredSessions.length})
+                            </div>
+
+                            {/* Live Search Box for Audit & Past History */}
+                            <div style={{ marginBottom: '0.8rem' }}>
+                                <input
+                                    type="text"
+                                    placeholder={isTr ? "🔍 Kullanıcı, e-posta veya mesaj ara..." : "🔍 Search user, email or message..."}
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.45rem 0.75rem',
+                                        background: 'rgba(255,255,255,0.05)',
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '8px',
+                                        color: '#fff',
+                                        fontSize: '0.75rem',
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
                             </div>
 
                             {filteredSessions.length === 0 ? (
@@ -737,7 +770,7 @@ const SupportStaffDesk = ({
     );
 };
 
-export const AdminPanel = ({ lang = 'tr' }) => {
+export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
     const [profiles, setProfiles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [email, setEmail] = useState('');
@@ -745,7 +778,17 @@ export const AdminPanel = ({ lang = 'tr' }) => {
     const [subscriptionDays, setSubscriptionDays] = useState(3);
     const [selectedPlan, setSelectedPlan] = useState('trial');
     const [status, setStatus] = useState({ type: '', message: '' });
-    const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'active', 'all', 'upgrades'
+    const [activeTab, setActiveTab] = useState(() => {
+        if (initialTab) return initialTab;
+        try {
+            if (typeof window !== 'undefined') {
+                const p = new URLSearchParams(window.location.search);
+                if (p.get('tab') === 'support_staff' || p.get('tab') === 'support' || p.get('session')) return 'support_staff';
+                if (p.get('tab') === 'web_analytics') return 'web_analytics';
+            }
+        } catch (e) {}
+        return 'pending';
+    });
     const [upgradeRequests, setUpgradeRequests] = useState([]);
     const [editingUser, setEditingUser] = useState(null);
     const [systemSettings, setSystemSettings] = useState({});
@@ -1151,6 +1194,16 @@ export const AdminPanel = ({ lang = 'tr' }) => {
             return () => clearInterval(interval);
         }
     }, [activeTab, activeSupportSession?.sessionId]);
+
+    // Automatically focus target session when arriving from Telegram deep-link
+    useEffect(() => {
+        const targetSid = initialSessionId || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('session') : null);
+        if (targetSid) {
+            setActiveTab('support_staff');
+            setSupportSubTab('chats');
+            fetchSessionDetail(targetSid);
+        }
+    }, [initialSessionId]);
 
     const handleToggleStrategy = (key) => {
         const newSettings = { ...strategySettings, [key]: !strategySettings[key] };

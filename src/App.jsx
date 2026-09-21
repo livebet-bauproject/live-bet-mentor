@@ -177,6 +177,45 @@ function App() {
     }
   }, [lang]);
 
+  // One-Click Telegram-to-Web Admin Quick-Auth & Deep-Link Handler
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const auth = urlParams.get('auth');
+      const tab = urlParams.get('tab');
+      
+      if (auth) {
+        fetch(`${proxyBase}/api/admin/quick-auth?token=${encodeURIComponent(auth)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data?.success && data?.user && data?.token) {
+              const sessionPayload = { user: data.user, token: data.token };
+              localStorage.setItem('lbm_admin_session', JSON.stringify(sessionPayload));
+              setSession(sessionPayload);
+              setUserProfile({
+                id: data.user.id || 'admin-super',
+                email: data.user.email,
+                status: 'active',
+                plan: 'admin',
+                display_name: data.user.display_name || 'LiveBet Admin',
+                subscription_end: '2099-12-31T23:59:59.000Z'
+              });
+              setPage('dashboard');
+            }
+          })
+          .catch(err => {
+            console.error('[AUTH] Quick auth verification failed:', err);
+          });
+      } else if (tab === 'support_staff' || tab === 'support') {
+        const savedAdmin = localStorage.getItem('lbm_admin_session');
+        if (savedAdmin) {
+          setPage('dashboard');
+        }
+      }
+    } catch (e) {}
+  }, []);
+
   // Initialize in-house cookieless analytics tracker
   useEffect(() => {
     initAnalytics({ userProfile });

@@ -2025,6 +2025,41 @@ const isSupportStaffRequest = (req) => {
     return false;
 };
 
+// 3.5 Quick Auth Endpoint for 1-Click Telegram-to-Web Admin Access
+app.get('/api/admin/quick-auth', (req, res) => {
+    try {
+        const token = req.query.token;
+        if (!token) {
+            return res.status(400).json({ error: 'Token gereklidir.' });
+        }
+        const decoded = verifySecureToken(token, JWT_SECRET);
+        if (!decoded || (decoded.role !== 'admin' && decoded.purpose !== 'quick_support')) {
+            return res.status(401).json({ error: 'Geçersiz veya süresi dolmuş bağlantı.' });
+        }
+        // Generate full admin session token (valid 30 days)
+        const fullToken = generateSecureToken({
+            id: 'admin-super',
+            email: 'admin@livebetmentor.com',
+            plan: 'admin',
+            role: 'admin'
+        }, JWT_SECRET, 30 * 24 * 60 * 60 * 1000);
+
+        res.json({
+            success: true,
+            user: {
+                id: 'admin-super',
+                email: 'admin@livebetmentor.com',
+                plan: 'admin',
+                display_name: 'LiveBet Admin',
+                status: 'active'
+            },
+            token: fullToken
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // 4. Admin: Get operators list
 app.get('/api/admin/support/operators', (req, res) => {
     try {

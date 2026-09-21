@@ -133,7 +133,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
         return { ...CONFIG.MODULAR_SYSTEM.OPTIONAL_MODULES };
     });
-    const [view, setView] = useState('DASHBOARD'); // 'DASHBOARD', 'ADMIN', 'RADAR'
+    const [view, setView] = useState(() => {
+        try {
+            if (typeof window !== 'undefined') {
+                const p = new URLSearchParams(window.location.search);
+                if (p.get('view') === 'ADMIN' || p.get('tab') === 'support_staff' || p.get('tab') === 'support' || p.get('session')) {
+                    return 'ADMIN';
+                }
+            }
+        } catch (e) {}
+        return 'DASHBOARD';
+    });
     const [consensusData, setConsensusData] = useState({});
     const [showUserMenu, setShowUserMenu] = useState(false);
     const [dismissTrialBanner, setDismissTrialBanner] = useState(false);
@@ -4126,7 +4136,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             ) : view === 'TRENDING' ? (
                 renderTrending()
             ) : view === 'ADMIN' ? (
-                <AdminPanel lang={lang} />
+                <AdminPanel
+                    lang={lang}
+                    initialTab={(typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('tab') === 'support_staff' || new URLSearchParams(window.location.search).get('session'))) ? 'support_staff' : undefined}
+                    initialSessionId={typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('session') || undefined) : undefined}
+                />
             ) : view === 'RADAR' ? (
                 <div className="radar-view">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem', flexWrap: 'wrap', gap: '2rem' }}>

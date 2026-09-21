@@ -12,11 +12,14 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { generateSecureToken } from './securityUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CHATS_FILE = path.join(__dirname, 'support_chats.json');
 const OPERATORS_FILE = path.join(__dirname, 'support_operators.json');
+const JWT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_SECRET || 'lbm_sec_vault_2026_981aed67_prod_shield';
+const APP_ORIGIN = process.env.APP_ORIGIN || 'https://livebetmentor.com';
 
 class SupportChatService {
     constructor() {
@@ -47,14 +50,26 @@ class SupportChatService {
     saveChats() {
         try {
             const obj = {};
-            // Keep last 100 sessions to avoid unbounded growth
-            const entries = Array.from(this.chats.entries()).slice(-100);
+            // Keep last 1000 sessions with full persistent audit trail
+            const entries = Array.from(this.chats.entries()).slice(-1000);
             for (const [k, v] of entries) {
                 obj[k] = v;
             }
             fs.writeFileSync(CHATS_FILE, JSON.stringify(obj, null, 2), 'utf8');
         } catch (e) {
             console.error('[SUPPORT] Error saving support chats:', e.message);
+        }
+    }
+
+    generateQuickAuthToken(sessionId = '') {
+        try {
+            return generateSecureToken(
+                { role: 'admin', email: 'admin@livebetmentor.com', purpose: 'quick_support', sessionId },
+                JWT_SECRET,
+                72 * 60 * 60 * 1000 // 72 hours validity
+            );
+        } catch (e) {
+            return '';
         }
     }
 
@@ -359,9 +374,24 @@ class SupportChatService {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ *LiveBet Mentor Canlı Destek Masası*`;
 
+            const quickToken = this.generateQuickAuthToken(session.sessionId);
+            const webUrl = `${APP_ORIGIN}/?tab=support_staff&session=${encodeURIComponent(session.sessionId)}&auth=${quickToken}`;
+            const keyboardOptions = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: '⚡ Sohbete Bağlan (Web Panel)',
+                                url: webUrl
+                            }
+                        ]
+                    ]
+                }
+            };
+
             const recipientIds = this.getAllNotificationChatIds();
             for (const recId of recipientIds) {
-                const sentMsg = await telegramBot.sendMessage(recId, adminAlert);
+                const sentMsg = await telegramBot.sendMessage(recId, adminAlert, keyboardOptions);
                 if (sentMsg && sentMsg.message_id) {
                     session.adminTelegramMsgId = sentMsg.message_id;
                     this.telegramMsgMap.set(sentMsg.message_id, session.sessionId);
@@ -385,11 +415,26 @@ class SupportChatService {
 💬 *Soru:* "${userQuery.substring(0, 100)}"
 💡 *AI Yanıtı:* "${aiAnswer.substring(0, 120)}..."
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
-_Müdahale etmek isterseniz bu mesaja Yanıtla yapıp yazabilirsiniz._`;
+_Müdahale etmek veya sohbete bağlanmak için aşağıdaki butona tıklayabilirsiniz:_`;
+
+            const quickToken = this.generateQuickAuthToken(session.sessionId);
+            const webUrl = `${APP_ORIGIN}/?tab=support_staff&session=${encodeURIComponent(session.sessionId)}&auth=${quickToken}`;
+            const keyboardOptions = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            {
+                                text: '⚡ Sohbete Bağlan (Web Panel)',
+                                url: webUrl
+                            }
+                        ]
+                    ]
+                }
+            };
 
             const recipientIds = this.getAllNotificationChatIds();
             for (const recId of recipientIds) {
-                const sent = await telegramBot.sendMessage(recId, preview);
+                const sent = await telegramBot.sendMessage(recId, preview, keyboardOptions);
                 if (sent && sent.message_id) {
                     this.telegramMsgMap.set(sent.message_id, session.sessionId);
                 }
