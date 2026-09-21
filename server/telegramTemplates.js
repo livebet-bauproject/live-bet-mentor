@@ -3,12 +3,14 @@
  * Professional betting signal message formatters - Compact & Concise
  */
 
+export const WEB_URL = process.env.SITE_URL || 'https://www.livebetmentor.com';
+
 export function cleanMd(str) {
     if (!str) return '';
     return String(str).replace(/([_*`\[\]])/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export function resolveMarketText(alert, lang = 'tr') {
+export function resolveMarketText(alert, lang = 'tr', includeOdds = false) {
     const isTr = lang === 'tr';
     const isDe = lang === 'de';
     const home = cleanMd(alert.homeTeam || (isTr ? 'Ev Sahibi' : isDe ? 'Heim' : 'Home'));
@@ -20,10 +22,14 @@ export function resolveMarketText(alert, lang = 'tr') {
     if (team.toLowerCase() === 'home') team = home;
     if (team.toLowerCase() === 'away') team = away;
 
+    if (!includeOdds && label) {
+        label = label.replace(/\s*\((Oran|Odds|Quote):\s*[0-9.]+\)/gi, '').trim();
+    }
+
     const oddsVal = rec.odds || alert.odds;
     const numOdds = parseFloat(oddsVal);
     const hasExistingOdds = /\(Oran:|\(Odds:|\(Quote:/i.test(label || '') || /\(Oran:|\(Odds:|\(Quote:/i.test(rec.predictionText || '');
-    const oddsStr = (!hasExistingOdds && oddsVal) ? 
+    const oddsStr = (includeOdds && !hasExistingOdds && oddsVal) ? 
         (!isNaN(numOdds) && numOdds > 1.0 ? 
             (isTr ? ` (Oran: ${numOdds.toFixed(2)})` : isDe ? ` (Quote: ${numOdds.toFixed(2)})` : ` (Odds: ${numOdds.toFixed(2)})`) :
             (isTr ? ` (Canlı Piyasa)` : isDe ? ` (Live-Quote)` : ` (Live Market)`)
@@ -32,6 +38,9 @@ export function resolveMarketText(alert, lang = 'tr') {
     // Direct explicit prediction if provided
     if (rec.predictionText) {
         let pt = cleanMd(rec.predictionText);
+        if (!includeOdds) {
+            pt = pt.replace(/\s*\((Oran|Odds|Quote):\s*[0-9.]+\)/gi, '').trim();
+        }
         if (isTr) {
             pt = pt.replace(/\bNext Goal:\s*/gi, 'Sıradaki Gol: ')
                    .replace(/\bOver\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Maçta $1 Üst Gol')
@@ -39,8 +48,8 @@ export function resolveMarketText(alert, lang = 'tr') {
                    .replace(/\bBoth Teams To Score\s*\(BTTS:\s*Yes\)\b/gi, 'Karşılıklı Gol Var (KG Var)')
                    .replace(/\bBoth Teams To Score\s*\(BTTS:\s*No\)\b/gi, 'Karşılıklı Gol Yok (KG Yok)')
                    .replace(/\bMatch Winner:\s*/gi, 'Maç Sonucu: ')
-                   .replace(/\(Odds:\s*([0-9.]+)\)/gi, '(Oran: $1)')
-                   .replace(/\(Oran:\s*([0-9.]+)\)/gi, '(Oran: $1)');
+                   .replace(/\(Odds:\s*([0-9.]+)\)/gi, includeOdds ? '(Oran: $1)' : '')
+                   .replace(/\(Oran:\s*([0-9.]+)\)/gi, includeOdds ? '(Oran: $1)' : '');
         } else if (isDe) {
             pt = pt.replace(/\bNext Goal:\s*/gi, 'Nächstes Tor: ')
                    .replace(/\bOver\s*(\d+\.?\d*)\s*Match Goals\b/gi, 'Über $1 Tore')
@@ -48,10 +57,10 @@ export function resolveMarketText(alert, lang = 'tr') {
                    .replace(/\bBoth Teams To Score\s*\(BTTS:\s*Yes\)\b/gi, 'Beide Teams treffen (BTTS: Ja)')
                    .replace(/\bBoth Teams To Score\s*\(BTTS:\s*No\)\b/gi, 'Beide Teams treffen: Nein')
                    .replace(/\bMatch Winner:\s*/gi, 'Spielgewinner: ')
-                   .replace(/\(Odds:\s*([0-9.]+)\)/gi, '(Quote: $1)')
-                   .replace(/\(Quote:\s*([0-9.]+)\)/gi, '(Quote: $1)');
+                   .replace(/\(Odds:\s*([0-9.]+)\)/gi, includeOdds ? '(Quote: $1)' : '')
+                   .replace(/\(Quote:\s*([0-9.]+)\)/gi, includeOdds ? '(Quote: $1)' : '');
         }
-        return pt;
+        return pt.trim();
     }
 
     // 1. Latency Arbitrage
@@ -238,7 +247,7 @@ export function formatVIPSignal(alert, lang = 'tr') {
 ⚽ *${home} - ${away}*
 🎯 *Tahmin:* *${marketText}*
 📊 *Güven:* %${conf} | *Oran:* ${oddsVal} | *Kasa:* %${stake}
-👉 *Canlı Radar:* https://live-bet-mentor-brown.vercel.app`;
+👉 *Canlı Radar:* ${WEB_URL}`;
     }
 
     if (isDe) {
@@ -246,14 +255,14 @@ export function formatVIPSignal(alert, lang = 'tr') {
 ⚽ *${home} - ${away}*
 🎯 *Tipp:* *${marketText}*
 📊 *Konfidenz:* ${conf}% | *Quote:* ${oddsVal} | *Einsatz:* ${stake}%
-👉 *Live-Radar:* https://live-bet-mentor-brown.vercel.app`;
+👉 *Live-Radar:* ${WEB_URL}`;
     }
 
     return `${badge} · *${alert.minute}'* [*${alert.score || '0-0'}*]
 ⚽ *${home} - ${away}*
 🎯 *Pick:* *${marketText}*
 📊 *Conf:* ${conf}% | *Odds:* ${oddsVal} | *Stake:* ${stake}%
-👉 *Live Radar:* https://live-bet-mentor-brown.vercel.app`;
+👉 *Live Radar:* ${WEB_URL}`;
 }
 
 export function formatPublicTeaser(alert, lang = 'tr') {
@@ -271,7 +280,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 
 💎 *Sinyalleri 0 saniye gecikmeyle yakalamak için:*
 👉 @${botUser} bota /deneme yazarak *3 Günlük Ücretsiz VIP* başlatın veya /vip ile katılın!
-🌐 *Web Terminali:* https://live-bet-mentor-brown.vercel.app`;
+🌐 *Web Terminali:* ${WEB_URL}`;
     }
 
     if (isDe) {
@@ -282,7 +291,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 
 💎 *Signale ohne Verzögerung (0s Latenz) erhalten:*
 👉 Sende /trial oder /test an @${botUser} für einen *3-Tage VIP-Pass* oder /vip zum Beitreten!
-🌐 *Web-Terminal:* https://live-bet-mentor-brown.vercel.app`;
+🌐 *Web-Terminal:* ${WEB_URL}`;
     }
 
     return `⚡ *IN-PLAY PRESSURE ALERT* · *${alert.minute}'* [*${alert.score || '0-0'}*]
@@ -292,7 +301,7 @@ export function formatPublicTeaser(alert, lang = 'tr') {
 
 💎 *Catch signals live with zero latency:*
 👉 Send /trial to @${botUser} for a *3-Day Free VIP Pass* or /vip to join!
-🌐 *Web Terminal:* https://live-bet-mentor-brown.vercel.app`;
+🌐 *Web Terminal:* ${WEB_URL}`;
 }
 
 export function resolveConsensusPredName(pred, lang = 'tr') {
@@ -401,7 +410,7 @@ export function formatRadarTeaser(match, lang = 'tr') {
 ⚽ *${home} - ${away}*
 ⚡ *10 Analiz Modelinden %${agreePercent} Ortak Onay!*
 🔒 _Tahmin & kasa yönetimi VIP grupta paylaşıldı._
-👉 *Canlı Terminal:* https://live-bet-mentor-brown.vercel.app`;
+👉 *Canlı Terminal:* ${WEB_URL}`;
     }
 
     if (isDe) {
@@ -409,14 +418,14 @@ export function formatRadarTeaser(match, lang = 'tr') {
 ⚽ *${home} - ${away}*
 ⚡ *10 KI-Modelle erzielen ${agreePercent}% Übereinstimmung!*
 🔒 _Tipp & Bankroll-Einsatz im VIP-Kanal freigeschaltet._
-👉 *Live-Terminal:* https://live-bet-mentor-brown.vercel.app`;
+👉 *Live-Terminal:* ${WEB_URL}`;
     }
 
     return `📡 *CONSENSUS RADAR ALERT*${timeStr}
 ⚽ *${home} - ${away}*
 ⚡ *10 AI Models Reached ${agreePercent}% Consensus!*
 🔒 _Full pick & bankroll stake released in VIP._
-👉 *Live Terminal:* https://live-bet-mentor-brown.vercel.app`;
+👉 *Live Terminal:* ${WEB_URL}`;
 }
 
 export function formatSignalResult(signal, result, finalScore, currentStats = {}, lang = 'tr') {

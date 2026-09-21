@@ -69,7 +69,8 @@ class TelegramBot {
         this.botUsername = process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot';
 
         // State
-        this.sentSignals = new Map(); // matchId -> timestamp (duplicate guard)
+        this.sentSignals = new Map(); // matchId / matchPairKey -> timestamp (duplicate guard)
+        this.sentTeasers = new Map(); // matchId / matchPairKey -> timestamp (public teaser duplicate guard)
         this.recentMessageHashes = new Map(); // chatId_text -> timestamp (30s duplicate delivery shield)
         this.adminSupportMap = new Map(); // adminMsgId -> { customerChatId, customerUsername, timestamp }
         this.lastCustomer = null; // { customerChatId, customerUsername, timestamp }
@@ -150,6 +151,28 @@ class TelegramBot {
                         }
                     });
                 }
+
+                // Restore sent signals locks across server restarts (last 3 hours)
+                const now = Date.now();
+                if (Array.isArray(data.sentSignalsList)) {
+                    for (const [k, ts] of data.sentSignalsList) {
+                        if (now - ts < 3 * 3600 * 1000) {
+                            this.sentSignals.set(k, ts);
+                        }
+                    }
+                }
+                // Also index all signals in dailyStats from the last 3 hours
+                if (data.dailyStats && Array.isArray(data.dailyStats.signals)) {
+                    data.dailyStats.signals.forEach(s => {
+                        const sigTime = s.time ? new Date(s.time).getTime() : 0;
+                        if (sigTime && (now - sigTime < 3 * 3600 * 1000)) {
+                            if (s.matchId) this.sentSignals.set(String(s.matchId), sigTime);
+                            const pair = this.getMatchPairKey(s.homeTeam, s.awayTeam);
+                            if (pair) this.sentSignals.set(pair, sigTime);
+                        }
+                    });
+                }
+                console.log(`[TELEGRAM] 🛡️ Restored ${this.sentSignals.size} active match locks from disk`);
             }
         } catch (e) {
             console.error('[TELEGRAM] Error loading history:', e.message);
@@ -158,8 +181,16 @@ class TelegramBot {
 
     saveHistory() {
         try {
+            const now = Date.now();
+            const activeLocks = [];
+            for (const [k, ts] of this.sentSignals.entries()) {
+                if (now - ts < 3 * 3600 * 1000) {
+                    activeLocks.push([k, ts]);
+                }
+            }
             const data = {
                 dailyStats: this.dailyStats,
+                sentSignalsList: activeLocks,
                 lastDate: new Date().toISOString().split('T')[0]
             };
             fs.writeFileSync(this.historyFile, JSON.stringify(data, null, 2));
@@ -307,16 +338,68 @@ class TelegramBot {
     }
 
     /**
-     * Check duplicate guard (same match within 45 minutes)
+     * Generate normalized team pair key for match identity matching across scrapers/APIs
      */
-    isDuplicate(matchId) {
-        const lastSent = this.sentSignals.get(matchId);
-        if (!lastSent) return false;
-        return (Date.now() - lastSent) < 45 * 60 * 1000; // 45 minute cooldown
+    getMatchPairKey(home, away) {
+        if (!home || !away) return '';
+        const clean = (name) => String(name || '')
+            .toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/\./g, '')
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\b(fc|sc|sk|fk|cf|ac|as|us|cd|ad|if|bk|sv|ts|afc|women|wfc|ladies|u20|u21|u23|u19|reserves|club|clube|kulubu|spor)\b/gi, ' ')
+            .replace(/[^a-z0-9]/g, '')
+            .trim();
+        const h = clean(home);
+        const a = clean(away);
+        return (h && a) ? `${h}_vs_${a}` : '';
     }
 
     /**
-     * MAIN: Process an alert from SmartAlertService
+     * Strict duplicate guard: ensures a match is never signaled twice within 90 minutes.
+     * Checks both matchId and normalized home/away team pair.
+     */
+    isDuplicate(matchId, homeTeam, awayTeam) {
+        const now = Date.now();
+        const COOLDOWN_MS = 90 * 60 * 1000; // Strict 90-minute match-level lock
+
+        // 1. Check matchId
+        if (matchId) {
+            const lastSent = this.sentSignals.get(String(matchId));
+            if (lastSent && (now - lastSent) < COOLDOWN_MS) {
+                return true;
+            }
+        }
+
+        // 2. Check normalized team names
+        const pairKey = this.getMatchPairKey(homeTeam, awayTeam);
+        if (pairKey) {
+            const lastSent = this.sentSignals.get(pairKey);
+            if (lastSent && (now - lastSent) < COOLDOWN_MS) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Mark match as sent across both matchId and normalized team pair
+     */
+    markAsSent(matchId, homeTeam, awayTeam) {
+        const now = Date.now();
+        if (matchId) {
+            this.sentSignals.set(String(matchId), now);
+        }
+        const pairKey = this.getMatchPairKey(homeTeam, awayTeam);
+        if (pairKey) {
+            this.sentSignals.set(pairKey, now);
+        }
+        this.saveHistory();
+    }
+
+    /**
+     * MAIN: Process an alert from AutonomousSignalEngine / Dashboard
      */
     async processAlert(alert) {
         if (!this.enabled) {
@@ -341,15 +424,14 @@ class TelegramBot {
             return { sent: false, reason: 'ai_quarantine' };
         }
 
-        // Check duplicate
-        const matchKey = alert.matchId || `${alert.homeTeam}_${alert.awayTeam}`;
-        if (this.isDuplicate(matchKey)) {
-            console.log(`[TELEGRAM] Duplicate signal for ${matchKey}, skipping`);
+        // Strict duplicate match guard (Checks both matchId and normalized team pair)
+        if (this.isDuplicate(alert.matchId, alert.homeTeam, alert.awayTeam)) {
+            console.log(`[TELEGRAM] 🛡️ Duplicate match guard blocked signal for ${alert.homeTeam} vs ${alert.awayTeam} (${alert.matchId})`);
             return { sent: false, reason: 'duplicate' };
         }
 
-        // Mark as sent
-        this.sentSignals.set(matchKey, Date.now());
+        // Mark as sent immediately to avoid race conditions
+        this.markAsSent(alert.matchId, alert.homeTeam, alert.awayTeam);
 
         // Track stats with full settlement metadata
         const signalId = alert.id || `sig_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -389,18 +471,24 @@ class TelegramBot {
             console.log(`[TELEGRAM] 💎 VIP signal sent [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} [${alert.level}] -> ${dest.channelId}`);
         }
 
-        // 2. Send to all configured public channels (delayed teaser)
+        // 2. Send to all configured public channels (delayed teaser, with teaser deduplication guard)
         const activePubs = this.getActivePublicChannels();
         if (activePubs.length > 0) {
-            setTimeout(async () => {
-                for (const dest of activePubs) {
-                    const publicMessage = formatPublicTeaser(alert, dest.lang);
-                    const res = await this.sendMessage(dest.channelId, publicMessage);
-                    results.publicDeliveries.push({ lang: dest.lang, channelId: dest.channelId, ok: !!res });
-                    if (!results.public) results.public = res;
-                    console.log(`[TELEGRAM] 📢 Public teaser sent (delayed) [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} -> ${dest.channelId}`);
-                }
-            }, this.publicDelay);
+            const teaserKey = String(alert.matchId || this.getMatchPairKey(alert.homeTeam, alert.awayTeam));
+            if (!this.sentTeasers.has(teaserKey)) {
+                this.sentTeasers.set(teaserKey, Date.now());
+                setTimeout(async () => {
+                    for (const dest of activePubs) {
+                        const publicMessage = formatPublicTeaser(alert, dest.lang);
+                        const res = await this.sendMessage(dest.channelId, publicMessage);
+                        results.publicDeliveries.push({ lang: dest.lang, channelId: dest.channelId, ok: !!res });
+                        if (!results.public) results.public = res;
+                        console.log(`[TELEGRAM] 📢 Public teaser sent (delayed) [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} -> ${dest.channelId}`);
+                    }
+                }, this.publicDelay);
+            } else {
+                console.log(`[TELEGRAM] 📢 Public teaser already scheduled/sent for ${teaserKey}, skipping duplicate teaser`);
+            }
         }
 
         return { sent: true, results };

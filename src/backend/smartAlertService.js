@@ -686,10 +686,8 @@ class SmartAlertService {
                 // Notify subscribers
                 this.notify(alert);
 
-                // TELEGRAM: Send signal to backend for Telegram delivery (Admin Only)
-                if (this.currentTier === 'admin') {
-                    this.sendToTelegram(alert);
-                }
+                // TELEGRAM: Automated background broadcasting is handled 24/7 by the server-side AutonomousSignalEngine.
+                // The browser client does not auto-broadcast to avoid dual-dispatch and duplicate spam.
 
                 console.log('[ALERT] 🔔 New alert:', alert.match, alert.level, alert.recommendation.market);
             }
@@ -723,9 +721,7 @@ class SmartAlertService {
             try {
                 localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
             } catch (e) {}
-            if (this.currentTier === 'admin') {
-                this.sendResolutionToTelegram(alert, result, alert.finalScore);
-            }
+            // Resolution is handled centrally on the server by autoResolveSignals
         }
     }
 
@@ -1072,9 +1068,7 @@ class SmartAlertService {
                     alert.resolvedAt = now;
                     alert.finalScore = `${curHome}-${curAway}`;
                     resolvedCount++;
-                    if (this.currentTier === 'admin') {
-                        this.sendResolutionToTelegram(alert, outcome, `${curHome}-${curAway}`);
-                    }
+                    // Resolution is handled centrally on the server by autoResolveSignals
                 }
             } catch (err) {
                 // Ignore network timeouts for individual event fetch

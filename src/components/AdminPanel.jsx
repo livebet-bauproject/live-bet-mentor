@@ -3927,228 +3927,32 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                                                         </>
                                                     )}
 
-                                                    {/* Edit Mode (Available for all non-banned members) */}
                                                     {!profile.is_banned && (
-                                                        isEditing ? (
-                                                            <div style={{
-                                                                position: 'absolute',
-                                                                right: 0,
-                                                                top: 'calc(100% + 6px)',
-                                                                background: 'rgba(15, 23, 42, 0.98)',
-                                                                border: '1px solid rgba(56, 189, 248, 0.35)',
-                                                                borderRadius: '12px',
-                                                                padding: '1rem',
-                                                                zIndex: 100,
-                                                                boxShadow: '0 20px 40px rgba(0,0,0,0.85), 0 0 25px rgba(56, 189, 248, 0.2)',
-                                                                minWidth: '340px',
-                                                                textAlign: 'left',
-                                                                display: 'flex',
-                                                                flexDirection: 'column',
-                                                                gap: '0.75rem',
-                                                                backdropFilter: 'blur(16px)'
-                                                            }}>
-                                                                {/* Header info */}
-                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.5rem' }}>
-                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8' }}>
-                                                                        ⚙️ {lang === 'tr' ? 'Üyelik & Süre Yönetimi' : (lang === 'de' ? 'Mitgliedschaft & Laufzeitverwaltung' : 'Manage Subscription')}
-                                                                    </div>
-                                                                    <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>
-                                                                        {getRemainingDays(profile.subscription_end)} {lang === 'tr' ? 'kaldı' : (lang === 'de' ? 'verbleibend' : 'left')}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* 1. Hızlı 1-Tık Presetler (Paket + Süre Birlikte) */}
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
-                                                                        ⚡ {lang === 'tr' ? 'Hızlı Paket Tanımla (Paket + Süre)' : (lang === 'de' ? 'Schnellpaket zuweisen (Paket + Tage)' : 'Quick Presets (Plan + Days)')}
-                                                                    </div>
-                                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updateSubscription(profile.id, null, 'trial', profile.email, 3)}
-                                                                            title={lang === 'tr' ? '3 Günlük Deneme başlatır' : (lang === 'de' ? 'Startet 3-Tage-Testzugang' : 'Start 3-day trial')}
-                                                                            style={{
-                                                                                background: profile.plan === 'trial' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.1)',
-                                                                                border: `1px solid ${profile.plan === 'trial' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`,
-                                                                                color: '#10b981',
-                                                                                padding: '0.45rem 0.3rem',
-                                                                                borderRadius: '6px',
-                                                                                cursor: 'pointer',
-                                                                                fontSize: '0.62rem',
-                                                                                fontWeight: 800,
-                                                                                display: 'flex',
-                                                                                flexDirection: 'column',
-                                                                                alignItems: 'center',
-                                                                                gap: '2px'
-                                                                            }}
-                                                                        >
-                                                                            <span>⚡ {lang === 'tr' ? '3G Deneme' : (lang === 'de' ? '3T Test' : '3D Trial')}</span>
-                                                                            <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(72 Saat)</span>
-                                                                        </button>
-
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updateSubscription(profile.id, null, 'pro', profile.email, 30)}
-                                                                            title={lang === 'tr' ? '1 Aylık PRO tanımlar' : (lang === 'de' ? 'Weist 1 Monat PRO zu' : 'Assign 1-Month Pro')}
-                                                                            style={{
-                                                                                background: profile.plan === 'pro' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(56, 189, 248, 0.1)',
-                                                                                border: `1px solid ${profile.plan === 'pro' ? '#38bdf8' : 'rgba(56, 189, 248, 0.3)'}`,
-                                                                                color: '#38bdf8',
-                                                                                padding: '0.45rem 0.3rem',
-                                                                                borderRadius: '6px',
-                                                                                cursor: 'pointer',
-                                                                                fontSize: '0.62rem',
-                                                                                fontWeight: 800,
-                                                                                display: 'flex',
-                                                                                flexDirection: 'column',
-                                                                                alignItems: 'center',
-                                                                                gap: '2px'
-                                                                            }}
-                                                                        >
-                                                                            <span>👑 {lang === 'tr' ? '1 Ay PRO' : (lang === 'de' ? '1 Mon. PRO' : '1 Mo PRO')}</span>
-                                                                            <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(30 Gün)</span>
-                                                                        </button>
-
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => updateSubscription(profile.id, null, 'premium', profile.email, 30)}
-                                                                            title={lang === 'tr' ? '1 Aylık PREMIUM tanımlar' : (lang === 'de' ? 'Weist 1 Monat VIP zu' : 'Assign 1-Month Premium')}
-                                                                            style={{
-                                                                                background: profile.plan === 'premium' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.1)',
-                                                                                border: `1px solid ${profile.plan === 'premium' ? '#a855f7' : 'rgba(168, 85, 247, 0.3)'}`,
-                                                                                color: '#c084fc',
-                                                                                padding: '0.45rem 0.3rem',
-                                                                                borderRadius: '6px',
-                                                                                cursor: 'pointer',
-                                                                                fontSize: '0.62rem',
-                                                                                fontWeight: 800,
-                                                                                display: 'flex',
-                                                                                flexDirection: 'column',
-                                                                                alignItems: 'center',
-                                                                                gap: '2px'
-                                                                            }}
-                                                                        >
-                                                                            <span>💎 {lang === 'tr' ? '1 Ay VIP' : (lang === 'de' ? '1 Mon. VIP' : '1 Mo VIP')}</span>
-                                                                            <span style={{ fontSize: '0.55rem', opacity: 0.8 }}>(30 Gün)</span>
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* 2. Mevcut Bitiş Tarihine Gün Ekle */}
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
-                                                                        ⏳ {lang === 'tr' ? 'Mevcut Süreye Gün Ekle (+ Gün)' : (lang === 'de' ? 'Laufzeit verlängern (+ Tage)' : 'Extend Current Duration (+ Days)')}
-                                                                    </div>
-                                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-                                                                        {[
-                                                                            { d: 1, label: '+1g' },
-                                                                            { d: 3, label: lang === 'tr' ? '+3g (Deneme)' : (lang === 'de' ? '+3T (Test)' : '+3d (Trial)') },
-                                                                            { d: 7, label: lang === 'tr' ? '+7g (1 Hf)' : (lang === 'de' ? '+7T (1 Wo)' : '+7d (1 Wk)') },
-                                                                            { d: 30, label: lang === 'tr' ? '+30g (1 Ay)' : (lang === 'de' ? '+30T (1 Mon)' : '+30d (1 Mo)') },
-                                                                            { d: 90, label: lang === 'tr' ? '+90g (3 Ay)' : (lang === 'de' ? '+90T (3 Mon)' : '+90d (3 Mo)') },
-                                                                            { d: 365, label: lang === 'tr' ? '+365g (1 Yıl)' : (lang === 'de' ? '+365T (1 J)' : '+365d (1 Yr)') }
-                                                                        ].map(item => (
-                                                                            <button
-                                                                                key={item.d}
-                                                                                type="button"
-                                                                                onClick={() => updateSubscription(profile.id, item.d, null, profile.email)}
-                                                                                style={{
-                                                                                    background: 'rgba(255, 255, 255, 0.05)',
-                                                                                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                                                                                    padding: '0.35rem 0.55rem',
-                                                                                    borderRadius: '5px',
-                                                                                    color: '#e2e8f0',
-                                                                                    cursor: 'pointer',
-                                                                                    fontSize: '0.62rem',
-                                                                                    fontWeight: 700,
-                                                                                    transition: 'all 0.15s'
-                                                                                }}
-                                                                                onMouseOver={(e) => { e.currentTarget.style.borderColor = '#38bdf8'; e.currentTarget.style.color = '#38bdf8'; }}
-                                                                                onMouseOut={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'; e.currentTarget.style.color = '#e2e8f0'; }}
-                                                                            >
-                                                                                {item.label}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* 3. Sadece Plan Değiştir */}
-                                                                <div>
-                                                                    <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.35rem', letterSpacing: '0.5px' }}>
-                                                                        🏷️ {lang === 'tr' ? 'Sadece Paketi Değiştir (Süreyi Koru)' : (lang === 'de' ? 'Nur Paket ändern (Tage beibehalten)' : 'Change Plan Only (Keep Days)')}
-                                                                    </div>
-                                                                    <div style={{ display: 'flex', gap: '0.3rem' }}>
-                                                                        {Object.keys(PLANS).filter(k => k !== 'admin').map(p => {
-                                                                            const isCurrent = profile.plan === p;
-                                                                            return (
-                                                                                <button
-                                                                                    key={p}
-                                                                                    type="button"
-                                                                                    onClick={() => updateSubscription(profile.id, null, p, profile.email)}
-                                                                                    style={{
-                                                                                        flex: 1,
-                                                                                        background: isCurrent ? PLANS[p].color : 'transparent',
-                                                                                        color: isCurrent ? '#000' : PLANS[p].color,
-                                                                                        border: `1px solid ${PLANS[p].color}`,
-                                                                                        padding: '0.35rem 0.5rem',
-                                                                                        borderRadius: '5px',
-                                                                                        cursor: 'pointer',
-                                                                                        fontSize: '0.62rem',
-                                                                                        fontWeight: 800,
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'center',
-                                                                                        gap: '3px'
-                                                                                    }}
-                                                                                >
-                                                                                    {isCurrent && <span>✓</span>}
-                                                                                    <span>{PLANS[p].label}</span>
-                                                                                </button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Kapat / Vazgeç */}
-                                                                <div style={{ textAlign: 'right', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.5rem' }}>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setEditingUser(null)}
-                                                                        style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}
-                                                                    >
-                                                                        ✕ {lang === 'tr' ? 'Kapat / Vazgeç' : (lang === 'de' ? 'Schließen / Abbrechen' : 'Close')}
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => setEditingUser(profile.id)}
-                                                                style={{ background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.3)', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#38bdf8', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}
-                                                            >
-                                                                {t.extend} / {t.plan}
-                                                            </button>
-                                                        )
+                                                        <button
+                                                            onClick={() => setEditingUser(profile.id)}
+                                                            style={{ background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#38bdf8', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                            title={lang === 'tr' ? 'Üyelik paketini ve süresini düzenle' : 'Manage subscription and plan'}
+                                                        >
+                                                            <span>✏️</span>
+                                                            <span>{t.extend} / {t.plan}</span>
+                                                        </button>
                                                     )}
 
-                                                    {!isEditing && (
-                                                        <>
-                                                            {/* Ban/Unban */}
-                                                            <button
-                                                                onClick={() => toggleBan(profile.id, profile.is_banned)}
-                                                                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.65rem' }}
-                                                            >
-                                                                {profile.is_banned ? t.unban : t.ban}
-                                                            </button>
+                                                    {/* Ban/Unban */}
+                                                    <button
+                                                        onClick={() => toggleBan(profile.id, profile.is_banned)}
+                                                        style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#fff', cursor: 'pointer', fontSize: '0.65rem' }}
+                                                    >
+                                                        {profile.is_banned ? t.unban : t.ban}
+                                                    </button>
 
-                                                            {/* Delete */}
-                                                            <button
-                                                                onClick={() => deleteUser(profile.id)}
-                                                                style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', fontSize: '0.65rem' }}
-                                                            >
-                                                                {t.delete}
-                                                            </button>
-                                                        </>
-                                                    )}
+                                                    {/* Delete */}
+                                                    <button
+                                                        onClick={() => deleteUser(profile.id)}
+                                                        style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', fontSize: '0.65rem' }}
+                                                    >
+                                                        {t.delete}
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -4158,6 +3962,270 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         </table>
                     </div>
                 )}
+
+                {/* Edit Member Subscription & Plan Modal */}
+                {editingUser && (() => {
+                    const profile = profiles.find(p => p.id === editingUser);
+                    if (!profile) return null;
+                    const planInfo = PLANS[profile.plan] || PLANS.trial;
+
+                    return (
+                        <div
+                            style={{
+                                position: 'fixed',
+                                inset: 0,
+                                zIndex: 999999,
+                                background: 'rgba(3, 7, 18, 0.85)',
+                                backdropFilter: 'blur(12px)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '1rem',
+                                animation: 'fadeIn 0.2s ease-out'
+                            }}
+                            onClick={(e) => {
+                                if (e.target === e.currentTarget) setEditingUser(null);
+                            }}
+                        >
+                            <div
+                                style={{
+                                    background: 'linear-gradient(135deg, #0f172a 0%, #030712 100%)',
+                                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                                    borderRadius: '16px',
+                                    maxWidth: '460px',
+                                    width: '100%',
+                                    padding: '1.5rem',
+                                    color: '#e2e8f0',
+                                    boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(56, 189, 248, 0.2)',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '1.1rem',
+                                    maxHeight: '90vh',
+                                    overflowY: 'auto'
+                                }}
+                            >
+                                {/* Header info with Close Button */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.85rem' }}>
+                                    <div>
+                                        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            ⚙️ {lang === 'tr' ? 'Üyelik & Süre Yönetimi' : (lang === 'de' ? 'Mitgliedschaft & Laufzeitverwaltung' : 'Manage Subscription')}
+                                        </div>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc', marginTop: '0.35rem', wordBreak: 'break-all' }}>
+                                            {profile.email}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.45rem', fontSize: '0.72rem' }}>
+                                            <span style={{ padding: '0.15rem 0.55rem', borderRadius: '6px', background: planInfo.color + '22', color: planInfo.color, border: `1px solid ${planInfo.color}50`, fontWeight: 800 }}>
+                                                {planInfo.label}
+                                            </span>
+                                            <span style={{ color: '#94a3b8', fontWeight: 600 }}>
+                                                ⏳ {getRemainingDays(profile.subscription_end)} {lang === 'tr' ? 'kaldı' : (lang === 'de' ? 'verbleibend' : 'left')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditingUser(null)}
+                                        style={{
+                                            background: 'rgba(255, 255, 255, 0.06)',
+                                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                                            borderRadius: '8px',
+                                            color: '#94a3b8',
+                                            fontSize: '0.9rem',
+                                            width: '30px',
+                                            height: '30px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            flexShrink: 0
+                                        }}
+                                        onMouseOver={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'; }}
+                                        onMouseOut={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)'; }}
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+
+                                {/* 1. Hızlı 1-Tık Presetler (Paket + Süre Birlikte) */}
+                                <div>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.45rem', letterSpacing: '0.5px' }}>
+                                        ⚡ {lang === 'tr' ? 'Hızlı Paket Tanımla (Paket + Süre)' : (lang === 'de' ? 'Schnellpaket zuweisen (Paket + Tage)' : 'Quick Presets (Plan + Days)')}
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                                        <button
+                                            type="button"
+                                            onClick={() => updateSubscription(profile.id, null, 'trial', profile.email, 3)}
+                                            title={lang === 'tr' ? '3 Günlük Deneme başlatır' : (lang === 'de' ? 'Startet 3-Tage-Testzugang' : 'Start 3-day trial')}
+                                            style={{
+                                                background: profile.plan === 'trial' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.1)',
+                                                border: `1px solid ${profile.plan === 'trial' ? '#10b981' : 'rgba(16, 185, 129, 0.3)'}`,
+                                                color: '#10b981',
+                                                padding: '0.6rem 0.4rem',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 800,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            <span>⚡ {lang === 'tr' ? '3G Deneme' : (lang === 'de' ? '3T Test' : '3D Trial')}</span>
+                                            <span style={{ fontSize: '0.62rem', opacity: 0.8 }}>(72 Saat)</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => updateSubscription(profile.id, null, 'pro', profile.email, 30)}
+                                            title={lang === 'tr' ? '1 Aylık PRO tanımlar' : (lang === 'de' ? 'Weist 1 Monat PRO zu' : 'Assign 1-Month Pro')}
+                                            style={{
+                                                background: profile.plan === 'pro' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(56, 189, 248, 0.1)',
+                                                border: `1px solid ${profile.plan === 'pro' ? '#38bdf8' : 'rgba(56, 189, 248, 0.3)'}`,
+                                                color: '#38bdf8',
+                                                padding: '0.6rem 0.4rem',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 800,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            <span>👑 {lang === 'tr' ? '1 Ay PRO' : (lang === 'de' ? '1 Mon. PRO' : '1 Mo PRO')}</span>
+                                            <span style={{ fontSize: '0.62rem', opacity: 0.8 }}>(30 Gün)</span>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => updateSubscription(profile.id, null, 'premium', profile.email, 30)}
+                                            title={lang === 'tr' ? '1 Aylık PREMIUM tanımlar' : (lang === 'de' ? 'Weist 1 Monat VIP zu' : 'Assign 1-Month Premium')}
+                                            style={{
+                                                background: profile.plan === 'premium' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(168, 85, 247, 0.1)',
+                                                border: `1px solid ${profile.plan === 'premium' ? '#a855f7' : 'rgba(168, 85, 247, 0.3)'}`,
+                                                color: '#c084fc',
+                                                padding: '0.6rem 0.4rem',
+                                                borderRadius: '8px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 800,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                alignItems: 'center',
+                                                gap: '3px',
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            <span>💎 {lang === 'tr' ? '1 Ay VIP' : (lang === 'de' ? '1 Mon. VIP' : '1 Mo VIP')}</span>
+                                            <span style={{ fontSize: '0.62rem', opacity: 0.8 }}>(30 Gün)</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* 2. Mevcut Bitiş Tarihine Gün Ekle */}
+                                <div>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.45rem', letterSpacing: '0.5px' }}>
+                                        ⏳ {lang === 'tr' ? 'Mevcut Süreye Gün Ekle (+ Gün)' : (lang === 'de' ? 'Laufzeit verlängern (+ Tage)' : 'Extend Current Duration (+ Days)')}
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
+                                        {[
+                                            { d: 1, label: '+1 Gün' },
+                                            { d: 3, label: lang === 'tr' ? '+3 Gün' : (lang === 'de' ? '+3 Tage' : '+3 Days') },
+                                            { d: 7, label: lang === 'tr' ? '+7 Gün (1 Hf)' : (lang === 'de' ? '+7 Tage' : '+7 Days') },
+                                            { d: 30, label: lang === 'tr' ? '+30 Gün (1 Ay)' : (lang === 'de' ? '+30 Tage' : '+30 Days') },
+                                            { d: 90, label: lang === 'tr' ? '+90 Gün (3 Ay)' : (lang === 'de' ? '+90 Tage' : '+90 Days') },
+                                            { d: 365, label: lang === 'tr' ? '+365 Gün (1 Yıl)' : (lang === 'de' ? '+365 Tage' : '+1 Year') }
+                                        ].map(item => (
+                                            <button
+                                                key={item.d}
+                                                type="button"
+                                                onClick={() => updateSubscription(profile.id, item.d, null, profile.email)}
+                                                style={{
+                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                                                    padding: '0.5rem 0.5rem',
+                                                    borderRadius: '8px',
+                                                    color: '#e2e8f0',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.72rem',
+                                                    fontWeight: 700,
+                                                    transition: 'all 0.15s'
+                                                }}
+                                                onMouseOver={(e) => { e.currentTarget.style.borderColor = '#38bdf8'; e.currentTarget.style.color = '#38bdf8'; e.currentTarget.style.background = 'rgba(56, 189, 248, 0.1)'; }}
+                                                onMouseOut={(e) => { e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'; e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'; }}
+                                            >
+                                                {item.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* 3. Sadece Plan Değiştir */}
+                                <div>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.45rem', letterSpacing: '0.5px' }}>
+                                        🏷️ {lang === 'tr' ? 'Sadece Paketi Değiştir (Süreyi Koru)' : (lang === 'de' ? 'Nur Paket ändern (Tage beibehalten)' : 'Change Plan Only (Keep Days)')}
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' }}>
+                                        {Object.keys(PLANS).filter(k => k !== 'admin').map(p => {
+                                            const isCurrent = profile.plan === p;
+                                            return (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onClick={() => updateSubscription(profile.id, null, p, profile.email)}
+                                                    style={{
+                                                        background: isCurrent ? PLANS[p].color : 'transparent',
+                                                        color: isCurrent ? '#000' : PLANS[p].color,
+                                                        border: `1px solid ${PLANS[p].color}`,
+                                                        padding: '0.5rem 0.5rem',
+                                                        borderRadius: '8px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 800,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '4px',
+                                                        transition: 'all 0.15s'
+                                                    }}
+                                                >
+                                                    {isCurrent && <span>✓</span>}
+                                                    <span>{PLANS[p].label}</span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Kapat / Vazgeç */}
+                                <div style={{ textAlign: 'right', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.75rem' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditingUser(null)}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.06)',
+                                            border: '1px solid rgba(255,255,255,0.12)',
+                                            color: '#cbd5e1',
+                                            padding: '0.45rem 1rem',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700
+                                        }}
+                                    >
+                                        ✕ {lang === 'tr' ? 'Kapat / Vazgeç' : (lang === 'de' ? 'Schließen / Abbrechen' : 'Close')}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
         </div >
     );
