@@ -3895,6 +3895,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         </div>
                     </div>
 
+                    <div className="terminal-header-actions">
                         {/* 7/24 Telegram Live Support Button - Prominent Top Placement */}
                         <a
                             href={telegramSupportUrl}

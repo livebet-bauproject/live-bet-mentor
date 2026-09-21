@@ -330,24 +330,13 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                         href={telegramSupportUrl} 
                         target="_blank" 
                         rel="noreferrer" 
-                        className="landing-nav-tg"
-                        style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: '5px', 
-                            background: 'rgba(0, 136, 204, 0.12)', 
-                            border: '1px solid rgba(0, 136, 204, 0.35)', 
-                            color: '#38bdf8', 
-                            padding: '0.4rem 0.75rem', 
-                            borderRadius: '8px', 
-                            textDecoration: 'none', 
-                            fontSize: '0.75rem', 
-                            fontWeight: 700,
-                            whiteSpace: 'nowrap'
-                        }}
+                        className="header-telegram-support-btn landing-nav-tg"
+                        title={lang === 'tr' ? `7/24 Canlı Telegram Destek Hattı (@${telegramUsername})` : (lang === 'de' ? `24/7 Live Telegram Support (@${telegramUsername})` : `24/7 Live Telegram Support (@${telegramUsername})`)}
                     >
-                        <span>✈️</span>
-                        <span className="nav-tg-label">{lang === 'tr' ? 'Telegram Destek' : (lang === 'de' ? 'Telegram Support' : 'Support')}</span>
+                        <span className="tg-live-dot" title="Online"></span>
+                        <span className="tg-icon">✈️</span>
+                        <span className="tg-label-full">{lang === 'tr' ? '7/24 Telegram Destek' : (lang === 'de' ? '24/7 Telegram-Support' : '24/7 Telegram Support')}</span>
+                        <span className="tg-label-short">{lang === 'tr' ? '7/24 Destek' : (lang === 'de' ? '24/7 Support' : '24/7 Support')}</span>
                     </a>
 
                     <div className="landing-lang-switcher" style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', padding: '2px' }}>
