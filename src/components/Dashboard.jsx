@@ -540,7 +540,6 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [trendingFilter, setTrendingFilter] = useState('ALL');
     const [trendingSearch, setTrendingSearch] = useState('');
     const [showTrendingGuide, setShowTrendingGuide] = useState(false);
-    const [showTrendingStatsMobile, setShowTrendingStatsMobile] = useState(false);
 
     const fetchTrendingBets = useCallback(async () => {
         setTrendingLoading(true);
@@ -3291,217 +3290,68 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     )}
                 </div>
 
-                {/* Mobile Collapsible KPI Summary Toggle Bar */}
-                <button
-                    className="trending-kpi-mobile-toggle glass-panel"
-                    onClick={() => setShowTrendingStatsMobile(prev => !prev)}
-                    style={{
-                        width: '100%',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '12px',
-                        border: showTrendingStatsMobile ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
-                        background: showTrendingStatsMobile 
-                            ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(15, 23, 42, 0.9))'
-                            : 'linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.5))',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'pointer',
-                        marginBottom: '0.75rem',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '1.05rem' }}>📊</span>
-                        <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#f8fafc' }}>
-                            {t.trending_stats_summary || 'Piyasa Özeti & Metrikler'}
-                        </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', fontWeight: 700 }}>
-                            <span style={{ color: '#94a3b8' }}>({groupedMatches.length} {t.trending_stats_match_unit || 'Maç'})</span>
-                            <span style={{ color: '#10b981', background: 'rgba(16,185,129,0.15)', padding: '0.12rem 0.35rem', borderRadius: '4px' }}>🟢 {approvedCount}</span>
-                            <span style={{ color: '#ef4444', background: 'rgba(239,68,68,0.15)', padding: '0.12rem 0.35rem', borderRadius: '4px' }}>🔴 {trapCount}</span>
-                            <span style={{ color: '#38bdf8', background: 'rgba(56,189,248,0.15)', padding: '0.12rem 0.35rem', borderRadius: '4px' }}>📊 {marketCount + cautionCount}</span>
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#38bdf8', fontSize: '0.75rem', fontWeight: 800 }}>
-                        <span>{showTrendingStatsMobile ? (t.trending_stats_toggle_hide || 'Gizle') : (t.trending_stats_toggle_show || 'Detayları Göster')}</span>
-                        <span style={{ fontSize: '0.7rem', transition: 'transform 0.2s ease', transform: showTrendingStatsMobile ? 'rotate(180deg)' : 'none' }}>▼</span>
-                    </div>
-                </button>
-
-                {/* KPI Overview Strip */}
-                <div className={`trending-kpi-grid ${showTrendingStatsMobile ? 'is-open' : ''}`}>
-                    <div
-                        className="glass-panel trending-kpi-card"
-                        onClick={() => setTrendingFilter('ALL')}
-                        style={{
-                            padding: '1.2rem',
-                            borderRadius: '12px',
-                            border: trendingFilter === 'ALL' ? '2px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
-                            background: trendingFilter === 'ALL' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(15, 23, 42, 0.6))' : undefined,
-                            boxShadow: trendingFilter === 'ALL' ? '0 0 15px rgba(56, 189, 248, 0.25)' : undefined
-                        }}
-                    >
-                        <div style={{ fontSize: '0.75rem', opacity: 0.6, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            {t.trending_total_tracked || 'TOPLAM TREND'}
-                        </div>
-                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#f8fafc' }}>
-                            {groupedMatches.length} <span style={{ fontSize: '0.9rem', opacity: 0.6, fontWeight: 600 }}>{lang === 'tr' ? 'Maç' : (lang === 'de' ? 'Spiele' : 'Matches')}</span>
-                        </div>
-                        <div className="kpi-sub" style={{ fontSize: '0.7rem', opacity: 0.75, marginTop: '0.2rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                            <span style={{ color: '#34d399', fontWeight: 700 }}>● {approvedCount + trapCount} {lang === 'tr' ? 'Canlı Radarda' : (lang === 'de' ? 'im Live-Radar' : 'in Radar')}</span>
-                            <span style={{ opacity: 0.4 }}>|</span>
-                            <span style={{ color: '#38bdf8', fontWeight: 700 }}>● {marketCount + cautionCount} {lang === 'tr' ? 'Radar Dışı' : (lang === 'de' ? 'Außerhalb des Radars' : 'Outside Radar')}</span>
-                        </div>
-                    </div>
-
-                    <div
-                        className="glass-panel trending-kpi-card"
-                        onClick={() => setTrendingFilter('APPROVED')}
-                        style={{
-                            padding: '1.2rem',
-                            borderRadius: '12px',
-                            border: trendingFilter === 'APPROVED' ? '2px solid #10b981' : '1px solid rgba(16, 185, 129, 0.3)',
-                            background: trendingFilter === 'APPROVED'
-                                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(0,0,0,0.3))'
-                                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(0,0,0,0.2))',
-                            boxShadow: trendingFilter === 'APPROVED' ? '0 0 15px rgba(16, 185, 129, 0.35)' : undefined
-                        }}
-                    >
-                        <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            🟢 {t.trending_smart_money_count || 'ONAYLI TREND'}
-                        </div>
-                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#10b981' }}>
-                            {approvedCount}
-                        </div>
-                        <div className="kpi-sub" style={{ fontSize: '0.7rem', color: '#34d399', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Canlı Radarda & DQS ≥ 0.50' : (lang === 'de' ? 'Im Live-Radar & DQS ≥ 0.50' : 'In Live Radar & DQS ≥ 0.50')}
-                        </div>
-                    </div>
-
-                    <div
-                        className="glass-panel trending-kpi-card"
-                        onClick={() => setTrendingFilter('TRAP')}
-                        style={{
-                            padding: '1.2rem',
-                            borderRadius: '12px',
-                            border: trendingFilter === 'TRAP' ? '2px solid #ef4444' : '1px solid rgba(239, 68, 68, 0.3)',
-                            background: trendingFilter === 'TRAP'
-                                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(0,0,0,0.3))'
-                                : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(0,0,0,0.2))',
-                            boxShadow: trendingFilter === 'TRAP' ? '0 0 15px rgba(239, 68, 68, 0.35)' : undefined
-                        }}
-                    >
-                        <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            🔴 {t.trending_trap_count || 'TUZAK UYARISI'}
-                        </div>
-                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#ef4444' }}>
-                            {trapCount}
-                        </div>
-                        <div className="kpi-sub" style={{ fontSize: '0.7rem', color: '#f87171', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Düşük DQS / Ölü Maç Tuzağı' : (lang === 'de' ? 'Niedriger DQS / Totes-Spiel-Falle' : 'Low DQS / Dead Match Trap')}
-                        </div>
-                    </div>
-
-                    <div
-                        className="glass-panel trending-kpi-card"
-                        onClick={() => setTrendingFilter('MARKET')}
-                        style={{
-                            padding: '1.2rem',
-                            borderRadius: '12px',
-                            border: trendingFilter === 'MARKET' ? '2px solid #38bdf8' : '1px solid rgba(56, 189, 248, 0.3)',
-                            background: trendingFilter === 'MARKET'
-                                ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(0,0,0,0.3))'
-                                : 'linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(0,0,0,0.2))',
-                            boxShadow: trendingFilter === 'MARKET' ? '0 0 15px rgba(56, 189, 248, 0.35)' : undefined
-                        }}
-                    >
-                        <div style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            📊 {t.trending_direct_count || 'CANLI AKIŞ'}
-                        </div>
-                        <div className="kpi-num" style={{ fontSize: '1.8rem', fontWeight: 900, marginTop: '0.3rem', color: '#38bdf8' }}>
-                            {marketCount + cautionCount}
-                        </div>
-                        <div className="kpi-sub" style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.8, marginTop: '0.2rem' }}>
-                            {lang === 'tr' ? 'Avrupa Hacmi (Radar Dışı / Alt Lig)' : (lang === 'de' ? 'Europäisches Volumen (Außerhalb des Radars)' : 'European Volume (Outside Radar)')}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Filters & Search Toolbar */}
-                <div className="trending-filter-bar" style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    flexWrap: 'wrap',
-                    gap: '1rem',
-                    marginBottom: '1.5rem',
-                    background: 'rgba(255,255,255,0.02)',
-                    padding: '1rem',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255,255,255,0.06)'
-                }}>
-                    <div className="trending-filter-chips" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {/* Unified Segment Toolbar & Search */}
+                <div className="trending-unified-toolbar">
+                    <div className="trending-segment-group">
                         {[
-                            { id: 'ALL', label: `${t.trending_filter_all || 'TÜMÜ'} (${groupedMatches.length})` },
-                            { id: 'APPROVED', label: `${t.trending_filter_approved || '🟢 ONAYLI'} (${approvedCount})`, color: '#10b981' },
-                            { id: 'TRAP', label: `${t.trending_filter_trap || '🔴 TUZAKLAR'} (${trapCount})`, color: '#ef4444' },
-                            { id: 'MARKET', label: `${t.trending_filter_market || '📊 AKIŞ'} (${marketCount + cautionCount})`, color: '#38bdf8' }
-                        ].map(f => (
-                            <button
-                                key={f.id}
-                                onClick={() => setTrendingFilter(f.id)}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '8px',
-                                    border: trendingFilter === f.id ? `1px solid ${f.color || 'var(--accent-color)'}` : '1px solid rgba(255,255,255,0.08)',
-                                    background: trendingFilter === f.id ? (f.color ? `${f.color}22` : 'var(--accent-color)') : 'rgba(255,255,255,0.03)',
-                                    color: trendingFilter === f.id ? (f.color || '#000') : '#94a3b8',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 800,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                {f.label}
-                            </button>
-                        ))}
+                            { 
+                                id: 'ALL', 
+                                label: t.trending_filter_all || 'TÜMÜ', 
+                                icon: '🔥', 
+                                count: groupedMatches.length, 
+                                activeClass: 'active-all' 
+                            },
+                            { 
+                                id: 'APPROVED', 
+                                label: t.trending_smart_money_count || 'ONAYLI TREND', 
+                                icon: '🟢', 
+                                count: approvedCount, 
+                                activeClass: 'active-approved' 
+                            },
+                            { 
+                                id: 'TRAP', 
+                                label: t.trending_trap_count || 'TUZAK UYARISI', 
+                                icon: '🔴', 
+                                count: trapCount, 
+                                activeClass: 'active-trap' 
+                            },
+                            { 
+                                id: 'MARKET', 
+                                label: t.trending_direct_count || 'CANLI AKIŞ', 
+                                icon: '📊', 
+                                count: marketCount + cautionCount, 
+                                activeClass: 'active-market' 
+                            }
+                        ].map(f => {
+                            const isActive = trendingFilter === f.id;
+                            return (
+                                <button
+                                    key={f.id}
+                                    type="button"
+                                    className={`trending-segment-pill ${isActive ? f.activeClass : ''}`}
+                                    onClick={() => setTrendingFilter(f.id)}
+                                >
+                                    <span className="trending-segment-icon">{f.icon}</span>
+                                    <span className="trending-segment-label">{f.label}</span>
+                                    <span className="trending-segment-count">{f.count}</span>
+                                </button>
+                            );
+                        })}
                     </div>
 
-                    <div className="trending-search-box" style={{ position: 'relative', flex: '1', maxWidth: '400px' }}>
+                    <div className="trending-search-box">
                         <input
                             type="text"
                             placeholder={t.trending_search_placeholder || 'Takım, lig veya bahis tipi ara...'}
                             value={trendingSearch}
                             onChange={(e) => setTrendingSearch(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '0.6rem 1rem 0.6rem 2.2rem',
-                                borderRadius: '8px',
-                                border: '1px solid rgba(255,255,255,0.1)',
-                                background: 'rgba(0,0,0,0.3)',
-                                color: '#fff',
-                                fontSize: '0.8rem',
-                                outline: 'none'
-                            }}
                         />
-                        <span style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}>
-                            🔍
-                        </span>
+                        <span className="trending-search-icon">🔍</span>
                         {trendingSearch && (
                             <button
+                                type="button"
+                                className="trending-search-clear"
                                 onClick={() => setTrendingSearch('')}
-                                style={{
-                                    position: 'absolute',
-                                    right: '0.8rem',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    background: 'transparent',
-                                    border: 'none',
-                                    color: '#fff',
-                                    opacity: 0.5,
-                                    cursor: 'pointer'
-                                }}
                             >
                                 ✕
                             </button>
