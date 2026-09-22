@@ -48,6 +48,9 @@ const SupportStaffDesk = ({
     const isDe = lang === 'de';
 
     const [searchQuery, setSearchQuery] = useState('');
+    const [dateFilter, setDateFilter] = useState('all'); // 'all' | 'today' | 'yesterday' | 'week' | 'custom'
+    const [customDate, setCustomDate] = useState(''); // 'YYYY-MM-DD'
+    const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest'
     const [isMobileScreen, setIsMobileScreen] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 900 : false);
     const [mobileShowChat, setMobileShowChat] = useState(() => Boolean(targetTelegramSessionId || activeSupportSession));
     const [liveTranslatedText, setLiveTranslatedText] = useState('');
@@ -125,27 +128,111 @@ const SupportStaffDesk = ({
         }
     };
 
+    const getSessionTimestamp = (s) => {
+        return s?.lastMessage?.timestamp || s?.updatedAt || s?.createdAt || 0;
+    };
+
+    const formatSessionTimeBadge = (rawTs) => {
+        if (!rawTs) return null;
+        const date = new Date(rawTs);
+        if (isNaN(date.getTime())) return null;
+
+        const now = new Date();
+        const isToday = date.toDateString() === now.toDateString();
+
+        const yesterday = new Date(now);
+        yesterday.setDate(now.getDate() - 1);
+        const isYesterday = date.toDateString() === yesterday.toDateString();
+
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const timeStr = `${hours}:${minutes}`;
+
+        let label = '';
+        if (isToday) {
+            label = isTr ? `Bugün ${timeStr}` : isDe ? `Heute ${timeStr}` : `Today ${timeStr}`;
+        } else if (isYesterday) {
+            label = isTr ? `Dün ${timeStr}` : isDe ? `Gestern ${timeStr}` : `Yesterday ${timeStr}`;
+        } else {
+            const trMonths = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+            const deMonths = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+            const enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const months = isTr ? trMonths : isDe ? deMonths : enMonths;
+            const monthStr = months[date.getMonth()] || '';
+            label = `${date.getDate()} ${monthStr}, ${timeStr}`;
+        }
+
+        const fullTooltip = date.toLocaleString(isTr ? 'tr-TR' : isDe ? 'de-DE' : 'en-US', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+
+        return { label, fullTooltip, isToday, isYesterday, date };
+    };
+
     const waitingSessions = supportSessions.filter(s => s.status === 'waiting_admin');
     const activeSessions = supportSessions.filter(s => s.status === 'active');
     const closedSessions = supportSessions.filter(s => s.status === 'closed');
     const archivedSessions = supportSessions.filter(s => s.status === 'archived');
 
     const filteredSessions = supportSessions.filter(s => {
+        // 1. Status Filter
         if (supportFilter === 'waiting' && s.status !== 'waiting_admin') return false;
         if (supportFilter === 'active' && s.status !== 'active') return false;
         if (supportFilter === 'closed' && s.status !== 'closed') return false;
         if (supportFilter === 'archived' && s.status !== 'archived') return false;
 
+        // 2. Date Filter
+        if (dateFilter !== 'all') {
+            const ts = getSessionTimestamp(s);
+            if (!ts) return false;
+            const sDate = new Date(ts);
+            const now = new Date();
+
+            if (dateFilter === 'today') {
+                const isToday = sDate.getFullYear() === now.getFullYear() &&
+                                sDate.getMonth() === now.getMonth() &&
+                                sDate.getDate() === now.getDate();
+                if (!isToday) return false;
+            } else if (dateFilter === 'yesterday') {
+                const yesterday = new Date(now);
+                yesterday.setDate(now.getDate() - 1);
+                const isYesterday = sDate.getFullYear() === yesterday.getFullYear() &&
+                                    sDate.getMonth() === yesterday.getMonth() &&
+                                    sDate.getDate() === yesterday.getDate();
+                if (!isYesterday) return false;
+            } else if (dateFilter === 'week') {
+                const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                if (sDate < sevenDaysAgo) return false;
+            } else if (dateFilter === 'custom' && customDate) {
+                const [tYear, tMonth, tDay] = customDate.split('-').map(Number);
+                const isMatch = sDate.getFullYear() === tYear &&
+                                (sDate.getMonth() + 1) === tMonth &&
+                                sDate.getDate() === tDay;
+                if (!isMatch) return false;
+            }
+        }
+
+        // 3. Search Query Filter
         if (searchQuery.trim()) {
             const q = searchQuery.toLowerCase().trim();
             const email = (s.userInfo?.email || '').toLowerCase();
             const name = (s.userInfo?.name || '').toLowerCase();
             const sId = (s.sessionId || '').toLowerCase();
-            const msgMatch = (s.messages || []).some(m => (m.text || '').toLowerCase().includes(q));
+            const lastMsgText = (s.lastMessage?.text || '').toLowerCase();
+            const msgMatch = (s.messages || []).some(m => (m.text || '').toLowerCase().includes(q)) || lastMsgText.includes(q);
             return email.includes(q) || name.includes(q) || sId.includes(q) || msgMatch;
         }
 
         return true;
+    }).sort((a, b) => {
+        const tsA = getSessionTimestamp(a);
+        const tsB = getSessionTimestamp(b);
+        return sortOrder === 'newest' ? (tsB - tsA) : (tsA - tsB);
     });
 
     const quickTemplates = isTr ? [
@@ -330,7 +417,7 @@ const SupportStaffDesk = ({
                             </div>
 
                             {/* Live Search Box for Audit & Past History */}
-                            <div style={{ marginBottom: '0.8rem' }}>
+                            <div style={{ marginBottom: '0.6rem' }}>
                                 <input
                                     type="text"
                                     placeholder={isTr ? "🔍 Kullanıcı, e-posta veya mesaj ara..." : "🔍 Search user, email or message..."}
@@ -350,9 +437,115 @@ const SupportStaffDesk = ({
                                 />
                             </div>
 
+                            {/* Date Filter & Sort Controls */}
+                            <div style={{
+                                background: 'rgba(255,255,255,0.03)',
+                                borderRadius: '8px',
+                                padding: '0.55rem',
+                                marginBottom: '0.8rem',
+                                border: '1px solid rgba(255,255,255,0.06)'
+                            }}>
+                                {/* Quick Date Pills */}
+                                <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.45rem' }}>
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginRight: '0.2rem' }}>
+                                        📅 {isTr ? 'Tarih:' : 'Date:'}
+                                    </span>
+                                    {[
+                                        { key: 'all', label: isTr ? 'Tümü' : 'All' },
+                                        { key: 'today', label: isTr ? 'Bugün' : 'Today' },
+                                        { key: 'yesterday', label: isTr ? 'Dün' : 'Yesterday' },
+                                        { key: 'week', label: isTr ? 'Son 7G' : '7 Days' },
+                                        { key: 'custom', label: isTr ? 'Özel 🗓️' : 'Custom 🗓️' }
+                                    ].map(d => (
+                                        <button
+                                            key={d.key}
+                                            onClick={() => {
+                                                setDateFilter(d.key);
+                                                if (d.key !== 'custom') setCustomDate('');
+                                            }}
+                                            style={{
+                                                padding: '0.2rem 0.5rem',
+                                                borderRadius: '12px',
+                                                fontSize: '0.65rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer',
+                                                background: dateFilter === d.key ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,0.04)',
+                                                color: dateFilter === d.key ? '#38bdf8' : '#94a3b8',
+                                                border: `1px solid ${dateFilter === d.key ? '#38bdf8' : 'rgba(255,255,255,0.08)'}`,
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            {d.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Custom Date Input Bar if 'custom' is selected */}
+                                {dateFilter === 'custom' && (
+                                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginBottom: '0.45rem', marginTop: '0.2rem' }}>
+                                        <input
+                                            type="date"
+                                            value={customDate}
+                                            onChange={e => setCustomDate(e.target.value)}
+                                            style={{
+                                                background: 'rgba(0,0,0,0.5)',
+                                                border: '1px solid #38bdf8',
+                                                borderRadius: '6px',
+                                                color: '#fff',
+                                                padding: '0.25rem 0.5rem',
+                                                fontSize: '0.72rem',
+                                                outline: 'none',
+                                                colorScheme: 'dark'
+                                            }}
+                                        />
+                                        {customDate && (
+                                            <button
+                                                onClick={() => { setCustomDate(''); setDateFilter('all'); }}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    color: '#f87171',
+                                                    fontSize: '0.7rem',
+                                                    cursor: 'pointer',
+                                                    padding: '0.2rem 0.4rem'
+                                                }}
+                                                title={isTr ? 'Tarih filtresini temizle' : 'Clear date filter'}
+                                            >
+                                                ✕ {isTr ? 'Temizle' : 'Clear'}
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Sort Order Bar */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', color: '#94a3b8', paddingTop: '0.35rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <span>
+                                        {dateFilter === 'today' ? (isTr ? 'Bugünküler' : 'Today') : dateFilter === 'yesterday' ? (isTr ? 'Dünküler' : 'Yesterday') : dateFilter === 'custom' && customDate ? customDate : ''} ({filteredSessions.length} {isTr ? 'oturum' : 'sessions'})
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                        <span>{isTr ? 'Sıra:' : 'Sort:'}</span>
+                                        <button
+                                            onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '4px',
+                                                color: '#38bdf8',
+                                                padding: '0.15rem 0.4rem',
+                                                fontSize: '0.65rem',
+                                                fontWeight: 700,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {sortOrder === 'newest' ? `⬇️ ${isTr ? 'En Yeni' : 'Newest'}` : `⬆️ ${isTr ? 'En Eski' : 'Oldest'}`}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
                             {filteredSessions.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
-                                    {isTr ? 'Bu filtreye uygun aktif sohbet oturumu bulunamadı.' : 'No chat sessions match this filter.'}
+                                    {isTr ? 'Bu filtreye veya seçilen tarihe uygun sohbet oturumu bulunamadı.' : 'No chat sessions match this filter or selected date.'}
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -365,6 +558,7 @@ const SupportStaffDesk = ({
                                             (sess.userInfo?.email && !sess.userInfo?.email.toLowerCase().includes('ziyaretci') && sess.userInfo?.email !== 'Misafir')
                                         );
                                         const isMobile = sess.userInfo?.device?.isMobile;
+                                        const timeBadge = formatSessionTimeBadge(getSessionTimestamp(sess));
 
                                         return (
                                             <div
@@ -387,7 +581,7 @@ const SupportStaffDesk = ({
                                                     transition: 'all 0.15s'
                                                 }}
                                             >
-                                                {/* Top row: Target badge if from telegram, or status badge */}
+                                                {/* Top row: Badges and Exact Time Badge */}
                                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', gap: '0.4rem', flexWrap: 'wrap' }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                                         <span style={{ fontSize: '0.85rem' }}>{isMember ? '👑' : '🌐'}</span>
@@ -417,43 +611,82 @@ const SupportStaffDesk = ({
                                                         )}
                                                     </div>
 
-                                                    <span style={{
-                                                        fontSize: '0.62rem',
-                                                        fontWeight: 800,
-                                                        padding: '0.15rem 0.45rem',
-                                                        borderRadius: '6px',
-                                                        background: isWaiting
-                                                            ? 'rgba(251, 191, 36, 0.2)'
-                                                            : sess.status === 'closed'
-                                                            ? 'rgba(100, 116, 139, 0.2)'
-                                                            : sess.status === 'archived'
-                                                            ? 'rgba(167, 139, 250, 0.2)'
-                                                            : 'rgba(16, 185, 129, 0.2)',
-                                                        color: isWaiting
-                                                            ? '#fbbf24'
-                                                            : sess.status === 'closed'
-                                                            ? '#94a3b8'
-                                                            : sess.status === 'archived'
-                                                            ? '#a78bfa'
-                                                            : '#10b981',
-                                                        border: `1px solid ${
-                                                            isWaiting
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                        {/* Prominent Date / Time Badge */}
+                                                        {timeBadge && (
+                                                            <span
+                                                                title={`Son Etkinlik / Mesaj: ${timeBadge.fullTooltip}`}
+                                                                style={{
+                                                                    fontSize: '0.62rem',
+                                                                    fontWeight: 700,
+                                                                    padding: '0.12rem 0.42rem',
+                                                                    borderRadius: '4px',
+                                                                    background: timeBadge.isToday
+                                                                        ? 'rgba(56, 189, 248, 0.15)'
+                                                                        : timeBadge.isYesterday
+                                                                        ? 'rgba(251, 191, 36, 0.15)'
+                                                                        : 'rgba(255, 255, 255, 0.05)',
+                                                                    color: timeBadge.isToday
+                                                                        ? '#38bdf8'
+                                                                        : timeBadge.isYesterday
+                                                                        ? '#fbbf24'
+                                                                        : '#94a3b8',
+                                                                    border: `1px solid ${
+                                                                        timeBadge.isToday
+                                                                            ? 'rgba(56, 189, 248, 0.35)'
+                                                                            : timeBadge.isYesterday
+                                                                            ? 'rgba(251, 191, 36, 0.35)'
+                                                                            : 'rgba(255, 255, 255, 0.1)'
+                                                                    }`,
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.2rem',
+                                                                    whiteSpace: 'nowrap'
+                                                                }}
+                                                            >
+                                                                <span>🕒</span>
+                                                                <span>{timeBadge.label}</span>
+                                                            </span>
+                                                        )}
+
+                                                        <span style={{
+                                                            fontSize: '0.62rem',
+                                                            fontWeight: 800,
+                                                            padding: '0.15rem 0.45rem',
+                                                            borderRadius: '6px',
+                                                            background: isWaiting
+                                                                ? 'rgba(251, 191, 36, 0.2)'
+                                                                : sess.status === 'closed'
+                                                                ? 'rgba(100, 116, 139, 0.2)'
+                                                                : sess.status === 'archived'
+                                                                ? 'rgba(167, 139, 250, 0.2)'
+                                                                : 'rgba(16, 185, 129, 0.2)',
+                                                            color: isWaiting
                                                                 ? '#fbbf24'
                                                                 : sess.status === 'closed'
                                                                 ? '#94a3b8'
                                                                 : sess.status === 'archived'
                                                                 ? '#a78bfa'
-                                                                : '#10b981'
-                                                        }`
-                                                    }}>
-                                                        {isWaiting
-                                                            ? (isTr ? 'YANIT BEKLİYOR' : 'WAITING')
-                                                            : sess.status === 'closed'
-                                                            ? (isTr ? 'ÇÖZÜLDÜ' : 'CLOSED')
-                                                            : sess.status === 'archived'
-                                                            ? (isTr ? 'ARŞİV' : 'ARCHIVED')
-                                                            : (isTr ? 'AKTİF' : 'ACTIVE')}
-                                                    </span>
+                                                                : '#10b981',
+                                                            border: `1px solid ${
+                                                                isWaiting
+                                                                    ? '#fbbf24'
+                                                                    : sess.status === 'closed'
+                                                                    ? '#94a3b8'
+                                                                    : sess.status === 'archived'
+                                                                    ? '#a78bfa'
+                                                                    : '#10b981'
+                                                            }`
+                                                        }}>
+                                                            {isWaiting
+                                                                ? (isTr ? 'YANIT BEKLİYOR' : 'WAITING')
+                                                                : sess.status === 'closed'
+                                                                ? (isTr ? 'ÇÖZÜLDÜ' : 'CLOSED')
+                                                                : sess.status === 'archived'
+                                                                ? (isTr ? 'ARŞİV' : 'ARCHIVED')
+                                                                : (isTr ? 'AKTİF' : 'ACTIVE')}
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 {/* Customer identifier */}
@@ -479,14 +712,32 @@ const SupportStaffDesk = ({
 
                                                 {sess.lastMessage && (
                                                     <div style={{
-                                                        fontSize: '0.72rem',
-                                                        color: sess.lastMessage.sender === 'user' ? '#38bdf8' : '#cbd5e1',
-                                                        fontStyle: 'italic',
-                                                        overflow: 'hidden',
-                                                        textOverflow: 'ellipsis',
-                                                        whiteSpace: 'nowrap'
+                                                        marginTop: '0.35rem',
+                                                        padding: '0.35rem 0.5rem',
+                                                        borderRadius: '6px',
+                                                        background: 'rgba(0,0,0,0.2)',
+                                                        border: '1px solid rgba(255,255,255,0.04)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        gap: '0.4rem'
                                                     }}>
-                                                        "{sess.lastMessage.text}"
+                                                        <div style={{
+                                                            fontSize: '0.72rem',
+                                                            color: sess.lastMessage.sender === 'user' ? '#38bdf8' : '#cbd5e1',
+                                                            fontStyle: 'italic',
+                                                            overflow: 'hidden',
+                                                            textOverflow: 'ellipsis',
+                                                            whiteSpace: 'nowrap',
+                                                            flex: 1
+                                                        }}>
+                                                            "{sess.lastMessage.text}"
+                                                        </div>
+                                                        {sess.lastMessage.timestamp && (
+                                                            <span style={{ fontSize: '0.62rem', opacity: 0.6, whiteSpace: 'nowrap', fontWeight: 600 }}>
+                                                                {new Date(sess.lastMessage.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -834,8 +1085,19 @@ const SupportStaffDesk = ({
                                                         gap: '0.6rem'
                                                     }}>
                                                         <span>{isUser ? '👤 Müşteri' : isBot ? '🤖 AI Canlı Asistan' : `🛡️ ${msg.senderName || 'Destek Yetkilisi'}`}</span>
-                                                        <span style={{ opacity: 0.6, fontWeight: 400 }}>
-                                                            {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                                                        <span style={{ opacity: 0.75, fontWeight: 500 }} title={msg.timestamp ? new Date(msg.timestamp).toLocaleString(isTr ? 'tr-TR' : isDe ? 'de-DE' : 'en-US') : ''}>
+                                                            {msg.timestamp ? (() => {
+                                                                const d = new Date(msg.timestamp);
+                                                                const now = new Date();
+                                                                const isToday = d.toDateString() === now.toDateString();
+                                                                const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                                                if (isToday) return timePart;
+                                                                const trMonths = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+                                                                const deMonths = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+                                                                const enMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                                                const m = (isTr ? trMonths : isDe ? deMonths : enMonths)[d.getMonth()];
+                                                                return `${d.getDate()} ${m} ${timePart}`;
+                                                            })() : ''}
                                                         </span>
                                                     </div>
                                                     {/* Message Content with Multi-Language Translation */}
