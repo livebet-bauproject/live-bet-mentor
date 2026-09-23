@@ -53,6 +53,15 @@ export const consensusAdapter = {
         if (cached !== undefined) return cached;
 
         let cleaned = name.toLowerCase()
+            .replace(/ø/g, 'o')
+            .replace(/ð/g, 'd')
+            .replace(/æ/g, 'ae')
+            .replace(/œ/g, 'oe')
+            .replace(/þ/g, 'th')
+            .replace(/ß/g, 'ss')
+            .replace(/ł/g, 'l')
+            .replace(/đ/g, 'd')
+            .replace(/ı/g, 'i')
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
             .replace(/\([^)]*\)/g, ' ') // Strip parentheses content like (W), (F), (2), (Res.)
             .replace(/\bmilano\b/g, 'milan')
@@ -82,14 +91,51 @@ export const consensusAdapter = {
         return cleaned;
     },
 
-    _isFuzzyMatchClean(h1, a1, h2, a2) {
+    _isTeamMatchClean(raw1, raw2, c1, c2) {
+        if (!c1 || !c2) return false;
+        if (c1 === c2) return true;
+        if (c1.length >= 4 && c2.length >= 4 && (c1.includes(c2) || c2.includes(c1))) return true;
+
+        const stopWords = new Set([
+            'women', 'frauen', 'femmes', 'fem', 'bayan', 'kvinner', 'dames', 'damen',
+            'club', 'town', 'city', 'united', 'real', 'inter', 'deportivo', 'sporting', 'atletico', 'athletic',
+            'saint', 'north', 'south', 'east', 'west', 'star', 'stars', 'rovers', 'wanderers'
+        ]);
+
+        const t1 = (raw1 || c1).toLowerCase()
+            .replace(/ø/g, 'o').replace(/ð/g, 'd').replace(/æ/g, 'ae').replace(/œ/g, 'oe').replace(/þ/g, 'th').replace(/ß/g, 'ss').replace(/ł/g, 'l').replace(/đ/g, 'd').replace(/ı/g, 'i')
+            .replace(/[^a-z0-9]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length >= 3 && !stopWords.has(w));
+
+        const t2 = (raw2 || c2).toLowerCase()
+            .replace(/ø/g, 'o').replace(/ð/g, 'd').replace(/æ/g, 'ae').replace(/œ/g, 'oe').replace(/þ/g, 'th').replace(/ß/g, 'ss').replace(/ł/g, 'l').replace(/đ/g, 'd').replace(/ı/g, 'i')
+            .replace(/[^a-z0-9]/g, ' ')
+            .split(/\s+/)
+            .filter(w => w.length >= 3 && !stopWords.has(w));
+
+        // Long distinctive token match (e.g. 'leuven', 'brondby', 'breidablik', 'sosnowiec')
+        const hasDistinctiveMatch = t1.some(w1 => 
+            w1.length >= 5 && t2.some(w2 => w2 === w1 || (w2.length >= 5 && (w1.includes(w2) || w2.includes(w1))))
+        );
+        if (hasDistinctiveMatch) return true;
+
+        // Multiple shared tokens or prefix-matches (e.g. 'oud' + 'hev' / 'heverlee')
+        let sharedTokens = 0;
+        for (const w1 of t1) {
+            if (t2.some(w2 => w1 === w2 || (w1.length >= 3 && w2.startsWith(w1)) || (w2.length >= 3 && w1.startsWith(w2)))) {
+                sharedTokens++;
+            }
+        }
+        return sharedTokens >= 2;
+    },
+
+    _isFuzzyMatchClean(h1, a1, h2, a2, rawH1 = '', rawA1 = '', rawH2 = '', rawA2 = '') {
         if (!h1 || !a1 || !h2 || !a2) return false;
         if (h1.length < 2 || a1.length < 2 || h2.length < 2 || a2.length < 2) return false;
 
-        const homeMatch = h1 === h2 || 
-            (h1.length >= 4 && h2.length >= 4 && (h1.includes(h2) || h2.includes(h1)));
-        const awayMatch = a1 === a2 || 
-            (a1.length >= 4 && a2.length >= 4 && (a1.includes(a2) || a2.includes(a1)));
+        const homeMatch = this._isTeamMatchClean(rawH1, rawH2, h1, h2);
+        const awayMatch = this._isTeamMatchClean(rawA1, rawA2, a1, a2);
 
         return homeMatch && awayMatch;
     },
@@ -99,7 +145,11 @@ export const consensusAdapter = {
             this._clean(home1),
             this._clean(away1),
             this._clean(home2),
-            this._clean(away2)
+            this._clean(away2),
+            home1,
+            away1,
+            home2,
+            away2
         );
     },
 
