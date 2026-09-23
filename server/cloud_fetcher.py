@@ -359,15 +359,17 @@ def fetch_live_events():
                 data = resp.json()
                 raw_events = data.get('events', [])
                 now_ts = time.time()
-                # Anti-ghost filter: remove matches started > 3.5h ago or marked finished
+                # Anti-ghost filter: remove matches started > 5.5h ago, scheduled > 1h in future, or marked finished
                 events = []
                 for e in raw_events:
                     start_ts = e.get('startTimestamp') or now_ts
-                    if (now_ts - start_ts) > 3.5 * 3600:
+                    if (now_ts - start_ts) > 5.5 * 3600:
                         continue
+                    if (start_ts - now_ts) > 3600:
+                        continue # Skip future-dated amateur matches
                     st = (e.get('status', {}).get('type') or '').lower()
                     desc = (e.get('status', {}).get('description') or '').lower()
-                    if st == 'finished' or 'ended' in desc or 'bitti' in desc:
+                    if st == 'finished' or 'ended' in desc or 'bitti' in desc or 'cancel' in desc:
                         continue
                     events.append(e)
                 data['events'] = events

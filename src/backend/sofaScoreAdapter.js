@@ -222,11 +222,14 @@ export const sofaScoreAdapter = {
         // RELAXED: If sportId is missing, assume it's football because the endpoint is sport/football
         if (sportId && sportId !== 1) return null; 
 
-        // 2. Anti-Ghost filter: Reject matches that started > 3.5 hours ago
+        // 2. Anti-Ghost filter: Reject matches that started > 5.5 hours ago or are scheduled > 1 hour in future
         const nowSec = Date.now() / 1000;
         const startTs = event.startTimestamp || nowSec;
-        if ((nowSec - startTs) > 3.5 * 3600) {
+        if ((nowSec - startTs) > 5.5 * 3600) {
             return null; // Ghost match stuck in SofaScore feed from earlier
+        }
+        if ((startTs - nowSec) > 3600) {
+            return null; // Postponed/rescheduled amateur match with future timestamp
         }
 
         // 3. Must be Active (Filter out anything finished, ended, canceled or delayed)

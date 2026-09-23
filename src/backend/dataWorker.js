@@ -310,6 +310,26 @@ class DataWorker {
                     );
 
                     const validMatches = detailedMatches.filter(r => r !== null);
+                    const prevCount = this.fixtures?.length || 0;
+                    const incomingCount = validMatches.length;
+
+                    // Anti-Flap Shield: If incoming match count suddenly collapses by > 60% (e.g., 84 down to 9),
+                    // retain the existing fixture list for a grace period of up to 3 cycles,
+                    // merging incoming updates rather than wiping active matches off the user's screen.
+                    if (prevCount >= 20 && incomingCount < prevCount * 0.4) {
+                        this._consecutiveDropPolls = (this._consecutiveDropPolls || 0) + 1;
+                        if (this._consecutiveDropPolls < 3) {
+                            console.warn(`[DATA_WORKER] 🛡️ Anti-Flap Shield active: match count dropped suddenly from ${prevCount} to ${incomingCount}. Retaining existing fixtures (grace ${this._consecutiveDropPolls}/3).`);
+                            // Merge fresh info for matches that ARE in validMatches into existing fixtures
+                            const validMap = new Map(validMatches.map(m => [m.id, m]));
+                            this.fixtures = this.fixtures.map(f => validMap.get(f.id) || f);
+                            this.notify();
+                            await new Promise(resolve => setTimeout(resolve, CONFIG.DATA.POLLING_INTERVAL_MS));
+                            continue;
+                        }
+                    }
+                    this._consecutiveDropPolls = 0;
+
                     if (validMatches.length > 0) {
                         this.fixtures = this.normalizeFixtures(validMatches);
                         this._consecutiveEmptyPolls = 0;

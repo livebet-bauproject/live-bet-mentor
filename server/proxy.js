@@ -561,6 +561,22 @@ setInterval(() => {
     }
 }, 10 * 60 * 1000);
 
+const cleanEvents = (events) => {
+    if (!Array.isArray(events)) return [];
+    const nowSec = Date.now() / 1000;
+    return events.filter(e => {
+        const startTs = e.startTimestamp || nowSec;
+        // Anti-ghost filter: remove matches started > 5.5 hours ago
+        if ((nowSec - startTs) > 5.5 * 3600) return false;
+        // Anti-future-ghost filter: remove matches scheduled > 1 hour in future (postponed ghost matches)
+        if ((startTs - nowSec) > 3600) return false;
+        const st = (e.status?.type || '').toLowerCase();
+        const desc = (e.status?.description || '').toLowerCase();
+        if (st === 'finished' || desc.includes('ended') || desc.includes('finish') || desc.includes('bitti') || desc.includes('cancel')) return false;
+        return true;
+    });
+};
+
 const RENDER_UPLOAD_SECRET = process.env.UPLOAD_SECRET || 'lbm-sync-2026';
 
 // 0. UPLOAD ENDPOINTS (Local proxy pushes data here)
@@ -568,12 +584,20 @@ app.post('/api/sync/live', express.json({ limit: '10mb' }), (req, res) => {
     if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
         return res.status(403).json({ error: 'Forbidden' });
     }
-    memoryLiveData = req.body;
-    lastUploadTime = Date.now();
-    // Also write to file if possible
-    try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
-    console.log(`[SYNC] Received live data: ${req.body?.events?.length || 0} events`);
-    res.json({ ok: true, events: req.body?.events?.length || 0 });
+    const incomingEvents = cleanEvents(req.body?.events || []);
+    const existingEvents = cleanEvents(memoryLiveData?.events || []);
+
+    // Guard against degrading live data: Only overwrite if incoming has real events
+    // and is not vastly inferior to existing live dataset
+    if (incomingEvents.length >= 10 || existingEvents.length === 0) {
+        memoryLiveData = req.body;
+        lastUploadTime = Date.now();
+        try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
+        console.log(`[SYNC] Accepted live data: ${incomingEvents.length} clean events`);
+    } else {
+        console.warn(`[SYNC] Ignored stale/degraded live sync: incoming has only ${incomingEvents.length} valid events vs ${existingEvents.length} current.`);
+    }
+    res.json({ ok: true, events: incomingEvents.length });
 });
 
 app.post('/api/sync/consensus', express.json({ limit: '10mb' }), (req, res) => {
@@ -608,12 +632,19 @@ app.post('/api/sync/bundle', express.json({ limit: '15mb' }), (req, res) => {
     const { live, consensus, stats, odds } = req.body || {};
     let statsSaved = 0;
 
-    if (live) {
-        memoryLiveData = live;
-        lastUploadTime = Date.now();
-        try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(live), 'utf8'); } catch(e) {}
-        if (Array.isArray(live.events)) {
+    if (live && Array.isArray(live.events)) {
+        const incomingClean = cleanEvents(live.events);
+        const existingClean = cleanEvents(memoryLiveData?.events || []);
+
+        // Guard: do NOT let stale/degraded sync clobber fresh live data!
+        // Only accept if incoming has a healthy amount of live events (>= 15) or server has no live data
+        if (incomingClean.length >= 15 || existingClean.length === 0) {
+            memoryLiveData = live;
+            lastUploadTime = Date.now();
+            try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(live), 'utf8'); } catch(e) {}
             telegramBot.autoResolveSignals(live.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
+        } else {
+            console.warn(`[SYNC_BUNDLE] Retained server live data (${existingClean.length} active) instead of degraded sync (${incomingClean.length} valid)`);
         }
     }
 
@@ -697,40 +728,48 @@ app.get('/api/sync/status', (req, res) => {
 
 // 1. Live Events List
 app.get('/api/sofascore/live', (req, res) => {
-    const cleanEvents = (events) => {
-        if (!Array.isArray(events)) return [];
-        const nowSec = Date.now() / 1000;
-        return events.filter(e => {
-            const startTs = e.startTimestamp || nowSec;
-            if ((nowSec - startTs) > 3.5 * 3600) return false;
-            const st = (e.status?.type || '').toLowerCase();
-            const desc = (e.status?.description || '').toLowerCase();
-            if (st === 'finished' || desc.includes('ended') || desc.includes('finish') || desc.includes('bitti') || desc.includes('cancel')) return false;
-            return true;
-        });
-    };
-
-    // Try file first (local mode or cloud_fetcher written file)
+    // 1. Check file
+    let fileEvents = [];
+    let fileParsed = null;
     if (fs.existsSync(SOFASCORE_FILE)) {
         try {
             const data = fs.readFileSync(SOFASCORE_FILE, 'utf8');
-            const parsed = JSON.parse(data);
-            if (parsed && Array.isArray(parsed.events)) {
-                parsed.events = cleanEvents(parsed.events);
-                memoryLiveData = parsed;
-                return res.json(parsed);
+            fileParsed = JSON.parse(data);
+            if (fileParsed && Array.isArray(fileParsed.events)) {
+                fileEvents = cleanEvents(fileParsed.events);
             }
         } catch (e) {
             console.error('[PROXY] Error reading sofascore_live.json:', e.message);
         }
     }
-    // Fall back to memory (cloud mode or last known data)
+
+    // 2. Check memory
+    let memoryEvents = [];
     if (memoryLiveData && Array.isArray(memoryLiveData.events)) {
+        memoryEvents = cleanEvents(memoryLiveData.events);
+    }
+
+    // 3. Serve whichever source has more valid live events to prevent flapping!
+    if (memoryEvents.length >= fileEvents.length && memoryEvents.length > 0) {
         return res.json({
             ...memoryLiveData,
-            events: cleanEvents(memoryLiveData.events)
+            events: memoryEvents
         });
     }
+
+    if (fileEvents.length > 0) {
+        memoryLiveData = fileParsed ? { ...fileParsed, events: fileEvents } : { events: fileEvents };
+        return res.json({
+            ...(fileParsed || {}),
+            events: fileEvents
+        });
+    }
+
+    // Fallback if memory has any events
+    if (memoryEvents.length > 0) {
+        return res.json({ ...memoryLiveData, events: memoryEvents });
+    }
+
     res.status(404).json({ error: 'Data not found yet. Initializing autonomous fetch...' });
 });
 
@@ -4410,10 +4449,13 @@ app.listen(PORT, '0.0.0.0', async () => {
                     }
                 }
 
-                // 4. Send Bundle to Render
-                if (liveData || oddsData || Object.keys(statsBundle).length > 0) {
+                // 4. Send Bundle to Render (Only send liveData if it has at least 10 valid, active matches)
+                const cleanLiveList = cleanEvents(liveData?.events || []);
+                const validLiveToSend = cleanLiveList.length >= 10 ? liveData : null;
+
+                if (validLiveToSend || oddsData || Object.keys(statsBundle).length > 0) {
                     const payload = {
-                        live: liveData,
+                        live: validLiveToSend,
                         consensus: consensusData,
                         odds: oddsData,
                         stats: statsBundle
