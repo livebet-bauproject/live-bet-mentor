@@ -3100,6 +3100,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const liveScoreStr = liveMatch?.score 
             ? (typeof liveMatch.score === 'object' ? `${liveMatch.score.home ?? 0} - ${liveMatch.score.away ?? 0}` : String(liveMatch.score))
             : (bet.score || '0 - 0');
+        const currentScoreStr = liveScoreStr;
         const currentGoals = parseGoals(liveScoreStr);
         const goalsScoredSince = (bet.firstSeenScore && liveScoreStr) ? Math.max(0, currentGoals - initialGoals) : 0;
 
