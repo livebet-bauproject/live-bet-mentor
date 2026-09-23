@@ -587,15 +587,15 @@ app.post('/api/sync/live', express.json({ limit: '10mb' }), (req, res) => {
     const incomingEvents = cleanEvents(req.body?.events || []);
     const existingEvents = cleanEvents(memoryLiveData?.events || []);
 
-    // Guard against degrading live data: Only overwrite if incoming has real events
-    // and is not vastly inferior to existing live dataset
-    if (incomingEvents.length >= 10 || existingEvents.length === 0) {
+    // Guard against degrading live data: Only overwrite if incoming has real events (>= 15)
+    // and is not inferior to existing live dataset
+    if (incomingEvents.length >= 15 && incomingEvents.length >= existingEvents.length) {
         memoryLiveData = req.body;
         lastUploadTime = Date.now();
         try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
         console.log(`[SYNC] Accepted live data: ${incomingEvents.length} clean events`);
     } else {
-        console.warn(`[SYNC] Ignored stale/degraded live sync: incoming has only ${incomingEvents.length} valid events vs ${existingEvents.length} current.`);
+        console.warn(`[SYNC] 🛡️ Ignored stale/degraded live sync: incoming has only ${incomingEvents.length} valid events vs ${existingEvents.length} current.`);
     }
     res.json({ ok: true, events: incomingEvents.length });
 });
@@ -637,14 +637,14 @@ app.post('/api/sync/bundle', express.json({ limit: '15mb' }), (req, res) => {
         const existingClean = cleanEvents(memoryLiveData?.events || []);
 
         // Guard: do NOT let stale/degraded sync clobber fresh live data!
-        // Only accept if incoming has a healthy amount of live events (>= 15) or server has no live data
-        if (incomingClean.length >= 15 || existingClean.length === 0) {
+        // Only accept if incoming has a healthy amount of live events (>= 15) and is not inferior to existing
+        if (incomingClean.length >= 15 && incomingClean.length >= existingClean.length) {
             memoryLiveData = live;
             lastUploadTime = Date.now();
             try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(live), 'utf8'); } catch(e) {}
             telegramBot.autoResolveSignals(live.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
         } else {
-            console.warn(`[SYNC_BUNDLE] Retained server live data (${existingClean.length} active) instead of degraded sync (${incomingClean.length} valid)`);
+            console.warn(`[SYNC_BUNDLE] 🛡️ Retained server live data (${existingClean.length} active) instead of degraded sync (${incomingClean.length} valid)`);
         }
     }
 

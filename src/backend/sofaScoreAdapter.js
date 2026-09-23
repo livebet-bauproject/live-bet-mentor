@@ -51,9 +51,20 @@ const adapterIncidentsCache = new Map();
 const adapterStatsCache = new Map();
 const inFlightGraph = new Map();
 const inFlightIncidents = new Map();
-const inFlightStats = new Map();
 let adapterLiveEventsCache = [];
 let adapterLiveEventsTime = 0;
+try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+        const stored = sessionStorage.getItem('lbm_cached_live_events');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                adapterLiveEventsCache = parsed;
+                adapterLiveEventsTime = Date.now();
+            }
+        }
+    }
+} catch(e) {}
 
 export const sofaScoreAdapter = {
     _graphCache: adapterGraphCache,
@@ -177,6 +188,7 @@ export const sofaScoreAdapter = {
                         if (normalized.length > 0) {
                             adapterLiveEventsCache = normalized;
                             adapterLiveEventsTime = Date.now();
+                            try { if (typeof window !== 'undefined' && window.sessionStorage) window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify(normalized.slice(0, 100))); } catch(e) {}
                             return normalized;
                         }
                     }
