@@ -3088,6 +3088,60 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             consensusAdapter._isFuzzyMatch(bet.away, bet.home, m.homeTeam, m.awayTeam)
         );
 
+        // Helper to parse goals from score string "3 - 1" or {home: 3, away: 1}
+        const parseGoals = (s) => {
+            if (!s) return 0;
+            if (typeof s === 'object') return (Number(s.home) || 0) + (Number(s.away) || 0);
+            const parts = String(s).replace(/\s+/g, '').split(/[-:]/);
+            return (parseInt(parts[0], 10) || 0) + (parseInt(parts[1], 10) || 0);
+        };
+
+        const initialGoals = parseGoals(bet.firstSeenScore);
+        const liveScoreStr = liveMatch?.score 
+            ? (typeof liveMatch.score === 'object' ? `${liveMatch.score.home ?? 0} - ${liveMatch.score.away ?? 0}` : String(liveMatch.score))
+            : (bet.score || '0 - 0');
+        const currentGoals = parseGoals(liveScoreStr);
+        const goalsScoredSince = (bet.firstSeenScore && liveScoreStr) ? Math.max(0, currentGoals - initialGoals) : 0;
+
+        // Bet direction extraction
+        const marketLower = `${bet.market || ''} ${bet.marketShort || ''}`.toLowerCase();
+        const outcomeLower = `${bet.outcome || ''}`.toLowerCase();
+        const isOverBet = marketLower.includes('over') || marketLower.includes('üst') || outcomeLower.includes('over') || outcomeLower.includes('üst') || marketLower.includes('next');
+        const isHomeBet = outcomeLower.includes('home') || outcomeLower.includes('1') || outcomeLower.includes('ev');
+        const isAwayBet = outcomeLower.includes('away') || outcomeLower.includes('2') || outcomeLower.includes('dep');
+
+        // Target Achieved check: Did goals already hit since trend was detected?
+        let isAchieved = false;
+        if (isOverBet) {
+            if ((marketLower.includes('1.5') || outcomeLower.includes('1.5')) && goalsScoredSince >= 2) {
+                isAchieved = true;
+            } else if ((marketLower.includes('0.5') || outcomeLower.includes('0.5')) && goalsScoredSince >= 1) {
+                isAchieved = true;
+            } else if ((marketLower.includes('2.5') || outcomeLower.includes('2.5')) && currentGoals >= 3) {
+                isAchieved = true;
+            }
+        }
+
+        if (isAchieved) {
+            return {
+                status: 'ACHIEVED',
+                badgeText: lang === 'tr' ? '✅ HEDEF TUTTU' : (lang === 'de' ? '✅ ZIEL ERREICHT' : '✅ TARGET HIT'),
+                color: '#10b981',
+                bg: 'rgba(16, 185, 129, 0.15)',
+                borderColor: 'rgba(16, 185, 129, 0.45)',
+                icon: '✅',
+                dqs: liveMatch?.dqs || 0.70,
+                liveMatch,
+                goalsScoredSince,
+                currentScoreStr,
+                desc: lang === 'tr'
+                    ? `Trende girdikten sonra maçta +${goalsScoredSince} gol oldu (${bet.firstSeenScore || '0-0'} ➔ ${liveScoreStr}). Bahis hedefine ulaştı, yeni kupon almayın!`
+                    : (lang === 'de'
+                        ? `Ziel erreicht: +${goalsScoredSince} Tore seit Trendbeginn (${bet.firstSeenScore || '0-0'} ➔ ${liveScoreStr}). Keine weiteren Wetten nötig!`
+                        : `Target reached with +${goalsScoredSince} goal(s) since trend entered (${bet.firstSeenScore || '0-0'} ➔ ${liveScoreStr}).`)
+            };
+        }
+
         if (!liveMatch) {
             return {
                 status: 'MARKET',
@@ -3098,6 +3152,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 icon: '📊',
                 dqs: null,
                 liveMatch: null,
+                goalsScoredSince,
+                currentScoreStr,
                 desc: lang === 'tr' 
                     ? 'Avrupa kurumsal bahis bülteninde yüksek hacimli halk ilgisi. Canlı radar dışında veya alt lig.' 
                     : (lang === 'de'
@@ -3110,13 +3166,6 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const pressure = liveMatch.observations?.pressure?.total || 0;
         const risk = dataWorker?.checkRiskFilters ? dataWorker.checkRiskFilters(liveMatch) : null;
         const isDeadMatch = risk?.deadMatch?.status === 'FAIL';
-
-        // Bet direction extraction
-        const marketLower = `${bet.market || ''} ${bet.marketShort || ''}`.toLowerCase();
-        const outcomeLower = `${bet.outcome || ''}`.toLowerCase();
-        const isOverBet = marketLower.includes('over') || marketLower.includes('üst') || outcomeLower.includes('over') || outcomeLower.includes('üst') || marketLower.includes('next');
-        const isHomeBet = outcomeLower.includes('home') || outcomeLower.includes('1') || outcomeLower.includes('ev');
-        const isAwayBet = outcomeLower.includes('away') || outcomeLower.includes('2') || outcomeLower.includes('dep');
 
         const homeRed = liveMatch.cards?.home?.red || liveMatch.stats?.cards?.home?.red || 0;
         const awayRed = liveMatch.cards?.away?.red || liveMatch.stats?.cards?.away?.red || 0;
@@ -3136,6 +3185,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 : (lang === 'de'
                     ? `Publikum setzt auf Tore, aber das Spieltempo ist tot & Druck zu gering (%${pressure}). Hohe Fallen-Gefahr!`
                     : `Crowd chasing goals but match tempo is dead & pressure too low (%${pressure}). High trap risk!`);
+        } else if (isOverBet && minNum >= 82 && goalsScoredSince === 0) {
+            trapReason = lang === 'tr'
+                ? `Maç ${minNum}. dakikaya geldi fakat trende girdiğinden beri gol olmadı. Geç kalındı, halk tuzağı riski!`
+                : (lang === 'de'
+                    ? `Spielminute ${minNum}' erreicht ohne Tore seit Trendbeginn. Spätspiel-Fallengefahr!`
+                    : `Match reached ${minNum}' without goals since trend started. Late-game trap risk!`);
         } else if (isHomeBet && homeRed > 0) {
             trapReason = lang === 'tr'
                 ? `Kalabalık Ev Sahibine oynuyor ancak takım 🟥 Kırmızı Kart görmüş durumda! Tuzak alarmı!`
@@ -3158,6 +3213,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
         const isTrap = Boolean(trapReason);
         const isApproved = !isTrap && dqs >= 0.50 && (pressure >= 30 || minNum < 20);
+        const durMin = bet.durationMinutes ?? 0;
+        const isFresh = durMin <= 3 || bet.isNewTrend;
 
         if (isTrap) {
             return {
@@ -3169,20 +3226,31 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 icon: '🔴',
                 dqs,
                 liveMatch,
+                goalsScoredSince,
+                currentScoreStr,
                 desc: trapReason
             };
         } else if (isApproved) {
+            const approvedBadge = isFresh
+                ? (lang === 'tr' ? '🟢 TAZE SİNYAL' : (lang === 'de' ? '🟢 FRISCHES SIGNAL' : '🟢 FRESH SIGNAL'))
+                : (durMin > 15 
+                    ? (lang === 'tr' ? '🔥 GÜÇLÜ AKIŞ (15+ DK)' : (lang === 'de' ? '🔥 STARKER FLUSS (15+ M)' : '🔥 STRONG INFLUX (15+M)'))
+                    : (t.trending_smart_money_badge || '🟢 AKILLI PARA'));
             return {
                 status: 'APPROVED',
-                badgeText: t.trending_smart_money_badge || '🟢 AKILLI PARA',
+                badgeText: approvedBadge,
                 color: '#10b981',
                 bg: 'rgba(16, 185, 129, 0.12)',
                 borderColor: 'rgba(16, 185, 129, 0.4)',
                 icon: '🟢',
                 dqs,
                 liveMatch,
+                goalsScoredSince,
+                currentScoreStr,
                 desc: lang === 'tr'
-                    ? `Yüksek DQS (%${(dqs * 100).toFixed(0)}) & saha verisi kalabalığın bahsini doğruluyor.`
+                    ? (isFresh 
+                        ? `Sıcak para az önce girdi (< ${Math.max(1, durMin)} dk). Saha baskısı (%${pressure}) halkın bahsini doğruluyor.` 
+                        : `Yüksek DQS (%${(dqs * 100).toFixed(0)}) & saha verisi kalabalığın bahsini doğruluyor.`)
                     : (lang === 'de'
                         ? `Hoher DQS (${(dqs * 100).toFixed(0)}%) & Spieldaten bestätigen das Publikumsaufkommen.`
                         : `High DQS (${(dqs * 100).toFixed(0)}%) & match data confirms crowd influx.`)
@@ -3197,6 +3265,8 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 icon: '🟡',
                 dqs,
                 liveMatch,
+                goalsScoredSince,
+                currentScoreStr,
                 desc: lang === 'tr'
                     ? `Orta seviye DQS (%${(dqs * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
                     : (lang === 'de'
@@ -3241,13 +3311,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             };
         });
 
-        const approvedCount = groupedMatches.filter(m => m.evaluation.status === 'APPROVED').length;
+        const approvedCount = groupedMatches.filter(m => m.evaluation.status === 'APPROVED' || m.evaluation.status === 'ACHIEVED').length;
         const trapCount = groupedMatches.filter(m => m.evaluation.status === 'TRAP').length;
         const marketCount = groupedMatches.filter(m => m.evaluation.status === 'MARKET').length;
         const cautionCount = groupedMatches.filter(m => m.evaluation.status === 'CAUTION').length;
 
         const filteredMatches = groupedMatches.filter(m => {
-            if (trendingFilter === 'APPROVED' && m.evaluation.status !== 'APPROVED') return false;
+            if (trendingFilter === 'APPROVED' && m.evaluation.status !== 'APPROVED' && m.evaluation.status !== 'ACHIEVED') return false;
             if (trendingFilter === 'TRAP' && m.evaluation.status !== 'TRAP') return false;
             if (trendingFilter === 'MARKET' && m.evaluation.status !== 'MARKET' && m.evaluation.status !== 'CAUTION') return false;
             if (trendingFilter === 'CAUTION' && m.evaluation.status !== 'CAUTION') return false;
@@ -3582,19 +3652,46 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 )}
                                             </div>
 
-                                            <span style={{
-                                                fontSize: '0.65rem',
-                                                fontWeight: 900,
-                                                padding: '0.25rem 0.6rem',
-                                                borderRadius: '999px',
-                                                background: evalInfo.bg,
-                                                border: `1px solid ${evalInfo.borderColor}`,
-                                                color: evalInfo.color,
-                                                letterSpacing: '0.5px',
-                                                whiteSpace: 'nowrap'
-                                            }}>
-                                                {evalInfo.badgeText}
-                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                {/* Trend Age Badge */}
+                                                {m.primaryBet.durationMinutes !== undefined && (
+                                                    <span style={{
+                                                        fontSize: '0.65rem',
+                                                        fontWeight: 800,
+                                                        padding: '0.2rem 0.55rem',
+                                                        borderRadius: '999px',
+                                                        background: m.primaryBet.durationMinutes <= 3 
+                                                            ? 'rgba(16, 185, 129, 0.15)' 
+                                                            : (m.primaryBet.durationMinutes <= 15 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(148, 163, 184, 0.15)'),
+                                                        border: m.primaryBet.durationMinutes <= 3 
+                                                            ? '1px solid rgba(16, 185, 129, 0.35)' 
+                                                            : (m.primaryBet.durationMinutes <= 15 ? '1px solid rgba(245, 158, 11, 0.35)' : '1px solid rgba(148, 163, 184, 0.25)'),
+                                                        color: m.primaryBet.durationMinutes <= 3 
+                                                            ? '#34d399' 
+                                                            : (m.primaryBet.durationMinutes <= 15 ? '#fbbf24' : '#94a3b8'),
+                                                        whiteSpace: 'nowrap'
+                                                    }} title={lang === 'tr' ? 'Bu trendin sisteme ilk girdiği andan itibaren geçen süre' : 'Time since this trend was first detected'}>
+                                                        {m.primaryBet.durationMinutes <= 2 
+                                                            ? (lang === 'tr' ? '🟢 Yeni (<2 dk)' : (lang === 'de' ? '🟢 Neu (<2 Min)' : '🟢 New (<2m)'))
+                                                            : (lang === 'tr' ? `⏱️ ${m.primaryBet.durationMinutes} dk'dır trendde` : (lang === 'de' ? `⏱️ seit ${m.primaryBet.durationMinutes} Min` : `⏱️ ${m.primaryBet.durationMinutes}m active`))}
+                                                    </span>
+                                                )}
+
+                                                {/* Evaluation Badge */}
+                                                <span style={{
+                                                    fontSize: '0.65rem',
+                                                    fontWeight: 900,
+                                                    padding: '0.25rem 0.6rem',
+                                                    borderRadius: '999px',
+                                                    background: evalInfo.bg,
+                                                    border: `1px solid ${evalInfo.borderColor}`,
+                                                    color: evalInfo.color,
+                                                    letterSpacing: '0.5px',
+                                                    whiteSpace: 'nowrap'
+                                                }}>
+                                                    {evalInfo.badgeText}
+                                                </span>
+                                            </div>
                                         </div>
 
                                         {/* Match Info & Score */}
@@ -3605,34 +3702,121 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                 </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                                {m.score && (
-                                                    <span style={{
-                                                        padding: '0.15rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        background: 'rgba(0, 0, 0, 0.4)',
-                                                        border: '1px solid rgba(255,255,255,0.1)',
-                                                        fontSize: '0.8rem',
-                                                        fontWeight: 900,
-                                                        color: '#facc15'
-                                                    }}>
-                                                        ⚽ {m.score}
-                                                    </span>
-                                                )}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                {/* Current Score */}
+                                                <span style={{
+                                                    padding: '0.2rem 0.6rem',
+                                                    borderRadius: '6px',
+                                                    background: 'rgba(0, 0, 0, 0.45)',
+                                                    border: '1px solid rgba(255,255,255,0.12)',
+                                                    fontSize: '0.85rem',
+                                                    fontWeight: 900,
+                                                    color: '#facc15'
+                                                }}>
+                                                    ⚽ {evalInfo.currentScoreStr || m.score || '0 - 0'}
+                                                </span>
+
+                                                {/* Live Minute */}
                                                 {evalInfo.liveMatch?.minute && (
                                                     <span style={{
-                                                        padding: '0.15rem 0.5rem',
-                                                        borderRadius: '4px',
-                                                        background: 'rgba(239, 68, 68, 0.15)',
-                                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: 800,
+                                                        padding: '0.2rem 0.6rem',
+                                                        borderRadius: '6px',
+                                                        background: 'rgba(239, 68, 68, 0.18)',
+                                                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                                                        fontSize: '0.78rem',
+                                                        fontWeight: 900,
                                                         color: '#f87171'
                                                     }}>
                                                         ⏱️ {evalInfo.liveMatch.minute}'
                                                     </span>
                                                 )}
+
+                                                {/* Live Pressure Index */}
+                                                {evalInfo.liveMatch?.observations?.pressure?.total > 0 && (
+                                                    <span style={{
+                                                        padding: '0.2rem 0.55rem',
+                                                        borderRadius: '6px',
+                                                        background: evalInfo.liveMatch.observations.pressure.total >= 60 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.12)',
+                                                        border: evalInfo.liveMatch.observations.pressure.total >= 60 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 800,
+                                                        color: evalInfo.liveMatch.observations.pressure.total >= 60 ? '#f87171' : '#38bdf8'
+                                                    }}>
+                                                        ⚡ %{evalInfo.liveMatch.observations.pressure.total} Baskı
+                                                    </span>
+                                                )}
+
+                                                {/* DQS Score */}
+                                                {evalInfo.dqs && evalInfo.dqs > 0 && (
+                                                    <span style={{
+                                                        padding: '0.2rem 0.55rem',
+                                                        borderRadius: '6px',
+                                                        background: 'rgba(255, 255, 255, 0.05)',
+                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 800,
+                                                        color: evalInfo.dqs >= 0.70 ? '#34d399' : '#fbbf24'
+                                                    }}>
+                                                        DQS %{(evalInfo.dqs * 100).toFixed(0)}
+                                                    </span>
+                                                )}
                                             </div>
+
+                                            {/* Score & Minute Evolution Timeline */}
+                                            {m.primaryBet.firstSeenScore && (
+                                                <div style={{
+                                                    marginTop: '0.5rem',
+                                                    padding: '0.4rem 0.65rem',
+                                                    borderRadius: '8px',
+                                                    background: 'rgba(0, 0, 0, 0.25)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    fontSize: '0.72rem',
+                                                    fontWeight: 700,
+                                                    gap: '0.4rem',
+                                                    flexWrap: 'wrap'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                        <span style={{ color: '#94a3b8' }}>📍 {lang === 'tr' ? 'Giriş:' : (lang === 'de' ? 'Start:' : 'Entry:')}</span>
+                                                        <span style={{ color: '#fbbf24', fontWeight: 800 }}>
+                                                            ⚽ {m.primaryBet.firstSeenScore}
+                                                            {evalInfo.liveMatch?.minute && (
+                                                                <span style={{ opacity: 0.7, marginLeft: '2px', fontWeight: 600 }}>
+                                                                    ({Math.max(1, (parseInt(String(evalInfo.liveMatch.minute).replace(/[^0-9]/g, '')) || 0) - (m.primaryBet.durationMinutes || 0))}')
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                        <span style={{ opacity: 0.35 }}>──►</span>
+                                                        <span style={{ color: '#94a3b8' }}>🔴 {lang === 'tr' ? 'Şu An:' : (lang === 'de' ? 'Aktuell:' : 'Now:')}</span>
+                                                        <span style={{ color: '#f8fafc', fontWeight: 800 }}>
+                                                            ⚽ {evalInfo.currentScoreStr || m.score || '0 - 0'}
+                                                            {evalInfo.liveMatch?.minute && (
+                                                                <span style={{ color: '#f87171', marginLeft: '2px', fontWeight: 800 }}>
+                                                                    ({evalInfo.liveMatch.minute}')
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                    {evalInfo.goalsScoredSince > 0 ? (
+                                                        <span style={{
+                                                            color: '#10b981',
+                                                            fontWeight: 900,
+                                                            background: 'rgba(16, 185, 129, 0.15)',
+                                                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                            padding: '1px 6px',
+                                                            borderRadius: '4px'
+                                                        }}>
+                                                            +{evalInfo.goalsScoredSince} {lang === 'tr' ? 'Gol Geldi!' : (lang === 'de' ? 'Tore!' : 'Goal(s)!')}
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>
+                                                            {lang === 'tr' ? 'Gol henüz yok' : (lang === 'de' ? 'Noch kein Tor' : 'No goals yet')}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
 
                                         {/* Bet Market & Odds Box (Primary Bet) */}
@@ -3670,12 +3854,29 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
                                         {/* Public Bet Count & Heat Bar (Primary Bet) */}
                                         <div style={{ marginBottom: m.otherBets.length > 0 ? '0.6rem' : '0.8rem' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', fontSize: '0.75rem' }}>
-                                                <span style={{ color: '#f87171', fontWeight: 800 }}>
-                                                    🔥 {m.primaryBet.count} {t.trending_bets_placed || 'kupon oynandı'}
-                                                </span>
-                                                <span style={{ opacity: 0.4, fontSize: '0.7rem' }}>
-                                                    {t.trending_last_5m || 'Son 5 dk'}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem', fontSize: '0.75rem', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                    <span style={{ color: '#f87171', fontWeight: 800 }}>
+                                                        🔥 {m.primaryBet.count} {t.trending_bets_placed || 'kupon oynandı'}
+                                                    </span>
+                                                    {m.primaryBet.velocity !== undefined && m.primaryBet.velocity > 0 && (
+                                                        <span style={{
+                                                            fontSize: '0.68rem',
+                                                            fontWeight: 900,
+                                                            color: '#10b981',
+                                                            background: 'rgba(16, 185, 129, 0.12)',
+                                                            border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                            borderRadius: '4px',
+                                                            padding: '1px 5px'
+                                                        }}>
+                                                            +{m.primaryBet.velocity}/45s {m.primaryBet.velocityStatus === 'SURGE' ? '🚀' : '📈'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span style={{ opacity: 0.5, fontSize: '0.7rem', fontWeight: 600 }}>
+                                                    {m.primaryBet.durationMinutes !== undefined 
+                                                        ? (lang === 'tr' ? `${m.primaryBet.durationMinutes} dk'dır aktif` : (lang === 'de' ? `seit ${m.primaryBet.durationMinutes} Min` : `${m.primaryBet.durationMinutes}m active`))
+                                                        : (t.trending_last_5m || 'Son 5 dk')}
                                                 </span>
                                             </div>
                                             <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>

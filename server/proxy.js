@@ -357,6 +357,8 @@ app.get('/api/debug', async (req, res) => {
 
 // --- INSTITUTIONAL MARKET MONEY FLOW ENDPOINT (EU LIVESTREAM) ---
 let marketTrendingCache = { data: null, time: 0 };
+const trendingHistoryMap = new Map();
+const TREND_TTL_MS = 30 * 60 * 1000; // 30 minutes TTL for inactive trends
 
 app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
     // Return cache if fresh (< 45 seconds)
@@ -383,22 +385,75 @@ app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
         }
 
         const raw = await response.json();
-        const bets = (raw.bets || []).map(b => ({
-            eventId: b.eventId,
-            marketId: b.marketId,
-            outcomeId: b.outcomeId,
-            match: `${b.participants?.home || ''} vs ${b.participants?.away || ''}`,
-            home: b.participants?.home || '',
-            away: b.participants?.away || '',
-            competition: b.competitionName || '',
-            market: b.marketName || '',
-            marketShort: b.marketShortName || '',
-            outcome: b.outcomeName || '',
-            odds: b.odds,
-            score: b.score ? `${b.score[0]} - ${b.score[1]}` : null,
-            count: b.count,
-            timeWindow: '5m'
-        }));
+        const now = Date.now();
+
+        const bets = (raw.bets || []).map(b => {
+            const betKey = `${b.eventId}_${b.marketId}_${b.outcomeId}`;
+            const currentScore = b.score ? `${b.score[0]} - ${b.score[1]}` : null;
+            const currentCount = Number(b.count) || 0;
+
+            let history = trendingHistoryMap.get(betKey);
+            if (!history) {
+                // First time this trending bet entered the feed
+                history = {
+                    firstSeenAt: now,
+                    firstSeenScore: currentScore,
+                    firstSeenCount: currentCount,
+                    previousCount: currentCount,
+                    lastSeenAt: now,
+                    cycles: 1
+                };
+            } else {
+                history.cycles = (history.cycles || 1) + 1;
+                history.previousCount = history.lastCount || history.firstSeenCount;
+                history.lastSeenAt = now;
+            }
+            history.lastCount = currentCount;
+            trendingHistoryMap.set(betKey, history);
+
+            const durationMs = Math.max(0, now - history.firstSeenAt);
+            const durationMinutes = Math.floor(durationMs / 60000);
+            const velocity = currentCount - (history.previousCount || currentCount);
+
+            let velocityStatus = 'STEADY';
+            if (velocity >= 15 || (history.cycles === 1 && currentCount >= 40)) {
+                velocityStatus = 'SURGE'; // High speed influx
+            } else if (velocity <= 1 && history.cycles >= 3) {
+                velocityStatus = 'STAGNANT'; // Influx slowed down
+            }
+
+            return {
+                eventId: b.eventId,
+                marketId: b.marketId,
+                outcomeId: b.outcomeId,
+                match: `${b.participants?.home || ''} vs ${b.participants?.away || ''}`,
+                home: b.participants?.home || '',
+                away: b.participants?.away || '',
+                competition: b.competitionName || '',
+                market: b.marketName || '',
+                marketShort: b.marketShortName || '',
+                outcome: b.outcomeName || '',
+                odds: b.odds,
+                score: currentScore,
+                count: currentCount,
+                timeWindow: '5m',
+                // Trend Lifecycle Tracker fields
+                firstSeenAt: history.firstSeenAt,
+                firstSeenScore: history.firstSeenScore,
+                firstSeenCount: history.firstSeenCount,
+                durationMinutes,
+                velocity,
+                velocityStatus,
+                isNewTrend: durationMinutes <= 3
+            };
+        });
+
+        // Prune trends not seen in > 30 minutes to prevent memory leaks
+        for (const [key, val] of trendingHistoryMap.entries()) {
+            if (now - val.lastSeenAt > TREND_TTL_MS) {
+                trendingHistoryMap.delete(key);
+            }
+        }
 
         const result = {
             success: true,

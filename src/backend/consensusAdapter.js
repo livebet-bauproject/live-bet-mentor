@@ -54,6 +54,7 @@ export const consensusAdapter = {
 
         let cleaned = name.toLowerCase()
             .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+            .replace(/\([^)]*\)/g, ' ') // Strip parentheses content like (W), (F), (2), (Res.)
             .replace(/\bmilano\b/g, 'milan')
             .replace(/\blisboa\b/g, 'lisbon')
             .replace(/\bpraha\b/g, 'prague')
@@ -65,13 +66,15 @@ export const consensusAdapter = {
             .replace(/\s+v\s+/g, ' ')
             .replace(/\s+-\s+/g, ' ')
             .replace(/\b(manchester)\b/g, 'man')
-            // Noise abbreviations only
-            .replace(/\b(ac|fc|sc|cf|cd|ud|sd|rc|cp|fk|as|ssc|lfc|afc|rsc|youth|u20|u19|u23|reserve|reserves|calcio|club|deportivo)\b/g, '')
+            // Gender, youth, reserve, and category suffixes
+            .replace(/\b(w|f|women|kvinner|frauen|bayan|damen|femmes|fem|bk|u17|u18|u19|u20|u21|u23|reserves|reserve|youth|ii|2)\b/g, ' ')
+            // Club noise abbreviations
+            .replace(/\b(ac|fc|sc|cf|cd|ud|sd|rc|cp|fk|as|ssc|lfc|afc|rsc|calcio|club|deportivo)\b/g, ' ')
             .replace(/[^a-z0-9]/g, '');
 
         // If cleaning stripped too much (e.g. "FC" or "Real" or "Sporting"), fallback to basic alphanumeric
         if (cleaned.length < 2) {
-            cleaned = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+            cleaned = name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\([^)]*\)/g, ' ').replace(/[^a-z0-9]/g, '');
         }
 
         cleanCache.set(name, cleaned);
