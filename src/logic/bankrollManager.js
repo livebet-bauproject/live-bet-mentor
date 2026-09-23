@@ -191,9 +191,12 @@ class BankrollManager {
         this.addToLedger('BET_OPEN', {
             match_id: fixture.id,
             match_name: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
+            match: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
             league: fixture.leagueName,
             tier: fixture.tier,
             stake_amount: stake,
+            stake: stake,
+            status: 'OPEN',
             balance_before: balanceBefore,
             reason: signal?.reason || signal?.mainReason,
             strategy_id: stratId,
@@ -274,6 +277,9 @@ class BankrollManager {
         this.addToLedger(isWin ? 'BET_WIN' : 'BET_LOSS', {
             match_id: matchId,
             match_name: openEntry?.match_name || 'Match',
+            match: openEntry?.match_name || 'Match',
+            status: isWin ? 'WIN' : 'LOSS',
+            type: 'SETTLEMENT',
             strategy_id: stratId,
             strategy_label: openEntry?.strategy_label || 'Strateji',
             stake,

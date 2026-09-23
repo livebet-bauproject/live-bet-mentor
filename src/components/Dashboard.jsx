@@ -2687,18 +2687,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const renderPortfolio = () => {
         const state = bankrollManager.getState();
         const ledger = state.ledger || [];
-        const initialBalance = state.initial_balance || 1000;
-        const currentBalance = state.balance || 1000;
+        const initialBalance = state.starting_balance || state.initial_balance || 1000;
+        const currentBalance = state.current_balance || state.balance || 1000;
         const totalProfit = currentBalance - initialBalance;
-        const roi = (totalProfit / initialBalance) * 100;
+        const roi = initialBalance > 0 ? (totalProfit / initialBalance) * 100 : 0;
 
-        const wins = ledger.filter(l => l.status === 'WIN').length;
-        const losses = ledger.filter(l => l.status === 'LOSS').length;
+        const wins = ledger.filter(l => l.status === 'WIN' || l.type === 'BET_WIN').length;
+        const losses = ledger.filter(l => l.status === 'LOSS' || l.type === 'BET_LOSS').length;
         const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
 
         // Custom SVG Chart Data
-        const settlementPoints = ledger.filter(l => l.type === 'SETTLEMENT' || l.type === 'INIT').map(l => l.balance_after || l.amount);
-        const points = settlementPoints.length > 0 ? settlementPoints : [initialBalance];
+        const settlementPoints = ledger
+            .filter(l => l.balance_after !== undefined || l.type === 'SETTLEMENT' || l.type === 'BET_WIN' || l.type === 'BET_LOSS' || l.type === 'SYSTEM_INIT')
+            .map(l => l.balance_after || l.balance || initialBalance);
+        const points = settlementPoints.length > 0 ? [initialBalance, ...settlementPoints] : [initialBalance];
         const max = Math.max(...points, initialBalance * 1.05);
         const min = Math.min(...points, initialBalance * 0.95);
         const range = max - min || 1;
@@ -2825,9 +2827,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     <div className="portfolio-card glass-panel">
                         <span className="label">{t.active_exposure}</span>
                         <div className="value" style={{ color: 'var(--warning-color)' }}>
-                            {ledger.filter(l => l.status === 'OPEN').reduce((acc, curr) => acc + curr.stake, 0).toFixed(2)} ₺
+                            {ledger.filter(l => l.status === 'OPEN' || (l.type === 'BET_OPEN' && !l.is_settled)).reduce((acc, curr) => acc + (curr.stake || curr.stake_amount || 0), 0).toFixed(2)} ₺
                         </div>
-                        <div className="trend" style={{ opacity: 0.6 }}>{ledger.filter(l => l.status === 'OPEN').length} {t.open_short}</div>
+                        <div className="trend" style={{ opacity: 0.6 }}>{ledger.filter(l => l.status === 'OPEN' || (l.type === 'BET_OPEN' && !l.is_settled)).length} {t.open_short}</div>
                     </div>
                 </div>
 
@@ -2932,33 +2934,96 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         <span>{t.match_score}</span>
                         <span>{t.recom_stake_short}</span>
                         <span>{t.status}</span>
-                        <span>SONUÇ</span>
-                        <span>TARİH</span>
+                        <span>{lang === 'tr' ? 'NET KÂR/ZARAR' : (lang === 'de' ? 'NETTO G/V' : 'NET P/L')}</span>
+                        <span>{lang === 'tr' ? 'ZAMAN' : (lang === 'de' ? 'ZEIT' : 'TIME')}</span>
                     </div>
-                    {ledger.slice().reverse().filter(l => l.type === 'SETTLEMENT' || l.status === 'OPEN' || l.type === 'INIT').slice(0, 15).map((l, i) => (
-                        <div key={i} className="portfolio-row" style={{ borderBottom: i < 14 ? '1px solid var(--glass-border)' : 'none' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{l.match || 'System Entry'}</span>
-                                <span style={{ fontSize: '0.6rem', opacity: 0.5 }}>{l.reason || 'Account Setup'}</span>
-                            </div>
-                            <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{l.stake || 0} ₺</span>
-                            <span>
-                                <span className={`status-pill ${l.status === 'WIN' ? 'ok' : l.status === 'LOSS' ? 'fail' : ''}`} style={{ 
-                                    background: l.status === 'OPEN' ? 'rgba(56, 189, 248, 0.1)' : '', 
-                                    color: l.status === 'OPEN' ? 'var(--accent-color)' : '', 
-                                    border: l.status === 'OPEN' ? '1px solid var(--accent-color)' : '' 
-                                }}>
-                                    {l.status || 'INFO'}
-                                </span>
-                            </span>
-                            <span style={{ color: (l.profit || 0) >= 0 ? 'var(--success-color)' : 'var(--danger-color)', fontWeight: 800 }}>
-                                {l.profit ? (l.profit >= 0 ? '+' : '') + l.profit.toFixed(2) + ' ₺' : '-'}
-                            </span>
-                            <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
-                                {new Date(l.timestamp).toLocaleString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                        </div>
-                    ))}
+                    {(() => {
+                        const validEntries = ledger.slice().reverse().filter(l => 
+                            l.type === 'SETTLEMENT' || 
+                            l.type === 'BET_WIN' || 
+                            l.type === 'BET_LOSS' || 
+                            l.type === 'BET_OPEN' || 
+                            l.status === 'OPEN' || 
+                            l.status === 'WIN' || 
+                            l.status === 'LOSS' || 
+                            l.type === 'SYSTEM_INIT'
+                        );
+
+                        if (validEntries.length === 0) {
+                            return (
+                                <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+                                    <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>💼</div>
+                                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f1f5f9' }}>
+                                        {lang === 'tr' ? 'Henüz İşleme Alınmış Bahis Bulunmuyor' : (lang === 'de' ? 'Noch keine aktiven Wetten' : 'No Placed Bets Yet')}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem', maxWidth: '420px', margin: '0.35rem auto 0 auto', lineHeight: '1.4' }}>
+                                        {lang === 'tr' 
+                                            ? 'Canlı Radar terminalindeki sinyalleri onayladığınızda veya kuant botu işlem açtığında, bahisler burada anlık takip edilir ve maç bitiminde (FT) otomatik sonuçlandırılır.' 
+                                            : (lang === 'de' 
+                                                ? 'Sobald Sie Signale im Live-Terminal genehmigen, werden Wetten hier automatisch erfasst und nach Spielende ausgewertet.' 
+                                                : 'When you approve signals from the Live Terminal, bets are tracked here and automatically settled at FT.')}
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return validEntries.slice(0, 20).map((l, i) => {
+                            const isWin = l.status === 'WIN' || l.type === 'BET_WIN';
+                            const isLoss = l.status === 'LOSS' || l.type === 'BET_LOSS';
+                            const isOpen = l.status === 'OPEN' || l.type === 'BET_OPEN';
+                            const isInit = l.type === 'SYSTEM_INIT';
+
+                            let statusText = 'INFO';
+                            let statusClass = '';
+                            let statusStyle = {};
+
+                            if (isWin) {
+                                statusText = lang === 'tr' ? 'KAZANDI' : (lang === 'de' ? 'GEWONNEN' : 'WON');
+                                statusClass = 'ok';
+                            } else if (isLoss) {
+                                statusText = lang === 'tr' ? 'KAYBETTİ' : (lang === 'de' ? 'VERLOREN' : 'LOST');
+                                statusClass = 'fail';
+                            } else if (isOpen) {
+                                statusText = lang === 'tr' ? '⚡ DEVAM EDİYOR' : (lang === 'de' ? '⚡ LÄUFT' : '⚡ IN PLAY');
+                                statusStyle = { background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)' };
+                            } else if (isInit) {
+                                statusText = lang === 'tr' ? 'BAŞLANGIÇ' : 'INIT';
+                                statusStyle = { background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.4)' };
+                            }
+
+                            const matchTitle = isInit 
+                                ? (lang === 'tr' ? 'Sistem Kasa Başlangıcı' : 'System Bankroll Init') 
+                                : (l.match_name || l.match || 'Canlı Bahis');
+                            const subText = isInit 
+                                ? (lang === 'tr' ? '1.000 ₺ Sanal Bakiye Tahsis Edildi' : '1,000 ₺ Balance Allocated')
+                                : (l.strategy_label || l.reason || l.market || 'Kuant Analizi');
+                            const stakeText = isInit ? '-' : `${(l.stake || l.stake_amount || 0)} ₺`;
+
+                            return (
+                                <div key={i} className="portfolio-row" style={{ borderBottom: i < 19 ? '1px solid var(--glass-border)' : 'none' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{matchTitle}</span>
+                                        <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{subText}</span>
+                                    </div>
+                                    <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{stakeText}</span>
+                                    <span>
+                                        <span className={`status-pill ${statusClass}`} style={statusStyle}>
+                                            {statusText}
+                                        </span>
+                                    </span>
+                                    <span style={{ 
+                                        color: isWin ? 'var(--success-color)' : isLoss ? 'var(--danger-color)' : 'var(--text-muted)', 
+                                        fontWeight: 800 
+                                    }}>
+                                        {isWin ? `+${Number(l.profit || 0).toFixed(2)} ₺` : isLoss ? `${Number(l.profit || 0).toFixed(2)} ₺` : isOpen ? '⏳ Bekleniyor' : '+0.00 ₺'}
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
+                                        {l.timestamp ? new Date(l.timestamp).toLocaleString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                                    </span>
+                                </div>
+                            );
+                        });
+                    })()}
                 </div>
             </div>
         );
@@ -4736,9 +4801,26 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         <button
                             className={`unified-tab-btn ${view === 'PORTFOLIO' ? 'active' : ''}`}
                             onClick={() => setView('PORTFOLIO')}
+                            style={{
+                                border: view === 'PORTFOLIO' ? '1px solid rgba(16, 185, 129, 0.6)' : '1px solid rgba(16, 185, 129, 0.3)',
+                                background: view === 'PORTFOLIO' ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.08))',
+                                color: view === 'PORTFOLIO' ? '#ffffff' : '#34d399',
+                                fontWeight: 800
+                            }}
                         >
                             <span>💼</span>
-                            <span>{t.portfolio}</span>
+                            <span>{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO & STATS')}</span>
+                            <span className="tab-live-count" style={{
+                                background: view === 'PORTFOLIO' ? 'rgba(0,0,0,0.35)' : 'rgba(16, 185, 129, 0.25)',
+                                color: view === 'PORTFOLIO' ? '#ffffff' : '#34d399',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
+                                fontWeight: 800,
+                                fontSize: '0.68rem',
+                                padding: '2px 7px',
+                                borderRadius: '6px'
+                            }}>
+                                {Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺
+                            </span>
                         </button>
                         {isAdmin && (
                             <button
@@ -8892,9 +8974,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     className={`mobile-nav-item ${view === 'PORTFOLIO' ? 'active' : ''}`}
                     onClick={() => { setView('PORTFOLIO'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     type="button"
+                    style={{ color: view === 'PORTFOLIO' ? '#10b981' : undefined }}
                 >
-                    <span className="mobile-nav-icon">📈</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Portföy' : (lang === 'de' ? 'Report' : 'Portfolio')}</span>
+                    <span className="mobile-nav-icon">💼</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Kasa & Portföy' : (lang === 'de' ? 'Kassa' : 'Bankroll')}</span>
                 </button>
                 {(isAdmin || userProfile?.plan === 'admin') && (
                     <button
