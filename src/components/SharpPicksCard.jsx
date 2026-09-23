@@ -65,7 +65,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
         return raw;
     };
 
-    const formatStatus = (status) => {
+    const formatStatus = (status, matchTime) => {
         if (status === 'WON') {
             return {
                 label: lang === 'tr' ? 'KAZANDI' : (lang === 'de' ? 'GEWONNEN' : 'WON'),
@@ -84,6 +84,42 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                 icon: '🔴'
             };
         }
+
+        // If kick-off time is present, determine if match is upcoming, live in-play, or awaiting final result
+        if (matchTime && String(matchTime).includes(':')) {
+            const now = new Date();
+            const parts = String(matchTime).split(':');
+            if (parts.length === 2) {
+                const matchH = parseInt(parts[0], 10) || 0;
+                const matchM = parseInt(parts[1], 10) || 0;
+                const nowTotalMin = now.getHours() * 60 + now.getMinutes();
+                const matchTotalMin = matchH * 60 + matchM;
+                const diffMin = nowTotalMin - matchTotalMin;
+
+                // Match started more than 115 minutes ago -> finished, awaiting official confirmation
+                if (diffMin >= 115) {
+                    return {
+                        label: lang === 'tr' ? 'SONUÇ BEKLENİYOR' : (lang === 'de' ? 'ERGEBNIS AUSSTEHEND' : 'RESULT PENDING'),
+                        color: '#f59e0b',
+                        bg: 'rgba(245, 158, 11, 0.15)',
+                        border: 'rgba(245, 158, 11, 0.4)',
+                        icon: '⌛'
+                    };
+                }
+
+                // Match is currently live (started 0 to 114 minutes ago)
+                if (diffMin >= 0 && diffMin < 115) {
+                    return {
+                        label: lang === 'tr' ? 'CANLI / OYNANIYOR' : (lang === 'de' ? 'LIVE IM SPIEL' : 'LIVE IN-PLAY'),
+                        color: '#38bdf8',
+                        bg: 'rgba(56, 189, 248, 0.15)',
+                        border: 'rgba(56, 189, 248, 0.4)',
+                        icon: '⚡'
+                    };
+                }
+            }
+        }
+
         return {
             label: lang === 'tr' ? 'BAŞLAMADI' : (lang === 'de' ? 'AUSSTEHEND' : 'UPCOMING'),
             color: '#94a3b8',
@@ -332,7 +368,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {filteredList.map((match, idx) => {
-                        const statusObj = formatStatus(match.status);
+                        const statusObj = formatStatus(match.status, match.time);
                         const tipDisplay = formatTip(match.tip);
 
                         return (
