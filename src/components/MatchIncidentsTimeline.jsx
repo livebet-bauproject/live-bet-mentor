@@ -93,24 +93,52 @@ export const MatchIncidentsTimeline = ({
         );
     }
 
+    let curHome = 0;
+    let curAway = 0;
+    if (currentScore && typeof currentScore === 'object') {
+        curHome = Number(currentScore.home ?? 0) || 0;
+        curAway = Number(currentScore.away ?? 0) || 0;
+    } else if (match?.homeScore !== undefined || match?.awayScore !== undefined) {
+        curHome = Number(match.homeScore?.current ?? match.homeScore ?? 0) || 0;
+        curAway = Number(match.awayScore?.current ?? match.awayScore ?? 0) || 0;
+    } else if (typeof currentScore === 'string' && currentScore.includes('-')) {
+        const parts = currentScore.split('-');
+        curHome = parseInt(parts[0]) || 0;
+        curAway = parseInt(parts[1]) || 0;
+    }
+    const hasGoalsRecordedInMatch = (curHome + curAway) > 0;
+
     if (!Array.isArray(incidents) || incidents.length === 0) {
         return (
             <div style={{
-                marginTop: '1rem',
-                padding: '1.2rem',
+                marginTop: '0.6rem',
+                padding: '0.85rem 1rem',
                 background: 'rgba(255, 255, 255, 0.02)',
-                borderRadius: '12px',
+                borderRadius: '8px',
                 border: '1px dashed rgba(255, 255, 255, 0.08)',
                 textAlign: 'center',
                 color: '#94a3b8',
-                fontSize: '0.75rem'
+                fontSize: '0.72rem'
             }}>
-                <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>⏱️</div>
-                <div>
-                    {lang === 'tr'
-                        ? 'Bu karşılaşmada henüz önemli bir maç olayı (gol, kart, oyuncu değişikliği) kaydedilmedi.'
-                        : 'No major match events (goals, cards, substitutions) recorded yet for this fixture.'}
-                </div>
+                <div style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>{hasGoalsRecordedInMatch ? 'ℹ️' : '⏱️'}</div>
+                {hasGoalsRecordedInMatch ? (
+                    <div>
+                        <div style={{ color: '#fbbf24', fontWeight: 800, marginBottom: '2px' }}>
+                            {lang === 'tr' ? `Canlı Olay Akışı Sağlayıcıda Detaylandırılmıyor` : 'Detailed Live Event Feed Unavailable'}
+                        </div>
+                        <div style={{ opacity: 0.85, fontSize: '0.68rem' }}>
+                            {lang === 'tr'
+                                ? `Bu lig için sağlayıcı anlık olay kronolojisi (gol/kart dakikaları) sağlamıyor. (Güncel Skor: ${curHome} - ${curAway})`
+                                : `Provider does not stream minute-by-minute incidents for this tier. (Current Score: ${curHome} - ${curAway})`}
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        {lang === 'tr'
+                            ? 'Bu karşılaşmada henüz önemli bir maç olayı (gol, kart, oyuncu değişikliği) kaydedilmedi.'
+                            : 'No major match events (goals, cards, substitutions) recorded yet for this fixture.'}
+                    </div>
+                )}
             </div>
         );
     }

@@ -534,8 +534,8 @@ class DataWorker {
         }
 
         // A. Dead Match / Blowout Filter (Kopmuş / Ölü Maç)
-        // 65'ten sonra 3+ fark (örn: 7-2, 4-1), 75'ten sonra 2+ fark veya toplam 6+ golde 2+ fark
-        const isBlowout = (minute >= 65 && goalDiff >= 3) || (minute >= 75 && goalDiff >= 2) || (totalGoals >= 6 && goalDiff >= 2) || goalDiff >= 4;
+        // 4+ fark her zaman, 40'tan sonra 3+ fark, 65'ten sonra 3+ fark, 75'ten sonra 2+ fark veya toplam 6+ golde 2+ fark
+        const isBlowout = goalDiff >= 4 || (minute >= 40 && goalDiff >= 3) || (minute >= 65 && goalDiff >= 3) || (minute >= 75 && goalDiff >= 2) || (totalGoals >= 6 && goalDiff >= 2);
         if (isBlowout && filters.deadMatch.status === 'OK') {
             filters.deadMatch = {
                 status: 'FAIL',
@@ -543,20 +543,26 @@ class DataWorker {
                 reasonKey: 'dead_match_reason'
             };
         }
-        // B. Momentum Guard
+        // B. Momentum Guard (Kopmuş maçta momentum rölantiye alınır)
         const history = fixture.history || [];
         const momentumWindow = fixture.tier === 2 ?
             CONFIG.MODULAR_SYSTEM.LEAGUE_TIERS.SETTINGS.TIER_2_MOMENTUM_WINDOW :
             CONFIG.DECISION.RISK.MOMENTUM_WINDOW_MIN;
 
-        if (history.length >= 3) {
+        if (isBlowout) {
+            filters.momentum = {
+                status: 'FAIL',
+                reason: 'Kopmuş Maç (Rölanti / Düşük İvme)',
+                reasonKey: 'blowout_momentum_fail'
+            };
+        } else if (history.length >= 3) {
             const latest = history[0];
             const older = history.find(h => (Date.now() - h.timestamp) > (momentumWindow * 60 * 1000)) || history[history.length - 1];
 
             const sogDiff = (latest.stats?.shotsOnGoal?.home || 0) + (latest.stats?.shotsOnGoal?.away || 0) -
                 ((older.stats?.shotsOnGoal?.home || 0) + (older.stats?.shotsOnGoal?.away || 0));
 
-            if (sogDiff <= 0 && minute > 60) {
+            if (sogDiff <= 0 && minute > 50) {
                 filters.momentum = {
                     status: 'FAIL',
                     reason: `Son ${momentumWindow}dk İsabetli Şut Yok`,

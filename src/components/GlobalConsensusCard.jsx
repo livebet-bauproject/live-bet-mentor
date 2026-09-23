@@ -35,20 +35,101 @@ export const GlobalConsensusCard = ({
     // Sort predictions by source count descending
     agreementEntries.sort((a, b) => b[1] - a[1]);
 
-    // Strongest consensus percentage
-    const maxAgreementCount = agreementEntries.length > 0 ? agreementEntries[0][1] : 0;
+    // Resolve live match state
+    let curHome = 0;
+    let curAway = 0;
+    if (match?.score && typeof match.score === 'object') {
+        curHome = Number(match.score.home ?? 0) || 0;
+        curAway = Number(match.score.away ?? 0) || 0;
+    } else if (match?.homeScore !== undefined || match?.awayScore !== undefined) {
+        curHome = Number(match.homeScore?.current ?? match.homeScore ?? 0) || 0;
+        curAway = Number(match.awayScore?.current ?? match.awayScore ?? 0) || 0;
+    } else if (typeof match?.score === 'string' && match.score.includes('-')) {
+        const parts = match.score.split('-');
+        curHome = parseInt(parts[0]) || 0;
+        curAway = parseInt(parts[1]) || 0;
+    }
+    const currentTotalGoals = curHome + curAway;
+    const minute = parseInt(String(match?.minute || '').replace(/[^0-9]/g, '')) || 0;
+    const isLive = minute > 0 || (match?.status?.type === 'inprogress') || (typeof match?.status === 'string' && match.status.includes('in'));
+
+    // Helper: Determine if a pre-match prediction is mathematically busted by the live score
+    const checkIsPredictionBusted = (pred, scorePred = null) => {
+        if (!isLive && currentTotalGoals === 0) return { isBusted: false };
+        const checkStr = (scorePred || pred || '').trim();
+
+        // 1. Exact score check: e.g. "1-2", "3-0", "0-2"
+        if (/^\d+\s*-\s*\d+$/.test(checkStr)) {
+            const parts = checkStr.split('-').map(x => parseInt(x.trim()) || 0);
+            const predH = parts[0];
+            const predA = parts[1];
+            const predTotal = predH + predA;
+
+            if (curHome > predH || curAway > predA || currentTotalGoals > predTotal) {
+                return { isBusted: true, reason: lang === 'tr' ? `Skor aşıldı (${curHome}-${curAway})` : `Score exceeded (${curHome}-${curAway})` };
+            }
+            if (minute >= 82 && (curHome !== predH || curAway !== predA)) {
+                return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late game mismatch (${minute}')` };
+            }
+        }
+
+        // 2. Under / Alt checks
+        const underMatch = checkStr.match(/(?:alt|under)\s*([0-9.]+)/i);
+        if (underMatch) {
+            const threshold = parseFloat(underMatch[1]);
+            if (!isNaN(threshold) && currentTotalGoals > threshold) {
+                return { isBusted: true, reason: lang === 'tr' ? `${threshold} Üstü oldu (${currentTotalGoals} Gol)` : `Over ${threshold} exceeded` };
+            }
+        }
+
+        // 3. 1X2 checks on massive blowouts (e.g. 0-5)
+        if (minute >= 40) {
+            const pUpper = checkStr.toUpperCase();
+            if ((pUpper === '1' || pUpper.includes('EV') || pUpper.includes('HOME')) && (curAway - curHome >= 3)) {
+                return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            }
+            if ((pUpper === '2' || pUpper.includes('DEP') || pUpper.includes('AWAY')) && (curHome - curAway >= 3)) {
+                return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            }
+            if ((pUpper === 'X' || pUpper.includes('BER') || pUpper.includes('DRAW')) && Math.abs(curHome - curAway) >= 3) {
+                return { isBusted: true, reason: lang === 'tr' ? `Fark 3+ (${curHome}-${curAway})` : `Draw impossible (3+ diff)` };
+            }
+        }
+
+        return { isBusted: false };
+    };
+
+    // Filter agreement entries: separate active valid predictions from busted ones
+    const evaluatedAgreement = agreementEntries.map(([pred, count]) => {
+        const predSignals = signals.filter(s => s.prediction === pred);
+        // If all signals for this prediction have busted score predictions or pred is busted
+        const bustedInfo = checkIsPredictionBusted(pred, predSignals[0]?.score_pred);
+        return {
+            pred,
+            count,
+            signals: predSignals,
+            ...bustedInfo
+        };
+    });
+
+    const validEntries = evaluatedAgreement.filter(e => !e.isBusted);
+    const hasAnyBusted = evaluatedAgreement.some(e => e.isBusted);
+    const allBusted = evaluatedAgreement.length > 0 && validEntries.length === 0;
+
+    // Strongest consensus percentage based on valid in-play predictions
+    const maxAgreementCount = validEntries.length > 0 ? validEntries[0].count : (evaluatedAgreement[0]?.count || 0);
     const agreementPercent = totalSources > 0 ? Math.round((maxAgreementCount / totalSources) * 100) : 0;
-    const isStrongConsensus = totalSources >= 2 && agreementPercent >= 70;
-    const isDivergent = totalSources >= 2 && agreementPercent < 55;
+    const isStrongConsensus = !allBusted && totalSources >= 2 && agreementPercent >= 70 && validEntries.length > 0;
+    const isDivergent = !allBusted && totalSources >= 2 && agreementPercent < 55 && validEntries.length > 0;
 
     // Localized labels
     const titleLabel = lang === 'tr'
-        ? 'GLOBAL KONSENSUS & DIŞ TAHMİNLER'
+        ? 'GLOBAL KONSENSÜS (DIŞ TAHMİNLER)'
         : (lang === 'de' ? 'GLOBALER KONSENS & TIPPS' : 'GLOBAL CONSENSUS & PREDICTIONS');
 
     const activeCountLabel = lang === 'tr'
-        ? `${totalSources} / ${RADAR_SOURCES.length} Kaynak Aktif`
-        : (lang === 'de' ? `${totalSources} / ${RADAR_SOURCES.length} Aktive Quellen` : `${totalSources} / ${RADAR_SOURCES.length} Active Sources`);
+        ? `${totalSources} / ${RADAR_SOURCES.length} Kaynak`
+        : (lang === 'de' ? `${totalSources} / ${RADAR_SOURCES.length} Quellen` : `${totalSources} / ${RADAR_SOURCES.length} Sources`);
 
     const strongLabel = lang === 'tr'
         ? `🔥 %${agreementPercent} GÜÇLÜ KONSENSÜS`
@@ -82,6 +163,7 @@ export const GlobalConsensusCard = ({
                 <span style={{ fontSize: compact ? '0.72rem' : '0.76rem', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '0.9rem' }}>🌐</span>
                     <span>{titleLabel}</span>
+                    <span style={{ fontSize: '0.62rem', color: 'var(--tb-text-muted)', fontWeight: 600 }}>({lang === 'tr' ? 'Maç Öncesi' : 'Pre-match'})</span>
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {isStrongConsensus && (
@@ -96,6 +178,19 @@ export const GlobalConsensusCard = ({
                             boxShadow: '0 0 8px rgba(16, 185, 129, 0.2)'
                         }}>
                             {strongLabel}
+                        </span>
+                    )}
+                    {allBusted && (
+                        <span style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 800,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            background: 'rgba(239, 68, 68, 0.15)',
+                            color: '#f87171',
+                            border: '1px solid rgba(239, 68, 68, 0.35)'
+                        }}>
+                            ⚠️ {lang === 'tr' ? 'TAHMİNLER GEÇERSİZ (AŞILDI)' : 'TIPS BUSTED (EXCEEDED)'}
                         </span>
                     )}
                     {isDivergent && (
@@ -126,20 +221,21 @@ export const GlobalConsensusCard = ({
             </div>
 
             {/* Prediction List or Empty State */}
-            {totalSources > 0 && agreementEntries.length > 0 ? (
+            {totalSources > 0 && evaluatedAgreement.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {agreementEntries.map(([pred, count]) => {
-                        const predSignals = signals.filter(s => s.prediction === pred);
-                        const predColor = getPredColor(pred);
+                    {evaluatedAgreement.map((item) => {
+                        const { pred, count, signals: predSignals, isBusted, reason: bustedReason } = item;
+                        const predColor = isBusted ? '#64748b' : getPredColor(pred);
 
                         return (
                             <div
                                 key={pred}
                                 style={{
-                                    background: 'rgba(0, 0, 0, 0.25)',
+                                    background: isBusted ? 'rgba(0, 0, 0, 0.15)' : 'rgba(0, 0, 0, 0.25)',
+                                    opacity: isBusted ? 0.7 : 1,
                                     padding: '0.55rem 0.75rem',
                                     borderRadius: '6px',
-                                    border: '1px solid rgba(255, 255, 255, 0.04)',
+                                    border: isBusted ? '1px dashed rgba(239, 68, 68, 0.2)' : '1px solid rgba(255, 255, 255, 0.04)',
                                     display: 'flex',
                                     flexDirection: 'column',
                                     gap: '0.4rem'
@@ -147,11 +243,12 @@ export const GlobalConsensusCard = ({
                             >
                                 {/* Prediction Header */}
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                         <span style={{
                                             fontWeight: 900,
                                             fontSize: '0.85rem',
                                             color: predColor,
+                                            textDecoration: isBusted ? 'line-through' : 'none',
                                             background: `${predColor}18`,
                                             padding: '2px 8px',
                                             borderRadius: '4px',
@@ -160,15 +257,30 @@ export const GlobalConsensusCard = ({
                                         }}>
                                             {pred}
                                         </span>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--tb-text-secondary, #94a3b8)' }}>
-                                            {lang === 'tr' ? 'Tahmini' : (lang === 'de' ? 'Tipp' : 'Pick')}
-                                        </span>
+                                        {isBusted && (
+                                            <span style={{
+                                                fontSize: '0.6rem',
+                                                fontWeight: 800,
+                                                color: '#f87171',
+                                                background: 'rgba(239, 68, 68, 0.12)',
+                                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                                padding: '1px 6px',
+                                                borderRadius: '3px'
+                                            }}>
+                                                ✗ {lang === 'tr' ? `TUTMADI (${bustedReason})` : `BUSTED (${bustedReason})`}
+                                            </span>
+                                        )}
+                                        {!isBusted && (
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--tb-text-secondary, #94a3b8)' }}>
+                                                {lang === 'tr' ? 'Tahmini' : (lang === 'de' ? 'Tipp' : 'Pick')}
+                                            </span>
+                                        )}
                                     </div>
                                     <span style={{
                                         fontSize: '0.68rem',
                                         fontWeight: 800,
-                                        color: '#38bdf8',
-                                        background: 'rgba(56, 189, 248, 0.1)',
+                                        color: isBusted ? '#64748b' : '#38bdf8',
+                                        background: isBusted ? 'rgba(255, 255, 255, 0.04)' : 'rgba(56, 189, 248, 0.1)',
                                         padding: '1px 6px',
                                         borderRadius: '4px'
                                     }}>

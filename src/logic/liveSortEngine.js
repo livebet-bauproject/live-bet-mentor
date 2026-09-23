@@ -453,13 +453,41 @@ export const isMatchSurgingLast20 = (match, signal = null) => {
 };
 
 /**
+ * Determines if a match is a blowout / dead match (Kopmuş / Ölü Maç)
+ * Mirrors dataWorker.js deadMatch filter:
+ * 65'ten sonra 3+ fark, 75'ten sonra 2+ fark, veya 4+ fark
+ */
+export const isMatchBlowout = (match) => {
+    if (!match) return false;
+    const min = parseNumericMinute(match.minute);
+    let goalsHome = 0;
+    let goalsAway = 0;
+    if (typeof match.score === 'object') {
+        goalsHome = Number(match.score.home ?? 0);
+        goalsAway = Number(match.score.away ?? 0);
+    } else {
+        const parts = String(match.score || '0-0').split('-');
+        goalsHome = parseInt(parts[0], 10) || 0;
+        goalsAway = parseInt(parts[1], 10) || 0;
+    }
+    const goalDiff = Math.abs(goalsHome - goalsAway);
+    const totalGoals = goalsHome + goalsAway;
+    return (min >= 65 && goalDiff >= 3) || (min >= 75 && goalDiff >= 2) || (totalGoals >= 6 && goalDiff >= 2) || goalDiff >= 4;
+};
+
+/**
  * Calculates in-play goal probability using Bayesian posterior or live metrics fallback.
  * Returns decimal probability between 0 and 1 (e.g. 0.605 for 60.5%).
  */
 export const calculateGoalProbability = (match, signal = null) => {
     if (!match) return 0;
+    const isBlowout = isMatchBlowout(match);
+
     const bayesian = match.observations?.bayesian;
     if (typeof bayesian?.posterior === 'number' && !isNaN(bayesian.posterior)) {
+        if (isBlowout) {
+            return Math.min(0.38, bayesian.posterior * 0.55);
+        }
         return bayesian.posterior;
     }
     const sig = signal || match.signal;
@@ -473,11 +501,16 @@ export const calculateGoalProbability = (match, signal = null) => {
     const xgHome = Number(match.stats?.xg?.home || 0);
     const xgAway = Number(match.stats?.xg?.away || 0);
 
-    const rawPosterior = Math.min(0.92, Math.max(0.12, (
+    let rawPosterior = Math.min(0.92, Math.max(0.12, (
         heatNorm * 0.45 +
         ((xgHome + xgAway) > 0 ? (xgHome + xgAway) * 0.15 : (sogHome + sogAway) * 0.04) +
         (daDiff >= 15 ? 0.12 : 0)
     )));
+
+    if (isBlowout) {
+        rawPosterior = Math.min(0.38, rawPosterior * 0.55);
+    }
+
     return rawPosterior;
 };
 
@@ -592,6 +625,10 @@ export const isMatchComeback = (match, signal = null) => {
     const isLateOrFinished = min >= 88 || minStr.includes('ms') || minStr.includes('ft');
     if (isLateOrFinished || min < 20) return false;
 
+    // VETO 1: Blowout / Dead Match (Kopmuş / Ölü Maç)
+    // 75'ten sonra 2+ fark, 65'ten sonra 3+ fark, veya 4+ fark olan maçlarda geri dönüş imkansızdır, takımlar rehavettedir.
+    if (isMatchBlowout(match)) return false;
+
     let goalsHome = 0;
     let goalsAway = 0;
     if (typeof match.score === 'object') {
@@ -616,12 +653,21 @@ export const isMatchComeback = (match, signal = null) => {
 
     const metrics = calculateLast20MinMetrics(match, signal);
 
+    // VETO 2: Kuru Momentum Koruması (Dry Momentum Protection)
+    // Geride olan takımın maç boyu veya son 20 dakikada gerçek bir hücum tehdidi olmalıdır.
+    // Kaleyi bulamayan (isabetli şut <= 1) veya xG yaratamayan takım rakibi abluka altına almış sayılamaz.
     if (homeTrailing) {
+        const hasMinThreat = sogHome >= 2 || xgHome >= 0.35 || metrics.deltaShots >= 2;
+        if (!hasMinThreat) return false;
+
         if (metrics.dominantSide === 'HOME' && metrics.isSurging) return true;
         if (daHome >= daAway + 6 && (sogHome >= sogAway || xgHome >= xgAway)) return true;
         if (xgHome >= xgAway + 0.30) return true;
         if (sogHome >= sogAway + 2 && daHome >= daAway) return true;
     } else if (awayTrailing) {
+        const hasMinThreat = sogAway >= 2 || xgAway >= 0.35 || metrics.deltaShots >= 2;
+        if (!hasMinThreat) return false;
+
         if (metrics.dominantSide === 'AWAY' && metrics.isSurging) return true;
         if (daAway >= daHome + 6 && (sogAway >= sogHome || xgAway >= xgHome)) return true;
         if (xgAway >= xgHome + 0.30) return true;

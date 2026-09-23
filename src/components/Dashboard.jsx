@@ -3044,14 +3044,22 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return marketShort || market || '';
     };
 
-    const formatTrendingOutcome = (outcome, currentLang = 'tr') => {
+    const formatTrendingOutcome = (outcome, currentLang = 'tr', market = '') => {
         const o = (outcome || '').trim();
         if (!o) return '';
+        const mLower = (market || '').toLowerCase();
+        const isRest = mLower.includes('rest') || mLower.includes('kalan');
 
         // Over / Über X
         const matchOver = o.match(/^(?:über|over)\s*(\d+[,.]?\d*)/i);
         if (matchOver) {
             const num = matchOver[1].replace(',', '.');
+            if (isRest) {
+                if (num === '0.5') {
+                    return currentLang === 'tr' ? 'Sıradaki Gol (Kalan Sürede +0.5)' : (currentLang === 'de' ? 'Nächstes Tor (Restzeit Über 0.5)' : 'Next Goal (Rest of Match Over 0.5)');
+                }
+                return currentLang === 'tr' ? `Kalan Sürede Üst ${num}` : (currentLang === 'de' ? `Restzeit Über ${num}` : `Rest of Match Over ${num}`);
+            }
             return currentLang === 'tr' ? `Üst ${num}` : (currentLang === 'de' ? `Über ${num}` : `Over ${num}`);
         }
 
@@ -3059,6 +3067,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         const matchUnder = o.match(/^(?:unter|under)\s*(\d+[,.]?\d*)/i);
         if (matchUnder) {
             const num = matchUnder[1].replace(',', '.');
+            if (isRest) {
+                return currentLang === 'tr' ? `Kalan Sürede Alt ${num}` : (currentLang === 'de' ? `Restzeit Unter ${num}` : `Rest of Match Under ${num}`);
+            }
             return currentLang === 'tr' ? `Alt ${num}` : (currentLang === 'de' ? `Unter ${num}` : `Under ${num}`);
         }
 
@@ -3123,24 +3134,58 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             : (bet.score || '0 - 0');
         const currentScoreStr = liveScoreStr;
         const currentGoals = parseGoals(liveScoreStr);
-        const goalsScoredSince = (bet.firstSeenScore && liveScoreStr) ? Math.max(0, currentGoals - initialGoals) : 0;
+
+        // Sanity & Synchronization Guard:
+        // A match score CANNOT go backwards. If external trend feed had an outdated/disallowed goal
+        // or a desync where initialGoals > currentGoals (e.g. 2-0 vs 1-0), calibrate initial score to current live score!
+        let sanitizedFirstSeenScore = bet.firstSeenScore;
+        let effectiveInitialGoals = initialGoals;
+        if (initialGoals > currentGoals && liveScoreStr) {
+            sanitizedFirstSeenScore = liveScoreStr;
+            effectiveInitialGoals = currentGoals;
+        }
+
+        const goalsScoredSince = (sanitizedFirstSeenScore && liveScoreStr) ? Math.max(0, currentGoals - effectiveInitialGoals) : 0;
 
         // Bet direction extraction
         const marketLower = `${bet.market || ''} ${bet.marketShort || ''}`.toLowerCase();
         const outcomeLower = `${bet.outcome || ''}`.toLowerCase();
+        const isRestOfGame = marketLower.includes('rest') || marketLower.includes('kalan') || marketLower.includes('point') || String(bet.marketType || '').toLowerCase().includes('rest');
         const isOverBet = marketLower.includes('over') || marketLower.includes('üst') || outcomeLower.includes('over') || outcomeLower.includes('üst') || marketLower.includes('next');
         const isHomeBet = outcomeLower.includes('home') || outcomeLower.includes('1') || outcomeLower.includes('ev');
         const isAwayBet = outcomeLower.includes('away') || outcomeLower.includes('2') || outcomeLower.includes('dep');
 
         // Target Achieved check: Did goals already hit since trend was detected?
+        // ABSOLUTE LAW: A live goal bet target can NEVER be achieved if 0 goals were scored since trend entered!
         let isAchieved = false;
-        if (isOverBet) {
-            if ((marketLower.includes('1.5') || outcomeLower.includes('1.5')) && goalsScoredSince >= 2) {
-                isAchieved = true;
-            } else if ((marketLower.includes('0.5') || outcomeLower.includes('0.5')) && goalsScoredSince >= 1) {
-                isAchieved = true;
-            } else if ((marketLower.includes('2.5') || outcomeLower.includes('2.5')) && currentGoals >= 3) {
-                isAchieved = true;
+        if (isOverBet && goalsScoredSince > 0) {
+            // Extract line number: e.g. 0.5, 1.5, 2.5, 3.5, 4.5...
+            const numMatch = `${bet.outcome || ''} ${bet.market || ''} ${bet.marketShort || ''}`.match(/\b(\d+(?:[.,]\d+)?)\b/);
+            const line = numMatch ? parseFloat(numMatch[1].replace(',', '.')) : null;
+
+            if (isRestOfGame) {
+                // For Rest of Game (Kalan Süre): Target is hit ONLY if goals scored SINCE ENTRY exceed the line!
+                // E.g. Kalan Süre Üst 0.5 -> goalsScoredSince >= 1
+                // E.g. Kalan Süre Üst 1.5 -> goalsScoredSince >= 2
+                // E.g. Kalan Süre Üst 2.5 -> goalsScoredSince >= 3
+                if (line !== null) {
+                    if (goalsScoredSince > line) {
+                        isAchieved = true;
+                    }
+                } else if (goalsScoredSince >= 1) {
+                    // Fallback for next-goal markets
+                    isAchieved = true;
+                }
+            } else {
+                // For Full-Time Total Goals: Target is achieved only if the threshold was crossed during live tracking.
+                // Initial goals MUST have been below the line, and current goals must exceed it!
+                if (line !== null) {
+                    if (currentGoals > line && effectiveInitialGoals < line) {
+                        isAchieved = true;
+                    }
+                } else if (goalsScoredSince >= 1) {
+                    isAchieved = true;
+                }
             }
         }
 
@@ -3156,11 +3201,12 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch,
                 goalsScoredSince,
                 currentScoreStr,
+                sanitizedFirstSeenScore,
                 desc: lang === 'tr'
-                    ? `Trende girdikten sonra maçta +${goalsScoredSince} gol oldu (${bet.firstSeenScore || '0-0'} ➔ ${liveScoreStr}). Bahis hedefine ulaştı, yeni kupon almayın!`
+                    ? `Trende girdikten sonra maçta +${goalsScoredSince} gol oldu (${sanitizedFirstSeenScore || '0-0'} ➔ ${liveScoreStr}). Bahis hedefine ulaştı, yeni kupon almayın!`
                     : (lang === 'de'
-                        ? `Ziel erreicht: +${goalsScoredSince} Tore seit Trendbeginn (${bet.firstSeenScore || '0-0'} ➔ ${liveScoreStr}). Keine weiteren Wetten nötig!`
-                        : `Target reached with +${goalsScoredSince} goal(s) since trend entered (${bet.firstSeenScore || '0-0'} ➔ ${liveScoreStr}).`)
+                        ? `Ziel erreicht: +${goalsScoredSince} Tore seit Trendbeginn (${sanitizedFirstSeenScore || '0-0'} ➔ ${liveScoreStr}). Keine weiteren Wetten nötig!`
+                        : `Target reached with +${goalsScoredSince} goal(s) since trend entered (${sanitizedFirstSeenScore || '0-0'} ➔ ${liveScoreStr}).`)
             };
         }
 
@@ -3176,6 +3222,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch: null,
                 goalsScoredSince,
                 currentScoreStr,
+                sanitizedFirstSeenScore,
                 desc: lang === 'tr' 
                     ? 'Avrupa kurumsal bahis bülteninde yüksek hacimli halk ilgisi. Canlı radar dışında veya alt lig.' 
                     : (lang === 'de'
@@ -3250,6 +3297,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch,
                 goalsScoredSince,
                 currentScoreStr,
+                sanitizedFirstSeenScore,
                 desc: trapReason
             };
         } else if (isApproved) {
@@ -3269,6 +3317,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch,
                 goalsScoredSince,
                 currentScoreStr,
+                sanitizedFirstSeenScore,
                 desc: lang === 'tr'
                     ? (isFresh 
                         ? `Sıcak para az önce girdi (< ${Math.max(1, durMin)} dk). Saha baskısı (%${pressure}) halkın bahsini doğruluyor.` 
@@ -3289,6 +3338,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 liveMatch,
                 goalsScoredSince,
                 currentScoreStr,
+                sanitizedFirstSeenScore,
                 desc: lang === 'tr'
                     ? `Orta seviye DQS (%${(dqs * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
                     : (lang === 'de'
@@ -3347,7 +3397,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             if (trendingSearch) {
                 const q = trendingSearch.toLowerCase();
                 const betsText = m.bets.map(b => 
-                    `${b.market} ${b.marketShort} ${b.outcome} ${formatTrendingMarket(b.market, b.marketShort, lang)} ${formatTrendingMarketShort(b.marketShort, b.market, lang)} ${formatTrendingOutcome(b.outcome, lang)}`
+                    `${b.market} ${b.marketShort} ${b.outcome} ${formatTrendingMarket(b.market, b.marketShort, lang)} ${formatTrendingMarketShort(b.marketShort, b.market, lang)} ${formatTrendingOutcome(b.outcome, lang, b.market)}`
                 ).join(' ');
                 const matchStr = `${m.home} ${m.away} ${m.competition} ${betsText}`.toLowerCase();
                 if (!matchStr.includes(q)) return false;
@@ -3803,10 +3853,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                                         <span style={{ color: '#94a3b8' }}>📍 {lang === 'tr' ? 'Giriş:' : (lang === 'de' ? 'Start:' : 'Entry:')}</span>
                                                         <span style={{ color: '#fbbf24', fontWeight: 800 }}>
-                                                            ⚽ {m.primaryBet.firstSeenScore}
+                                                            ⚽ {evalInfo.sanitizedFirstSeenScore || m.primaryBet.firstSeenScore}
                                                             {evalInfo.liveMatch?.minute && (
                                                                 <span style={{ opacity: 0.7, marginLeft: '2px', fontWeight: 600 }}>
-                                                                    ({Math.max(1, (parseInt(String(evalInfo.liveMatch.minute).replace(/[^0-9]/g, '')) || 0) - (m.primaryBet.durationMinutes || 0))}')
+                                                                    {String(evalInfo.liveMatch.minute).includes('İY') || String(evalInfo.liveMatch.minute).includes('HT')
+                                                                        ? '(İY\')'
+                                                                        : `(${Math.max(1, (parseInt(String(evalInfo.liveMatch.minute).replace(/[^0-9]/g, '')) || 0) - (m.primaryBet.durationMinutes || 0))}')`
+                                                                    }
                                                                 </span>
                                                             )}
                                                         </span>
@@ -3857,7 +3910,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     {formatTrendingMarket(m.primaryBet.market, m.primaryBet.marketShort, lang) || (lang === 'tr' ? 'Bahis Pazarı' : (lang === 'de' ? 'Wettmarkt' : 'Bet Market'))}
                                                 </div>
                                                 <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', marginTop: '0.1rem' }}>
-                                                    🎯 {formatTrendingOutcome(m.primaryBet.outcome, lang)}
+                                                    🎯 {formatTrendingOutcome(m.primaryBet.outcome, lang, m.primaryBet.market)}
                                                 </div>
                                             </div>
 
@@ -3976,7 +4029,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     >
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
                                                             <span style={{ color: '#38bdf8', fontWeight: 800 }}>
-                                                                🎯 {formatTrendingOutcome(ob.outcome, lang)}
+                                                                🎯 {formatTrendingOutcome(ob.outcome, lang, ob.market)}
                                                             </span>
                                                             <span style={{
                                                                 fontSize: '0.68rem',

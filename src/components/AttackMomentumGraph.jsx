@@ -153,21 +153,24 @@ export const AttackMomentumGraph = ({
     if (!Array.isArray(points) || points.length === 0) {
         return (
             <div style={{
-                padding: '1.5rem',
+                padding: '0.5rem 0.85rem',
                 background: 'rgba(255, 255, 255, 0.02)',
-                borderRadius: '12px',
-                border: '1px dashed rgba(255, 255, 255, 0.1)',
-                textAlign: 'center',
+                borderRadius: '8px',
+                border: '1px dashed rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
                 color: '#94a3b8',
-                fontSize: '0.75rem'
+                fontSize: '0.72rem'
             }}>
-                <div style={{ fontSize: '1.2rem', marginBottom: '0.3rem' }}>{hasNoGraph ? 'ℹ️' : '📈'}</div>
-                <div>
+                <span style={{ fontSize: '0.9rem' }}>{hasNoGraph ? 'ℹ️' : '📈'}</span>
+                <span>
                     {hasNoGraph
-                        ? (lang === 'tr' ? 'Bu lig/kupa maçı için canlı baskı radarı bulunmuyor' : (lang === 'de' ? 'Live-Druckwellenradar für dieses Spiel nicht verfügbar' : 'Live pressure wave radar not available for this event'))
+                        ? (lang === 'tr' ? 'Bu karşılaşma için canlı momentum dalgası bulunmuyor (Aşağıdaki canlı saha istatistiklerini inceleyiniz)' : (lang === 'de' ? 'Live-Druckwellenradar nicht verfügbar' : 'Live pressure wave radar not available'))
                         : (lang === 'tr' ? 'Canlı Attack Momentum dalga verisi bekleniyor...' : (lang === 'de' ? 'Warte auf Live-Angriffsmomentum-Wellen...' : 'Awaiting live Attack Momentum wave data...'))
                     }
-                </div>
+                </span>
             </div>
         );
     }

@@ -432,6 +432,7 @@ app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
                 competition: b.competitionName || '',
                 market: b.marketName || '',
                 marketShort: b.marketShortName || '',
+                marketType: b.marketType || '',
                 outcome: b.outcomeName || '',
                 odds: b.odds,
                 score: currentScore,

@@ -28,16 +28,48 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
         reverseSignal: false
     };
 
-    // 2. Probability & EV Estimation (Core Logic)
+    // 2. Probability & EV Estimation (Core Logic with Game-State Awareness)
+    let homeScore = 0;
+    let awayScore = 0;
+    if (score && typeof score === 'object') {
+        homeScore = Number(score.home ?? 0) || 0;
+        awayScore = Number(score.away ?? 0) || 0;
+    } else if (fixture.homeScore !== undefined || fixture.awayScore !== undefined) {
+        homeScore = Number(fixture.homeScore?.current ?? fixture.homeScore ?? 0) || 0;
+        awayScore = Number(fixture.awayScore?.current ?? fixture.awayScore ?? 0) || 0;
+    } else if (typeof score === 'string' && score.includes('-')) {
+        const parts = score.split('-');
+        homeScore = parseInt(parts[0]) || 0;
+        awayScore = parseInt(parts[1]) || 0;
+    }
+    const goalDiff = Math.abs(homeScore - awayScore);
+    const minNum = parseInt(String(minute || '').replace(/[^0-9]/g, '')) || 0;
+    const isBlowout = goalDiff >= 4 || (goalDiff >= 3 && minNum >= 40) || (goalDiff >= 2 && minNum >= 75);
+
     let pSituation = (pressure.total / 100) * 0.4;
     const xgRate = xgAnalysis?.rate?.perMinute || 0;
     pSituation += Math.min(0.3, xgRate * 10);
     pSituation *= (velocity.score || 1.0);
+    if (isBlowout) {
+        pSituation *= 0.55; // Rehavet / Taktiksel rölanti indirimi
+    }
     pSituation = Math.min(0.95, Math.max(0.05, pSituation));
+
+    const homeXg = Number(xgAnalysis?.home || 0);
+    const awayXg = Number(xgAnalysis?.away || 0);
+    const dominantXg = Math.max(homeXg, awayXg);
+    const dominantRatio = (dominantXg + 0.1) / (Math.min(homeXg, awayXg) + 0.1);
 
     const bayesianResult = bayesianModel.refine(pSituation, {
         dqs: fixture.dqs || 0,
-        xgRatio: (xgAnalysis.home + 0.1) / (xgAnalysis.away + 0.1)
+        xgRatio: dominantRatio,
+        dominantXg,
+        pressureTotal: pressure.total || 0,
+        edgeScore: velocity.score || 1.0,
+        isDeadMatch: isBlowout,
+        isBlowout,
+        goalDiff,
+        minute: minNum
     });
     observations.bayesian = bayesianResult;
     const finalP = bayesianResult?.posterior || pSituation;
@@ -59,7 +91,6 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
     let reason = 'Strateji Bekleniyor';
     
     const minStr = String(minute || '').trim();
-    const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
     const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
 
     if (isLateOrFinished) {

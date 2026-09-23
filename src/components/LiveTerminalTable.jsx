@@ -234,17 +234,6 @@ export const LiveTerminalTable = ({
                             const isTrendTrap = hasTrend && dqsVal < 0.40;
                             const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
 
-                            // Consolidated Intelligence (Bayesian Radar & Risk Guard)
-                            const bayesian = m?.observations?.bayesian;
-                            const heatNorm = Math.min(1, Math.max(0, heat / 100));
-                            const rawPosterior = bayesian?.posterior ?? Math.min(0.92, Math.max(0.12, (heatNorm * 0.45 + ((xgHome + xgAway) > 0 ? (xgHome + xgAway) * 0.15 : (sogHome + sogAway) * 0.04) + (daDiff >= 15 ? 0.12 : 0))));
-                            const goalProb = (rawPosterior * 100).toFixed(1);
-                            const baseTempo = bayesian?.prior ? Math.round(bayesian.prior * 100) : Math.min(85, Math.max(20, Math.round(heatNorm * 60 + 15)));
-                            const pressureImpact = bayesian?.impact ? (bayesian.impact * 100).toFixed(1) : ((rawPosterior - (baseTempo / 100)) * 100).toFixed(1);
-                            const confidence = bayesian?.confidence || (heat >= 70 ? 'HIGH' : heat >= 45 ? 'MEDIUM' : 'LOW');
-                            const confidenceLabel = confidence === 'HIGH' ? (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH')) : confidence === 'MEDIUM' ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')) : (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW'));
-                            const confidenceColor = confidence === 'HIGH' ? '#10b981' : confidence === 'MEDIUM' ? '#fbbf24' : '#ef4444';
-
                             const riskFilters = (dataWorker && typeof dataWorker.checkRiskFilters === 'function')
                                 ? dataWorker.checkRiskFilters(m)
                                 : {
@@ -252,6 +241,36 @@ export const LiveTerminalTable = ({
                                     momentum: { status: 'OK' },
                                     lateGame: { status: 'OK' }
                                 };
+
+                            // Parse scores reliably for game-state & dead match checks
+                            let parsedHomeScore = 0;
+                            let parsedAwayScore = 0;
+                            if (m.score && typeof m.score === 'object') {
+                                parsedHomeScore = Number(m.score.home ?? 0) || 0;
+                                parsedAwayScore = Number(m.score.away ?? 0) || 0;
+                            } else if (m.homeScore !== undefined || m.awayScore !== undefined) {
+                                parsedHomeScore = Number(m.homeScore?.current ?? m.homeScore ?? 0) || 0;
+                                parsedAwayScore = Number(m.awayScore?.current ?? m.awayScore ?? 0) || 0;
+                            } else if (typeof m.score === 'string' && (m.score.includes('-') || m.score.includes(':'))) {
+                                const parts = m.score.replace(':', '-').split('-');
+                                parsedHomeScore = parseInt(parts[0]) || 0;
+                                parsedAwayScore = parseInt(parts[1]) || 0;
+                            }
+                            const goalDiffVal = Math.abs(parsedHomeScore - parsedAwayScore);
+                            const minVal = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
+                            const isDeadMatch = riskFilters?.deadMatch?.status === 'FAIL' || goalDiffVal >= 4 || (goalDiffVal >= 3 && minVal >= 40);
+
+                            // Consolidated Intelligence (Bayesian Radar & Risk Guard)
+                            const bayesian = m?.observations?.bayesian;
+                            const heatNorm = Math.min(1, Math.max(0, heat / 100));
+                            const rawPosterior = bayesian?.posterior ?? Math.min(0.92, Math.max(0.12, (heatNorm * 0.45 + ((xgHome + xgAway) > 0 ? (xgHome + xgAway) * 0.15 : (sogHome + sogAway) * 0.04) + (daDiff >= 15 ? 0.12 : 0))));
+                            const effectivePosterior = isDeadMatch ? Math.min(0.32, rawPosterior * 0.45) : rawPosterior;
+                            const goalProb = (effectivePosterior * 100).toFixed(1);
+                            const baseTempo = isDeadMatch ? Math.min(28, Math.round((bayesian?.prior || 0.4) * 45)) : (bayesian?.prior ? Math.round(bayesian.prior * 100) : Math.min(85, Math.max(20, Math.round(heatNorm * 60 + 15))));
+                            const pressureImpact = isDeadMatch ? '-12.0' : (bayesian?.impact ? (bayesian.impact * 100).toFixed(1) : ((effectivePosterior - (baseTempo / 100)) * 100).toFixed(1));
+                            const confidence = isDeadMatch ? 'LOW' : (bayesian?.confidence || (heat >= 70 ? 'HIGH' : heat >= 45 ? 'MEDIUM' : 'LOW'));
+                            const confidenceLabel = confidence === 'HIGH' ? (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH')) : confidence === 'MEDIUM' ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')) : (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW'));
+                            const confidenceColor = confidence === 'HIGH' ? '#10b981' : confidence === 'MEDIUM' ? '#fbbf24' : '#ef4444';
                             const latencyMs = m.latency || Math.round(35 + (m.id ? (Number(String(m.id).replace(/\D/g, '')) % 40) : 12));
                             const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'tr' ? 'BEKLENİYOR' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')) : (m.dataQuality === 'LIMITED' ? (lang === 'tr' ? 'KISITLI' : (lang === 'de' ? 'EINGESCHRÄNKT' : 'LIMITED')) : (lang === 'tr' ? 'TAM' : (lang === 'de' ? 'VOLLSTÄNDIG' : 'FULL')));
                             const pressureTotal = m.observations?.pressure?.total || Math.round(heat * 0.85);
@@ -442,6 +461,24 @@ export const LiveTerminalTable = ({
                                                     );
                                                 }
 
+                                                if (isDeadMatch) {
+                                                    return (
+                                                        <span
+                                                            className="tb-signal-badge"
+                                                            style={{
+                                                                background: 'rgba(239, 68, 68, 0.15)',
+                                                                color: '#f87171',
+                                                                border: '1px solid rgba(239, 68, 68, 0.35)',
+                                                                fontWeight: 800,
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                            title={riskFilters?.deadMatch?.reason || (lang === 'tr' ? 'Maç koptu, takımlarda rehavet riski yüksek.' : 'Blowout match, high complacency risk.')}
+                                                        >
+                                                            ⚠️ {lang === 'tr' ? 'KOPMUŞ MAÇ' : (lang === 'de' ? 'ENTSCHIEDEN' : 'BLOWOUT')}
+                                                        </span>
+                                                    );
+                                                }
+
                                                 if (signal?.verdict === 'BET' && predText) {
                                                     return (
                                                         <span
@@ -453,7 +490,7 @@ export const LiveTerminalTable = ({
                                                     );
                                                 }
 
-                                                if (heat >= 75) {
+                                                if (heat >= 75 && !isDeadMatch) {
                                                     return (
                                                         <span className="tb-signal-badge tb-signal-hot">
                                                             🔥 {lang === 'tr' ? 'ALEV' : (lang === 'de' ? 'FEUER' : 'FLAME')}
@@ -461,24 +498,31 @@ export const LiveTerminalTable = ({
                                                     );
                                                 }
 
-                                                if (last20.isSurging) {
-                                                    const teamLabel = last20.dominantTeam ? `${last20.dominantTeam.slice(0, 14)}` : '';
-                                                    return (
-                                                        <span
-                                                            className="tb-signal-badge"
-                                                            style={{
-                                                                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 88, 12, 0.25))',
-                                                                color: '#fbbf24',
-                                                                border: '1px solid #f59e0b',
-                                                                boxShadow: '0 0 8px rgba(245, 158, 11, 0.25)',
-                                                                whiteSpace: 'nowrap',
-                                                                fontWeight: 800
-                                                            }}
-                                                            title={lang === 'tr' ? `${teamLabel || 'Takımlar'} son 20 dakikadır hücum temposunu artırdı. (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak)` : (lang === 'de' ? `${teamLabel || 'Teams'} haben das Tempo in den letzten 20 Min. erhöht. (Letzte 20 Min: +${last20.deltaDA} Gefährl. Angriffe)` : `${teamLabel || 'Teams'} increased attacking tempo in last 20 mins. (Last 20m: +${last20.deltaDA} Dangerous Attacks)`)}
-                                                        >
-                                                            ⚡ {teamLabel ? (lang === 'tr' ? `Baskı: ${teamLabel}` : (lang === 'de' ? `Druck: ${teamLabel}` : `Press: ${teamLabel}`)) : (lang === 'tr' ? "20' Baskısı" : (lang === 'de' ? "20' Druckphase" : "20' Surge"))}
-                                                        </span>
-                                                    );
+                                                if (last20.isSurging && !isDeadMatch) {
+                                                    const domSide = last20.dominantSide;
+                                                    const domSog = domSide === 'HOME' ? sogHome : (domSide === 'AWAY' ? sogAway : (sogHome + sogAway));
+                                                    const domXg = domSide === 'HOME' ? xgHome : (domSide === 'AWAY' ? xgAway : (xgHome + xgAway));
+                                                    const hasRealThreat = domSog >= 2 || domXg >= 0.25 || (last20.teamDeltaDA || last20.deltaDA) >= 8;
+
+                                                    if (hasRealThreat) {
+                                                        const teamLabel = last20.dominantTeam ? `${last20.dominantTeam.slice(0, 14)}` : '';
+                                                        return (
+                                                            <span
+                                                                className="tb-signal-badge"
+                                                                style={{
+                                                                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 88, 12, 0.25))',
+                                                                    color: '#fbbf24',
+                                                                    border: '1px solid #f59e0b',
+                                                                    boxShadow: '0 0 8px rgba(245, 158, 11, 0.25)',
+                                                                    whiteSpace: 'nowrap',
+                                                                    fontWeight: 800
+                                                                }}
+                                                                title={lang === 'tr' ? `${teamLabel || 'Takımlar'} son 20 dakikadır hücum temposunu artırdı. (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak)` : (lang === 'de' ? `${teamLabel || 'Teams'} haben das Tempo in den letzten 20 Min. erhöht. (Letzte 20 Min: +${last20.deltaDA} Gefährl. Angriffe)` : `${teamLabel || 'Teams'} increased attacking tempo in last 20 mins. (Last 20m: +${last20.deltaDA} Dangerous Attacks)`)}
+                                                            >
+                                                                ⚡ {teamLabel ? (lang === 'tr' ? `Baskı: ${teamLabel}` : (lang === 'de' ? `Druck: ${teamLabel}` : `Press: ${teamLabel}`)) : (lang === 'tr' ? "20' Baskısı" : (lang === 'de' ? "20' Druckphase" : "20' Surge"))}
+                                                            </span>
+                                                        );
+                                                    }
                                                 }
 
                                                 if ((m.dqs || 0) >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60)) {
@@ -510,6 +554,97 @@ export const LiveTerminalTable = ({
                                         <tr className="tb-expanded-row">
                                             <td colSpan={13}>
                                                 <div className="tb-expanded-content">
+                                                    {/* 🎖️ EXECUTIVE AI VERDICT BANNER (Single Source of Truth) */}
+                                                    <div style={{
+                                                        gridColumn: '1 / -1',
+                                                        background: isDeadMatch
+                                                            ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.16) 0%, rgba(15, 23, 42, 0.85) 100%)'
+                                                            : (signal?.verdict === 'BET'
+                                                                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.18) 0%, rgba(15, 23, 42, 0.85) 100%)'
+                                                                : 'linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(15, 23, 42, 0.85) 100%)'),
+                                                        border: `1px solid ${isDeadMatch ? 'rgba(239, 68, 68, 0.4)' : (signal?.verdict === 'BET' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(56, 189, 248, 0.28)')}`,
+                                                        borderRadius: '8px',
+                                                        padding: '0.75rem 1rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        flexWrap: 'wrap',
+                                                        gap: '10px',
+                                                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)'
+                                                    }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <span style={{ fontSize: '1.3rem' }}>
+                                                                {isDeadMatch ? '⚠️' : (signal?.verdict === 'BET' ? '🎯' : '🔍')}
+                                                            </span>
+                                                            <div>
+                                                                <div style={{
+                                                                    fontSize: '0.82rem',
+                                                                    fontWeight: 900,
+                                                                    color: isDeadMatch ? '#f87171' : (signal?.verdict === 'BET' ? '#34d399' : '#38bdf8'),
+                                                                    letterSpacing: '0.4px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '8px'
+                                                                }}>
+                                                                    <span>
+                                                                        {isDeadMatch
+                                                                            ? (lang === 'tr' ? `KOPMUŞ MAÇ (${formatScore(m.score)}) — CANLI BAHİS VETOSU` : `BLOWOUT (${formatScore(m.score)}) — BETTING VETO`)
+                                                                            : (signal?.verdict === 'BET'
+                                                                                ? (lang === 'tr' ? 'YAPAY ZEKA STRATEJİSİ ONAYLANDI' : 'AI STRATEGY CONFIRMED')
+                                                                                : (lang === 'tr' ? 'CANLI RADAR İZLEMESİ' : 'LIVE RADAR TRACKING'))}
+                                                                    </span>
+                                                                    {isDeadMatch && (
+                                                                        <span style={{
+                                                                            fontSize: '0.62rem',
+                                                                            background: 'rgba(239, 68, 68, 0.2)',
+                                                                            color: '#fca5a5',
+                                                                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                                                                            padding: '1px 6px',
+                                                                            borderRadius: '4px',
+                                                                            fontWeight: 800
+                                                                        }}>
+                                                                            {lang === 'tr' ? 'RÖLANTİ RİSKİ' : 'COMPLACENCY RISK'}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.72rem', color: 'var(--tb-text-secondary)', marginTop: '2px', lineHeight: 1.3 }}>
+                                                                    {isDeadMatch
+                                                                        ? (lang === 'tr'
+                                                                            ? `Skor farkı (${goalDiffVal}) nedeniyle takımların oyunu rölantiye alma ve as oyuncuları koruma riski yüksek. Canlı gol pazarları kilitlenmiştir.`
+                                                                            : `Score differential (${goalDiffVal}) poses complacency risk. In-play goal strategies disabled.`)
+                                                                        : (signal?.verdict === 'BET'
+                                                                            ? (lang === 'tr' ? `${predText || 'Sıradaki Gol'} yönünde istatistiksel üstünlük ve değer fırsatı tespit edildi.` : `Statistical value edge confirmed.`)
+                                                                            : (signal?.reason || signal?.mainReason || (lang === 'tr' ? 'Karşılaşma radar altında izleniyor; istatistiksel ve algoritmik şartlar bekleniyor.' : 'Tracking match.')))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                            {signal?.verdict === 'BET' && predText && !isDeadMatch && (
+                                                                <span style={{
+                                                                    background: '#10b981',
+                                                                    color: '#000',
+                                                                    padding: '3px 10px',
+                                                                    borderRadius: '6px',
+                                                                    fontSize: '0.75rem',
+                                                                    fontWeight: 900
+                                                                }}>
+                                                                    ✓ {predText}
+                                                                </span>
+                                                            )}
+                                                            <span style={{
+                                                                fontSize: '0.68rem',
+                                                                fontWeight: 800,
+                                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                                padding: '3px 8px',
+                                                                borderRadius: '4px',
+                                                                color: 'var(--tb-text-muted)'
+                                                            }}>
+                                                                DQS: {(m.dqs || 0).toFixed(2)} | Tier {m.tier || 1}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
                                                     {/* Left: Momentum Graph, Live Stats & Incidents */}
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                                                         {/* Momentum Wave Header & Graph */}
@@ -518,9 +653,6 @@ export const LiveTerminalTable = ({
                                                                 <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                     <span>📈</span>
                                                                     <span>{lang === 'tr' ? 'CANLI BASKI GRAFİĞİ (MOMENTUM DALGASI)' : (lang === 'de' ? 'LIVE-ANGRIFFSMOMENTUM-WELLE' : 'LIVE ATTACK MOMENTUM WAVE')}</span>
-                                                                </span>
-                                                                <span style={{ fontSize: '0.7rem', color: 'var(--tb-text-muted)', fontWeight: 700 }}>
-                                                                    DQS: {(m.dqs || 0).toFixed(2)} | Tier {m.tier || 1}
                                                                 </span>
                                                             </div>
                                                             {EffectiveAttackGraph && (
@@ -662,20 +794,20 @@ export const LiveTerminalTable = ({
 
                                                                 {/* Center: Radial Semicircular SVG Gauge */}
                                                                 <div style={{ textAlign: 'center' }}>
-                                                                    <div style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: 900, marginBottom: '2px' }}>
+                                                                    <div style={{ fontSize: '0.65rem', color: isDeadMatch ? '#f87171' : '#38bdf8', fontWeight: 900, marginBottom: '2px' }}>
                                                                         {lang === 'tr' ? 'GÜNCEL GOL İHTİMALİ' : (lang === 'de' ? 'TORWAHRSCHEINLICHKEIT' : 'GOAL PROBABILITY')}
                                                                     </div>
                                                                     <div style={{ position: 'relative', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                                         <svg width="86" height="48" viewBox="0 0 100 60">
                                                                             <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="8" strokeLinecap="round" />
-                                                                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#38bdf8" strokeWidth="8" strokeDasharray={`${rawPosterior * 125}, 125`} strokeLinecap="round" />
+                                                                            <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke={isDeadMatch ? '#f87171' : '#38bdf8'} strokeWidth="8" strokeDasharray={`${effectivePosterior * 125}, 125`} strokeLinecap="round" />
                                                                         </svg>
-                                                                        <div style={{ position: 'absolute', bottom: '0', fontSize: '1.25rem', fontWeight: 900, color: '#38bdf8' }}>
+                                                                        <div style={{ position: 'absolute', bottom: '0', fontSize: '1.25rem', fontWeight: 900, color: isDeadMatch ? '#f87171' : '#38bdf8' }}>
                                                                             %{goalProb}
                                                                         </div>
                                                                     </div>
-                                                                    <div style={{ fontSize: '0.58rem', color: '#38bdf8', opacity: 0.85, marginTop: '2px', fontWeight: 700 }}>
-                                                                        {lang === 'tr' ? 'Canlı Baskı Etkili' : (lang === 'de' ? 'Live-Druck angepasst' : 'In-play Adjusted')}
+                                                                    <div style={{ fontSize: '0.58rem', color: isDeadMatch ? '#f87171' : '#38bdf8', opacity: 0.85, marginTop: '2px', fontWeight: 700 }}>
+                                                                        {isDeadMatch ? (lang === 'tr' ? 'Rehavet İndirimi' : 'Complacency Dampened') : (lang === 'tr' ? 'Canlı Baskı Etkili' : (lang === 'de' ? 'Live-Druck angepasst' : 'In-play Adjusted'))}
                                                                     </div>
                                                                 </div>
 
@@ -711,8 +843,8 @@ export const LiveTerminalTable = ({
                                                                         {confidenceLabel}
                                                                     </span>
                                                                 </div>
-                                                                <div style={{ opacity: 0.5, fontStyle: 'italic', fontSize: '0.62rem' }}>
-                                                                    DQS {(m.dqs || 0).toFixed(2)} • {lang === 'tr' ? 'Latans:' : (lang === 'de' ? 'Latenz:' : 'Latency:')} {latencyMs}ms
+                                                                <div style={{ opacity: 0.65, fontSize: '0.62rem', color: isDeadMatch ? '#f87171' : 'var(--tb-text-muted)' }}>
+                                                                    {isDeadMatch ? (lang === 'tr' ? '⚠️ Taktiksel Rehavet Riski' : '⚠️ Complacency Risk') : (lang === 'tr' ? 'Model: Bayesian v2.2' : 'Model: Bayesian v2.2')}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -782,7 +914,7 @@ export const LiveTerminalTable = ({
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
                                                                 <span><strong>{lang === 'tr' ? 'Baskı İndeksi:' : (lang === 'de' ? 'Druck-Index:' : 'Pressure Index:')}</strong> <span style={{ color: '#fbbf24', fontWeight: 800 }}>%{pressureTotal}</span></span>
                                                                 <span><strong>{lang === 'tr' ? 'İvme Durumu:' : (lang === 'de' ? 'Dynamik:' : 'Velocity:')}</strong> <span style={{ color: '#f1f5f9', fontWeight: 800 }}>{m.observations?.velocity?.trend || (heat >= 70 ? 'HOT' : heat >= 40 ? 'WARMING' : 'STABLE')}</span></span>
-                                                                <span><strong>{lang === 'tr' ? 'Gecikme:' : (lang === 'de' ? 'Latenz:' : 'Latency:')}</strong> <span style={{ color: '#38bdf8', fontWeight: 800 }}>{latencyMs}ms</span></span>
+                                                                <span><strong>{lang === 'tr' ? 'Oyun Durumu:' : (lang === 'de' ? 'Spielstatus:' : 'Game State:')}</strong> <span style={{ color: isDeadMatch ? '#f87171' : '#34d399', fontWeight: 800 }}>{isDeadMatch ? (lang === 'tr' ? 'KOPMUŞ' : 'BLOWOUT') : (lang === 'tr' ? 'DENGELİ' : 'BALANCED')}</span></span>
                                                             </div>
                                                         </div>
 
