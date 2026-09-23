@@ -93,12 +93,24 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
         };
     };
 
+    const parseTimeMinutes = (timeStr) => {
+        if (!timeStr) return 9999;
+        const parts = String(timeStr).split(':');
+        if (parts.length === 2) {
+            const h = parseInt(parts[0], 10) || 0;
+            const m = parseInt(parts[1], 10) || 0;
+            return h * 60 + m;
+        }
+        return 9999;
+    };
+
     const todayPicks = data?.today_picks || [];
     const yesterdaySummary = data?.yesterday_summary || {};
     const yesterdayPicks = yesterdaySummary?.picks || [];
 
     const activeList = activeTab === 'today' ? todayPicks : yesterdayPicks;
-    const filteredList = activeList.filter(item => {
+    const sortedList = [...activeList].sort((a, b) => parseTimeMinutes(a.time) - parseTimeMinutes(b.time));
+    const filteredList = sortedList.filter(item => {
         if (filterStatus === 'WON') return item.status === 'WON';
         if (filterStatus === 'PENDING') return item.status === 'PENDING';
         return true;

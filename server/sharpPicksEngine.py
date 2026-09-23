@@ -223,6 +223,15 @@ class SharpPicksEngine:
             print(f"[SHARP_ENGINE] Error fetching general today picks: {e}")
 
         if picks:
+            def get_time_minutes(m):
+                t_str = str(m.get("time", "")).strip()
+                if not t_str: return 9999
+                parts = t_str.split(":")
+                if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                    return int(parts[0]) * 60 + int(parts[1])
+                return 9999
+
+            picks.sort(key=get_time_minutes)
             self.vault["today_picks"] = picks
 
     def fetch_yesterday_record(self):
@@ -234,6 +243,15 @@ class SharpPicksEngine:
 
             if r.status_code == 200:
                 y_matches = parse_page_matches(r.text, is_top=True)
+                def get_time_minutes(m):
+                    t_str = str(m.get("time", "")).strip()
+                    if not t_str: return 9999
+                    parts = t_str.split(":")
+                    if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
+                        return int(parts[0]) * 60 + int(parts[1])
+                    return 9999
+
+                y_matches.sort(key=get_time_minutes)
                 won = sum(1 for m in y_matches if m["status"] == "WON")
                 lost = sum(1 for m in y_matches if m["status"] == "LOST")
                 pending = sum(1 for m in y_matches if m["status"] == "PENDING")
