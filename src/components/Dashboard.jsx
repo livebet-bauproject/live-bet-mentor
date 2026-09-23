@@ -1882,6 +1882,11 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                             {view !== 'DASHBOARD' && (
                                 <button
                                     onClick={() => {
+                                        const teamToSearch = currentMatch.homeTeam?.name || currentMatch.homeTeam || currentMatch.home || '';
+                                        if (teamToSearch) {
+                                            setTerminalSearchQuery(teamToSearch);
+                                        }
+                                        setSelectedMatch(null);
                                         setView('DASHBOARD');
                                     }}
                                     className="btn btn-outline"
@@ -2061,7 +2066,24 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 console.warn('[Dashboard] Error in autoSettlementEngine:', e);
             }
 
-            setMatches([...currentFixtures]);
+            // Filter out finished/ended matches and ghost events so matches state only holds genuine live matches
+            const nowSec = Date.now() / 1000;
+            const liveFixtures = currentFixtures.filter(m => {
+                const min = String(m.minute || '').toUpperCase().trim();
+                const st = (m.status?.type || '').toLowerCase();
+                const desc = (m.status?.description || '').toLowerCase();
+                const isFinished = min === 'MS' || min === 'FT' || min === '999' || min === 'ERT.' || 
+                                   st === 'finished' || desc.includes('ended') || desc.includes('bitti') || desc.includes('finish');
+                if (isFinished) return false;
+
+                const startTs = m.time?.currentPeriodStartTimestamp || m.startTimestamp || m.statusTime?.timestamp;
+                if (startTs && (nowSec - startTs) > 3.5 * 3600) {
+                    return false;
+                }
+                return true;
+            });
+
+            setMatches([...liveFixtures]);
 
             const updatedSignals = {};
             const enrichedFixtures = currentFixtures.map(m => {
@@ -2147,14 +2169,31 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                            window.location.hostname.startsWith('172.');
         const effectivePlan = (isAdmin || isLocalDev) ? 'premium' : (userProfile?.plan || 'trial');
 
+        // Exclude finished/ended matches and ghost events from live radar cockpit
+        const nowSec = Date.now() / 1000;
+        const liveOnly = matches.filter(m => {
+            const min = String(m.minute || '').toUpperCase().trim();
+            const st = (m.status?.type || '').toLowerCase();
+            const desc = (m.status?.description || '').toLowerCase();
+            const isFinished = min === 'MS' || min === 'FT' || min === '999' || min === 'ERT.' || 
+                               st === 'finished' || desc.includes('ended') || desc.includes('bitti') || desc.includes('finish');
+            if (isFinished) return false;
+
+            const startTs = m.time?.currentPeriodStartTimestamp || m.startTimestamp || m.statusTime?.timestamp;
+            if (startTs && (nowSec - startTs) > 3.5 * 3600) {
+                return false;
+            }
+            return true;
+        });
+
         if (effectivePlan === 'trial') {
             // PROD Trial: Only Tier 1
-            return matches.filter(m => m.tier === 1);
+            return liveOnly.filter(m => m.tier === 1);
         } else if (effectivePlan === 'pro') {
             // PROD Pro: Tier 1 & 2
-            return matches.filter(m => m.tier === 1 || m.tier === 2);
+            return liveOnly.filter(m => m.tier === 1 || m.tier === 2);
         }
-        return matches; // Premium or Admin/LocalDev
+        return liveOnly; // Premium or Admin/LocalDev
     };
 
     const enforcedMatches = getEnforcedMatches();
@@ -3068,10 +3107,71 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         }
 
         const dqs = liveMatch.dqs !== undefined ? liveMatch.dqs : 0;
-        const isApproved = dqs >= 0.50;
-        const isTrap = dqs < 0.40;
+        const pressure = liveMatch.observations?.pressure?.total || 0;
+        const risk = dataWorker?.checkRiskFilters ? dataWorker.checkRiskFilters(liveMatch) : null;
+        const isDeadMatch = risk?.deadMatch?.status === 'FAIL';
 
-        if (isApproved) {
+        // Bet direction extraction
+        const marketLower = `${bet.market || ''} ${bet.marketShort || ''}`.toLowerCase();
+        const outcomeLower = `${bet.outcome || ''}`.toLowerCase();
+        const isOverBet = marketLower.includes('over') || marketLower.includes('üst') || outcomeLower.includes('over') || outcomeLower.includes('üst') || marketLower.includes('next');
+        const isHomeBet = outcomeLower.includes('home') || outcomeLower.includes('1') || outcomeLower.includes('ev');
+        const isAwayBet = outcomeLower.includes('away') || outcomeLower.includes('2') || outcomeLower.includes('dep');
+
+        const homeRed = liveMatch.cards?.home?.red || liveMatch.stats?.cards?.home?.red || 0;
+        const awayRed = liveMatch.cards?.away?.red || liveMatch.stats?.cards?.away?.red || 0;
+        const minNum = parseInt(String(liveMatch.minute || '').replace(/[^0-9]/g, '')) || 0;
+
+        // Trap detection
+        let trapReason = null;
+        if (dqs < 0.40) {
+            trapReason = lang === 'tr'
+                ? `Düşük DQS (%${(dqs * 100).toFixed(0)}) & yetersiz veri. Kalabalık tuzağa çekiliyor olabilir!`
+                : (lang === 'de'
+                    ? `Niedriger DQS (${(dqs * 100).toFixed(0)}%) & schwaches Tempo. Das Publikum könnte in eine Falle tappen!`
+                    : `Low DQS (${(dqs * 100).toFixed(0)}%) & weak tempo. Crowd may be walking into a trap!`);
+        } else if (isOverBet && (isDeadMatch || (pressure < 25 && minNum >= 25))) {
+            trapReason = lang === 'tr'
+                ? `Kalabalık Üst/Gol kovalıyor fakat sahada tempo ölü & baskı çok zayıf (%${pressure}). Tuzak ihtimali yüksek!`
+                : (lang === 'de'
+                    ? `Publikum setzt auf Tore, aber das Spieltempo ist tot & Druck zu gering (%${pressure}). Hohe Fallen-Gefahr!`
+                    : `Crowd chasing goals but match tempo is dead & pressure too low (%${pressure}). High trap risk!`);
+        } else if (isHomeBet && homeRed > 0) {
+            trapReason = lang === 'tr'
+                ? `Kalabalık Ev Sahibine oynuyor ancak takım 🟥 Kırmızı Kart görmüş durumda! Tuzak alarmı!`
+                : (lang === 'de'
+                    ? `Publikum wettet auf Heimsieg, aber das Team hat eine 🟥 Rote Karte! Fallen-Alarm!`
+                    : `Crowd betting on Home but team received a 🟥 Red Card! Trap alert!`);
+        } else if (isAwayBet && awayRed > 0) {
+            trapReason = lang === 'tr'
+                ? `Kalabalık Deplasmana oynuyor ancak takım 🟥 Kırmızı Kart görmüş durumda! Tuzak alarmı!`
+                : (lang === 'de'
+                    ? `Publikum wettet auf Auswärtssieg, aber das Team hat eine 🟥 Rote Karte! Fallen-Alarm!`
+                    : `Crowd betting on Away but team received a 🟥 Red Card! Trap alert!`);
+        } else if (isDeadMatch) {
+            trapReason = lang === 'tr'
+                ? `Maç skoru koptu (${risk?.deadMatch?.reason || 'Fark açıldı'}). Kalabalık ezbere oynuyor, tuzak riski!`
+                : (lang === 'de'
+                    ? `Spiel ist entschieden. Publikum wettet blind, Fallen-Gefahr!`
+                    : `Match is blown out. Crowd betting blindly, trap risk!`);
+        }
+
+        const isTrap = Boolean(trapReason);
+        const isApproved = !isTrap && dqs >= 0.50 && (pressure >= 30 || minNum < 20);
+
+        if (isTrap) {
+            return {
+                status: 'TRAP',
+                badgeText: t.trending_trap_alert_badge || '🔴 TUZAK ALARMI',
+                color: '#ef4444',
+                bg: 'rgba(239, 68, 68, 0.12)',
+                borderColor: 'rgba(239, 68, 68, 0.4)',
+                icon: '🔴',
+                dqs,
+                liveMatch,
+                desc: trapReason
+            };
+        } else if (isApproved) {
             return {
                 status: 'APPROVED',
                 badgeText: t.trending_smart_money_badge || '🟢 AKILLI PARA',
@@ -3086,22 +3186,6 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     : (lang === 'de'
                         ? `Hoher DQS (${(dqs * 100).toFixed(0)}%) & Spieldaten bestätigen das Publikumsaufkommen.`
                         : `High DQS (${(dqs * 100).toFixed(0)}%) & match data confirms crowd influx.`)
-            };
-        } else if (isTrap) {
-            return {
-                status: 'TRAP',
-                badgeText: t.trending_trap_alert_badge || '🔴 TUZAK ALARMI',
-                color: '#ef4444',
-                bg: 'rgba(239, 68, 68, 0.12)',
-                borderColor: 'rgba(239, 68, 68, 0.4)',
-                icon: '🔴',
-                dqs,
-                liveMatch,
-                desc: lang === 'tr'
-                    ? `Düşük DQS (%${(dqs * 100).toFixed(0)}) & yetersiz tempo. Kalabalık tuzağa çekiliyor olabilir!`
-                    : (lang === 'de'
-                        ? `Niedriger DQS (${(dqs * 100).toFixed(0)}%) & schwaches Tempo. Das Publikum könnte in eine Falle tappen!`
-                        : `Low DQS (${(dqs * 100).toFixed(0)}%) & weak tempo. Crowd may be walking into a trap!`)
             };
         } else {
             return {
@@ -6730,7 +6814,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             )
             }
 
-            {displayViewMode !== 'TERMINAL' && renderMatchDetailsModal()}
+            {renderMatchDetailsModal()}
             {renderPlanComparison()}
             {renderUpgradeConfirmation()}
 

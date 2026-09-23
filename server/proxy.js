@@ -642,12 +642,26 @@ app.get('/api/sync/status', (req, res) => {
 
 // 1. Live Events List
 app.get('/api/sofascore/live', (req, res) => {
+    const cleanEvents = (events) => {
+        if (!Array.isArray(events)) return [];
+        const nowSec = Date.now() / 1000;
+        return events.filter(e => {
+            const startTs = e.startTimestamp || nowSec;
+            if ((nowSec - startTs) > 3.5 * 3600) return false;
+            const st = (e.status?.type || '').toLowerCase();
+            const desc = (e.status?.description || '').toLowerCase();
+            if (st === 'finished' || desc.includes('ended') || desc.includes('finish') || desc.includes('bitti') || desc.includes('cancel')) return false;
+            return true;
+        });
+    };
+
     // Try file first (local mode or cloud_fetcher written file)
     if (fs.existsSync(SOFASCORE_FILE)) {
         try {
             const data = fs.readFileSync(SOFASCORE_FILE, 'utf8');
             const parsed = JSON.parse(data);
-            if (parsed && Array.isArray(parsed.events) && parsed.events.length > 0) {
+            if (parsed && Array.isArray(parsed.events)) {
+                parsed.events = cleanEvents(parsed.events);
                 memoryLiveData = parsed;
                 return res.json(parsed);
             }
@@ -656,8 +670,11 @@ app.get('/api/sofascore/live', (req, res) => {
         }
     }
     // Fall back to memory (cloud mode or last known data)
-    if (memoryLiveData && Array.isArray(memoryLiveData.events) && memoryLiveData.events.length > 0) {
-        return res.json(memoryLiveData);
+    if (memoryLiveData && Array.isArray(memoryLiveData.events)) {
+        return res.json({
+            ...memoryLiveData,
+            events: cleanEvents(memoryLiveData.events)
+        });
     }
     res.status(404).json({ error: 'Data not found yet. Initializing autonomous fetch...' });
 });

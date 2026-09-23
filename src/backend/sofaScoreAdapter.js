@@ -191,17 +191,29 @@ export const sofaScoreAdapter = {
         // RELAXED: If sportId is missing, assume it's football because the endpoint is sport/football
         if (sportId && sportId !== 1) return null; 
 
-        // 2. Must be Active (Include anything that isn't finished/canceled)
-        const statusType = event.status?.type; // inprogress, finished, notstarted
+        // 2. Anti-Ghost filter: Reject matches that started > 3.5 hours ago
+        const nowSec = Date.now() / 1000;
+        const startTs = event.startTimestamp || nowSec;
+        if ((nowSec - startTs) > 3.5 * 3600) {
+            return null; // Ghost match stuck in SofaScore feed from earlier
+        }
+
+        // 3. Must be Active (Filter out anything finished, ended, canceled or delayed)
+        const statusType = (event.status?.type || '').toLowerCase();
         const statusDesc = (event.status?.description || '').toLowerCase();
 
-        // RELAXED: Accept any 'inprogress' OR anything with a score that isn't 'finished'
-        const isLiveInProgress = statusType === 'inprogress';
-        const isActuallyFinished = statusType === 'finished' || statusDesc.includes('ended') || statusDesc.includes('finished') || statusDesc.includes('canceled') || statusDesc.includes('bitti') || statusDesc.includes('ertele');
-        const hasScore = event.homeScore?.current !== undefined || event.awayScore?.current !== undefined;
+        const isActuallyFinished = statusType === 'finished' || 
+            statusDesc.includes('ended') || statusDesc.includes('finished') || 
+            statusDesc.includes('canceled') || statusDesc.includes('bitti') || 
+            statusDesc.includes('ertele') || statusDesc.includes('iptal');
 
-        if (!isLiveInProgress && isActuallyFinished) return null;
+        if (isActuallyFinished) return null;
         if (statusType === 'notstarted' && !statusDesc.includes('live')) return null;
+
+        const calculatedMinute = this.calculateMinute(event);
+        if (calculatedMinute === 'MS' || calculatedMinute === 'FT' || calculatedMinute === 'Ert.') {
+            return null;
+        }
 
         const homeTeamId = event.homeTeam?.id;
         const awayTeamId = event.awayTeam?.id;

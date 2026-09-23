@@ -357,10 +357,23 @@ def fetch_live_events():
             resp = session.get(url, headers=HEADERS, timeout=6.5)
             if resp.status_code == 200:
                 data = resp.json()
-                events = data.get('events', [])
+                raw_events = data.get('events', [])
+                now_ts = time.time()
+                # Anti-ghost filter: remove matches started > 3.5h ago or marked finished
+                events = []
+                for e in raw_events:
+                    start_ts = e.get('startTimestamp') or now_ts
+                    if (now_ts - start_ts) > 3.5 * 3600:
+                        continue
+                    st = (e.get('status', {}).get('type') or '').lower()
+                    desc = (e.get('status', {}).get('description') or '').lower()
+                    if st == 'finished' or 'ended' in desc or 'bitti' in desc:
+                        continue
+                    events.append(e)
+                data['events'] = events
                 atomic_write_json(DATA_FILE, data)
                 proxy_mgr.report_success(len(events))
-                logger.info(f"[OK] Live events updated: {len(events)} matches found (via {proxy_mgr.current_proxy})")
+                logger.info(f"[OK] Live events updated: {len(events)} genuine live matches found (via {proxy_mgr.current_proxy})")
                 return events
             else:
                 logger.warning(f"Live fetch returned HTTP {resp.status_code} on {proxy_mgr.current_proxy}")
