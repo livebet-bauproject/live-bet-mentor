@@ -5,6 +5,7 @@ import { bankrollManager } from '../logic/bankrollManager';
 import { autoSettlementEngine } from '../logic/autoSettlementEngine';
 import { FAQ } from './FAQ';
 import { StakingCalculator } from './StakingCalculator';
+import { SharpPicksCard } from './SharpPicksCard';
 import { translations } from '../locales/translations';
 import { AdminPanel } from './AdminPanel';
 import { consensusAdapter } from '../backend/consensusAdapter';
@@ -556,6 +557,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     }, [showTrackingPanel]);
 
     const [showStakingCalc, setShowStakingCalc] = useState(false);
+    const [showSharpPicks, setShowSharpPicks] = useState(false);
     const [liveOpportunitiesLimit, setLiveOpportunitiesLimit] = useState(5);
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
     const [momentumWindow, setMomentumWindow] = useState(10);
@@ -4645,6 +4647,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <span>{t.advanced_settings || 'Gelişmiş Ayarlar'}</span>
                                     </button>
 
+                                    {/* Sharp Picks Button */}
+                                    <button
+                                        className="popover-action-btn"
+                                        onClick={() => { setShowSharpPicks(true); setShowUserMenu(false); }}
+                                        style={{ color: '#38bdf8' }}
+                                    >
+                                        <span>🎯</span>
+                                        <span>{t.sharp_picks_title || 'Günün Keskin Seçimleri'}</span>
+                                    </button>
+
                                     {/* Reset Data Button */}
                                     <button
                                         className="popover-action-btn text-danger"
@@ -4706,6 +4718,20 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                         >
                             <span>🎯</span>
                             <span>{t.daily_radar}</span>
+                        </button>
+                        <button
+                            className={`unified-tab-btn ${view === 'SHARP_PICKS' ? 'active' : ''}`}
+                            onClick={() => setView('SHARP_PICKS')}
+                            style={{
+                                border: '1px solid rgba(56, 189, 248, 0.45)',
+                                background: view === 'SHARP_PICKS' ? 'linear-gradient(135deg, #0284c7, #38bdf8)' : 'linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(129, 140, 248, 0.12))',
+                                color: view === 'SHARP_PICKS' ? '#ffffff' : '#38bdf8',
+                                fontWeight: 800
+                            }}
+                        >
+                            <span>⭐</span>
+                            <span>{lang === 'tr' ? 'KESKİN SEÇİMLER' : (lang === 'de' ? 'SHARP-PICKS' : 'SHARP PICKS')}</span>
+                            <span className="tab-live-count" style={{ background: view === 'SHARP_PICKS' ? 'rgba(0,0,0,0.3)' : '#0284c7', color: '#fff', fontWeight: 800 }}>10</span>
                         </button>
                         <button
                             className={`unified-tab-btn ${view === 'PORTFOLIO' ? 'active' : ''}`}
@@ -4895,6 +4921,10 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                     initialTab={(typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('tab') === 'support_staff' || new URLSearchParams(window.location.search).get('session'))) ? 'support_staff' : undefined}
                     initialSessionId={typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('session') || undefined) : undefined}
                 />
+            ) : view === 'SHARP_PICKS' ? (
+                <div style={{ maxWidth: '960px', margin: '1.5rem auto 3rem', padding: '0 1rem' }}>
+                    <SharpPicksCard lang={lang} t={t} />
+                </div>
             ) : view === 'RADAR' ? (
                 <div className="radar-view">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3rem', flexWrap: 'wrap', gap: '2rem' }}>
@@ -4935,6 +4965,27 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         <span>{m.icon}</span> {m.label}
                                     </button>
                                 ))}
+
+                                <button
+                                    onClick={() => setShowSharpPicks(true)}
+                                    style={{
+                                        padding: '0.6rem 1.2rem',
+                                        borderRadius: '10px',
+                                        border: '1px solid #38bdf8',
+                                        background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.1))',
+                                        color: '#38bdf8',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        boxShadow: '0 4px 15px rgba(56, 189, 248, 0.2)'
+                                    }}
+                                >
+                                    <span>🎯</span> {t.sharp_open_btn || 'GÜNÜN KESKİN SEÇİMLERİ (10)'}
+                                </button>
 
                                 <button
                                     onClick={() => setShowStakingCalc(true)}
@@ -8641,6 +8692,23 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             }
 
             {/* Floating Tracking Button */}
+            {showSharpPicks && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px'
+                }} onClick={() => setShowSharpPicks(false)}>
+                    <div style={{ maxHeight: '90vh', overflowY: 'auto', width: '100%', maxWidth: '920px' }} onClick={e => e.stopPropagation()}>
+                        <SharpPicksCard lang={lang} t={t} onClose={() => setShowSharpPicks(false)} />
+                    </div>
+                </div>
+            )}
             {showStakingCalc && <StakingCalculator onClose={() => setShowStakingCalc(false)} lang={lang} />}
             {showFAQ && <FAQ onClose={() => setShowFAQ(false)} lang={lang} mode={faqMode} />}
             <button
@@ -8809,6 +8877,16 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 >
                     <span className="mobile-nav-icon">🎯</span>
                     <span className="mobile-nav-label">{lang === 'tr' ? 'Günlük' : (lang === 'de' ? 'Täglich' : 'Daily')}</span>
+                </button>
+                <button
+                    className={`mobile-nav-item ${view === 'SHARP_PICKS' ? 'active' : ''}`}
+                    onClick={() => { setView('SHARP_PICKS'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    type="button"
+                    style={{ color: view === 'SHARP_PICKS' ? '#38bdf8' : undefined }}
+                >
+                    <span className="mobile-nav-icon">⭐</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Keskin 10' : (lang === 'de' ? 'Sharp 10' : 'Sharp 10')}</span>
+                    <span className="mobile-nav-badge" style={{ background: '#0284c7', color: '#fff' }}>10</span>
                 </button>
                 <button
                     className={`mobile-nav-item ${view === 'PORTFOLIO' ? 'active' : ''}`}

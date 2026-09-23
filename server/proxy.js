@@ -149,6 +149,7 @@ app.use((req, res, next) => {
 
 const SOFASCORE_FILE = path.join(__dirname, 'sofascore_live.json');
 const CONSENSUS_FILE = path.join(__dirname, 'consensus_data.json');
+const SHARP_PICKS_FILE = path.join(__dirname, 'sharp_picks_vault.json');
 const STATS_DIR = path.join(__dirname, 'stats');
 const REQUEST_QUEUE = path.join(__dirname, 'stats_request.json');
 const ODDS_FILE = path.join(__dirname, 'live_odds.json');
@@ -478,6 +479,7 @@ app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
 // --- IN-MEMORY DATA STORE (for cloud mode) ---
 let memoryLiveData = null;
 let memoryConsensusData = null;
+let memorySharpPicksData = null;
 let memoryOddsData = null;
 let memoryStatsCache = {};
 let lastUploadTime = 0;
@@ -608,6 +610,16 @@ app.post('/api/sync/consensus', express.json({ limit: '10mb' }), (req, res) => {
     memoryConsensusData = req.body;
     try { fs.writeFileSync(CONSENSUS_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
     console.log(`[SYNC] Received consensus data: ${Object.keys(req.body || {}).length} sources`);
+    res.json({ ok: true });
+});
+
+app.post('/api/sync/sharp-picks', express.json({ limit: '10mb' }), (req, res) => {
+    if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    memorySharpPicksData = req.body;
+    try { fs.writeFileSync(SHARP_PICKS_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
+    console.log(`[SYNC] Received sharp picks: ${(req.body?.today_picks || []).length} picks`);
     res.json({ ok: true });
 });
 
@@ -790,6 +802,27 @@ app.get('/api/consensus', (req, res) => {
         }
     }
     res.json({});
+});
+
+// 2b. Mentor Alpha Sharp Picks (Proprietary Institutional Safe Picks)
+app.get('/api/sharp-picks', (req, res) => {
+    if (memorySharpPicksData) {
+        return res.json(memorySharpPicksData);
+    }
+    if (fs.existsSync(SHARP_PICKS_FILE)) {
+        try {
+            res.setHeader('Content-Type', 'application/json');
+            const data = fs.readFileSync(SHARP_PICKS_FILE, 'utf8');
+            return res.send(data);
+        } catch (e) {
+            console.error('[PROXY] Error reading sharp_picks_vault.json:', e.message);
+        }
+    }
+    res.json({
+        model: "Mentor Alpha-10 Quant",
+        today_picks: [],
+        yesterday_summary: { total: 0, won: 0, lost: 0, pending: 0, win_rate: 0.0, avg_odds: 0.0, picks: [] }
+    });
 });
 
 // 3. Match Details (with freshness check)
@@ -4331,6 +4364,26 @@ function startConsensusScraper() {
     setInterval(spawnScraper, 4 * 60 * 60 * 1000);
 }
 
+function startSharpPicksEngine() {
+    console.log('[PROXY] Initializing Mentor Alpha Sharp Picks Engine...');
+    const spawnEngine = () => {
+        try {
+            const pythonProcess = spawn('python', [path.join(__dirname, 'sharpPicksEngine.py'), '--once']);
+            pythonProcess.stdout.on('data', (data) => console.log(`[SHARP_ENGINE] ${data}`));
+            pythonProcess.stderr.on('data', (data) => console.error(`[SHARP_ENGINE_ERR] ${data}`));
+            pythonProcess.on('error', (err) => {
+                console.error('[PROXY] Sharp picks engine spawn error:', err.message);
+            });
+        } catch (err) {
+            console.error('[PROXY] Failed to run sharp picks engine:', err.message);
+        }
+    };
+
+    // Run once on boot, then every 35 minutes to track results and settle matches
+    spawnEngine();
+    setInterval(spawnEngine, 35 * 60 * 1000);
+}
+
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`[PROXY SERVER] Running on http://0.0.0.0:${PORT} (accessible from network)`);
@@ -4359,6 +4412,7 @@ app.listen(PORT, '0.0.0.0', async () => {
     startScraper();
     setTimeout(() => {
         startConsensusScraper();
+        startSharpPicksEngine();
     }, 10000);
 
     // 24/7 CLOUD MODE: Keep-alive self-ping to prevent Render free-tier spin-down
