@@ -568,6 +568,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [trendingFilter, setTrendingFilter] = useState('ALL');
     const [trendingSearch, setTrendingSearch] = useState('');
     const [showTrendingGuide, setShowTrendingGuide] = useState(false);
+    const [selectedTrendingBetMap, setSelectedTrendingBetMap] = useState({});
     const trendingLiveMatchCacheRef = useRef(new Map());
 
     const fetchTrendingBets = useCallback(async () => {
@@ -3094,6 +3095,148 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
         return o;
     };
 
+    // --- TIMELINE & MINUTE RESOLVER FOR TRENDING BETS ---
+    const getBetTimelineInfo = (bet, liveMatch, currentLang = 'tr') => {
+        if (!bet) return { sanitizedScore: '0 - 0', entryMinStr: null, durationText: '', durMin: 0 };
+
+        const liveScoreStr = liveMatch?.score 
+            ? (typeof liveMatch.score === 'object' ? `${liveMatch.score.home ?? 0} - ${liveMatch.score.away ?? 0}` : String(liveMatch.score))
+            : (bet.score || '0 - 0');
+
+        const parseGoals = (s) => {
+            if (!s) return 0;
+            if (typeof s === 'object') return (Number(s.home) || 0) + (Number(s.away) || 0);
+            const parts = String(s).replace(/\s+/g, '').split(/[-:]/);
+            return (parseInt(parts[0], 10) || 0) + (parseInt(parts[1], 10) || 0);
+        };
+
+        const initialGoals = parseGoals(bet.firstSeenScore);
+        const currentGoals = parseGoals(liveScoreStr);
+
+        let sanitizedScore = bet.firstSeenScore || liveScoreStr;
+        if (initialGoals > currentGoals && liveScoreStr) {
+            sanitizedScore = liveScoreStr;
+        }
+
+        let entryMinStr = null;
+        const rawMin = liveMatch?.minute;
+        const dur = Math.max(0, bet.durationMinutes ?? 0);
+
+        if (rawMin) {
+            const rawStr = String(rawMin).trim();
+            if (rawStr.includes('İY') || rawStr.includes('HT') || rawStr.toLowerCase().includes('half')) {
+                entryMinStr = "İY'";
+            } else {
+                const stoppageMatch = rawStr.match(/(\d+)\s*\+\s*(\d+)/);
+                let currentMin = null;
+                if (stoppageMatch) {
+                    currentMin = (parseInt(stoppageMatch[1], 10) || 0) + (parseInt(stoppageMatch[2], 10) || 0);
+                } else {
+                    const numMatch = rawStr.match(/\b([1-9]\d{0,2})\b/);
+                    if (numMatch) {
+                        const parsed = parseInt(numMatch[1], 10);
+                        if (parsed > 0 && parsed <= 130) currentMin = parsed;
+                    }
+                }
+
+                if (currentMin !== null) {
+                    const calcMin = Math.max(1, currentMin - dur);
+                    entryMinStr = `${calcMin}'`;
+                }
+            }
+        }
+
+        let durationText = '';
+        if (bet.durationMinutes !== undefined && bet.durationMinutes !== null) {
+            if (bet.durationMinutes <= 1) {
+                durationText = currentLang === 'tr' ? 'Az önce girdi (< 1 dk)' : (currentLang === 'de' ? 'Gerade (< 1m)' : 'Just now (< 1m)');
+            } else {
+                durationText = currentLang === 'tr' ? `${bet.durationMinutes} dk'dır aktif` : (currentLang === 'de' ? `seit ${bet.durationMinutes} Min` : `${bet.durationMinutes}m active`);
+            }
+        }
+
+        return {
+            sanitizedScore,
+            entryMinStr,
+            durationText,
+            durMin: dur
+        };
+    };
+
+    // --- MARKET SYNERGY & CONFLICT ENGINE ---
+    const getMarketSynergyInfo = (bets, currentLang = 'tr') => {
+        if (!bets || bets.length < 2) return null;
+
+        const b1 = bets[0];
+        const b2 = bets[1];
+
+        const m1 = `${b1.market || ''} ${b1.outcome || ''}`.toLowerCase();
+        const m2 = `${b2.market || ''} ${b2.outcome || ''}`.toLowerCase();
+
+        // 1. Conflict: Opposite 1X2 outcomes (e.g. Home vs Away)
+        const isB1Home = m1.includes('home') || m1.includes('ev ') || m1.includes('heimsieg') || m1.includes(' 1');
+        const isB1Away = m1.includes('away') || m1.includes('dep ') || m1.includes('auswärtssieg') || m1.includes(' 2');
+        const isB2Home = m2.includes('home') || m2.includes('ev ') || m2.includes('heimsieg') || m2.includes(' 1');
+        const isB2Away = m2.includes('away') || m2.includes('dep ') || m2.includes('auswärtssieg') || m2.includes(' 2');
+
+        if ((isB1Home && isB2Away) || (isB1Away && isB2Home)) {
+            return {
+                type: 'CONFLICT',
+                icon: '⚠️',
+                color: '#f87171',
+                bg: 'rgba(239, 68, 68, 0.1)',
+                border: 'rgba(239, 68, 68, 0.35)',
+                title: currentLang === 'tr' ? 'PİYASA ÇELİŞKİSİ' : (currentLang === 'de' ? 'MARKTKONFLIKT' : 'MARKET CONFLICT'),
+                desc: currentLang === 'tr' 
+                    ? 'Halk iki takıma birden yüklendi (Zıt yönlü para akışı, tuzak riski yüksek!).' 
+                    : (currentLang === 'de' 
+                        ? 'Geld fließt in gegensätzliche Teams (Hohes Fallenrisiko!).' 
+                        : 'Money split on opposing teams (Opposing money flow, high trap risk!).')
+            };
+        }
+
+        // 2. Conflict: Over vs Under
+        const isB1Over = m1.includes('über') || m1.includes('over') || m1.includes('üst');
+        const isB1Under = m1.includes('unter') || m1.includes('under') || m1.includes('alt');
+        const isB2Over = m2.includes('über') || m2.includes('over') || m2.includes('üst');
+        const isB2Under = m2.includes('unter') || m2.includes('under') || m2.includes('alt');
+
+        if ((isB1Over && isB2Under) || (isB1Under && isB2Over)) {
+            return {
+                type: 'CONFLICT',
+                icon: '⚠️',
+                color: '#f87171',
+                bg: 'rgba(239, 68, 68, 0.1)',
+                border: 'rgba(239, 68, 68, 0.35)',
+                title: currentLang === 'tr' ? 'ZIT TERCİHLER' : (currentLang === 'de' ? 'GEGENSÄTZLICHE TENDENZ' : 'OPPOSING BETS'),
+                desc: currentLang === 'tr' 
+                    ? 'Aynı maçta hem Üst hem Alt pazarına para giriyor (Kalabalık kararsız!).' 
+                    : (currentLang === 'de' 
+                        ? 'Gleichzeitiges Geldvolumen auf Über und Unter. Das Publikum ist unentschlossen!' 
+                        : 'Simultaneous money flow into Over & Under lines. Undecided crowd!')
+            };
+        }
+
+        // 3. Goal Ladder: Multiple Over lines
+        if (isB1Over && isB2Over) {
+            return {
+                type: 'LADDER',
+                icon: '🔥',
+                color: '#38bdf8',
+                bg: 'rgba(56, 189, 248, 0.1)',
+                border: 'rgba(56, 189, 248, 0.35)',
+                title: currentLang === 'tr' ? 'KADEMELİ GOL BASKISI' : (currentLang === 'de' ? 'TOR-LEITER' : 'GOAL LADDER'),
+                desc: currentLang === 'tr' 
+                    ? 'Piyasa tek golle yetinmeyip çoklu gol baremlerine eşzamanlı yükleniyor (Yüksek gol beklentisi).' 
+                    : (currentLang === 'de' 
+                        ? 'Geld fließt gleichzeitig in mehrere Torlinien (Starke Torerwartung).' 
+                        : 'Money escalating across multiple goal lines simultaneously (Strong goal expectation).')
+            };
+        }
+
+        return null;
+    };
+
     // --- INSTITUTIONAL MARKET MONEY FLOW EVALUATION (SMART MONEY VS PUBLIC TRAP) ---
     const evaluateTrendingBet = useCallback((bet) => {
         const matchKey = bet.eventId ? String(bet.eventId) : `${bet.home}_${bet.away}`;
@@ -3367,19 +3510,34 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             matchGroupsMap.get(matchKey).bets.push(bet);
         });
 
-        // For each group, sort bets by count descending (highest volume bet is primary)
+        // For each group, sort bets by count descending (highest volume bet is default)
         const groupedMatches = Array.from(matchGroupsMap.values()).map(group => {
             const sortedBets = [...group.bets].sort((a, b) => (b.count || 0) - (a.count || 0));
-            const primaryBet = sortedBets[0];
-            const otherBets = sortedBets.slice(1);
+            const selectedOutcomeId = selectedTrendingBetMap[group.key];
+            const activeBet = (selectedOutcomeId && sortedBets.find(b => (b.outcomeId || b.marketId) === selectedOutcomeId)) || sortedBets[0];
+            const otherBets = sortedBets.filter(b => b !== activeBet);
             const totalCount = sortedBets.reduce((sum, b) => sum + (b.count || 0), 0);
-            const evaluation = evaluateTrendingBet(primaryBet);
+            const evaluation = evaluateTrendingBet(activeBet);
+            const synergy = getMarketSynergyInfo(sortedBets, lang);
+
+            // Pre-evaluate each secondary bet so its status & timeline are instantly accessible
+            const otherBetsEvaluated = otherBets.map(ob => ({
+                ...ob,
+                evaluation: evaluateTrendingBet(ob),
+                timeline: getBetTimelineInfo(ob, evaluation.liveMatch, lang)
+            }));
+
+            const primaryTimeline = getBetTimelineInfo(activeBet, evaluation.liveMatch, lang);
+
             return {
                 ...group,
-                primaryBet,
-                otherBets,
+                primaryBet: activeBet,
+                otherBets: otherBetsEvaluated,
+                allBets: sortedBets,
                 totalCount,
-                evaluation
+                evaluation,
+                primaryTimeline,
+                synergy
             };
         });
 
@@ -3835,7 +3993,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
 
                                             {/* Score & Minute Evolution Timeline */}
-                                            {m.primaryBet.firstSeenScore && (
+                                            {(m.primaryBet.firstSeenScore || m.primaryTimeline?.sanitizedScore) && (
                                                 <div style={{
                                                     marginTop: '0.5rem',
                                                     padding: '0.4rem 0.65rem',
@@ -3853,14 +4011,17 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                                         <span style={{ color: '#94a3b8' }}>📍 {lang === 'tr' ? 'Giriş:' : (lang === 'de' ? 'Start:' : 'Entry:')}</span>
                                                         <span style={{ color: '#fbbf24', fontWeight: 800 }}>
-                                                            ⚽ {evalInfo.sanitizedFirstSeenScore || m.primaryBet.firstSeenScore}
-                                                            {evalInfo.liveMatch?.minute && (
-                                                                <span style={{ opacity: 0.7, marginLeft: '2px', fontWeight: 600 }}>
-                                                                    {String(evalInfo.liveMatch.minute).includes('İY') || String(evalInfo.liveMatch.minute).includes('HT')
-                                                                        ? '(İY\')'
-                                                                        : `(${Math.max(1, (parseInt(String(evalInfo.liveMatch.minute).replace(/[^0-9]/g, '')) || 0) - (m.primaryBet.durationMinutes || 0))}')`
-                                                                    }
+                                                            ⚽ {m.primaryTimeline?.sanitizedScore || evalInfo.sanitizedFirstSeenScore || m.primaryBet.firstSeenScore}
+                                                            {m.primaryTimeline?.entryMinStr ? (
+                                                                <span style={{ opacity: 0.85, marginLeft: '2px', fontWeight: 700, color: '#38bdf8' }}>
+                                                                    ({m.primaryTimeline.entryMinStr})
                                                                 </span>
+                                                            ) : (
+                                                                evalInfo.liveMatch?.minute && (
+                                                                    <span style={{ opacity: 0.7, marginLeft: '2px', fontWeight: 600 }}>
+                                                                        ({renderMatchMinute(evalInfo.liveMatch.minute, t)})
+                                                                    </span>
+                                                                )
                                                             )}
                                                         </span>
                                                         <span style={{ opacity: 0.35 }}>──►</span>
@@ -3869,7 +4030,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             ⚽ {evalInfo.currentScoreStr || m.score || '0 - 0'}
                                                             {evalInfo.liveMatch?.minute && (
                                                                 <span style={{ color: '#f87171', marginLeft: '2px', fontWeight: 800 }}>
-                                                                    ({String(evalInfo.liveMatch.minute).replace(/'/g, '')}')
+                                                                    ({renderMatchMinute(evalInfo.liveMatch.minute, t)})
                                                                 </span>
                                                             )}
                                                         </span>
@@ -3890,6 +4051,84 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             {lang === 'tr' ? 'Gol henüz yok' : (lang === 'de' ? 'Noch kein Tor' : 'No goals yet')}
                                                         </span>
                                                     )}
+                                                </div>
+                                            )}
+
+                                            {/* Market Synergy / Conflict Banner */}
+                                            {m.synergy && (
+                                                <div style={{
+                                                    marginTop: '0.45rem',
+                                                    padding: '0.45rem 0.65rem',
+                                                    borderRadius: '8px',
+                                                    background: m.synergy.bg,
+                                                    border: `1px solid ${m.synergy.border}`,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.45rem',
+                                                    fontSize: '0.72rem',
+                                                    lineHeight: 1.3
+                                                }}>
+                                                    <span style={{ fontSize: '0.95rem' }}>{m.synergy.icon}</span>
+                                                    <div>
+                                                        <strong style={{ color: m.synergy.color, textTransform: 'uppercase', letterSpacing: '0.3px', marginRight: '4px' }}>
+                                                            {m.synergy.title}:
+                                                        </strong>
+                                                        <span style={{ color: '#cbd5e1' }}>{m.synergy.desc}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Multi-bet Quick Selection Pills */}
+                                            {m.allBets && m.allBets.length > 1 && (
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.35rem',
+                                                    marginTop: '0.5rem',
+                                                    marginBottom: '0.1rem',
+                                                    overflowX: 'auto',
+                                                    paddingBottom: '2px'
+                                                }}>
+                                                    <span style={{ fontSize: '0.64rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
+                                                        🎯 {lang === 'tr' ? 'Tahmin:' : 'Pick:'}
+                                                    </span>
+                                                    {m.allBets.map((b, bIdx) => {
+                                                        const isSelected = (b.outcomeId || b.marketId) === (m.primaryBet.outcomeId || m.primaryBet.marketId);
+                                                        return (
+                                                            <button
+                                                                key={b.outcomeId || `${b.marketId}-${bIdx}`}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setSelectedTrendingBetMap(prev => ({
+                                                                        ...prev,
+                                                                        [m.key]: b.outcomeId || b.marketId
+                                                                    }));
+                                                                }}
+                                                                style={{
+                                                                    padding: '0.18rem 0.5rem',
+                                                                    borderRadius: '6px',
+                                                                    background: isSelected 
+                                                                        ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.25), rgba(245, 158, 11, 0.15))' 
+                                                                        : 'rgba(255, 255, 255, 0.05)',
+                                                                    border: isSelected 
+                                                                        ? '1px solid rgba(251, 191, 36, 0.5)' 
+                                                                        : '1px solid rgba(255, 255, 255, 0.08)',
+                                                                    color: isSelected ? '#fbbf24' : '#cbd5e1',
+                                                                    fontSize: '0.68rem',
+                                                                    fontWeight: isSelected ? 900 : 700,
+                                                                    cursor: 'pointer',
+                                                                    whiteSpace: 'nowrap',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.25rem',
+                                                                    transition: 'all 0.15s ease'
+                                                                }}
+                                                            >
+                                                                <span>{formatTrendingOutcome(b.outcome, lang, b.market)}</span>
+                                                                <span style={{ opacity: 0.6, fontSize: '0.6rem' }}>🔥{b.count}</span>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             )}
                                         </div>
@@ -4013,54 +4252,153 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         +{m.otherBets.length}
                                                     </span>
                                                 </div>
-                                                {m.otherBets.map((ob, obIdx) => (
-                                                    <div
-                                                        key={ob.outcomeId || `${ob.marketId}-${obIdx}`}
-                                                        style={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center',
-                                                            padding: '0.4rem 0.6rem',
-                                                            borderRadius: '6px',
-                                                            background: 'rgba(0, 0, 0, 0.25)',
-                                                            border: '1px solid rgba(255, 255, 255, 0.04)',
-                                                            fontSize: '0.78rem'
-                                                        }}
-                                                    >
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
-                                                            <span style={{ color: '#38bdf8', fontWeight: 800 }}>
-                                                                🎯 {formatTrendingOutcome(ob.outcome, lang, ob.market)}
-                                                            </span>
-                                                            <span style={{
-                                                                fontSize: '0.68rem',
-                                                                opacity: 0.75,
-                                                                whiteSpace: 'nowrap',
-                                                                background: 'rgba(255, 255, 255, 0.06)',
-                                                                padding: '0.1rem 0.35rem',
-                                                                borderRadius: '4px',
-                                                                color: '#cbd5e1'
+                                                {m.otherBets.map((ob, obIdx) => {
+                                                    const isObAchieved = ob.evaluation?.status === 'ACHIEVED';
+                                                    const isObFresh = ob.durationMinutes !== undefined && ob.durationMinutes <= 3;
+
+                                                    return (
+                                                        <div
+                                                            key={ob.outcomeId || `${ob.marketId}-${obIdx}`}
+                                                            onClick={() => {
+                                                                setSelectedTrendingBetMap(prev => ({
+                                                                    ...prev,
+                                                                    [m.key]: ob.outcomeId || ob.marketId
+                                                                }));
+                                                            }}
+                                                            title={lang === 'tr' ? 'Bu tahmini ana görünümde detaylı incelemek için tıklayın' : 'Click to inspect this bet in main view'}
+                                                            style={{
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: '0.35rem',
+                                                                padding: '0.55rem 0.75rem',
+                                                                borderRadius: '8px',
+                                                                background: isObAchieved ? 'rgba(16, 185, 129, 0.08)' : 'rgba(0, 0, 0, 0.28)',
+                                                                border: isObAchieved ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.06)',
+                                                                cursor: 'pointer',
+                                                                transition: 'all 0.15s ease'
+                                                            }}
+                                                        >
+                                                            {/* Top Line: Outcome, Market & Odds */}
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', overflow: 'hidden' }}>
+                                                                    <span style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.82rem' }}>
+                                                                        🎯 {formatTrendingOutcome(ob.outcome, lang, ob.market)}
+                                                                    </span>
+                                                                    <span style={{
+                                                                        fontSize: '0.66rem',
+                                                                        opacity: 0.75,
+                                                                        whiteSpace: 'nowrap',
+                                                                        background: 'rgba(255, 255, 255, 0.06)',
+                                                                        padding: '0.1rem 0.35rem',
+                                                                        borderRadius: '4px',
+                                                                        color: '#cbd5e1'
+                                                                    }}>
+                                                                        ({formatTrendingMarketShort(ob.marketShort, ob.market, lang)})
+                                                                    </span>
+                                                                </div>
+
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                    <span style={{ fontSize: '0.72rem', color: '#f87171', fontWeight: 800 }}>
+                                                                        🔥 {ob.count}
+                                                                    </span>
+                                                                    <span style={{
+                                                                        padding: '0.15rem 0.5rem',
+                                                                        borderRadius: '5px',
+                                                                        background: 'rgba(251, 191, 36, 0.15)',
+                                                                        border: '1px solid rgba(251, 191, 36, 0.35)',
+                                                                        color: '#fbbf24',
+                                                                        fontWeight: 900,
+                                                                        fontSize: '0.78rem'
+                                                                    }}>
+                                                                        {typeof ob.odds === 'number' ? ob.odds.toFixed(2) : ob.odds}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Bottom Line: Entry Minute, Score, Duration & Status Badge */}
+                                                            <div style={{
+                                                                display: 'flex',
+                                                                justifyContent: 'space-between',
+                                                                alignItems: 'center',
+                                                                fontSize: '0.67rem',
+                                                                color: '#94a3b8',
+                                                                fontWeight: 600,
+                                                                borderTop: '1px dashed rgba(255, 255, 255, 0.06)',
+                                                                paddingTop: '0.3rem',
+                                                                flexWrap: 'wrap',
+                                                                gap: '0.3rem'
                                                             }}>
-                                                                ({formatTrendingMarketShort(ob.marketShort, ob.market, lang)})
-                                                            </span>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                                                                    <span>📍 {lang === 'tr' ? 'Giriş:' : (lang === 'de' ? 'Start:' : 'Entry:')}</span>
+                                                                    <span style={{ color: '#fbbf24', fontWeight: 800 }}>
+                                                                        ⚽ {ob.timeline?.sanitizedScore || ob.firstSeenScore || '0-0'}
+                                                                        {ob.timeline?.entryMinStr && (
+                                                                            <span style={{ color: '#38bdf8', marginLeft: '2px', fontWeight: 700 }}>
+                                                                                ({ob.timeline.entryMinStr})
+                                                                            </span>
+                                                                        )}
+                                                                    </span>
+                                                                    {ob.timeline?.durationText && (
+                                                                        <span style={{ opacity: 0.65 }}>
+                                                                            • ⏱️ {ob.timeline.durationText}
+                                                                        </span>
+                                                                    )}
+                                                                    {ob.velocity !== undefined && ob.velocity > 0 && (
+                                                                        <span style={{
+                                                                            color: '#10b981',
+                                                                            background: 'rgba(16, 185, 129, 0.12)',
+                                                                            padding: '1px 5px',
+                                                                            borderRadius: '3px',
+                                                                            fontWeight: 700,
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '2px'
+                                                                        }}>
+                                                                            ⚡ +{ob.velocity} {lang === 'tr' ? 'yeni' : 'new'}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                                    {isObAchieved ? (
+                                                                        <span style={{
+                                                                            background: 'rgba(16, 185, 129, 0.2)',
+                                                                            border: '1px solid rgba(16, 185, 129, 0.4)',
+                                                                            color: '#34d399',
+                                                                            fontWeight: 900,
+                                                                            padding: '1px 6px',
+                                                                            borderRadius: '4px',
+                                                                            fontSize: '0.64rem'
+                                                                        }}>
+                                                                            ✅ {lang === 'tr' ? 'HEDEF TUTTU' : 'TARGET HIT'}
+                                                                            {ob.evaluation?.goalsScoredSince > 0 && ` (+${ob.evaluation.goalsScoredSince})`}
+                                                                        </span>
+                                                                    ) : isObFresh ? (
+                                                                        <span style={{
+                                                                            background: 'rgba(56, 189, 248, 0.15)',
+                                                                            color: '#38bdf8',
+                                                                            padding: '1px 6px',
+                                                                            borderRadius: '4px',
+                                                                            fontWeight: 800,
+                                                                            fontSize: '0.64rem'
+                                                                        }}>
+                                                                            🟢 {lang === 'tr' ? 'TAZE' : 'FRESH'}
+                                                                        </span>
+                                                                    ) : null}
+
+                                                                    <span style={{
+                                                                        color: '#64748b',
+                                                                        fontSize: '0.62rem',
+                                                                        fontWeight: 700,
+                                                                        textDecoration: 'underline'
+                                                                    }}>
+                                                                        {lang === 'tr' ? 'İncele ➔' : 'Inspect ➔'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                                            <span style={{ fontSize: '0.7rem', color: '#f87171', fontWeight: 700 }}>
-                                                                🔥 {ob.count}
-                                                            </span>
-                                                            <span style={{
-                                                                padding: '0.15rem 0.45rem',
-                                                                borderRadius: '4px',
-                                                                background: 'rgba(251, 191, 36, 0.15)',
-                                                                border: '1px solid rgba(251, 191, 36, 0.3)',
-                                                                color: '#fbbf24',
-                                                                fontWeight: 900,
-                                                                fontSize: '0.75rem'
-                                                            }}>
-                                                                {typeof ob.odds === 'number' ? ob.odds.toFixed(2) : ob.odds}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
