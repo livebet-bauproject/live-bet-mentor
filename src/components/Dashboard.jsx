@@ -568,6 +568,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     const [trendingFilter, setTrendingFilter] = useState('ALL');
     const [trendingSearch, setTrendingSearch] = useState('');
     const [showTrendingGuide, setShowTrendingGuide] = useState(false);
+    const trendingLiveMatchCacheRef = useRef(new Map());
 
     const fetchTrendingBets = useCallback(async () => {
         setTrendingLoading(true);
@@ -2054,8 +2055,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
             const currentFixtures = dataWorker.fixtures;
             if (!currentFixtures || currentFixtures.length === 0) {
-                setMatches(prev => prev.length === 0 ? prev : []);
-                setSignals(prev => Object.keys(prev).length === 0 ? prev : {});
+                // Network glitch or empty poll: Retain previous matches & signals so UI / minutes don't flicker
                 return;
             }
 
@@ -2083,7 +2083,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                 return true;
             });
 
-            setMatches([...liveFixtures]);
+            if (liveFixtures.length > 0) {
+                setMatches([...liveFixtures]);
+            }
 
             const updatedSignals = {};
             const enrichedFixtures = currentFixtures.map(m => {
@@ -3083,10 +3085,29 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
 
     // --- INSTITUTIONAL MARKET MONEY FLOW EVALUATION (SMART MONEY VS PUBLIC TRAP) ---
     const evaluateTrendingBet = useCallback((bet) => {
-        const liveMatch = (matches || []).find(m => 
+        const matchKey = bet.eventId ? String(bet.eventId) : `${bet.home}_${bet.away}`;
+
+        // Multi-tier candidate lookup:
+        // 1. Current live matches in Dashboard state
+        // 2. dataWorker active fixtures
+        const candidateList = (matches && matches.length > 0)
+            ? matches
+            : (dataWorker.fixtures && dataWorker.fixtures.length > 0 ? dataWorker.fixtures : []);
+
+        let liveMatch = candidateList.find(m => 
             consensusAdapter._isFuzzyMatch(bet.home, bet.away, m.homeTeam, m.awayTeam) ||
             consensusAdapter._isFuzzyMatch(bet.away, bet.home, m.homeTeam, m.awayTeam)
         );
+
+        // Cache retention: Keep matched live match so minute & DQS never flicker on network blips
+        if (liveMatch && liveMatch.minute && liveMatch.minute !== 'MS' && liveMatch.minute !== 'FT') {
+            trendingLiveMatchCacheRef.current.set(matchKey, liveMatch);
+        } else if (!liveMatch) {
+            const cached = trendingLiveMatchCacheRef.current.get(matchKey);
+            if (cached) {
+                liveMatch = cached;
+            }
+        }
 
         // Helper to parse goals from score string "3 - 1" or {home: 3, away: 1}
         const parseGoals = (s) => {
@@ -3728,7 +3749,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         fontWeight: 900,
                                                         color: '#f87171'
                                                     }}>
-                                                        ⏱️ {evalInfo.liveMatch.minute}'
+                                                        ⏱️ {String(evalInfo.liveMatch.minute).replace(/'/g, '')}'
                                                     </span>
                                                 )}
 
@@ -3795,7 +3816,7 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                             ⚽ {evalInfo.currentScoreStr || m.score || '0 - 0'}
                                                             {evalInfo.liveMatch?.minute && (
                                                                 <span style={{ color: '#f87171', marginLeft: '2px', fontWeight: 800 }}>
-                                                                    ({evalInfo.liveMatch.minute}')
+                                                                    ({String(evalInfo.liveMatch.minute).replace(/'/g, '')}')
                                                                 </span>
                                                             )}
                                                         </span>

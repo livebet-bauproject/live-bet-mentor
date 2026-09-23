@@ -336,16 +336,16 @@ class DataWorker {
                         console.log('[DATA_WORKER] Normalized fixtures with full details:', this.fixtures?.length || 0);
                     } else if (rawMatches.length === 0) {
                         this._consecutiveEmptyPolls = (this._consecutiveEmptyPolls || 0) + 1;
-                        if (this._consecutiveEmptyPolls >= 3) {
+                        if (this._consecutiveEmptyPolls >= 6) {
                             this.fixtures = [];
                         } else {
-                            console.warn(`[DATA_WORKER] Empty match list received, retaining previous fixtures (grace period ${this._consecutiveEmptyPolls}/3)`);
+                            console.warn(`[DATA_WORKER] Empty match list received, retaining previous fixtures (grace period ${this._consecutiveEmptyPolls}/6)`);
                         }
                     }
                 } else {
                     console.warn('[DATA_WORKER] Fetched matches is not an array:', rawMatches);
                     this._consecutiveEmptyPolls = (this._consecutiveEmptyPolls || 0) + 1;
-                    if (this._consecutiveEmptyPolls >= 3) {
+                    if (this._consecutiveEmptyPolls >= 6) {
                         this.fixtures = [];
                     }
                 }
