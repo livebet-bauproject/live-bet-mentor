@@ -52,6 +52,8 @@ const adapterStatsCache = new Map();
 const inFlightGraph = new Map();
 const inFlightIncidents = new Map();
 const inFlightStats = new Map();
+let adapterLiveEventsCache = [];
+let adapterLiveEventsTime = 0;
 
 export const sofaScoreAdapter = {
     _graphCache: adapterGraphCache,
@@ -135,24 +137,36 @@ export const sofaScoreAdapter = {
                         console.warn('[SOFASCORE_ADAPTER] All matches were filtered out. Check normalizeEvent() logic.');
                     }
                     
+                    if (normalized.length > 0) {
+                        adapterLiveEventsCache = normalized;
+                        adapterLiveEventsTime = Date.now();
+                    }
                     return normalized;
                 }
-                return [];
+                return adapterLiveEventsCache && adapterLiveEventsCache.length > 0 ? adapterLiveEventsCache : [];
             } else {
                 // PRODUCTION: Use Render backend proxy (replaces Firebase)
                 const renderUrl = (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com') + '/api/sofascore/live';
                 try {
-                    const response = await fetch(renderUrl);
+                    const response = await fetch(renderUrl, { signal: AbortSignal.timeout(8000) });
                     if (!response.ok) {
                         console.warn('[SOFASCORE_ADAPTER] Render proxy error:', response.status);
                         // Fallback to Firebase
-                        const snapshot = await get(ref(database, 'live_events'));
-                        if (!snapshot.exists()) return [];
-                        const fbData = snapshot.val();
-                        if (fbData && fbData.events) {
-                            return fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
-                        }
-                        return [];
+                        try {
+                            const snapshot = await get(ref(database, 'live_events'));
+                            if (snapshot.exists()) {
+                                const fbData = snapshot.val();
+                                if (fbData && fbData.events) {
+                                    const fbNorm = fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
+                                    if (fbNorm.length > 0) {
+                                        adapterLiveEventsCache = fbNorm;
+                                        adapterLiveEventsTime = Date.now();
+                                        return fbNorm;
+                                    }
+                                }
+                            }
+                        } catch (fbErr) {}
+                        return (adapterLiveEventsCache && adapterLiveEventsCache.length > 0) ? adapterLiveEventsCache : [];
                     }
                     const data = await response.json();
                     if (data && data.events) {
@@ -160,22 +174,39 @@ export const sofaScoreAdapter = {
                             .map(event => this.normalizeEvent(event))
                             .filter(event => event !== null);
                         console.log(`[SOFASCORE_ADAPTER] RENDER: Found ${data.events.length} total, ${normalized.length} active football matches`);
-                        return normalized;
+                        if (normalized.length > 0) {
+                            adapterLiveEventsCache = normalized;
+                            adapterLiveEventsTime = Date.now();
+                            return normalized;
+                        }
                     }
                 } catch (renderErr) {
-                    console.warn('[SOFASCORE_ADAPTER] Render fetch failed, trying Firebase:', renderErr.message);
-                    const snapshot = await get(ref(database, 'live_events'));
-                    if (!snapshot.exists()) return [];
-                    const fbData = snapshot.val();
-                    if (fbData && fbData.events) {
-                        return fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
-                    }
+                    console.warn('[SOFASCORE_ADAPTER] Render fetch failed, trying Firebase fallback:', renderErr.message);
+                    try {
+                        const snapshot = await get(ref(database, 'live_events'));
+                        if (snapshot.exists()) {
+                            const fbData = snapshot.val();
+                            if (fbData && fbData.events) {
+                                const fbNorm = fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
+                                if (fbNorm.length > 0) {
+                                    adapterLiveEventsCache = fbNorm;
+                                    adapterLiveEventsTime = Date.now();
+                                    return fbNorm;
+                                }
+                            }
+                        }
+                    } catch (fbErr) {}
+                }
+                // If both Render and Firebase fail, return last known cached live events (prevents UI flicker)
+                if (adapterLiveEventsCache && adapterLiveEventsCache.length > 0) {
+                    console.log(`[SOFASCORE_ADAPTER] Using cached live events: ${adapterLiveEventsCache.length} matches`);
+                    return adapterLiveEventsCache;
                 }
                 return [];
             }
         } catch (error) {
             console.error('[SOFASCORE_ADAPTER] Error fetching:', error);
-            return [];
+            return (adapterLiveEventsCache && adapterLiveEventsCache.length > 0) ? adapterLiveEventsCache : [];
         }
     },
 

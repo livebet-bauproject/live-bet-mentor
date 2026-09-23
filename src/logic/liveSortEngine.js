@@ -652,13 +652,22 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
         return { match: m, heat };
     });
 
+    const stableFallback = (a, b) => {
+        const minA = parseNumericMinute(a.match.minute);
+        const minB = parseNumericMinute(b.match.minute);
+        if (minB !== minA) return minB - minA;
+        return String(b.match.id || '').localeCompare(String(a.match.id || ''));
+    };
+
     switch (criteria) {
         case SORT_CRITERIA.MOMENTUM:
             list.sort((a, b) => {
                 // Highest heat score first
                 if (b.heat !== a.heat) return b.heat - a.heat;
                 // Secondary tie breaker: DQS
-                return (b.match.dqs || 0) - (a.match.dqs || 0);
+                const dqsDiff = (b.match.dqs || 0) - (a.match.dqs || 0);
+                if (Math.abs(dqsDiff) >= 0.05) return dqsDiff;
+                return stableFallback(a, b);
             });
             break;
 
@@ -669,7 +678,8 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
                 if (metricsB.surgeScore !== metricsA.surgeScore) {
                     return metricsB.surgeScore - metricsA.surgeScore;
                 }
-                return b.heat - a.heat;
+                if (b.heat !== a.heat) return b.heat - a.heat;
+                return stableFallback(a, b);
             });
             break;
 
@@ -678,20 +688,34 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
                 const probA = calculateGoalProbability(a.match, signals[a.match.id]);
                 const probB = calculateGoalProbability(b.match, signals[b.match.id]);
                 if (probB !== probA) return probB - probA;
-                return b.heat - a.heat;
+                if (b.heat !== a.heat) return b.heat - a.heat;
+                return stableFallback(a, b);
             });
             break;
 
         case SORT_CRITERIA.DQS:
-            list.sort((a, b) => (b.match.dqs || 0) - (a.match.dqs || 0));
+            list.sort((a, b) => {
+                const dqsDiff = (b.match.dqs || 0) - (a.match.dqs || 0);
+                if (Math.abs(dqsDiff) >= 0.05) return dqsDiff;
+                if (b.heat !== a.heat) return b.heat - a.heat;
+                return stableFallback(a, b);
+            });
             break;
 
         case SORT_CRITERIA.MINUTE_DESC:
-            list.sort((a, b) => parseNumericMinute(b.match.minute) - parseNumericMinute(a.match.minute));
+            list.sort((a, b) => {
+                const minDiff = parseNumericMinute(b.match.minute) - parseNumericMinute(a.match.minute);
+                if (minDiff !== 0) return minDiff;
+                return String(b.match.id || '').localeCompare(String(a.match.id || ''));
+            });
             break;
 
         case SORT_CRITERIA.MINUTE_ASC:
-            list.sort((a, b) => parseNumericMinute(a.match.minute) - parseNumericMinute(b.match.minute));
+            list.sort((a, b) => {
+                const minDiff = parseNumericMinute(a.match.minute) - parseNumericMinute(b.match.minute);
+                if (minDiff !== 0) return minDiff;
+                return String(a.match.id || '').localeCompare(String(b.match.id || ''));
+            });
             break;
 
         case SORT_CRITERIA.LEAGUE:
@@ -701,7 +725,9 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
                 if (tierA !== tierB) return tierA - tierB;
                 const leagueA = (a.match.league || a.match.leagueName || '').toLowerCase();
                 const leagueB = (b.match.league || b.match.leagueName || '').toLowerCase();
-                return leagueA.localeCompare(leagueB);
+                const lComp = leagueA.localeCompare(leagueB);
+                if (lComp !== 0) return lComp;
+                return stableFallback(a, b);
             });
             break;
 
@@ -709,7 +735,8 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
             list.sort((a, b) => {
                 const shotsA = (a.match.stats?.shotsOnGoal?.home || 0) + (a.match.stats?.shotsOnGoal?.away || 0);
                 const shotsB = (b.match.stats?.shotsOnGoal?.home || 0) + (b.match.stats?.shotsOnGoal?.away || 0);
-                return shotsB - shotsA;
+                if (shotsB !== shotsA) return shotsB - shotsA;
+                return stableFallback(a, b);
             });
             break;
 
@@ -722,7 +749,8 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
                     .filter(tb => consensusAdapter._isFuzzyMatch(tb.home, tb.away, b.match.homeTeam, b.match.awayTeam) || consensusAdapter._isFuzzyMatch(tb.away, tb.home, b.match.homeTeam, b.match.awayTeam))
                     .reduce((sum, tb) => sum + (tb.count || 0), 0);
                 if (countB !== countA) return countB - countA;
-                return b.heat - a.heat;
+                if (b.heat !== a.heat) return b.heat - a.heat;
+                return stableFallback(a, b);
             });
             break;
 

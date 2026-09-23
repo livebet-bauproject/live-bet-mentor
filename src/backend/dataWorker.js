@@ -309,11 +309,25 @@ class DataWorker {
                         })
                     );
 
-                    this.fixtures = this.normalizeFixtures(detailedMatches.filter(r => r !== null));
-                    console.log('[DATA_WORKER] Normalized fixtures with full details:', this.fixtures?.length || 0);
+                    const validMatches = detailedMatches.filter(r => r !== null);
+                    if (validMatches.length > 0) {
+                        this.fixtures = this.normalizeFixtures(validMatches);
+                        this._consecutiveEmptyPolls = 0;
+                        console.log('[DATA_WORKER] Normalized fixtures with full details:', this.fixtures?.length || 0);
+                    } else if (rawMatches.length === 0) {
+                        this._consecutiveEmptyPolls = (this._consecutiveEmptyPolls || 0) + 1;
+                        if (this._consecutiveEmptyPolls >= 3) {
+                            this.fixtures = [];
+                        } else {
+                            console.warn(`[DATA_WORKER] Empty match list received, retaining previous fixtures (grace period ${this._consecutiveEmptyPolls}/3)`);
+                        }
+                    }
                 } else {
                     console.warn('[DATA_WORKER] Fetched matches is not an array:', rawMatches);
-                    this.fixtures = [];
+                    this._consecutiveEmptyPolls = (this._consecutiveEmptyPolls || 0) + 1;
+                    if (this._consecutiveEmptyPolls >= 3) {
+                        this.fixtures = [];
+                    }
                 }
 
 
