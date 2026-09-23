@@ -3882,16 +3882,31 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                         🔥 {m.primaryBet.count} {t.trending_bets_placed || 'kupon oynandı'}
                                                     </span>
                                                     {m.primaryBet.velocity !== undefined && m.primaryBet.velocity > 0 && (
-                                                        <span style={{
-                                                            fontSize: '0.68rem',
-                                                            fontWeight: 900,
-                                                            color: '#10b981',
-                                                            background: 'rgba(16, 185, 129, 0.12)',
-                                                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                                                            borderRadius: '4px',
-                                                            padding: '1px 5px'
-                                                        }}>
-                                                            +{m.primaryBet.velocity}/45s {m.primaryBet.velocityStatus === 'SURGE' ? '🚀' : '📈'}
+                                                        <span 
+                                                            title={lang === 'tr' 
+                                                                ? `Piyasa Akış Hızı: Son 45 saniyede bu tercihe tam ${m.primaryBet.velocity} yeni kupon daha oynandı.` 
+                                                                : `Market Flow: +${m.primaryBet.velocity} new bets placed in the last 45 seconds.`}
+                                                            style={{
+                                                                fontSize: '0.68rem',
+                                                                fontWeight: 800,
+                                                                color: '#10b981',
+                                                                background: 'rgba(16, 185, 129, 0.12)',
+                                                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                                borderRadius: '4px',
+                                                                padding: '1px 6px',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '3px'
+                                                            }}
+                                                        >
+                                                            {m.primaryBet.velocityStatus === 'SURGE' ? '🚀' : '⚡'}
+                                                            <span>
+                                                                {lang === 'tr'
+                                                                    ? `Son 45 sn'de +${m.primaryBet.velocity} yeni kupon`
+                                                                    : (lang === 'de'
+                                                                        ? `+${m.primaryBet.velocity} neue Wetten / 45s`
+                                                                        : `+${m.primaryBet.velocity} new bets / 45s`)}
+                                                            </span>
                                                         </span>
                                                     )}
                                                 </div>
