@@ -819,6 +819,21 @@ app.get('/api/sharp-picks', async (req, res) => {
     }
 
     const currentVault = sharpPicksEngine.getVault();
+    const lastUpdated = currentVault?.last_updated ? new Date(currentVault.last_updated).getTime() : 0;
+    const ageMinutes = (Date.now() - lastUpdated) / (1000 * 60);
+
+    // If data is older than 25 minutes or empty, auto-refresh from source on-the-fly
+    if (ageMinutes > 25 || !currentVault?.today_picks || currentVault.today_picks.length === 0) {
+        try {
+            console.log(`[PROXY] Sharp picks data is ${Math.round(ageMinutes)}m old. Auto-refreshing on-the-fly...`);
+            const fresh = await sharpPicksEngine.updateCycle();
+            memorySharpPicksData = fresh;
+            return res.json(fresh);
+        } catch (e) {
+            console.error('[PROXY] Auto-refresh on-the-fly error:', e.message);
+        }
+    }
+
     if (currentVault && (currentVault.today_picks || []).length > 0) {
         return res.json(currentVault);
     }
