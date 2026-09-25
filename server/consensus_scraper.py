@@ -123,7 +123,12 @@ class ConsensusScraper:
                     markets = {}
                     if pred in ["1", "X", "2", "1X", "X2"]:
                         prob = p1 if pred=="1" else (p2 if pred=="2" else px)
-                        markets["1X2"] = {"pred": pred, "prob": prob, "prob_full": f"{p1}/{px}/{p2}"}
+                        m1x2 = {"pred": pred}
+                        if prob and prob != "0":
+                            m1x2["prob"] = prob
+                        if p1 != "0" or px != "0" or p2 != "0":
+                            m1x2["prob_full"] = f"{p1}/{px}/{p2}"
+                        markets["1X2"] = m1x2
                     if "-" in score_pred:
                         s_parts = score_pred.split("-")
                         if len(s_parts) == 2 and s_parts[0].strip().isdigit() and s_parts[1].strip().isdigit():
@@ -394,18 +399,36 @@ class ConsensusScraper:
                     time_el = it.find("div", class_="livescore-match-time-col")
                     m_time = time_el.get_text(strip=True) if time_el else ""
 
-                    probs = [p.get_text(strip=True).replace("%", "") for p in it.find_all("div", class_="pct-item")]
-                    p1 = probs[0] if len(probs)>0 and probs[0].isdigit() else "0"
-                    px = probs[1] if len(probs)>1 and probs[1].isdigit() else "0"
-                    p2 = probs[2] if len(probs)>2 and probs[2].isdigit() else "0"
-                    pred = "1" if int(p1) > max(int(px), int(p2)) else ("2" if int(p2) > max(int(p1), int(px)) else "X")
+                    p1_val, px_val, p2_val = 0, 0, 0
+                    pct_items = it.find_all("div", class_="pct-item")
+                    for p_el in pct_items[:3]:
+                        raw = p_el.get_text(strip=True).replace("%", "")
+                        if not raw: continue
+                        tag = raw[0].upper()
+                        digits = raw[1:]
+                        if digits.isdigit():
+                            val = int(digits)
+                            if tag == "1": p1_val = val
+                            elif tag == "X": px_val = val
+                            elif tag == "2": p2_val = val
+
+                    if p1_val > 0 or px_val > 0 or p2_val > 0:
+                        max_p = max(p1_val, px_val, p2_val)
+                        pred = "1" if p1_val == max_p else ("2" if p2_val == max_p else "X")
+                        prob_str = str(max_p)
+                        prob_full = f"{p1_val}/{px_val}/{p2_val}"
+                    else:
+                        pred = "N/A"
+                        prob_str = ""
+                        prob_full = ""
 
                     markets = {}
-                    markets["1X2"] = {"pred": pred, "prob": max(p1, px, p2), "prob_full": f"{p1}/{px}/{p2}"}
-                    if "-" in score_pred:
+                    if pred != "N/A":
+                        markets["1X2"] = {"pred": pred, "prob": prob_str, "prob_full": prob_full}
+                    if score_pred and "-" in score_pred:
                         s_parts = score_pred.split("-")
-                        if len(s_parts) == 2 and s_parts[0].isdigit() and s_parts[1].isdigit():
-                            h, a = int(s_parts[0]), int(s_parts[1])
+                        if len(s_parts) == 2 and s_parts[0].strip().isdigit() and s_parts[1].strip().isdigit():
+                            h, a = int(s_parts[0].strip()), int(s_parts[1].strip())
                             markets["BTTS"] = {"pred": "Yes" if h > 0 and a > 0 else "No"}
                             markets["OU25"] = {"pred": "OVER" if (h + a) > 2.5 else "UNDER"}
 
@@ -628,8 +651,10 @@ class ConsensusScraper:
                     elif ou_tip in ["U", "UNDER"]:
                         markets["OU25"] = {"pred": "UNDER"}
 
-                    if re.match(r'^\d+:\d+$', score_pred):
-                        h_s, a_s = [int(x) for x in score_pred.split(":")]
+                    clean_score = "N/A"
+                    if re.match(r'^\d+[:\-]\d+$', score_pred):
+                        clean_score = score_pred.replace(':', '-')
+                        h_s, a_s = [int(x) for x in clean_score.split("-")]
                         markets["BTTS"] = {"pred": "Yes" if h_s > 0 and a_s > 0 else "No"}
                         if "OU25" not in markets:
                             markets["OU25"] = {"pred": "OVER" if (h_s + a_s) > 2.5 else "UNDER"}
@@ -638,7 +663,7 @@ class ConsensusScraper:
                         match_obj = {
                             "home": home_team, "away": away_team, "league": current_league,
                             "date": datetime.now().strftime("%d.%m"), "time": m_time,
-                            "score_pred": score_pred, "markets": markets,
+                            "score_pred": clean_score, "markets": markets,
                             "timestamp": datetime.now().isoformat()
                         }
                         if home_form and away_form:

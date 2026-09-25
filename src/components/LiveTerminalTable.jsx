@@ -217,24 +217,6 @@ export const LiveTerminalTable = ({
                             const daAlertClass = daDiff >= 20 ? 'alert-red' : daDiff >= 12 ? 'alert-amber' : 'neutral';
                             const heatAlertClass = heat >= 75 ? 'alert-red' : heat >= 55 ? 'alert-amber' : 'neutral';
 
-                            // European Market Flow / Trending Bets
-                            const matchTrendingBets = (trendingBets || []).filter(tb => 
-                                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                            );
-                            const hasTrend = matchTrendingBets.length > 0;
-                            const primaryTrend = hasTrend 
-                                ? [...matchTrendingBets].sort((a, b) => (b.count || 0) - (a.count || 0))[0] 
-                                : null;
-                            const totalTrendCount = hasTrend
-                                ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
-                                : 0;
-                            const dqsVal = m.dqs !== undefined ? m.dqs : 0;
-                            const isTrendApproved = hasTrend && dqsVal >= 0.50;
-                            const isTrendTrap = hasTrend && dqsVal < 0.40;
-                            const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
-                            const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
-
                             const riskFilters = (dataWorker && typeof dataWorker.checkRiskFilters === 'function')
                                 ? dataWorker.checkRiskFilters(m)
                                 : {
@@ -259,7 +241,25 @@ export const LiveTerminalTable = ({
                             }
                             const goalDiffVal = Math.abs(parsedHomeScore - parsedAwayScore);
                             const minVal = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
-                            const isDeadMatch = riskFilters?.deadMatch?.status === 'FAIL' || goalDiffVal >= 4 || (goalDiffVal >= 3 && minVal >= 40);
+                            const isDeadMatch = riskFilters?.deadMatch?.status === 'FAIL' || goalDiffVal >= 4 || (goalDiffVal >= 3 && minVal >= 40) || (goalDiffVal >= 2 && minVal >= 75);
+
+                            // European Market Flow / Trending Bets
+                            const matchTrendingBets = (trendingBets || []).filter(tb => 
+                                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+                            );
+                            const hasTrend = matchTrendingBets.length > 0;
+                            const primaryTrend = hasTrend 
+                                ? [...matchTrendingBets].sort((a, b) => (b.count || 0) - (a.count || 0))[0] 
+                                : null;
+                            const totalTrendCount = hasTrend
+                                ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
+                                : 0;
+                            const dqsVal = m.dqs !== undefined ? m.dqs : 0;
+                            const isTrendApproved = hasTrend && dqsVal >= 0.50 && !isDeadMatch;
+                            const isTrendTrap = hasTrend && (dqsVal < 0.40 || isDeadMatch);
+                            const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
+                            const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
 
                             // Consolidated Intelligence (Bayesian Radar & Risk Guard)
                             const bayesian = m?.observations?.bayesian;
@@ -336,11 +336,15 @@ export const LiveTerminalTable = ({
                                                 <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <span
                                                         className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
-                                                        title={`Piyasa Bahis Hacmi: ${totalTrendCount} Kupon • ${trendInfo ? `Giriş Skoru: ${trendInfo.entryScore}${trendInfo.entryMinStr ? ` (${trendInfo.entryMinStr})` : ''} • Süre: ${trendInfo.durationLabel} • ` : ''}Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
+                                                        title={`Piyasa Bahis Hacmi: ${totalTrendCount} Kupon • ${trendInfo ? `Giriş Skoru: ${trendInfo.entryScore}${trendInfo.entryMinStr ? ` (${trendInfo.entryMinStr})` : ''} • Süre: ${trendInfo.durationLabel} • ` : ''}Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})${isDeadMatch ? (lang === 'tr' ? ' • ⚠️ KOPMUŞ MAÇ (KASA TUZAĞI)' : ' • ⚠️ BLOWOUT / DEAD MATCH (TRAP)') : ''}`}
                                                     >
                                                         <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
                                                         <span style={{ fontWeight: 900 }}>
-                                                            {isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : (lang === 'de' ? 'SMART MONEY:' : 'SMART MONEY:')) : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : (lang === 'de' ? 'FALLEN-ALARM:' : 'TRAP ALERT:')) : (lang === 'tr' ? 'PİYASA AKIŞI:' : (lang === 'de' ? 'MARKTZUFLUSS:' : 'MARKET INFLUX:'))}
+                                                            {isTrendApproved 
+                                                                ? (lang === 'tr' ? 'AKILLI PARA:' : (lang === 'de' ? 'SMART MONEY:' : 'SMART MONEY:')) 
+                                                                : isTrendTrap 
+                                                                ? (isDeadMatch ? (lang === 'tr' ? 'KOPMUŞ MAÇ TUZAĞI:' : (lang === 'de' ? 'FALLE (ENTSCHIEDEN):' : 'BLOWOUT TRAP:')) : (lang === 'tr' ? 'TUZAK ALARMI:' : (lang === 'de' ? 'FALLEN-ALARM:' : 'TRAP ALERT:'))) 
+                                                                : (lang === 'tr' ? 'PİYASA AKIŞI:' : (lang === 'de' ? 'MARKTZUFLUSS:' : 'MARKET INFLUX:'))}
                                                         </span>
                                                         <span className="tb-trend-pred">
                                                             {marketPrediction}
@@ -937,7 +941,9 @@ export const LiveTerminalTable = ({
                                                                         {isTrendApproved 
                                                                             ? (lang === 'tr' ? '🟢 DQS ONAYLADI (AKILLI PARA)' : (lang === 'de' ? '🟢 DQS BESTÄTIGT (SMART MONEY)' : '🟢 DQS CONFIRMED (SMART MONEY)'))
                                                                             : isTrendTrap 
-                                                                            ? (lang === 'tr' ? '🔴 DİKKAT: TUZAK UYARISI' : (lang === 'de' ? '🔴 ACHTUNG: FALLEN-WARNUNG' : '🔴 WARNING: TRAP ALERT'))
+                                                                            ? (isDeadMatch
+                                                                                ? (lang === 'tr' ? '🔴 MAÇ KOPTU (KASA TUZAĞI)' : (lang === 'de' ? '🔴 ENTSCHIEDEN (FALLE)' : '🔴 BLOWOUT (BOOKIE TRAP)'))
+                                                                                : (lang === 'tr' ? '🔴 DİKKAT: TUZAK UYARISI' : (lang === 'de' ? '🔴 ACHTUNG: FALLEN-WARNUNG' : '🔴 WARNING: TRAP ALERT')))
                                                                             : (lang === 'de' ? '📊 HOHER PUBLIKUMS-ZUFLUSS' : (lang === 'tr' ? '📊 YOĞUN HALK AKIŞI' : '📊 HIGH PUBLIC INFLUX'))}
                                                                     </span>
                                                                 </div>
@@ -1024,8 +1030,12 @@ export const LiveTerminalTable = ({
                                                                             : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats confirm the public bet (${marketPrediction}).`)
                                                                         : isTrendTrap
                                                                         ? (lang === 'tr'
-                                                                            ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık piyasada (${marketPrediction}) tercihine tuzağa çekiliyor olabilir!`
-                                                                            : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The crowd betting on (${marketPrediction}) may be in a trap!`)
+                                                                            ? (isDeadMatch 
+                                                                                ? `Maç skoru koptu ve takımlar rölantiye geçti. Kalabalık (${totalTrendCount} Kupon) rehavet riskine rağmen ezbere ${marketPrediction} oynuyor; bu klasik bir KASA TUZAĞIDIR.`
+                                                                                : `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık piyasada (${marketPrediction}) tercihine tuzağa çekiliyor olabilir!`)
+                                                                            : (isDeadMatch
+                                                                                ? `Game is blown out and teams are coasting. The crowd (${totalTrendCount} Bets) is blindly betting ${marketPrediction}; this is a classic BOOKIE TRAP.`
+                                                                                : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The crowd betting on (${marketPrediction}) may be in a trap!`))
                                                                         : (lang === 'tr'
                                                                             ? `Orta seviye DQS (%${(dqsVal * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
                                                                             : `Moderate DQS (${(dqsVal * 100).toFixed(0)}%). Monitor ongoing pitch dynamics.`)}

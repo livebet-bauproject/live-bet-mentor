@@ -81,12 +81,12 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                         fontSize: '1.4rem',
                         boxShadow: '0 4px 15px rgba(249, 115, 22, 0.4)'
                     }}>
-                        ⚡
+                        🔥
                     </div>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                             <h2 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, letterSpacing: '-0.5px' }}>
-                                {isTr ? 'BETANO VİTRİN & KOMBİNE RADARI' : isDe ? 'BETANO KOMBI- & FALLEN-RADAR' : 'BETANO ACCA & TRAP RADAR'}
+                                {isTr ? '🔥 GÜNÜN SICAK SEÇİMLERİ (HOT PICKS)' : isDe ? '🔥 GLOBAL HOT-PICKS & TRENDS' : '🔥 GLOBAL HOT PICKS & TRENDS'}
                             </h2>
                             <span style={{
                                 fontSize: '0.65rem',
@@ -98,15 +98,15 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 border: '1px solid rgba(249, 115, 22, 0.4)',
                                 letterSpacing: '0.5px'
                             }}>
-                                LIVE API
+                                TREND RADAR
                             </span>
                         </div>
                         <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
                             {isTr
-                                ? 'Büro vitrin kuponları, gizli kasa marjı (%24+) ve ayıklanan değerli tekli seçimler'
+                                ? 'Global piyasalarda en çok oynanan trend maçlar, kümülatif marj analizi ve ayıklanan değerli tekli seçimler'
                                 : isDe
-                                ? 'Beliebte Buchmacher-Kombis, Marge-Audit (%24+) & selektierte Value-Tipps'
-                                : 'Popular bookmaker accumulators, compounded margin audit & extracted value singles'}
+                                ? 'Meistgespielte globale Trend-Tipps, Marge-Audit (%24+) & selektierte Value-Tipps'
+                                : 'Most popular market trend picks, compounded margin audit & extracted value singles'}
                         </p>
                     </div>
                 </div>
@@ -223,12 +223,12 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
             <div style={{ padding: '1.5rem 1.8rem' }}>
                 {loading ? (
                     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#94a3b8' }}>
-                        <div style={{ fontSize: '2rem', marginBottom: '0.8rem' }}>⏳</div>
-                        <p>{isTr ? 'Betano API üzerinden canlı kuponlar taranıyor...' : 'Lade Betano-Kombis...'}</p>
+                        <div style={{ fontSize: '2rem', marginBottom: '0.8rem' }}>🔥</div>
+                        <p>{isTr ? 'Global trend piyasalarından günün sıcak seçimleri taranıyor...' : 'Lade Trend-Picks...'}</p>
                     </div>
                 ) : !activeCard ? (
                     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#94a3b8' }}>
-                        <p>{isTr ? 'Şu anda taranan Betano kuponu bulunamadı.' : 'Keine Daten gefunden.'}</p>
+                        <p>{isTr ? 'Şu anda taranan sıcak seçim bulunamadı.' : 'Keine Daten gefunden.'}</p>
                     </div>
                 ) : (
                     <div>

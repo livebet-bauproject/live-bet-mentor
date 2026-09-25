@@ -208,6 +208,18 @@ export const LiveTerminalMobile = ({
                     const daAlertClass = daDiff >= 20 ? 'alert-red' : daDiff >= 12 ? 'alert-amber' : 'neutral';
                     const heatAlertClass = heat >= 75 ? 'alert-red' : heat >= 55 ? 'alert-amber' : 'neutral';
 
+                    const riskFilters = (dataWorker && typeof dataWorker.checkRiskFilters === 'function')
+                        ? dataWorker.checkRiskFilters(m)
+                        : {
+                            deadMatch: { status: 'OK' },
+                            momentum: { status: 'OK' },
+                            lateGame: { status: 'OK' }
+                        };
+                    const scores = parseScores(m.score);
+                    const goalDiffVal = Math.abs(scores.home - scores.away);
+                    const minVal = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
+                    const isDeadMatch = riskFilters?.deadMatch?.status === 'FAIL' || goalDiffVal >= 4 || (goalDiffVal >= 3 && minVal >= 40) || (goalDiffVal >= 2 && minVal >= 75);
+
                     // European Market Flow / Trending Bets
                     const matchTrendingBets = (trendingBets || []).filter(tb => 
                         consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
@@ -221,8 +233,8 @@ export const LiveTerminalMobile = ({
                         ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
                         : 0;
                     const dqsVal = m.dqs !== undefined ? m.dqs : 0;
-                    const isTrendApproved = hasTrend && dqsVal >= 0.50;
-                    const isTrendTrap = hasTrend && dqsVal < 0.40;
+                    const isTrendApproved = hasTrend && dqsVal >= 0.50 && !isDeadMatch;
+                    const isTrendTrap = hasTrend && (dqsVal < 0.40 || isDeadMatch);
                     const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
                     const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
 
@@ -237,18 +249,9 @@ export const LiveTerminalMobile = ({
                     const confidenceLabel = confidence === 'HIGH' ? (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH')) : confidence === 'MEDIUM' ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')) : (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW'));
                     const confidenceColor = confidence === 'HIGH' ? '#10b981' : confidence === 'MEDIUM' ? '#fbbf24' : '#ef4444';
 
-                    const riskFilters = (dataWorker && typeof dataWorker.checkRiskFilters === 'function')
-                        ? dataWorker.checkRiskFilters(m)
-                        : {
-                            deadMatch: { status: 'OK' },
-                            momentum: { status: 'OK' },
-                            lateGame: { status: 'OK' }
-                        };
                     const latencyMs = m.latency || Math.round(35 + (m.id ? (Number(String(m.id).replace(/\D/g, '')) % 40) : 12));
                     const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'tr' ? 'BEKLENİYOR' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')) : (m.dataQuality === 'LIMITED' ? (lang === 'tr' ? 'KISITLI' : (lang === 'de' ? 'EINGESCHRÄNKT' : 'LIMITED')) : (lang === 'tr' ? 'TAM' : (lang === 'de' ? 'VOLLSTÄNDIG' : 'FULL')));
                     const pressureTotal = m.observations?.pressure?.total || Math.round(heat * 0.85);
-
-                    const scores = parseScores(m.score);
 
                     return (
                         <div
@@ -325,7 +328,11 @@ export const LiveTerminalMobile = ({
                                     <span className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}>
                                         <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
                                         <span style={{ fontWeight: 900 }}>
-                                            {isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : (lang === 'de' ? 'SMART MONEY:' : 'SMART MONEY:')) : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : (lang === 'de' ? 'FALLEN-ALARM:' : 'TRAP ALERT:')) : (lang === 'tr' ? 'PİYASA AKIŞI:' : (lang === 'de' ? 'MARKTZUFLUSS:' : 'MARKET INFLUX:'))}
+                                            {isTrendApproved 
+                                                ? (lang === 'tr' ? 'AKILLI PARA:' : (lang === 'de' ? 'SMART MONEY:' : 'SMART MONEY:')) 
+                                                : isTrendTrap 
+                                                ? (isDeadMatch ? (lang === 'tr' ? 'KOPMUŞ MAÇ TUZAĞI:' : (lang === 'de' ? 'FALLE (ENTSCHIEDEN):' : 'BLOWOUT TRAP:')) : (lang === 'tr' ? 'TUZAK ALARMI:' : (lang === 'de' ? 'FALLEN-ALARM:' : 'TRAP ALERT:'))) 
+                                                : (lang === 'tr' ? 'PİYASA AKIŞI:' : (lang === 'de' ? 'MARKTZUFLUSS:' : 'MARKET INFLUX:'))}
                                         </span>
                                         <span className="tb-trend-pred">{marketPrediction}</span>
                                         {primaryTrend.odds && (
@@ -419,6 +426,24 @@ export const LiveTerminalMobile = ({
                                                     {minStr === 'MS' || minStr.includes('FT') ? (lang === 'tr' ? 'MS' : (lang === 'de' ? 'ES' : 'FT')) : (lang === 'tr' ? 'KİLİTLİ (88+)' : (lang === 'de' ? 'GESPERRT (88+)' : 'LOCKED (88+)'))}
                                                 </span>
                                             </div>
+                                        );
+                                    }
+
+                                    if (isDeadMatch) {
+                                        return (
+                                            <span
+                                                className="tb-signal-badge"
+                                                style={{
+                                                    width: '100%',
+                                                    justifyContent: 'center',
+                                                    background: 'rgba(239, 68, 68, 0.15)',
+                                                    color: '#f87171',
+                                                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                                                    fontWeight: 800
+                                                }}
+                                            >
+                                                ⚠️ {lang === 'tr' ? 'KOPMUŞ MAÇ' : (lang === 'de' ? 'ENTSCHIEDEN' : 'BLOWOUT')}
+                                            </span>
                                         );
                                     }
 

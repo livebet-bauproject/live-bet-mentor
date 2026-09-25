@@ -53,46 +53,82 @@ export const GlobalConsensusCard = ({
     const minute = parseInt(String(match?.minute || '').replace(/[^0-9]/g, '')) || 0;
     const isLive = minute > 0 || (match?.status?.type === 'inprogress') || (typeof match?.status === 'string' && match.status.includes('in'));
 
-    // Helper: Determine if a pre-match prediction is mathematically busted by the live score
-    const checkIsPredictionBusted = (pred, scorePred = null) => {
+    // Helper: Format probability safely (e.g. 70 -> "%70", ignore "0" or corrupted "238")
+    const formatSignalProb = (prob) => {
+        if (!prob) return null;
+        const cleanStr = String(prob).replace(/[%]/g, '').trim();
+        const val = parseFloat(cleanStr);
+        if (isNaN(val) || val <= 0 || val > 100) return null;
+        const rounded = Math.round(val);
+        return lang === 'tr' ? `%${rounded}` : `${rounded}%`;
+    };
+
+    // Helper: Determine if an exact score prediction is mathematically busted
+    const checkScoreBusted = (scoreStr) => {
         if (!isLive && currentTotalGoals === 0) return { isBusted: false };
-        const checkStr = (scorePred || pred || '').trim();
+        if (!scoreStr || scoreStr === 'N/A' || scoreStr === '-') return { isBusted: false };
+        const cleanStr = String(scoreStr).trim().replace(':', '-');
+        const m = cleanStr.match(/^(\d+)\s*-\s*(\d+)$/);
+        if (!m) return { isBusted: false };
+        const predH = parseInt(m[1], 10);
+        const predA = parseInt(m[2], 10);
+        const predTotal = predH + predA;
 
-        // 1. Exact score check: e.g. "1-2", "3-0", "0-2"
-        if (/^\d+\s*-\s*\d+$/.test(checkStr)) {
-            const parts = checkStr.split('-').map(x => parseInt(x.trim()) || 0);
-            const predH = parts[0];
-            const predA = parts[1];
-            const predTotal = predH + predA;
+        if (curHome > predH || curAway > predA || currentTotalGoals > predTotal) {
+            return { isBusted: true, reason: lang === 'tr' ? `Skor aşıldı (${curHome}-${curAway})` : `Score exceeded (${curHome}-${curAway})` };
+        }
+        if (minute >= 80 && (curHome !== predH || curAway !== predA)) {
+            return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late game mismatch (${minute}')` };
+        }
+        return { isBusted: false };
+    };
 
-            if (curHome > predH || curAway > predA || currentTotalGoals > predTotal) {
-                return { isBusted: true, reason: lang === 'tr' ? `Skor aşıldı (${curHome}-${curAway})` : `Score exceeded (${curHome}-${curAway})` };
-            }
-            if (minute >= 82 && (curHome !== predH || curAway !== predA)) {
-                return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late game mismatch (${minute}')` };
-            }
+    // Helper: Determine if a 1X2 prediction is mathematically or practically busted by the live score
+    const check1X2Busted = (pred) => {
+        if (!isLive) return { isBusted: false };
+        const p = String(pred || '').trim().toUpperCase();
+        const diff = curHome - curAway; // >0: Home leading, <0: Away leading
+
+        // Home win (1)
+        if (p === '1' || p.includes('EV') || p.includes('HOME')) {
+            if (minute >= 40 && diff <= -3) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            if (minute >= 75 && diff <= -2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            if (minute >= 82 && diff < 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late (${minute}')` };
+            if (minute >= 88 && diff <= 0) return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late mismatch (${minute}')` };
         }
 
-        // 2. Under / Alt checks
-        const underMatch = checkStr.match(/(?:alt|under)\s*([0-9.]+)/i);
-        if (underMatch) {
-            const threshold = parseFloat(underMatch[1]);
-            if (!isNaN(threshold) && currentTotalGoals > threshold) {
+        // Away win (2)
+        if (p === '2' || p.includes('DEP') || p.includes('AWAY')) {
+            if (minute >= 40 && diff >= 3) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            if (minute >= 75 && diff >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            if (minute >= 82 && diff > 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late (${minute}')` };
+            if (minute >= 88 && diff >= 0) return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late mismatch (${minute}')` };
+        }
+
+        // Draw (X)
+        if (p === 'X' || p.includes('BER') || p.includes('DRAW')) {
+            if (minute >= 40 && Math.abs(diff) >= 3) return { isBusted: true, reason: lang === 'tr' ? `Fark 3+ (${curHome}-${curAway})` : `Draw impossible (3+ diff)` };
+            if (minute >= 75 && Math.abs(diff) >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark 2+ (${curHome}-${curAway})` : `Draw unlikely late` };
+            if (minute >= 86 && Math.abs(diff) >= 1) return { isBusted: true, reason: lang === 'tr' ? `Beraberlik zor (${minute}')` : `Draw impossible late` };
+        }
+
+        // Double Chance 1X
+        if (p === '1X') {
+            if (minute >= 75 && diff <= -2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            if (minute >= 85 && diff < 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late` };
+        }
+
+        // Double Chance X2
+        if (p === 'X2') {
+            if (minute >= 75 && diff >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
+            if (minute >= 85 && diff > 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late` };
+        }
+
+        // Under checks
+        if (p.includes('ALT') || p.includes('UNDER')) {
+            const threshold = parseFloat((p.match(/(?:alt|under)\s*([0-9.]+)/i) || [])[1]) || 2.5;
+            if (currentTotalGoals > threshold) {
                 return { isBusted: true, reason: lang === 'tr' ? `${threshold} Üstü oldu (${currentTotalGoals} Gol)` : `Over ${threshold} exceeded` };
-            }
-        }
-
-        // 3. 1X2 checks on massive blowouts (e.g. 0-5)
-        if (minute >= 40) {
-            const pUpper = checkStr.toUpperCase();
-            if ((pUpper === '1' || pUpper.includes('EV') || pUpper.includes('HOME')) && (curAway - curHome >= 3)) {
-                return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            }
-            if ((pUpper === '2' || pUpper.includes('DEP') || pUpper.includes('AWAY')) && (curHome - curAway >= 3)) {
-                return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            }
-            if ((pUpper === 'X' || pUpper.includes('BER') || pUpper.includes('DRAW')) && Math.abs(curHome - curAway) >= 3) {
-                return { isBusted: true, reason: lang === 'tr' ? `Fark 3+ (${curHome}-${curAway})` : `Draw impossible (3+ diff)` };
             }
         }
 
@@ -102,8 +138,7 @@ export const GlobalConsensusCard = ({
     // Filter agreement entries: separate active valid predictions from busted ones
     const evaluatedAgreement = agreementEntries.map(([pred, count]) => {
         const predSignals = signals.filter(s => s.prediction === pred);
-        // If all signals for this prediction have busted score predictions or pred is busted
-        const bustedInfo = checkIsPredictionBusted(pred, predSignals[0]?.score_pred);
+        const bustedInfo = check1X2Busted(pred);
         return {
             pred,
             count,
@@ -145,6 +180,9 @@ export const GlobalConsensusCard = ({
         if (p === '1' || p.includes('EV') || p.includes('HOME')) return '#38bdf8';
         if (p === '2' || p.includes('DEP') || p.includes('AWAY')) return '#34d399';
         if (p === 'X' || p.includes('BER') || p.includes('DRAW')) return '#fbbf24';
+        if (p === '1X') return '#818cf8';
+        if (p === 'X2') return '#2dd4bf';
+        if (p === '12') return '#c084fc';
         if (p.includes('ÜST') || p.includes('OVER')) return '#a78bfa';
         if (p.includes('ALT') || p.includes('UNDER')) return '#f87171';
         return '#00f2fe';
@@ -272,7 +310,13 @@ export const GlobalConsensusCard = ({
                                         )}
                                         {!isBusted && (
                                             <span style={{ fontSize: '0.7rem', color: 'var(--tb-text-secondary, #94a3b8)' }}>
-                                                {lang === 'tr' ? 'Tahmini' : (lang === 'de' ? 'Tipp' : 'Pick')}
+                                                {pred === '1' ? (lang === 'tr' ? 'Ev Sahibi Galibiyeti' : (lang === 'de' ? 'Heimsieg' : 'Home Win')) :
+                                                 pred === '2' ? (lang === 'tr' ? 'Deplasman Galibiyeti' : (lang === 'de' ? 'Auswärtssieg' : 'Away Win')) :
+                                                 pred === 'X' ? (lang === 'tr' ? 'Beraberlik' : (lang === 'de' ? 'Unentschieden' : 'Draw')) :
+                                                 pred === '1X' ? (lang === 'tr' ? 'Çifte Şans 1X' : (lang === 'de' ? 'Doppelte Chance 1X' : 'Double Chance 1X')) :
+                                                 pred === 'X2' ? (lang === 'tr' ? 'Çifte Şans X2' : (lang === 'de' ? 'Doppelte Chance X2' : 'Double Chance X2')) :
+                                                 pred === '12' ? (lang === 'tr' ? 'Çifte Şans 12' : (lang === 'de' ? 'Doppelte Chance 12' : 'Double Chance 12')) :
+                                                 (lang === 'tr' ? 'Tahmini' : (lang === 'de' ? 'Tipp' : 'Pick'))}
                                             </span>
                                         )}
                                     </div>
@@ -295,6 +339,8 @@ export const GlobalConsensusCard = ({
                                         const label = sourceDef?.label || sig.site;
                                         const color = sourceDef?.color || '#94a3b8';
                                         const url = RADAR_BASE_URLS[sig.site];
+                                        const scoreBustedInfo = checkScoreBusted(sig.score_pred);
+                                        const formattedProb = formatSignalProb(sig.prob);
 
                                         return (
                                             <span
@@ -323,11 +369,23 @@ export const GlobalConsensusCard = ({
                                                 }}
                                             >
                                                 <span>{label}</span>
-                                                {sig.score_pred && (
-                                                    <span style={{ opacity: 0.8, fontSize: '0.58rem', fontWeight: 600 }}>({sig.score_pred})</span>
+                                                {sig.score_pred && sig.score_pred !== 'N/A' && (
+                                                    <span
+                                                        title={scoreBustedInfo.isBusted ? scoreBustedInfo.reason : undefined}
+                                                        style={{
+                                                            opacity: scoreBustedInfo.isBusted ? 0.45 : 0.85,
+                                                            fontSize: '0.58rem',
+                                                            fontWeight: 600,
+                                                            textDecoration: scoreBustedInfo.isBusted ? 'line-through' : 'none'
+                                                        }}
+                                                    >
+                                                        ({sig.score_pred})
+                                                    </span>
                                                 )}
-                                                {sig.prob && (
-                                                    <span style={{ opacity: 0.9, fontSize: '0.58rem', fontWeight: 700 }}>{sig.prob}</span>
+                                                {formattedProb && (
+                                                    <span style={{ opacity: 0.9, fontSize: '0.58rem', fontWeight: 700 }}>
+                                                        {formattedProb}
+                                                    </span>
                                                 )}
                                             </span>
                                         );

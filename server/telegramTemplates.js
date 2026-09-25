@@ -964,16 +964,16 @@ export function formatBetanoRadar(betanoData, lang = 'tr') {
 
     const cards = (betanoData && betanoData.cards) ? betanoData.cards : [];
     if (!cards || cards.length === 0) {
-        if (isTr) return `ℹ️ *Betano Vitrin Verisi:* Şu anda güncel popüler kombine bulunamadı veya taranıyor. Lütfen biraz sonra tekrar deneyin.`;
-        if (isDe) return `ℹ️ *Betano-Radar:* Derzeit sind keine aktuellen Kombiwetten verfügbar. Bitte versuchen Sie es gleich erneut.`;
-        return `ℹ️ *Betano Radar:* No current accumulator cards available right now. Please retry in a few moments.`;
+        if (isTr) return `ℹ️ *Sıcak Seçimler:* Şu anda güncel trend kuponu taranıyor. Lütfen biraz sonra tekrar deneyin.`;
+        if (isDe) return `ℹ️ *Hot-Picks Radar:* Derzeit werden die aktuellen Trends aktualisiert. Bitte gleich erneut versuchen.`;
+        return `ℹ️ *Hot Picks Radar:* Trending selections currently updating. Please retry shortly.`;
     }
 
-    let header = `⚡ *BETANO VİTRİN & KOMBİNE ANALİZİ (TUZAĞA KARŞI SÜZGEÇ)* ⚡\n━━━━━━━━━━━━━━━━━━━━\n📊 _Bahis Bürosu Vitrin Kuponları & Sayısal Risk Raporu_\n\n`;
+    let header = `🔥 *GÜNÜN SICAK SEÇİMLERİ (GLOBAL HOT PICKS)* 🔥\n━━━━━━━━━━━━━━━━━━━━\n📊 _Piyasa Trend Analizi & Sayısal Kasa Marjı Raporu_\n\n`;
     if (isDe) {
-        header = `⚡ *BETANO KOMBIWETTEN-AUDIT & TRAP-RADAR* ⚡\n━━━━━━━━━━━━━━━━━━━━\n📊 _Analyse beliebter Buchmacher-Kombis & Kapitalschutz_\n\n`;
+        header = `🔥 *GLOBAL HOT-PICKS & MARKT-TRENDS* 🔥\n━━━━━━━━━━━━━━━━━━━━\n📊 _Analyse populärer Trend-Kombis & Kapitalschutz_\n\n`;
     } else if (!isTr) {
-        header = `⚡ *BETANO POPULAR ACCA & TRAP AUDIT* ⚡\n━━━━━━━━━━━━━━━━━━━━\n📊 _Bookmaker Accumulator Audit & Value Extraction_\n\n`;
+        header = `🔥 *GLOBAL HOT PICKS & MARKET SENTIMENT* 🔥\n━━━━━━━━━━━━━━━━━━━━\n📊 _Market Sentiment Audit & Value Extraction_\n\n`;
     }
 
     const sections = cards.map(c => {

@@ -230,23 +230,65 @@ export const consensusAdapter = {
             signals: []
         };
 
+        if (!globalData || typeof globalData !== 'object' || !fixture) return report;
+
+        const homeName = fixture.homeTeam || fixture.home || '';
+        const awayName = fixture.awayTeam || fixture.away || '';
+        if (!homeName && !awayName) return report;
+
         Object.entries(globalData).forEach(([site, matches]) => {
             if (!Array.isArray(matches)) return;
-            const match = this.findMatchInConsensus(matches, fixture.homeTeam, fixture.awayTeam);
+            const match = this.findMatchInConsensus(matches, homeName, awayName);
             if (match && match.markets && match.markets[market]) {
                 const mData = match.markets[market];
+
+                // Normalize prediction
+                let normalizedPred = String(mData.pred || '').trim();
+                if (market === '1X2') {
+                    const p = normalizedPred.toUpperCase();
+                    if (p === '1' || p.includes('HOME') || p === 'H') normalizedPred = '1';
+                    else if (p === '2' || p.includes('AWAY') || p === 'A') normalizedPred = '2';
+                    else if (p === 'X' || p.includes('DRAW') || p === 'D' || p === 'BER') normalizedPred = 'X';
+                    else if (p === '1X' || p === 'X1') normalizedPred = '1X';
+                    else if (p === 'X2' || p === '2X') normalizedPred = 'X2';
+                    else if (p === '12') normalizedPred = '12';
+                } else if (market === 'BTTS') {
+                    const p = normalizedPred.toLowerCase();
+                    if (p.includes('yes') || p === '1' || p === 'kg var' || p === 'y') normalizedPred = 'KG Var';
+                    else if (p.includes('no') || p === '0' || p === 'kg yok' || p === 'n') normalizedPred = 'KG Yok';
+                } else if (market === 'OU25') {
+                    const p = normalizedPred.toLowerCase();
+                    if (p.includes('over') || p === 'o' || p === 'üst' || p === 'üst 2.5') normalizedPred = 'Üst';
+                    else if (p.includes('under') || p === 'u' || p === 'alt' || p === 'alt 2.5') normalizedPred = 'Alt';
+                }
+
+                // Clean probability (exclude 0, 0%, or corrupted >100 values)
+                let cleanProb = null;
+                if (mData.prob && mData.prob !== '0' && mData.prob !== 0) {
+                    const num = parseFloat(String(mData.prob).replace(/[%]/g, '').trim());
+                    if (!isNaN(num) && num > 0 && num <= 100) {
+                        cleanProb = `${Math.round(num)}%`;
+                    }
+                }
+
+                // Clean and normalize score prediction (e.g. "1:0" -> "1-0")
+                let scorePred = match.score_pred;
+                if (scorePred && typeof scorePred === 'string') {
+                    scorePred = scorePred.replace(':', '-').trim();
+                    if (scorePred === 'N/A' || scorePred === '-' || scorePred === '') scorePred = null;
+                }
+
                 report.totalSources++;
                 report.signals.push({
                     site,
-                    prediction: mData.pred,
-                    prob: mData.prob,
-                    score_pred: match.score_pred, // Pass score if available
-                    form: match.form // Pass form if available
+                    prediction: normalizedPred,
+                    prob: cleanProb,
+                    score_pred: scorePred,
+                    form: match.form
                 });
 
                 // Track consensus agreement
-                const pred = mData.pred;
-                report.agreement[pred] = (report.agreement[pred] || 0) + 1;
+                report.agreement[normalizedPred] = (report.agreement[normalizedPred] || 0) + 1;
             }
         });
 

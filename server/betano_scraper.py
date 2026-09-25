@@ -189,9 +189,13 @@ def process_and_save():
     processed_cards = []
     consensus_predictions = []
 
-    for card in cards:
-        card_type = card.get('cardType', '')
-        title = card.get('title', 'Kombi')
+    # Filter ONLY Hot Picks (TrendingSelection) as requested
+    hot_picks_cards = [c for c in cards if c.get('cardType') == 'TrendingSelection' or 'hot' in c.get('title', '').lower()]
+    selected_cards = hot_picks_cards if hot_picks_cards else (cards[-1:] if cards else [])
+
+    for card in selected_cards:
+        card_type = "HotPicks"
+        title = "Günün Sıcak Seçimleri (Hot Picks)"
         total_odds = float(card.get('totalOdds') or 1.0)
         events = card.get('events', [])
 
@@ -223,11 +227,11 @@ def process_and_save():
             # Match Winner (1X2)
             if any(k in mkt_name.lower() for k in ["endergebnis", "sieger", "winner", "1x2"]):
                 if sel_name.lower() in home.lower() or home.lower() in sel_name.lower():
-                    markets["1X2"] = {"pred": "1", "price": price, "source_note": f"Betano Public ({leg['selection_count']} bets)"}
+                    markets["1X2"] = {"pred": "1", "price": price, "source_note": f"Piyasa Yoğunluğu ({leg['selection_count']} kupon)"}
                 elif sel_name.lower() in away.lower() or away.lower() in sel_name.lower():
-                    markets["1X2"] = {"pred": "2", "price": price, "source_note": f"Betano Public ({leg['selection_count']} bets)"}
+                    markets["1X2"] = {"pred": "2", "price": price, "source_note": f"Piyasa Yoğunluğu ({leg['selection_count']} kupon)"}
                 elif "unentschieden" in sel_name.lower() or "draw" in sel_name.lower() or "x" == sel_name.lower():
-                    markets["1X2"] = {"pred": "X", "price": price, "source_note": f"Betano Public ({leg['selection_count']} bets)"}
+                    markets["1X2"] = {"pred": "X", "price": price, "source_note": f"Piyasa Yoğunluğu ({leg['selection_count']} kupon)"}
 
             # Over/Under
             if any(k in mkt_name.lower() for k in ["über/unter", "over/under", "tore"]):
@@ -249,7 +253,7 @@ def process_and_save():
                     "score_pred": "N/A",
                     "markets": markets,
                     "public_bets": leg["selection_count"],
-                    "card_source": title,
+                    "card_source": "Global Hot Picks",
                     "timestamp": datetime.now().isoformat()
                 })
 

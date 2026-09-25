@@ -5164,8 +5164,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 fontWeight: 800
                             }}
                         >
-                            <span>⚡</span>
-                            <span>{lang === 'tr' ? 'BETANO KOMBİ' : (lang === 'de' ? 'BETANO-KOMBI' : 'BETANO ACCA')}</span>
+                            <span>🔥</span>
+                            <span>{lang === 'tr' ? 'SICAK TRENDLER' : (lang === 'de' ? 'HOT-PICKS' : 'HOT PICKS')}</span>
                             <span className="tab-live-count" style={{ background: '#f97316', color: '#000', fontWeight: 900 }}>HOT</span>
                         </button>
                         <button
@@ -5414,8 +5414,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 gap: '0.5rem'
                             }}
                         >
-                            <span>⚡</span>
-                            <span>{lang === 'tr' ? 'Betano Vitrin & Kombine Radarı' : (lang === 'de' ? 'Betano Kombi- & Fallen-Radar' : 'Betano Acca & Trap Radar')}</span>
+                            <span>🔥</span>
+                            <span>{lang === 'tr' ? 'Günün Sıcak Seçimleri (Hot Picks)' : (lang === 'de' ? 'Global Hot-Picks & Trends' : 'Global Hot Picks & Trends')}</span>
                             <span style={{ fontSize: '0.65rem', background: '#f97316', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 }}>HOT</span>
                         </button>
                     </div>
@@ -5506,7 +5506,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)'
                                     }}
                                 >
-                                    <span>⚡</span> {lang === 'tr' ? 'BETANO KOMBİ RADARI' : (lang === 'de' ? 'BETANO KOMBI-RADAR' : 'BETANO ACCA RADAR')}
+                                    <span>🔥</span> {lang === 'tr' ? 'SICAK SEÇİMLER (HOT PICKS)' : (lang === 'de' ? 'GLOBAL HOT-PICKS' : 'GLOBAL HOT PICKS')}
                                 </button>
 
                                 <button
@@ -7517,8 +7517,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
                                         consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
                                     );
-                                    const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
-                                    const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
+                                    const sHome = Number(scoreHome) || 0;
+                                    const sAway = Number(scoreAway) || 0;
+                                    const gDiff = Math.abs(sHome - sAway);
+                                    const mMin = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
+                                    const isDead = gDiff >= 4 || (gDiff >= 3 && mMin >= 40) || (gDiff >= 2 && mMin >= 75);
+                                    const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50 && !isDead;
+                                    const isTrendTrap = trendingBet && ((m.dqs || 0) < 0.40 || isDead);
                                     const marketPrediction = trendingBet ? formatMarketPrediction(trendingBet, lang) : '';
 
                                     return (
@@ -7617,8 +7622,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                 consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
                                                 consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
                                             );
-                                            const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50;
-                                            const isTrendTrap = trendingBet && (m.dqs || 0) < 0.40;
+                                            const sHome = (m.score && typeof m.score === 'object') ? (m.score.home ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[0]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[0]?.trim() : 0));
+                                            const sAway = (m.score && typeof m.score === 'object') ? (m.score.away ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[1]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[1]?.trim() : 0));
+                                            const gDiff = Math.abs(Number(sHome) - Number(sAway));
+                                            const mMin = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
+                                            const isDead = gDiff >= 4 || (gDiff >= 3 && mMin >= 40) || (gDiff >= 2 && mMin >= 75);
+                                            const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50 && !isDead;
+                                            const isTrendTrap = trendingBet && ((m.dqs || 0) < 0.40 || isDead);
                                             const marketPrediction = trendingBet ? formatMarketPrediction(trendingBet, lang) : '';
 
                                             return (
@@ -9483,8 +9493,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     type="button"
                     style={{ color: '#f97316' }}
                 >
-                    <span className="mobile-nav-icon">⚡</span>
-                    <span className="mobile-nav-label">Betano</span>
+                    <span className="mobile-nav-icon">🔥</span>
+                    <span className="mobile-nav-label">Hot Picks</span>
                     <span className="mobile-nav-badge" style={{ background: '#f97316', color: '#000', fontWeight: 900 }}>HOT</span>
                 </button>
                 <button

@@ -16650,163 +16650,13 @@
       "markets": {
         "1X2": {
           "pred": "2",
-          "price": 1.4,
-          "source_note": "Betano Public (191 bets)"
+          "price": 1.42,
+          "source_note": "Piyasa Yoğunluğu (6506 kupon)"
         }
       },
-      "public_bets": 191,
-      "card_source": "Kombi-Highlights",
-      "timestamp": "2026-09-25T19:53:01.879939"
-    },
-    {
-      "home": "Italien",
-      "away": "Belgien",
-      "league": "Nations League A",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "1",
-          "price": 2.18,
-          "source_note": "Betano Public (191 bets)"
-        }
-      },
-      "public_bets": 191,
-      "card_source": "Kombi-Highlights",
-      "timestamp": "2026-09-25T19:53:01.879972"
-    },
-    {
-      "home": "Schweden",
-      "away": "Rumänien",
-      "league": "Nations League B",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "1",
-          "price": 1.5,
-          "source_note": "Betano Public (191 bets)"
-        }
-      },
-      "public_bets": 191,
-      "card_source": "Kombi-Highlights",
-      "timestamp": "2026-09-25T19:53:01.879997"
-    },
-    {
-      "home": "Polen",
-      "away": "Bosnien & Herzegowina",
-      "league": "Nations League B",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "1",
-          "price": 1.62,
-          "source_note": "Betano Public (191 bets)"
-        }
-      },
-      "public_bets": 191,
-      "card_source": "Kombi-Highlights",
-      "timestamp": "2026-09-25T19:53:01.880018"
-    },
-    {
-      "home": "Ungarn",
-      "away": "Ukraine",
-      "league": "Nations League B",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "1",
-          "price": 2.65,
-          "source_note": "Betano Public (191 bets)"
-        }
-      },
-      "public_bets": 191,
-      "card_source": "Kombi-Highlights",
-      "timestamp": "2026-09-25T19:53:01.880037"
-    },
-    {
-      "home": "Marokko",
-      "away": "Gabun",
-      "league": "Afrika Cup Der Nationen - Qualifikationsspiele",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "OU25": {
-          "pred": "OVER",
-          "price": 1.5
-        }
-      },
-      "public_bets": 753,
-      "card_source": "Kombi-Bonus",
-      "timestamp": "2026-09-25T19:53:01.880139"
-    },
-    {
-      "home": "Partizan",
-      "away": "Olimpia Milano",
-      "league": "Spiele",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "1",
-          "price": 1.62,
-          "source_note": "Betano Public (337 bets)"
-        }
-      },
-      "public_bets": 337,
-      "card_source": "Kombi-Bonus",
-      "timestamp": "2026-09-25T19:53:01.880162"
-    },
-    {
-      "home": "Mali",
-      "away": "Kap Verde",
-      "league": "Afrika Cup Der Nationen - Qualifikationsspiele",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "OU15": {
-          "pred": "OVER",
-          "price": 1.55
-        }
-      },
-      "public_bets": 214,
-      "card_source": "Kombi-Bonus",
-      "timestamp": "2026-09-25T19:53:01.880184"
-    },
-    {
-      "home": "San Marino",
-      "away": "Finnland",
-      "league": "Nations League C",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "OU25": {
-          "pred": "OVER",
-          "price": 1.5
-        }
-      },
-      "public_bets": 175,
-      "card_source": "Kombi-Bonus",
-      "timestamp": "2026-09-25T19:53:01.880207"
-    },
-    {
-      "home": "Würzburg",
-      "away": "Oldenburg",
-      "league": "BBL",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "1",
-          "price": 1.57,
-          "source_note": "Betano Public (90 bets)"
-        }
-      },
-      "public_bets": 90,
-      "card_source": "Kombi-Bonus",
-      "timestamp": "2026-09-25T19:53:01.880227"
+      "public_bets": 6506,
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967090"
     },
     {
       "home": "Italien",
@@ -16821,8 +16671,8 @@
         }
       },
       "public_bets": 3341,
-      "card_source": "Hot Picks",
-      "timestamp": "2026-09-25T19:53:01.880316"
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967119"
     },
     {
       "home": "Montenegro",
@@ -16833,13 +16683,13 @@
       "markets": {
         "1X2": {
           "pred": "1",
-          "price": 1.67,
-          "source_note": "Betano Public (2720 bets)"
+          "price": 1.65,
+          "source_note": "Piyasa Yoğunluğu (2720 kupon)"
         }
       },
       "public_bets": 2720,
-      "card_source": "Hot Picks",
-      "timestamp": "2026-09-25T19:53:01.880346"
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967133"
     },
     {
       "home": "Ungarn",
@@ -16854,8 +16704,8 @@
         }
       },
       "public_bets": 2569,
-      "card_source": "Hot Picks",
-      "timestamp": "2026-09-25T19:53:01.880369"
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967147"
     },
     {
       "home": "Marokko",
@@ -16870,8 +16720,25 @@
         }
       },
       "public_bets": 753,
-      "card_source": "Hot Picks",
-      "timestamp": "2026-09-25T19:53:01.880392"
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967160"
+    },
+    {
+      "home": "Türkei",
+      "away": "Frankreich",
+      "league": "Nations League A",
+      "date": "25.09",
+      "score_pred": "N/A",
+      "markets": {
+        "1X2": {
+          "pred": "2",
+          "price": 1.42,
+          "source_note": "Piyasa Yoğunluğu (6506 kupon)"
+        }
+      },
+      "public_bets": 6506,
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967218"
     },
     {
       "home": "Ägypten",
@@ -16886,8 +16753,56 @@
         }
       },
       "public_bets": 749,
-      "card_source": "Hot Picks",
-      "timestamp": "2026-09-25T19:53:01.880412"
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967231"
+    },
+    {
+      "home": "Slowenien",
+      "away": "Schottland",
+      "league": "Nations League B",
+      "date": "25.09",
+      "score_pred": "N/A",
+      "markets": {
+        "OU15": {
+          "pred": "OVER",
+          "price": 1.42
+        }
+      },
+      "public_bets": 552,
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967242"
+    },
+    {
+      "home": "Algerien",
+      "away": "Sambia",
+      "league": "Afrika Cup Der Nationen - Qualifikationsspiele",
+      "date": "25.09",
+      "score_pred": "N/A",
+      "markets": {
+        "OU15": {
+          "pred": "OVER",
+          "price": 1.27
+        }
+      },
+      "public_bets": 519,
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967253"
+    },
+    {
+      "home": "England U21",
+      "away": "Kasachstan U21",
+      "league": "Europäische Meisterschaft - Qualifikationsspiele U21",
+      "date": "25.09",
+      "score_pred": "N/A",
+      "markets": {
+        "OU25": {
+          "pred": "OVER",
+          "price": 1.22
+        }
+      },
+      "public_bets": 505,
+      "card_source": "Global Hot Picks",
+      "timestamp": "2026-09-25T20:01:37.967265"
     }
   ]
 }

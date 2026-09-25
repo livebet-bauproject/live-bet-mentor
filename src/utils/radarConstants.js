@@ -9,7 +9,7 @@ export const RADAR_SOURCES = [
     { id: 'olbg', label: 'OLBG', color: '#00f2fe', iq: 'iq_olbg' },
     { id: 'soccervista', label: 'SoccerVista', color: '#fb923c', iq: 'iq_soccervista' },
     { id: 'superbet', label: 'SuperBet', color: '#facc15', iq: 'iq_superbet' },
-    { id: 'betano', label: 'Betano Acca', color: '#f97316', iq: 'iq_betano' }
+    { id: 'betano', label: 'Hot Picks', color: '#f97316', iq: 'iq_hotpicks' }
 ];
 
 export const RADAR_BASE_URLS = {
