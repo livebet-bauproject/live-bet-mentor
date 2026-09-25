@@ -590,16 +590,16 @@ app.post('/api/sync/live', express.json({ limit: '10mb' }), (req, res) => {
     }
     const incomingEvents = cleanEvents(req.body?.events || []);
     const existingEvents = cleanEvents(memoryLiveData?.events || []);
+    const isExistingStale = !lastUploadTime || (Date.now() - lastUploadTime > 60000);
 
-    // Guard against degrading live data: Only overwrite if incoming has real events (>= 15)
-    // and is not inferior to existing live dataset
-    if (incomingEvents.length >= 15 && incomingEvents.length >= existingEvents.length) {
+    // Guard against degrading live data: accept if incoming has valid events (>= 10) AND (existing is stale or incoming reasonable)
+    if (incomingEvents.length >= 10 && (isExistingStale || incomingEvents.length >= Math.floor(existingEvents.length * 0.7))) {
         memoryLiveData = req.body;
         lastUploadTime = Date.now();
         try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
         console.log(`[SYNC] Accepted live data: ${incomingEvents.length} clean events`);
     } else {
-        console.warn(`[SYNC] 🛡️ Ignored stale/degraded live sync: incoming has only ${incomingEvents.length} valid events vs ${existingEvents.length} current.`);
+        console.warn(`[SYNC] 🛡️ Ignored live sync: incoming has only ${incomingEvents.length} valid events vs ${existingEvents.length} current (stale: ${isExistingStale}).`);
     }
     res.json({ ok: true, events: incomingEvents.length });
 });
@@ -649,16 +649,16 @@ app.post('/api/sync/bundle', express.json({ limit: '15mb' }), (req, res) => {
     if (live && Array.isArray(live.events)) {
         const incomingClean = cleanEvents(live.events);
         const existingClean = cleanEvents(memoryLiveData?.events || []);
+        const isExistingStale = !lastUploadTime || (Date.now() - lastUploadTime > 60000);
 
-        // Guard: do NOT let stale/degraded sync clobber fresh live data!
-        // Only accept if incoming has a healthy amount of live events (>= 15) and is not inferior to existing
-        if (incomingClean.length >= 15 && incomingClean.length >= existingClean.length) {
+        // Guard: accept if incoming has a healthy amount of live events (>= 10) AND (existing is stale or incoming reasonable)
+        if (incomingClean.length >= 10 && (isExistingStale || incomingClean.length >= Math.floor(existingClean.length * 0.7))) {
             memoryLiveData = live;
             lastUploadTime = Date.now();
             try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(live), 'utf8'); } catch(e) {}
             telegramBot.autoResolveSignals(live.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
         } else {
-            console.warn(`[SYNC_BUNDLE] 🛡️ Retained server live data (${existingClean.length} active) instead of degraded sync (${incomingClean.length} valid)`);
+            console.warn(`[SYNC_BUNDLE] 🛡️ Retained server live data (${existingClean.length} active) instead of degraded sync (${incomingClean.length} valid, stale: ${isExistingStale})`);
         }
     }
 
@@ -763,7 +763,15 @@ app.get('/api/sofascore/live', (req, res) => {
         memoryEvents = cleanEvents(memoryLiveData.events);
     }
 
-    // 3. Serve whichever source has more valid live events to prevent flapping!
+    // 3. Serve whichever source is fresher and valid to prevent serving stale files
+    const isMemoryFresh = lastUploadTime && (Date.now() - lastUploadTime < 180000);
+    if (isMemoryFresh && memoryEvents.length > 0) {
+        return res.json({
+            ...memoryLiveData,
+            events: memoryEvents
+        });
+    }
+
     if (memoryEvents.length >= fileEvents.length && memoryEvents.length > 0) {
         return res.json({
             ...memoryLiveData,

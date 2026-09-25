@@ -138,9 +138,10 @@ class SmartAlertService {
         }
 
         const dqs = match.dqs || 0;
-        // VIP Data Quality threshold: minimum 0.70 (0.60 creates excessive false positives)
-        if (dqs < 0.70) {
-            return { shouldAlert: false, blockedReason: 'LOW_DQS_VIP_BARRIER' };
+        // Data Quality threshold: minimum threshold from CONFIG (0.50) to allow live matches with active pitch statistics
+        const minDqsThreshold = CONFIG.DECISION?.DQS_THRESHOLD || 0.50;
+        if (dqs < minDqsThreshold) {
+            return { shouldAlert: false, blockedReason: 'LOW_DQS_BARRIER' };
         }
 
         const xgHome = match.stats?.xg?.home || 0;
@@ -562,8 +563,9 @@ class SmartAlertService {
             const matchId = String(match.id);
             const signal = signals[matchId];
 
-            // Plan-based Tier restriction for alerts
-            if (this.currentTier === 'trial' && match.tier !== 1) {
+            // Plan-based Tier restriction for alerts: Allow Tier 1 and Tier 2 competitions (excludes only obscure amateur/youth Tier 3)
+            const matchTier = match.tier || 1;
+            if (this.currentTier === 'trial' && matchTier > 2) {
                 return;
             }
 

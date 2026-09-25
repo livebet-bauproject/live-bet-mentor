@@ -298,16 +298,18 @@ def get_scraper():
         from selenium.webdriver.chrome.options import Options
         
         options = Options()
-        options.add_argument('--headless=new')
+        options.add_experimental_option('excludeSwitches', ['enable-automation'])
+        options.add_experimental_option('useAutomationExtension', False)
+        options.add_argument('--disable-blink-features=AutomationControlled')
+        options.add_argument('--window-position=-32000,-32000')
+        options.add_argument('--window-size=1200,800')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
-        options.add_argument('--window-size=1920,1080')
-        options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36')
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
         
         service = Service(executable_path=driver_path)
-        logger.info("Launching SofaScore Browser via Patched ChromeDriver 152...")
+        logger.info("Launching SofaScore Browser via Patched ChromeDriver with Cloudflare bypass...")
         driver = webdriver.Chrome(service=service, options=options)
         return driver
     except Exception as e:
@@ -319,7 +321,8 @@ def get_scraper():
         try:
             options = uc.ChromeOptions()
             options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
-            options.add_argument('--headless=new')
+            options.add_argument('--window-position=-32000,-32000')
+            options.add_argument('--window-size=1200,800')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--disable-gpu')
@@ -340,10 +343,10 @@ def capture_sofascore():
     
     try:
         driver = get_scraper()
-        url = "https://www.sofascore.com/"
+        url = "https://www.sofascore.com/football/livescores"
         logger.info(f"[SCRAPER] Navigating to {url}...")
         driver.get(url)
-        time.sleep(15)
+        time.sleep(6)
         
         last_live_fetch = 0
         last_page_refresh = time.time()

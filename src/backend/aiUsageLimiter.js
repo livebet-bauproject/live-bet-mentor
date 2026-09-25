@@ -11,7 +11,7 @@ class AIUsageLimiter {
             trial: {
                 name: 'Trial',
                 dailyAIReports: 3,
-                dailySmartAlerts: 5,
+                dailySmartAlerts: 100, // Client-side quant signals, generous limit so user is not blocked after 5 alerts
                 cacheMinutes: 15, // Longer cache = less API calls
                 features: {
                     aiAnalysis: true,
