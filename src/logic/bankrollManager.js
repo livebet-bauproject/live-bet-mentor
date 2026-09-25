@@ -229,7 +229,7 @@ class BankrollManager {
         return true;
     }
 
-    processResult(matchId, isWin, stake, odds = 2.0, clv = 0) {
+    processResult(matchIdOrBetId, isWin, stake, odds = 2.0, clv = 0) {
         const profit = isWin ? stake * odds : 0; // Stake was already deducted
         const netProfit = isWin ? (stake * (odds - 1)) : -stake;
         const balanceBefore = this.state.current_balance;
@@ -251,7 +251,12 @@ class BankrollManager {
             this.state.daily_loss_count++;
         }
 
-        const openEntry = (this.state.ledger || []).slice().reverse().find(l => l.match_id === matchId && l.type === 'BET_OPEN');
+        // Find the open entry by either id or match_id
+        const openEntry = (this.state.ledger || []).slice().reverse().find(l => 
+            (String(l.id) === String(matchIdOrBetId) || String(l.match_id) === String(matchIdOrBetId)) && 
+            (l.type === 'BET_OPEN' || l.status === 'OPEN') && 
+            !l.is_settled
+        );
         const stratId = openEntry?.strategy_id || 'GENERIC';
 
         if (!this.state.strategyStats) this.state.strategyStats = {};
@@ -274,23 +279,71 @@ class BankrollManager {
             if (Number(clv) > 0) this.state.clvStats.positiveCount++;
         }
 
-        this.addToLedger(isWin ? 'BET_WIN' : 'BET_LOSS', {
-            match_id: matchId,
-            match_name: openEntry?.match_name || 'Match',
-            match: openEntry?.match_name || 'Match',
-            status: isWin ? 'WIN' : 'LOSS',
-            type: 'SETTLEMENT',
-            strategy_id: stratId,
-            strategy_label: openEntry?.strategy_label || 'Strateji',
-            stake,
-            profit: netProfit,
-            balance_before: balanceBefore,
-            loss_streak: this.state.loss_streak,
-            clv: clv || 0
-        });
+        if (openEntry) {
+            // Update the existing entry in-place so no duplicate rows appear
+            openEntry.is_settled = true;
+            openEntry.status = isWin ? 'WIN' : 'LOSS';
+            openEntry.outcome = isWin ? 'WON' : 'LOST';
+            openEntry.profit = netProfit;
+            openEntry.settled_at = new Date().toISOString();
+            openEntry.clv = clv || openEntry.clv || 0;
+            openEntry.balance_after = this.state.current_balance;
+        } else {
+            this.addToLedger(isWin ? 'BET_WIN' : 'BET_LOSS', {
+                match_id: matchIdOrBetId,
+                match_name: 'Match',
+                match: 'Match',
+                status: isWin ? 'WIN' : 'LOSS',
+                type: 'SETTLEMENT',
+                strategy_id: stratId,
+                strategy_label: 'Strateji',
+                stake,
+                profit: netProfit,
+                balance_before: balanceBefore,
+                loss_streak: this.state.loss_streak,
+                clv: clv || 0
+            });
+        }
 
         this.checkModeTransitions();
         this.saveState();
+    }
+
+    voidBet(betIdOrMatchId, reason = 'İade / İptal') {
+        const openEntry = (this.state.ledger || []).slice().reverse().find(l => 
+            (String(l.id) === String(betIdOrMatchId) || String(l.match_id) === String(betIdOrMatchId)) && 
+            (l.type === 'BET_OPEN' || l.status === 'OPEN') && 
+            !l.is_settled
+        );
+        if (!openEntry) return false;
+
+        const stake = Number(openEntry.stake || openEntry.stake_amount || 0);
+        this.state.current_balance += stake; // Refund stake back to cash
+        openEntry.is_settled = true;
+        openEntry.status = 'VOID';
+        openEntry.outcome = 'VOID';
+        openEntry.profit = 0;
+        openEntry.reason = reason;
+        openEntry.settled_at = new Date().toISOString();
+        openEntry.balance_after = this.state.current_balance;
+
+        this.saveState();
+        return true;
+    }
+
+    manualSettle(betIdOrMatchId, outcome, customOdds = null) {
+        if (outcome === 'VOID') {
+            return this.voidBet(betIdOrMatchId);
+        }
+        const openEntry = (this.state.ledger || []).slice().reverse().find(l => 
+            (String(l.id) === String(betIdOrMatchId) || String(l.match_id) === String(betIdOrMatchId)) && 
+            (l.type === 'BET_OPEN' || l.status === 'OPEN') && 
+            !l.is_settled
+        );
+        const stake = Number(openEntry?.stake || openEntry?.stake_amount || 100);
+        const odds = customOdds ? Number(customOdds) : (Number(openEntry?.odds_taken) > 1.0 ? Number(openEntry?.odds_taken) : 1.85);
+        this.processResult(openEntry?.id || betIdOrMatchId, outcome === 'WIN', stake, odds);
+        return true;
     }
 
     getStrategyAnalytics() {
@@ -410,11 +463,37 @@ class BankrollManager {
         return mode;
     }
 
-    reset() {
+    reset(startingBalance = CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 2000) {
         if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('lbm_bankroll_state');
         }
-        this.loadState();
+        const defaultState = {
+            starting_balance: startingBalance,
+            current_balance: startingBalance,
+            max_balance_seen: startingBalance,
+            daily_pl: 0,
+            win_streak: 0,
+            loss_streak: 0,
+            current_mode: CONFIG.BANKROLL.HIERARCHY.MODES.NORMAL,
+            daily_bet_count: 0,
+            daily_loss_count: 0,
+            last_reset_date: new Date().toDateString(),
+            ledger: [],
+            processedToday: {},
+            strategyStats: {},
+            clvStats: { totalBets: 0, positiveCount: 0, sumCLV: 0 },
+            stats: {
+                passCount: 0,
+                noBetCount: 0,
+                betCount: 0
+            }
+        };
+        this.state = defaultState;
+        this.saveState();
+        this.addToLedger('SYSTEM_INIT', {
+            balance: defaultState.starting_balance,
+            reason: 'system_init_reason'
+        });
     }
 }
 

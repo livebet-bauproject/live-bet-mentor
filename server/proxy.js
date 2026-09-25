@@ -15,6 +15,7 @@ import { autonomousOffice } from './autonomousOffice.js';
 import { quantTradingDesk } from './quantTradingDesk.js';
 import { geminiTradingBridge } from './geminiTradingBridge.js';
 import { supportChatService } from './supportChatService.js';
+import { sharpPicksEngine } from './sharpPicksEngine.js';
 import { 
     hashPassword, 
     verifyPassword, 
@@ -805,7 +806,22 @@ app.get('/api/consensus', (req, res) => {
 });
 
 // 2b. Mentor Alpha Sharp Picks (Proprietary Institutional Safe Picks)
-app.get('/api/sharp-picks', (req, res) => {
+app.get('/api/sharp-picks', async (req, res) => {
+    if (req.query.refresh === 'true' || req.query.refresh === '1') {
+        try {
+            console.log('[PROXY] Client requested on-demand sharp picks refresh...');
+            const fresh = await sharpPicksEngine.updateCycle();
+            memorySharpPicksData = fresh;
+            return res.json(fresh);
+        } catch (e) {
+            console.error('[PROXY] On-demand sharp picks refresh error:', e.message);
+        }
+    }
+
+    const currentVault = sharpPicksEngine.getVault();
+    if (currentVault && (currentVault.today_picks || []).length > 0) {
+        return res.json(currentVault);
+    }
     if (memorySharpPicksData) {
         return res.json(memorySharpPicksData);
     }
@@ -4365,23 +4381,12 @@ function startConsensusScraper() {
 }
 
 function startSharpPicksEngine() {
-    console.log('[PROXY] Initializing Mentor Alpha Sharp Picks Engine...');
-    const spawnEngine = () => {
-        try {
-            const pythonProcess = spawn('python', [path.join(__dirname, 'sharpPicksEngine.py'), '--once']);
-            pythonProcess.stdout.on('data', (data) => console.log(`[SHARP_ENGINE] ${data}`));
-            pythonProcess.stderr.on('data', (data) => console.error(`[SHARP_ENGINE_ERR] ${data}`));
-            pythonProcess.on('error', (err) => {
-                console.error('[PROXY] Sharp picks engine spawn error:', err.message);
-            });
-        } catch (err) {
-            console.error('[PROXY] Failed to run sharp picks engine:', err.message);
-        }
-    };
-
-    // Run once on boot, then every 35 minutes to track results and settle matches
-    spawnEngine();
-    setInterval(spawnEngine, 35 * 60 * 1000);
+    console.log('[PROXY] Initializing Mentor Alpha Sharp Picks Engine (Pure Node.js 24/7)...');
+    try {
+        sharpPicksEngine.startEngine(20 * 60 * 1000); // 20 mins polling
+    } catch (err) {
+        console.error('[PROXY] Failed to start sharp picks engine:', err.message);
+    }
 }
 
 // --- START SERVER ---

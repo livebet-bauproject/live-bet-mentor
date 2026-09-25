@@ -3,29 +3,37 @@ import React, { useState, useEffect } from 'react';
 export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState('today'); // 'today' | 'yesterday'
     const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'WON' | 'PENDING'
 
+    const fetchPicks = async (forceRefresh = false) => {
+        try {
+            if (forceRefresh) setRefreshing(true);
+            const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+            const proxyBase = import.meta.env?.VITE_API_BASE_URL || (isLocal ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
+            const url = `${proxyBase}/api/sharp-picks${forceRefresh ? '?refresh=1&t=' + Date.now() : ''}`;
+            const res = await fetch(url);
+            if (res.ok) {
+                const json = await res.json();
+                if (json && (json.today_picks || json.yesterday_summary)) {
+                    setData(json);
+                }
+            }
+        } catch (err) {
+            console.error('[SHARP_PICKS] Fetch error:', err);
+        } finally {
+            setLoading(false);
+            if (forceRefresh) setRefreshing(false);
+        }
+    };
+
     useEffect(() => {
         let isMounted = true;
-        const fetchPicks = async () => {
-            try {
-                const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                const proxyBase = import.meta.env?.VITE_API_BASE_URL || (isLocal ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
-                const res = await fetch(`${proxyBase}/api/sharp-picks`);
-                if (res.ok) {
-                    const json = await res.json();
-                    if (isMounted) setData(json);
-                }
-            } catch (err) {
-                console.error('[SHARP_PICKS] Fetch error:', err);
-            } finally {
-                if (isMounted) setLoading(false);
-            }
-        };
-
         fetchPicks();
-        const interval = setInterval(fetchPicks, 60000); // 1 min auto-refresh
+        const interval = setInterval(() => {
+            if (isMounted) fetchPicks();
+        }, 60000); // 1 min auto-refresh
         return () => {
             isMounted = false;
             clearInterval(interval);
@@ -187,6 +195,28 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                         <span style={{ fontSize: '11px', color: '#64748b' }}>
                             {data?.last_updated ? new Date(data.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
+                        <button
+                            onClick={() => fetchPicks(true)}
+                            disabled={refreshing}
+                            style={{
+                                background: 'rgba(56, 189, 248, 0.1)',
+                                border: '1px solid rgba(56, 189, 248, 0.3)',
+                                borderRadius: '6px',
+                                color: '#38bdf8',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                padding: '2px 8px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                opacity: refreshing ? 0.7 : 1
+                            }}
+                            title={lang === 'tr' ? 'Tahminleri Canlı Yenile' : 'Refresh Picks Live'}
+                        >
+                            <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.6s' }}>🔄</span>
+                            <span>{refreshing ? (lang === 'tr' ? 'Yenileniyor...' : 'Refreshing...') : (lang === 'tr' ? 'Yenile' : 'Refresh')}</span>
+                        </button>
                     </div>
                     <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#ffffff', letterSpacing: '-0.02em' }}>
                         {t.sharp_picks_title || 'Günün Keskin Seçimleri'}
