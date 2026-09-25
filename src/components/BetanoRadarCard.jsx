@@ -248,6 +248,15 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeCardIndex, setActiveCardIndex] = useState(0);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(typeof window !== 'undefined' && window.innerWidth < 768);
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     const fetchBetanoCards = async (forceRefresh = false) => {
         try {
@@ -293,103 +302,110 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
 
     return (
         <div style={{
-            background: 'linear-gradient(145deg, rgba(17, 24, 39, 0.96), rgba(15, 23, 42, 0.98))',
-            borderRadius: '24px',
+            background: 'linear-gradient(145deg, rgba(17, 24, 39, 0.98), rgba(15, 23, 42, 0.99))',
+            borderRadius: isMobile ? '18px' : '24px',
             border: '1px solid rgba(249, 115, 22, 0.3)',
             boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 35px rgba(249, 115, 22, 0.15)',
             color: '#f8fafc',
             overflow: 'hidden',
             fontFamily: 'system-ui, -apple-system, sans-serif'
         }}>
+            <style>{`
+                .hot-picks-tabs-bar::-webkit-scrollbar { display: none !important; }
+                .hot-picks-tabs-bar { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+            `}</style>
+
             {/* Header */}
             <div style={{
-                padding: '1.5rem 1.8rem',
+                padding: isMobile ? '0.85rem 1rem' : '1.3rem 1.8rem',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                 background: 'linear-gradient(90deg, rgba(249, 115, 22, 0.12), rgba(0, 0, 0, 0))',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '1rem'
+                gap: '0.6rem'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.55rem' : '0.9rem', flex: 1, minWidth: 0 }}>
                     <div style={{
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '12px',
+                        width: isMobile ? '36px' : '44px',
+                        height: isMobile ? '36px' : '44px',
+                        minWidth: isMobile ? '36px' : '44px',
+                        borderRadius: isMobile ? '10px' : '12px',
                         background: 'linear-gradient(135deg, #f97316, #ea580c)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1.4rem',
+                        fontSize: isMobile ? '1.15rem' : '1.4rem',
                         boxShadow: '0 4px 15px rgba(249, 115, 22, 0.4)'
                     }}>
                         🔥
                     </div>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, margin: 0, letterSpacing: '-0.5px' }}>
-                                {isTr ? '🔥 GÜNÜN SICAK SEÇİMLERİ (HOT PICKS)' : isDe ? '🔥 GLOBAL HOT-PICKS & TRENDS' : '🔥 GLOBAL HOT PICKS & TRENDS'}
+                    <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <h2 style={{ fontSize: isMobile ? '0.95rem' : '1.25rem', fontWeight: 900, margin: 0, letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
+                                {isTr ? 'GÜNÜN SICAK SEÇİMLERİ' : isDe ? 'GLOBAL HOT-PICKS' : 'GLOBAL HOT PICKS'}
                             </h2>
                             <span style={{
-                                fontSize: '0.65rem',
+                                fontSize: '0.6rem',
                                 fontWeight: 800,
-                                padding: '2px 8px',
-                                borderRadius: '6px',
+                                padding: '1px 6px',
+                                borderRadius: '5px',
                                 background: 'rgba(249, 115, 22, 0.2)',
                                 color: '#f97316',
                                 border: '1px solid rgba(249, 115, 22, 0.4)',
                                 letterSpacing: '0.5px'
                             }}>
-                                TREND RADAR
+                                HOT
                             </span>
                         </div>
-                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
-                            {isTr
-                                ? 'Global piyasalarda en çok oynanan trend maçlar, kümülatif marj analizi ve ayıklanan değerli tekli seçimler'
-                                : isDe
-                                ? 'Meistgespielte globale Trend-Tipps, Marge-Audit (%24+) & selektierte Value-Tipps'
-                                : 'Most popular market trend picks, compounded margin audit & extracted value singles'}
-                        </p>
+                        {!isMobile && (
+                            <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+                                {isTr
+                                    ? 'Global piyasalarda en çok oynanan trend maçlar, kümülatif marj analizi ve ayıklanan değerli tekli seçimler'
+                                    : isDe
+                                    ? 'Meistgespielte globale Trend-Tipps, Marge-Audit (%24+) & selektierte Value-Tipps'
+                                    : 'Most popular market trend picks, compounded margin audit & extracted value singles'}
+                            </p>
+                        )}
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
                     <button
                         onClick={() => fetchBetanoCards(true)}
                         disabled={refreshing}
                         style={{
-                            padding: '0.55rem 1rem',
+                            padding: isMobile ? '0.45rem 0.65rem' : '0.55rem 1rem',
                             borderRadius: '10px',
                             background: 'rgba(255, 255, 255, 0.05)',
                             border: '1px solid rgba(255, 255, 255, 0.1)',
                             color: '#e2e8f0',
-                            fontSize: '0.75rem',
+                            fontSize: isMobile ? '0.72rem' : '0.75rem',
                             fontWeight: 700,
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.4rem',
+                            gap: '0.35rem',
                             transition: 'all 0.2s'
                         }}
                     >
                         <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.8s ease' }}>
                             🔄
                         </span>
-                        {refreshing ? (isTr ? 'Taranıyor...' : 'Laden...') : (isTr ? 'Yenile' : 'Aktualisieren')}
+                        {!isMobile && (refreshing ? (isTr ? 'Taranıyor...' : 'Laden...') : (isTr ? 'Yenile' : 'Aktualisieren'))}
                     </button>
 
                     {onClose && (
                         <button
                             onClick={onClose}
                             style={{
-                                width: '36px',
-                                height: '36px',
+                                width: isMobile ? '32px' : '36px',
+                                height: isMobile ? '32px' : '36px',
                                 borderRadius: '10px',
                                 background: 'rgba(255, 255, 255, 0.05)',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#94a3b8',
-                                fontSize: '1.1rem',
+                                fontSize: isMobile ? '0.95rem' : '1.1rem',
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
@@ -402,15 +418,20 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                 </div>
             </div>
 
-            {/* Card Tabs */}
+            {/* Card Tabs - Responsive Segmented Buttons (No horizontal scrollbars!) */}
             {cards.length > 0 && (
-                <div style={{
-                    display: 'flex',
-                    gap: '0.6rem',
-                    padding: '1rem 1.8rem 0.5rem',
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                    overflowX: 'auto'
-                }}>
+                <div 
+                    className="hot-picks-tabs-bar"
+                    style={{
+                        display: 'grid',
+                        gridTemplateColumns: cards.length <= 3 ? `repeat(${cards.length}, 1fr)` : 'repeat(auto-fit, minmax(130px, 1fr))',
+                        gap: isMobile ? '0.4rem' : '0.6rem',
+                        padding: isMobile ? '0.65rem 0.8rem' : '0.9rem 1.8rem 0.5rem',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                        width: '100%',
+                        boxSizing: 'border-box'
+                    }}
+                >
                     {cards.map((c, idx) => {
                         const isActive = idx === activeCardIndex;
                         const cardOdds = c.total_odds || '1.0';
@@ -422,46 +443,56 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 key={idx}
                                 onClick={() => setActiveCardIndex(idx)}
                                 style={{
-                                    padding: '0.65rem 1.2rem',
-                                    borderRadius: '12px',
-                                    border: isActive ? '1px solid #f97316' : '1px solid rgba(255, 255, 255, 0.08)',
-                                    background: isActive ? 'linear-gradient(135deg, rgba(249, 115, 22, 0.25), rgba(249, 115, 22, 0.05))' : 'rgba(255, 255, 255, 0.02)',
+                                    padding: isMobile ? '0.55rem 0.65rem' : '0.65rem 1.2rem',
+                                    borderRadius: isMobile ? '10px' : '12px',
+                                    border: isActive ? '1.5px solid #f97316' : '1px solid rgba(255, 255, 255, 0.08)',
+                                    background: isActive 
+                                        ? 'linear-gradient(135deg, rgba(249, 115, 22, 0.28), rgba(249, 115, 22, 0.08))' 
+                                        : 'rgba(255, 255, 255, 0.02)',
                                     color: isActive ? '#fff' : '#94a3b8',
                                     cursor: 'pointer',
-                                    fontSize: '0.8rem',
+                                    fontSize: isMobile ? '0.74rem' : '0.8rem',
                                     fontWeight: 800,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.6rem',
-                                    whiteSpace: 'nowrap',
+                                    justifyContent: 'space-between',
+                                    gap: isMobile ? '0.25rem' : '0.6rem',
                                     transition: 'all 0.2s',
-                                    boxShadow: isActive ? '0 4px 15px rgba(249, 115, 22, 0.2)' : 'none'
+                                    boxShadow: isActive ? '0 4px 15px rgba(249, 115, 22, 0.25)' : 'none',
+                                    width: '100%',
+                                    boxSizing: 'border-box'
                                 }}
                             >
-                                <span>
-                                    {isTr
-                                        ? (c.title || 'Sıcak Seçimler').replace(/Beliebte Kombiwette/gi, 'Sıcak Trend Seçim').replace(/Hot Picks/gi, 'Sıcak Seçimler')
-                                        : isDe
-                                        ? (c.title || 'Hot-Picks')
-                                        : (c.title || 'Hot Picks')}
-                                </span>
                                 <span style={{
-                                    padding: '2px 6px',
-                                    borderRadius: '6px',
-                                    background: isActive ? '#f97316' : 'rgba(255, 255, 255, 0.08)',
-                                    color: isActive ? '#000' : '#e2e8f0',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 900
+                                    fontWeight: 900,
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
                                 }}>
-                                    @{cardOdds}
+                                    🔥 {isMobile ? `${idx + 1}. Kupon` : (isTr ? `Günün Kuponu #${idx + 1}` : `Trend #${idx + 1}`)}
                                 </span>
-                                <span style={{
-                                    fontSize: '0.65rem',
-                                    color: trapColor,
-                                    fontWeight: 900
-                                }}>
-                                    ⚠️ {trap}/100
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                                    <span style={{
+                                        padding: '2px 5px',
+                                        borderRadius: '5px',
+                                        background: isActive ? '#f97316' : 'rgba(255, 255, 255, 0.08)',
+                                        color: isActive ? '#000' : '#e2e8f0',
+                                        fontSize: isMobile ? '0.68rem' : '0.7rem',
+                                        fontWeight: 900
+                                    }}>
+                                        @{cardOdds}
+                                    </span>
+                                    <span style={{
+                                        fontSize: isMobile ? '0.62rem' : '0.65rem',
+                                        color: trapColor,
+                                        fontWeight: 900,
+                                        padding: '2px 4px',
+                                        background: 'rgba(0, 0, 0, 0.35)',
+                                        borderRadius: '4px'
+                                    }}>
+                                        ⚠️ {trap}{isMobile ? '' : '/100'}
+                                    </span>
+                                </div>
                             </button>
                         );
                     })}
@@ -469,7 +500,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
             )}
 
             {/* Content Body */}
-            <div style={{ padding: '1.5rem 1.8rem' }}>
+            <div style={{ padding: isMobile ? '0.85rem' : '1.5rem 1.8rem' }}>
                 {loading ? (
                     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#94a3b8' }}>
                         <div style={{ fontSize: '2rem', marginBottom: '0.8rem' }}>🔥</div>
@@ -481,27 +512,27 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                     </div>
                 ) : (
                     <div>
-                        {/* Metrics Bar */}
+                        {/* Metrics Bar - 2x2 Grid on Mobile, 4-col on Desktop */}
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                            gap: '1rem',
-                            marginBottom: '1.5rem'
+                            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fit, minmax(180px, 1fr))',
+                            gap: isMobile ? '0.5rem' : '1rem',
+                            marginBottom: isMobile ? '1rem' : '1.5rem'
                         }}>
                             {/* Total Odds */}
                             <div style={{
                                 background: 'rgba(255, 255, 255, 0.03)',
                                 border: '1px solid rgba(255, 255, 255, 0.06)',
-                                borderRadius: '16px',
-                                padding: '1rem 1.2rem'
+                                borderRadius: isMobile ? '12px' : '16px',
+                                padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Büro Kupon Oranı' : 'Kombi-Quote'}
+                                <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
+                                    {isTr ? 'Kupon Oranı' : 'Kombi-Quote'}
                                 </div>
-                                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#f97316', marginTop: '0.3rem' }}>
+                                <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: '#f97316', marginTop: '0.2rem' }}>
                                     @{activeCard.total_odds}
                                 </div>
-                                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>
+                                <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>
                                     {activeCard.events_count} {isTr ? 'Maç Kombine' : 'Spiele'}
                                 </div>
                             </div>
@@ -510,17 +541,17 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                             <div style={{
                                 background: 'rgba(255, 255, 255, 0.03)',
                                 border: '1px solid rgba(255, 255, 255, 0.06)',
-                                borderRadius: '16px',
-                                padding: '1rem 1.2rem'
+                                borderRadius: isMobile ? '12px' : '16px',
+                                padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Gerçek Kazanma Şansı' : 'Echte Gewinnchance'}
+                                <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
+                                    {isTr ? 'Gerçek Şans' : 'Echte Gewinnchance'}
                                 </div>
-                                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: metrics.true_win_prob_pct < 8 ? '#ef4444' : '#10b981', marginTop: '0.3rem' }}>
+                                <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: metrics.true_win_prob_pct < 8 ? '#ef4444' : '#10b981', marginTop: '0.2rem' }}>
                                     %{metrics.true_win_prob_pct}
                                 </div>
-                                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                    {isTr ? 'Matematiksel kümülatif ihtimal' : 'Kumulierte Wahrscheinlichkeit'}
+                                <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>
+                                    {isTr ? 'Kümülatif ihtimal' : 'Wahrscheinlichkeit'}
                                 </div>
                             </div>
 
@@ -528,17 +559,17 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                             <div style={{
                                 background: 'rgba(255, 255, 255, 0.03)',
                                 border: '1px solid rgba(255, 255, 255, 0.06)',
-                                borderRadius: '16px',
-                                padding: '1rem 1.2rem'
+                                borderRadius: isMobile ? '12px' : '16px',
+                                padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Gizli Kasa Marjı (Vig)' : 'Buchmacher-Marge (Vig)'}
+                                <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
+                                    {isTr ? 'Kasa Marjı (Vig)' : 'Marge (Vig)'}
                                 </div>
-                                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#f59e0b', marginTop: '0.3rem' }}>
+                                <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: '#f59e0b', marginTop: '0.2rem' }}>
                                     %{metrics.compounded_vig_pct}
                                 </div>
-                                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                    {isTr ? '5 maçta katlanan kasa avantajı' : 'Marge auf 5 Auswahlen'}
+                                <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>
+                                    {isTr ? 'Katlanan büro kârı' : 'Kumulierte Marge'}
                                 </div>
                             </div>
 
@@ -546,17 +577,17 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                             <div style={{
                                 background: 'rgba(255, 255, 255, 0.03)',
                                 border: '1px solid rgba(255, 255, 255, 0.06)',
-                                borderRadius: '16px',
-                                padding: '1rem 1.2rem'
+                                borderRadius: isMobile ? '12px' : '16px',
+                                padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Tuzak Riski Skoru' : 'Fallen-Risiko'}
+                                <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
+                                    {isTr ? 'Tuzak Riski' : 'Fallen-Risiko'}
                                 </div>
-                                <div style={{ fontSize: '1.6rem', fontWeight: 900, color: metrics.trap_score >= 65 ? '#ef4444' : '#10b981', marginTop: '0.3rem' }}>
-                                    {metrics.trap_score} <span style={{ fontSize: '0.9rem', color: '#64748b' }}>/ 100</span>
+                                <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: metrics.trap_score >= 65 ? '#ef4444' : '#10b981', marginTop: '0.2rem' }}>
+                                    {metrics.trap_score} <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ 100</span>
                                 </div>
-                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.2rem', fontWeight: 700 }}>
-                                    {metrics.verdict}
+                                <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '0.1rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {metrics.verdict_code === 'HIGH_TRAP' ? (isTr ? '⚠️ Yüksek Risk' : 'Hohes Risiko') : metrics.verdict_code === 'LOW_RISK' ? (isTr ? '✅ Düşük Risk' : 'Niedrig') : (isTr ? '⚡ Seçici Değer' : 'Selektiv')}
                                 </div>
                             </div>
                         </div>
@@ -566,59 +597,60 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                             <div style={{
                                 background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(6, 78, 59, 0.25))',
                                 border: '1px solid rgba(16, 185, 129, 0.4)',
-                                borderRadius: '18px',
-                                padding: '1.2rem 1.5rem',
-                                marginBottom: '1.8rem',
+                                borderRadius: isMobile ? '14px' : '18px',
+                                padding: isMobile ? '0.85rem 1rem' : '1.2rem 1.5rem',
+                                marginBottom: isMobile ? '1.2rem' : '1.8rem',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
                                 flexWrap: 'wrap',
-                                gap: '1rem',
+                                gap: '0.8rem',
                                 boxShadow: '0 10px 25px rgba(16, 185, 129, 0.1)'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.7rem' : '1rem', minWidth: 0, flex: 1 }}>
                                     <div style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        borderRadius: '14px',
+                                        width: isMobile ? '38px' : '48px',
+                                        height: isMobile ? '38px' : '48px',
+                                        minWidth: isMobile ? '38px' : '48px',
+                                        borderRadius: isMobile ? '10px' : '14px',
                                         background: 'linear-gradient(135deg, #10b981, #059669)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        fontSize: '1.5rem',
+                                        fontSize: isMobile ? '1.2rem' : '1.5rem',
                                         boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
                                     }}>
                                         💎
                                     </div>
-                                    <div>
-                                        <div style={{ fontSize: '0.68rem', fontWeight: 900, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-                                            {isTr ? 'KOMBİDEN AYIKLANAN CEVHER SEÇİM (TEKLİ DEĞER)' : 'AUS DER KOMBI SELEKTIERTER VALUE-TIPP'}
+                                    <div style={{ minWidth: 0 }}>
+                                        <div style={{ fontSize: isMobile ? '0.62rem' : '0.68rem', fontWeight: 900, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+                                            {isTr ? 'KOMBİDEN AYIKLANAN DEĞERLİ TEKLİ SEÇİM' : 'SELEKTIERTER VALUE-TIPP'}
                                         </div>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', marginTop: '0.2rem' }}>
+                                        <div style={{ fontSize: isMobile ? '0.95rem' : '1.1rem', fontWeight: 900, color: '#fff', marginTop: '0.15rem' }}>
                                             {formatTeamName(diamondPick.event_name, isTr)}
                                         </div>
-                                        <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                                        <div style={{ fontSize: isMobile ? '0.72rem' : '0.8rem', color: '#94a3b8', marginTop: '0.15rem' }}>
                                             <span style={{ color: '#cbd5e1' }}>[{formatLeagueName(diamondPick.league, isTr)}]</span> &bull; {formatMarketName(diamondPick.market, isTr)}: <strong style={{ color: '#10b981' }}>{formatSelectionName(diamondPick.selection, diamondPick, isTr)}</strong>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{ textAlign: 'right' }}>
-                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem', width: isMobile ? '100%' : 'auto', paddingTop: isMobile ? '0.3rem' : 0, borderTop: isMobile ? '1px solid rgba(16, 185, 129, 0.15)' : 'none' }}>
+                                    <div>
+                                        <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>
                                             {isTr ? 'Oynanma / Popülerlik' : 'Gespielt'}
                                         </div>
-                                        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#cbd5e1' }}>
-                                            🔥 {diamondPick.selection_count}+ {isTr ? 'Kişi' : 'Tipps'}
+                                        <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#cbd5e1' }}>
+                                            🔥 {diamondPick.selection_count}+ {isTr ? 'Kişi Oynadı' : 'Tipps'}
                                         </div>
                                     </div>
                                     <div style={{
-                                        padding: '0.5rem 1.2rem',
-                                        borderRadius: '12px',
+                                        padding: isMobile ? '0.4rem 0.9rem' : '0.5rem 1.2rem',
+                                        borderRadius: '10px',
                                         background: '#10b981',
                                         color: '#000',
                                         fontWeight: 900,
-                                        fontSize: '1.2rem',
+                                        fontSize: isMobile ? '1rem' : '1.2rem',
                                         boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)'
                                     }}>
                                         @{diamondPick.price}
@@ -628,15 +660,15 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                         )}
 
                         {/* All Legs Table */}
-                        <div style={{ marginBottom: '1.5rem' }}>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#cbd5e1', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div style={{ marginBottom: isMobile ? '1rem' : '1.5rem' }}>
+                            <div style={{ fontSize: isMobile ? '0.8rem' : '0.85rem', fontWeight: 900, color: '#cbd5e1', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                 <span>📋</span> {isTr ? 'Kuponun Tüm Maçları & Risk Süzgeci' : 'Alle Kombi-Auswahlen & Risiko-Filter'}
                             </div>
 
                             <div style={{
                                 display: 'flex',
                                 flexDirection: 'column',
-                                gap: '0.6rem'
+                                gap: isMobile ? '0.45rem' : '0.6rem'
                             }}>
                                 {legs.map((leg, i) => {
                                     const isDiamond = diamondPick && leg.event_name === diamondPick.event_name && leg.selection === diamondPick.selection;
@@ -646,8 +678,8 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                         <div
                                             key={i}
                                             style={{
-                                                padding: '0.9rem 1.2rem',
-                                                borderRadius: '14px',
+                                                padding: isMobile ? '0.75rem 0.85rem' : '0.9rem 1.2rem',
+                                                borderRadius: isMobile ? '11px' : '14px',
                                                 background: isDiamond
                                                     ? 'rgba(16, 185, 129, 0.08)'
                                                     : isTrap
@@ -661,58 +693,61 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
-                                                flexWrap: 'wrap',
-                                                gap: '0.8rem'
+                                                gap: '0.6rem'
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.55rem' : '0.8rem', minWidth: 0, flex: 1 }}>
                                                 <div style={{
-                                                    width: '28px',
-                                                    height: '28px',
-                                                    borderRadius: '8px',
+                                                    width: isMobile ? '24px' : '28px',
+                                                    height: isMobile ? '24px' : '28px',
+                                                    minWidth: isMobile ? '24px' : '28px',
+                                                    borderRadius: '7px',
                                                     background: 'rgba(255, 255, 255, 0.05)',
                                                     display: 'flex',
                                                     alignItems: 'center',
                                                     justifyContent: 'center',
-                                                    fontSize: '0.75rem',
+                                                    fontSize: isMobile ? '0.7rem' : '0.75rem',
                                                     fontWeight: 800,
                                                     color: '#94a3b8'
                                                 }}>
                                                     {i + 1}
                                                 </div>
-                                                <div>
-                                                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
+                                                <div style={{ minWidth: 0 }}>
+                                                    <div style={{ fontSize: isMobile ? '0.82rem' : '0.9rem', fontWeight: 800, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                                         {formatTeamName(leg.event_name, isTr)}
                                                     </div>
-                                                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.1rem' }}>
+                                                    <div style={{ fontSize: isMobile ? '0.68rem' : '0.72rem', color: '#94a3b8', marginTop: '0.1rem' }}>
                                                         <span style={{ color: '#64748b' }}>[{formatLeagueName(leg.league, isTr)}]</span> &bull; {formatMarketName(leg.market, isTr)}: <strong style={{ color: isDiamond ? '#10b981' : isTrap ? '#f87171' : '#e2e8f0' }}>{formatSelectionName(leg.selection, leg, isTr)}</strong>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem', flexShrink: 0 }}>
                                                 <div style={{ textAlign: 'right' }}>
                                                     <span style={{
-                                                        fontSize: '0.68rem',
+                                                        fontSize: isMobile ? '0.6rem' : '0.68rem',
                                                         fontWeight: 800,
-                                                        padding: '3px 8px',
-                                                        borderRadius: '6px',
+                                                        padding: isMobile ? '2px 5px' : '3px 8px',
+                                                        borderRadius: '5px',
                                                         background: isDiamond ? 'rgba(16, 185, 129, 0.2)' : isTrap ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.15)',
                                                         color: isDiamond ? '#10b981' : isTrap ? '#ef4444' : '#f59e0b',
-                                                        border: isDiamond ? '1px solid rgba(16, 185, 129, 0.4)' : isTrap ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.3)'
+                                                        border: isDiamond ? '1px solid rgba(16, 185, 129, 0.4)' : isTrap ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.3)',
+                                                        whiteSpace: 'nowrap'
                                                     }}>
-                                                        {isDiamond ? (isTr ? '💎 CEVHER (SEÇİLDİ)' : '💎 VALUE-TIPP') : isTrap ? (isTr ? '⚠️ TUZAK (ELENDİ)' : '⚠️ FALLE') : (isTr ? 'ORTA RİSK' : 'MITTEL')}
+                                                        {isDiamond ? (isTr ? '💎 CEVHER' : '💎 VALUE') : isTrap ? (isTr ? '⚠️ TUZAK' : '⚠️ FALLE') : (isTr ? 'ORTA' : 'MITTEL')}
                                                     </span>
-                                                    <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                                        {leg.selection_count > 0 ? (isTr ? `${leg.selection_count} Oynanma` : `${leg.selection_count} Tipps`) : ''}
-                                                    </div>
+                                                    {leg.selection_count > 0 && !isMobile && (
+                                                        <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.2rem' }}>
+                                                            {leg.selection_count} Oynanma
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 <div style={{
-                                                    fontSize: '1rem',
+                                                    fontSize: isMobile ? '0.88rem' : '1rem',
                                                     fontWeight: 900,
                                                     color: '#fff',
-                                                    padding: '0.3rem 0.7rem',
+                                                    padding: isMobile ? '0.25rem 0.5rem' : '0.3rem 0.7rem',
                                                     borderRadius: '8px',
                                                     background: 'rgba(255, 255, 255, 0.06)'
                                                 }}>
@@ -727,13 +762,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
 
                         {/* Strategy Footer Note */}
                         <div style={{
-                            padding: '1rem 1.2rem',
-                            borderRadius: '14px',
+                            padding: isMobile ? '0.8rem 0.95rem' : '1rem 1.2rem',
+                            borderRadius: isMobile ? '12px' : '14px',
                             background: 'rgba(249, 115, 22, 0.06)',
                             border: '1px solid rgba(249, 115, 22, 0.2)',
-                            fontSize: '0.78rem',
+                            fontSize: isMobile ? '0.72rem' : '0.78rem',
                             color: '#cbd5e1',
-                            lineHeight: 1.5
+                            lineHeight: 1.45
                         }}>
                             💡 <strong style={{ color: '#f97316' }}>{isTr ? 'Quant Kasa Yönetimi Kuralı:' : 'Quant-Regel:'}</strong>{' '}
                             {isTr
