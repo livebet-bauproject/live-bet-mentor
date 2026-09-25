@@ -1,5 +1,29 @@
 [
   {
+    "id": "act_1790354695522_tnyw",
+    "timestamp": "2026-09-25T16:44:55.522Z",
+    "agent": "SENTINEL",
+    "level": "ALERT",
+    "message": "Veri akışında aksama tespit edildi (551s gecikme).",
+    "details": null
+  },
+  {
+    "id": "act_1790354695514_z1zs",
+    "timestamp": "2026-09-25T16:44:55.514Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1790354690494_lng0",
+    "timestamp": "2026-09-25T16:44:50.494Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
     "id": "act_1789725564032_a2za",
     "timestamp": "2026-09-18T09:59:24.032Z",
     "agent": "OFFICE",

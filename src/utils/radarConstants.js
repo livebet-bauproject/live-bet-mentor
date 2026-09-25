@@ -8,7 +8,8 @@ export const RADAR_SOURCES = [
     { id: 'zulubet', label: 'Zulubet', color: '#f472b6', iq: 'iq_zulubet' },
     { id: 'olbg', label: 'OLBG', color: '#00f2fe', iq: 'iq_olbg' },
     { id: 'soccervista', label: 'SoccerVista', color: '#fb923c', iq: 'iq_soccervista' },
-    { id: 'superbet', label: 'SuperBet', color: '#facc15', iq: 'iq_superbet' }
+    { id: 'superbet', label: 'SuperBet', color: '#facc15', iq: 'iq_superbet' },
+    { id: 'betano', label: 'Betano Acca', color: '#f97316', iq: 'iq_betano' }
 ];
 
 export const RADAR_BASE_URLS = {
@@ -21,5 +22,6 @@ export const RADAR_BASE_URLS = {
     prosoccer: 'https://www.prosoccer.eu',
     olbg: 'https://www.olbg.com/betting-tips/Football/1',
     soccervista: 'https://www.soccervista.com',
-    superbet: 'https://superbetpredictions.com'
+    superbet: 'https://superbetpredictions.com',
+    betano: 'https://www.betano.de'
 };

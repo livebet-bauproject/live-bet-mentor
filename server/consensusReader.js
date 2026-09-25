@@ -22,7 +22,8 @@ const KNOWN_SOURCES = [
     'statarea',
     'olbg',
     'soccervista',
-    'superbet'
+    'superbet',
+    'betano'
 ];
 
 function cleanTeamName(str) {

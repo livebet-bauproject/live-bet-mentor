@@ -506,6 +506,7 @@ app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
 let memoryLiveData = null;
 let memoryConsensusData = null;
 let memorySharpPicksData = null;
+let memoryBetanoCards = null;
 let memoryOddsData = null;
 let memoryStatsCache = {};
 let lastUploadTime = 0;
@@ -646,6 +647,16 @@ app.post('/api/sync/sharp-picks', express.json({ limit: '10mb' }), (req, res) =>
     memorySharpPicksData = req.body;
     try { fs.writeFileSync(SHARP_PICKS_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
     console.log(`[SYNC] Received sharp picks: ${(req.body?.today_picks || []).length} picks`);
+    res.json({ ok: true });
+});
+
+app.post('/api/sync/betano', express.json({ limit: '10mb' }), (req, res) => {
+    if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    memoryBetanoCards = req.body;
+    try { fs.writeFileSync(BETANO_CARDS_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
+    console.log(`[SYNC] Received Betano cards: ${(req.body?.cards || []).length} cards`);
     res.json({ ok: true });
 });
 
@@ -887,6 +898,50 @@ app.get('/api/sharp-picks', async (req, res) => {
         today_picks: [],
         yesterday_summary: { total: 0, won: 0, lost: 0, pending: 0, win_rate: 0.0, avg_odds: 0.0, picks: [] }
     });
+});
+
+// 2c. Betano Acca & Sentiment Radar
+const BETANO_CARDS_FILE = path.join(__dirname, 'betano_cards.json');
+app.get(['/api/betano/cards', '/api/betano/acca'], (req, res) => {
+    const refresh = req.query.refresh === 'true' || req.query.refresh === '1';
+    let shouldRunScraper = refresh;
+
+    if (!fs.existsSync(BETANO_CARDS_FILE)) {
+        shouldRunScraper = true;
+    } else {
+        try {
+            const stats = fs.statSync(BETANO_CARDS_FILE);
+            const ageMinutes = (Date.now() - stats.mtimeMs) / (1000 * 60);
+            if (ageMinutes > 30) shouldRunScraper = true;
+        } catch (e) {
+            shouldRunScraper = true;
+        }
+    }
+
+    if (shouldRunScraper && !IS_CLOUD) {
+        try {
+            console.log('[PROXY] Refreshing Betano cards via betano_scraper.py...');
+            spawnSync('python', [path.join(__dirname, 'betano_scraper.py')], { timeout: 15000 });
+        } catch (e) {
+            console.error('[PROXY] Error refreshing Betano cards:', e.message);
+        }
+    }
+
+    if (memoryBetanoCards) {
+        return res.json(memoryBetanoCards);
+    }
+
+    if (fs.existsSync(BETANO_CARDS_FILE)) {
+        try {
+            res.setHeader('Content-Type', 'application/json');
+            const data = fs.readFileSync(BETANO_CARDS_FILE, 'utf8');
+            return res.send(data);
+        } catch (e) {
+            console.error('[PROXY] Error reading betano_cards.json:', e.message);
+        }
+    }
+
+    res.json({ status: 'pending', cards: [] });
 });
 
 // 3. Match Details (with freshness check)
@@ -4437,6 +4492,22 @@ function startSharpPicksEngine() {
     }
 }
 
+function startBetanoScraper() {
+    if (IS_CLOUD) return;
+    console.log('[PROXY] Initializing Betano Acca & Sentiment Scraper...');
+    const runBetano = () => {
+        try {
+            const pyProc = spawn('python', [path.join(__dirname, 'betano_scraper.py')]);
+            pyProc.stdout.on('data', (d) => console.log(`[BETANO_STDOUT] ${d}`));
+            pyProc.stderr.on('data', (d) => console.error(`[BETANO_STDERR] ${d}`));
+        } catch (e) {
+            console.error('[PROXY] Betano scraper spawn error:', e.message);
+        }
+    };
+    runBetano();
+    setInterval(runBetano, 30 * 60 * 1000); // Poll every 30 minutes
+}
+
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`[PROXY SERVER] Running on http://0.0.0.0:${PORT} (accessible from network)`);
@@ -4466,6 +4537,7 @@ app.listen(PORT, '0.0.0.0', async () => {
     setTimeout(() => {
         startConsensusScraper();
         startSharpPicksEngine();
+        startBetanoScraper();
     }, 10000);
 
     // 24/7 CLOUD MODE: Keep-alive self-ping to prevent Render free-tier spin-down

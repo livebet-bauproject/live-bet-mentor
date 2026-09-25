@@ -7,6 +7,7 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { spawnSync } from 'child_process';
 import {
     formatVIPSignal,
     resolveMarketText,
@@ -21,7 +22,8 @@ import {
     formatGoldenCombo,
     formatLatencyArbitrageAlert,
     formatFomoWinningCard,
-    formatTrialExpiringOffer
+    formatTrialExpiringOffer,
+    formatBetanoRadar
 } from './telegramTemplates.js';
 import { learningEngine } from './learningEngine.js';
 import { cashOutEngine } from './cashOutEngine.js';
@@ -1730,18 +1732,50 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                 break;
             }
 
+            case '/betano':
             case '/combo':
             case '/kupon':
             case '/kombine':
             case '/kombi': {
                 const isTr = userLang === 'tr';
                 const isDe = userLang === 'de';
-                const msg = isTr
-                    ? `🎟️ *Canlı Altın Çifte (Kombine Sihirbazı):*\n\nQuant algoritmalarımız devam eden canlı maçları analiz eder ve en yüksek olasılıklı iki değeri tek bir yüksek +EV kuponunda birleştirir.\n\n_Özel canlı kombine alarmları doğrudan VIP kanalımızda paylaşılmaktadır._\n\n👉 VIP Deneme Başlat: /deneme`
-                    : isDe
-                    ? `🎟️ *Live Gold-Kombi (Kombi-Assistent):*\n\nUnsere Algorithmen scannen laufende Spiele und kombinieren die beiden stärksten Value-Picks zu einer mathematisch optimierten Doppelwette (+EV).\n\n_Exklusive Gold-Kombi-Alarme werden direkt im VIP-Kanal geteilt._\n\n👉 VIP-Test starten: /test`
-                    : `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n_Curated golden double alerts are dispatched directly into our private VIP Syndicate._\n\n👉 Access VIP: /trial`;
-                await this.sendMessage(chatId, msg);
+
+                const betanoFile = path.join(__dirname, 'betano_cards.json');
+                let betanoData = null;
+
+                try {
+                    let shouldRefresh = false;
+                    if (!fs.existsSync(betanoFile)) {
+                        shouldRefresh = true;
+                    } else {
+                        const stats = fs.statSync(betanoFile);
+                        const ageMinutes = (Date.now() - stats.mtimeMs) / (1000 * 60);
+                        if (ageMinutes > 30) shouldRefresh = true;
+                    }
+
+                    if (shouldRefresh) {
+                        spawnSync('python', [path.join(__dirname, 'betano_scraper.py')], { timeout: 15000 });
+                    }
+
+                    if (fs.existsSync(betanoFile)) {
+                        const raw = fs.readFileSync(betanoFile, 'utf8');
+                        betanoData = JSON.parse(raw);
+                    }
+                } catch (e) {
+                    console.error('[TELEGRAM] Betano radar load error:', e.message);
+                }
+
+                if (betanoData && betanoData.cards && betanoData.cards.length > 0) {
+                    const radarMsg = formatBetanoRadar(betanoData, userLang);
+                    await this.sendMessage(chatId, radarMsg);
+                } else {
+                    const msg = isTr
+                        ? `🎟️ *Canlı Altın Çifte (Kombine Sihirbazı):*\n\nQuant algoritmalarımız devam eden canlı maçları analiz eder ve en yüksek olasılıklı iki değeri tek bir yüksek +EV kuponunda birleştirir.\n\n_Özel canlı kombine alarmları doğrudan VIP kanalımızda paylaşılmaktadır._\n\n👉 VIP Deneme Başlat: /deneme`
+                        : isDe
+                        ? `🎟️ *Live Gold-Kombi (Kombi-Assistent):*\n\nUnsere Algorithmen scannen laufende Spiele und kombinieren die beiden stärksten Value-Picks zu einer mathematisch optimierten Doppelwette (+EV).\n\n_Exklusive Gold-Kombi-Alarme werden direkt im VIP-Kanal geteilt._\n\n👉 VIP-Test starten: /test`
+                        : `🎟️ *In-Play Golden Double (Combo Wizard):*\n\nOur quant algorithms automatically scan ongoing matches and pair the 2 highest-probability correlated opportunities into a high-EV double.\n\n_Curated golden double alerts are dispatched directly into our private VIP Syndicate._\n\n👉 Access VIP: /trial`;
+                    await this.sendMessage(chatId, msg);
+                }
                 break;
             }
 

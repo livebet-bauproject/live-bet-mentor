@@ -655,6 +655,21 @@ class ConsensusScraper:
             try: driver.quit()
             except: pass
 
+    # 11. BETANO (Popular Acca & Sentiment Radar)
+    def scrape_betano(self):
+        print("[CONSENSUS] Scraping Betano Acca & Sentiment...")
+        try:
+            from betano_scraper import process_and_save
+            process_and_save()
+            # If betano_cards was saved, reload it into self.results
+            if os.path.exists(OUTPUT_FILE):
+                with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
+                    c_data = json.load(f)
+                    if "betano" in c_data:
+                        self.results["betano"] = c_data["betano"]
+        except Exception as e:
+            print(f"[CONSENSUS] Betano error: {e}")
+
     def run_all(self, sites_to_run=None):
         print(f"[CONSENSUS] Starting comprehensive full run at {datetime.now().isoformat()}")
         all_methods = {
@@ -667,7 +682,8 @@ class ConsensusScraper:
             "zulubet": self.scrape_zulubet,
             "olbg": self.scrape_olbg,
             "superbet": self.scrape_superbet,
-            "soccervista": self.scrape_soccervista
+            "soccervista": self.scrape_soccervista,
+            "betano": self.scrape_betano
         }
 
         target_sites = sites_to_run if sites_to_run else all_methods.keys()

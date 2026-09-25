@@ -6,6 +6,7 @@ import { autoSettlementEngine } from '../logic/autoSettlementEngine';
 import { FAQ } from './FAQ';
 import { StakingCalculator } from './StakingCalculator';
 import { SharpPicksCard } from './SharpPicksCard';
+import { BetanoRadarCard } from './BetanoRadarCard';
 import { translations } from '../locales/translations';
 import { AdminPanel } from './AdminPanel';
 import { consensusAdapter } from '../backend/consensusAdapter';
@@ -617,6 +618,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
     const [showStakingCalc, setShowStakingCalc] = useState(false);
     const [showSharpPicks, setShowSharpPicks] = useState(false);
+    const [showBetanoRadar, setShowBetanoRadar] = useState(false);
+    const [sharpSubTab, setSharpSubTab] = useState('MENTOR'); // 'MENTOR' | 'BETANO'
     const [liveOpportunitiesLimit, setLiveOpportunitiesLimit] = useState(5);
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
     const [momentumWindow, setMomentumWindow] = useState(10);
@@ -5152,6 +5155,20 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span className="tab-live-count" style={{ background: view === 'SHARP_PICKS' ? 'rgba(0,0,0,0.3)' : '#0284c7', color: '#fff', fontWeight: 800 }}>10</span>
                         </button>
                         <button
+                            className="unified-tab-btn"
+                            onClick={() => setShowBetanoRadar(true)}
+                            style={{
+                                border: '1px solid rgba(249, 115, 22, 0.45)',
+                                background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.22), rgba(234, 88, 12, 0.12))',
+                                color: '#f97316',
+                                fontWeight: 800
+                            }}
+                        >
+                            <span>⚡</span>
+                            <span>{lang === 'tr' ? 'BETANO KOMBİ' : (lang === 'de' ? 'BETANO-KOMBI' : 'BETANO ACCA')}</span>
+                            <span className="tab-live-count" style={{ background: '#f97316', color: '#000', fontWeight: 900 }}>HOT</span>
+                        </button>
+                        <button
                             className={`unified-tab-btn ${view === 'PORTFOLIO' ? 'active' : ''}`}
                             onClick={() => setView('PORTFOLIO')}
                             style={{
@@ -5358,7 +5375,56 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 />
             ) : view === 'SHARP_PICKS' ? (
                 <div style={{ maxWidth: '960px', margin: '1.5rem auto 3rem', padding: '0 1rem' }}>
-                    <SharpPicksCard lang={lang} t={t} />
+                    <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                            onClick={() => setSharpSubTab('MENTOR')}
+                            style={{
+                                padding: '0.65rem 1.4rem',
+                                borderRadius: '12px',
+                                border: sharpSubTab === 'MENTOR' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                                background: sharpSubTab === 'MENTOR' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(129, 140, 248, 0.1))' : 'rgba(255,255,255,0.03)',
+                                color: sharpSubTab === 'MENTOR' ? '#38bdf8' : '#94a3b8',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                            }}
+                        >
+                            <span>⭐</span>
+                            <span>{lang === 'tr' ? 'Mentor Alpha Keskin Seçimler (10)' : (lang === 'de' ? 'Mentor Alpha Sharp-Picks (10)' : 'Mentor Alpha Sharp Picks (10)')}</span>
+                        </button>
+
+                        <button
+                            onClick={() => setSharpSubTab('BETANO')}
+                            style={{
+                                padding: '0.65rem 1.4rem',
+                                borderRadius: '12px',
+                                border: sharpSubTab === 'BETANO' ? '1px solid #f97316' : '1px solid rgba(255,255,255,0.08)',
+                                background: sharpSubTab === 'BETANO' ? 'linear-gradient(135deg, rgba(249, 115, 22, 0.25), rgba(234, 88, 12, 0.1))' : 'rgba(255,255,255,0.03)',
+                                color: sharpSubTab === 'BETANO' ? '#f97316' : '#94a3b8',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                            }}
+                        >
+                            <span>⚡</span>
+                            <span>{lang === 'tr' ? 'Betano Vitrin & Kombine Radarı' : (lang === 'de' ? 'Betano Kombi- & Fallen-Radar' : 'Betano Acca & Trap Radar')}</span>
+                            <span style={{ fontSize: '0.65rem', background: '#f97316', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 }}>HOT</span>
+                        </button>
+                    </div>
+
+                    {sharpSubTab === 'BETANO' ? (
+                        <BetanoRadarCard lang={lang} t={t} />
+                    ) : (
+                        <SharpPicksCard lang={lang} t={t} />
+                    )}
                 </div>
             ) : view === 'RADAR' ? (
                 <div className="radar-view">
@@ -5420,6 +5486,27 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     }}
                                 >
                                     <span>🎯</span> {t.sharp_open_btn || 'GÜNÜN KESKİN SEÇİMLERİ (10)'}
+                                </button>
+
+                                <button
+                                    onClick={() => setShowBetanoRadar(true)}
+                                    style={{
+                                        padding: '0.6rem 1.2rem',
+                                        borderRadius: '10px',
+                                        border: '1px solid #f97316',
+                                        background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.25), rgba(234, 88, 12, 0.1))',
+                                        color: '#f97316',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        boxShadow: '0 4px 15px rgba(249, 115, 22, 0.2)'
+                                    }}
+                                >
+                                    <span>⚡</span> {lang === 'tr' ? 'BETANO KOMBİ RADARI' : (lang === 'de' ? 'BETANO KOMBI-RADAR' : 'BETANO ACCA RADAR')}
                                 </button>
 
                                 <button
@@ -9194,6 +9281,23 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     </div>
                 </div>
             )}
+            {showBetanoRadar && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px'
+                }} onClick={() => setShowBetanoRadar(false)}>
+                    <div style={{ maxHeight: '90vh', overflowY: 'auto', width: '100%', maxWidth: '960px' }} onClick={e => e.stopPropagation()}>
+                        <BetanoRadarCard lang={lang} t={t} onClose={() => setShowBetanoRadar(false)} />
+                    </div>
+                </div>
+            )}
             {showStakingCalc && <StakingCalculator onClose={() => setShowStakingCalc(false)} lang={lang} />}
             {showFAQ && <FAQ onClose={() => setShowFAQ(false)} lang={lang} mode={faqMode} />}
             <button
@@ -9372,6 +9476,16 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     <span className="mobile-nav-icon">⭐</span>
                     <span className="mobile-nav-label">{lang === 'tr' ? 'Keskin 10' : (lang === 'de' ? 'Sharp 10' : 'Sharp 10')}</span>
                     <span className="mobile-nav-badge" style={{ background: '#0284c7', color: '#fff' }}>10</span>
+                </button>
+                <button
+                    className="mobile-nav-item"
+                    onClick={() => setShowBetanoRadar(true)}
+                    type="button"
+                    style={{ color: '#f97316' }}
+                >
+                    <span className="mobile-nav-icon">⚡</span>
+                    <span className="mobile-nav-label">Betano</span>
+                    <span className="mobile-nav-badge" style={{ background: '#f97316', color: '#000', fontWeight: 900 }}>HOT</span>
                 </button>
                 <button
                     className={`mobile-nav-item ${view === 'PORTFOLIO' ? 'active' : ''}`}

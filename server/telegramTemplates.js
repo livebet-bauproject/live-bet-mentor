@@ -958,3 +958,80 @@ Your complimentary 3-day (72h) trial is about to conclude. To maintain uninterru
 💎 *Live Bet Mentor VIP Syndicate*`;
 }
 
+export function formatBetanoRadar(betanoData, lang = 'tr') {
+    const isTr = lang === 'tr';
+    const isDe = lang === 'de';
+
+    const cards = (betanoData && betanoData.cards) ? betanoData.cards : [];
+    if (!cards || cards.length === 0) {
+        if (isTr) return `ℹ️ *Betano Vitrin Verisi:* Şu anda güncel popüler kombine bulunamadı veya taranıyor. Lütfen biraz sonra tekrar deneyin.`;
+        if (isDe) return `ℹ️ *Betano-Radar:* Derzeit sind keine aktuellen Kombiwetten verfügbar. Bitte versuchen Sie es gleich erneut.`;
+        return `ℹ️ *Betano Radar:* No current accumulator cards available right now. Please retry in a few moments.`;
+    }
+
+    let header = `⚡ *BETANO VİTRİN & KOMBİNE ANALİZİ (TUZAĞA KARŞI SÜZGEÇ)* ⚡\n━━━━━━━━━━━━━━━━━━━━\n📊 _Bahis Bürosu Vitrin Kuponları & Sayısal Risk Raporu_\n\n`;
+    if (isDe) {
+        header = `⚡ *BETANO KOMBIWETTEN-AUDIT & TRAP-RADAR* ⚡\n━━━━━━━━━━━━━━━━━━━━\n📊 _Analyse beliebter Buchmacher-Kombis & Kapitalschutz_\n\n`;
+    } else if (!isTr) {
+        header = `⚡ *BETANO POPULAR ACCA & TRAP AUDIT* ⚡\n━━━━━━━━━━━━━━━━━━━━\n📊 _Bookmaker Accumulator Audit & Value Extraction_\n\n`;
+    }
+
+    const sections = cards.map(c => {
+        const title = cleanMd(c.title || c.card_type);
+        const totalOdds = c.total_odds || '1.00';
+        const m = c.metrics || {};
+        const vig = m.compounded_vig_pct || 24.6;
+        const winProb = m.true_win_prob_pct || 5.0;
+        const trapScore = m.trap_score || 65;
+        const verdict = cleanMd(m.verdict || 'YÜKSEK RİSK');
+        const dp = m.diamond_pick;
+        const traps = m.trap_legs || [];
+
+        let cardBlock = `📌 *${title}* (Toplam Oran: *${totalOdds}*)\n`;
+        if (isDe) {
+            cardBlock = `📌 *${title}* (Gesamtquote: *${totalOdds}*)\n`;
+            cardBlock += `• Kasa Marjı (Vig): *%${vig}* | Echte Gewinnchance: *%${winProb}*\n`;
+            cardBlock += `• Buchmacher-Falle: *${trapScore}/100* [${verdict}]\n`;
+            if (traps.length > 0) {
+                const trapNames = traps.map(t => `${cleanMd(t.event_name)} (@${t.price})`).slice(0, 2).join(', ');
+                cardBlock += `⚠️ *Aussortierte Fallen:* ${trapNames}\n`;
+            }
+            if (dp) {
+                cardBlock += `💎 *Empfohlene Value-Single:* ${cleanMd(dp.event_name)}\n   👉 *${cleanMd(dp.selection)}* (@${dp.price}) | Wahrscheinlichkeit: *%${dp.fair_prob_pct}*\n`;
+            }
+        } else if (!isTr) {
+            cardBlock = `📌 *${title}* (Total Odds: *${totalOdds}*)\n`;
+            cardBlock += `• House Edge (Vig): *%${vig}* | True Win Prob: *%${winProb}*\n`;
+            cardBlock += `• Trap Rating: *${trapScore}/100* [${verdict}]\n`;
+            if (traps.length > 0) {
+                const trapNames = traps.map(t => `${cleanMd(t.event_name)} (@${t.price})`).slice(0, 2).join(', ');
+                cardBlock += `⚠️ *Discarded Trap Legs:* ${trapNames}\n`;
+            }
+            if (dp) {
+                cardBlock += `💎 *Extracted Value Single:* ${cleanMd(dp.event_name)}\n   👉 *${cleanMd(dp.selection)}* (@${dp.price}) | Probability: *%${dp.fair_prob_pct}*\n`;
+            }
+        } else {
+            cardBlock += `• Kasa Marjı: *%${vig}* | Gerçek Kazanma Şansı: *%${winProb}*\n`;
+            cardBlock += `• Tuzak Riski: *${trapScore}/100* [${verdict}]\n`;
+            if (traps.length > 0) {
+                const trapNames = traps.map(t => `${cleanMd(t.event_name)} (@${t.price})`).slice(0, 2).join(', ');
+                cardBlock += `⚠️ *Elenen Riskli Maçlar:* ${trapNames}\n`;
+            }
+            if (dp) {
+                cardBlock += `💎 *Ayıklanan Cevher (Tekli/Değer):* ${cleanMd(dp.event_name)}\n   👉 *${cleanMd(dp.selection)}* (@${dp.price}) | Güven: *%${dp.fair_prob_pct}* (${dp.selection_count || 0}+ Oynanma)\n`;
+            }
+        }
+        return cardBlock;
+    }).join('\n');
+
+    let footer = `\n━━━━━━━━━━━━━━━━━━━━\n💡 *Altın Kural:* Bürolar 5 maçlık kuponları kasayı katlamak için vitrine koyar. Kuponu olduğu gibi oynamayın; yalnızca yukarıda 💎 *Cevher* olarak ayıklanan maçları tekli veya ikili olarak kasanıza ekleyin!\n💎 *Live Bet Mentor VIP*`;
+    if (isDe) {
+        footer = `\n━━━━━━━━━━━━━━━━━━━━\n💡 *Fazit:* Buchmacher nutzen 5er-Kombis für maximale Marge. Nicht blind nachspielen, sondern nur die 💎 *Value-Singles* diszipliniert anspielen!\n💎 *Live Bet Mentor VIP*`;
+    } else if (!isTr) {
+        footer = `\n━━━━━━━━━━━━━━━━━━━━\n💡 *Takeaway:* Bookmakers promote 5-leg parlays to compound house margin. Never bet the whole ticket; bet the 💎 *Extracted Value Singles* instead!\n💎 *Live Bet Mentor VIP*`;
+    }
+
+    return header + sections + footer;
+}
+
+
