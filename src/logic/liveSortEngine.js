@@ -869,3 +869,99 @@ export const formatMarketPrediction = (bet, lang = 'tr') => {
 
 // Backwards compatibility alias
 export const formatTipicoPrediction = formatMarketPrediction;
+
+/**
+ * Resolves entry score, entry minute, duration text and goals since entry for a trending market bet.
+ * @param {object} bet - The trending bet object (from API)
+ * @param {object} match - The live match object
+ * @param {string} lang - 'tr' | 'en' | 'de'
+ */
+export const getTrendTimelineInfo = (bet, match, lang = 'tr') => {
+    if (!bet) return null;
+
+    // 1. Current Match Score string
+    let curHome = 0;
+    let curAway = 0;
+    if (match?.score && typeof match.score === 'object') {
+        curHome = Number(match.score.home ?? 0) || 0;
+        curAway = Number(match.score.away ?? 0) || 0;
+    } else if (typeof match?.score === 'string') {
+        const parts = match.score.split(/[-:]/);
+        curHome = Number(parts[0]?.trim()) || 0;
+        curAway = Number(parts[1]?.trim()) || 0;
+    }
+    const currentScoreStr = `${curHome} - ${curAway}`;
+
+    // 2. Parse goals helper
+    const parseGoals = (s) => {
+        if (!s) return 0;
+        if (typeof s === 'object') return (Number(s.home) || 0) + (Number(s.away) || 0);
+        const parts = String(s).replace(/\s+/g, '').split(/[-:]/);
+        return (parseInt(parts[0], 10) || 0) + (parseInt(parts[1], 10) || 0);
+    };
+
+    // 3. Entry / Trigger Score
+    const entryScore = bet.firstSeenScore || bet.score || currentScoreStr;
+    const initialGoals = parseGoals(entryScore);
+    const currentGoals = parseGoals(currentScoreStr);
+    const goalsSince = Math.max(0, currentGoals - initialGoals);
+
+    // 4. Duration calculation
+    let durMinutes = 0;
+    if (typeof bet.durationMinutes === 'number') {
+        durMinutes = Math.max(0, bet.durationMinutes);
+    } else if (bet.firstSeenAt) {
+        durMinutes = Math.max(0, Math.floor((Date.now() - bet.firstSeenAt) / 60000));
+    }
+
+    let durationLabel = '';
+    if (durMinutes <= 1) {
+        durationLabel = lang === 'tr' ? 'Az önce girdi (< 1 dk)' : (lang === 'de' ? 'Gerade (< 1 Min)' : 'Just entered (< 1m)');
+    } else {
+        durationLabel = lang === 'tr' ? `${durMinutes} dk'dır aktif` : (lang === 'de' ? `seit ${durMinutes} Min aktiv` : `${durMinutes}m active`);
+    }
+
+    // 5. Entry minute estimation based on match's current minute
+    let entryMinStr = null;
+    const rawMin = match?.minute;
+    if (rawMin) {
+        const rawStr = String(rawMin).trim();
+        if (rawStr.includes('İY') || rawStr.includes('HT') || rawStr.toLowerCase().includes('half')) {
+            entryMinStr = "İY'";
+        } else {
+            const stoppage = rawStr.match(/(\d+)\s*\+\s*(\d+)/);
+            let curMinNum = null;
+            if (stoppage) {
+                curMinNum = (parseInt(stoppage[1], 10) || 0) + (parseInt(stoppage[2], 10) || 0);
+            } else {
+                const numMatch = rawStr.match(/\b([1-9]\d{0,2})\b/);
+                if (numMatch) {
+                    const parsed = parseInt(numMatch[1], 10);
+                    if (parsed > 0 && parsed <= 130) curMinNum = parsed;
+                }
+            }
+            if (curMinNum !== null) {
+                const calcMin = Math.max(1, curMinNum - durMinutes);
+                entryMinStr = `${calcMin}'`;
+            }
+        }
+    }
+
+    // 6. Check if it's a "Rest of Match" / Kalan Süre bet
+    const mStr = `${bet.market || ''} ${bet.marketShort || ''} ${bet.outcome || ''}`.toLowerCase();
+    const isRest = mStr.includes('restzeit') || mStr.includes('rest of the game') || mStr.includes('rest of game') || mStr.includes('kalan süre') || mStr.includes('kalan ');
+
+    return {
+        entryScore,
+        currentScoreStr,
+        goalsSince,
+        durMinutes,
+        durationLabel,
+        entryMinStr,
+        isRest,
+        initialGoals,
+        currentGoals,
+        isNew: durMinutes <= 3,
+        isStale: durMinutes >= 15
+    };
+};

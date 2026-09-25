@@ -846,28 +846,6 @@ function App() {
               <span>{lang === 'tr' ? '7/24 Canlı Destek Masası (VIP & Kripto Talebi)' : (lang === 'de' ? '24/7 Live-Support Desk (VIP & Krypto)' : '24/7 Live Support Desk (VIP & Crypto)')}</span>
             </button>
 
-            {/* Freemium Entry Option: Keeps users engaged with locked signals */}
-            <button
-              onClick={() => setPage('dashboard')}
-              style={{
-                background: 'rgba(56, 189, 248, 0.08)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
-                color: '#38bdf8',
-                padding: '0.8rem 1.5rem',
-                borderRadius: '12px',
-                cursor: 'pointer',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                transition: 'all 0.2s'
-              }}
-            >
-              <span>🔓</span>
-              <span>{lang === 'tr' ? 'Freemium Olarak Devam Et (Temel Radar)' : (lang === 'de' ? 'Im Freemium-Modus fortfahren (Basis-Radar)' : 'Continue in Freemium Mode (Basic Radar)')}</span>
-            </button>
 
             <button
               onClick={handleLogout}
@@ -917,6 +895,7 @@ function App() {
           user={session.user}
           userProfile={userProfile}
           onLogout={handleLogout}
+          onExpire={() => setPage('expired')}
           lang={lang}
           setLang={setLang}
           settings={systemSettings}

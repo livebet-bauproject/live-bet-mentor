@@ -94,7 +94,7 @@ export const renderMatchMinute = (minute, t, withLabel = false) => {
     return minStr.includes("'") ? minStr : `${minStr}'`;
 };
 
-export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings = {} }) => {
+export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang, settings = {} }) => {
     const isLocal = typeof window !== 'undefined' && (
         window.location.hostname === 'localhost' || 
         window.location.hostname === '127.0.0.1' ||
@@ -656,7 +656,62 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
             if (res && res.ok) {
                 const data = await res.json();
                 if (data.bets) {
-                    setTrendingBets(data.bets);
+                    // Sync & Enrich with Client LocalStorage so trend duration & entry score survive reloads and server cold-starts
+                    const STORAGE_KEY = 'livebet_trending_history_v1';
+                    let localHistory = {};
+                    try {
+                        const stored = localStorage.getItem(STORAGE_KEY);
+                        if (stored) localHistory = JSON.parse(stored);
+                    } catch (e) {
+                        localHistory = {};
+                    }
+
+                    const now = Date.now();
+                    const updatedHistory = { ...localHistory };
+
+                    const enrichedBets = data.bets.map(b => {
+                        const betKey = `${b.eventId}_${b.marketId}_${b.outcomeId}`;
+                        const existing = updatedHistory[betKey];
+
+                        let firstSeenAt = b.firstSeenAt || now;
+                        let firstSeenScore = b.firstSeenScore || b.score || '0-0';
+                        let durationMinutes = typeof b.durationMinutes === 'number' ? b.durationMinutes : 0;
+
+                        // If client already observed this trend earlier, retain earliest first-seen values
+                        if (existing && existing.firstSeenAt) {
+                            if (!b.firstSeenAt || existing.firstSeenAt < b.firstSeenAt || durationMinutes === 0) {
+                                firstSeenAt = existing.firstSeenAt;
+                                if (existing.firstSeenScore) firstSeenScore = existing.firstSeenScore;
+                                durationMinutes = Math.max(0, Math.floor((now - firstSeenAt) / 60000));
+                            }
+                        }
+
+                        updatedHistory[betKey] = {
+                            firstSeenAt,
+                            firstSeenScore,
+                            lastSeenAt: now
+                        };
+
+                        return {
+                            ...b,
+                            firstSeenAt,
+                            firstSeenScore,
+                            durationMinutes,
+                            isNewTrend: durationMinutes <= 2
+                        };
+                    });
+
+                    // Prune trends inactive for > 45 minutes from localStorage
+                    for (const [key, val] of Object.entries(updatedHistory)) {
+                        if (now - (val.lastSeenAt || 0) > 45 * 60 * 1000) {
+                            delete updatedHistory[key];
+                        }
+                    }
+                    try {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedHistory));
+                    } catch (e) {}
+
+                    setTrendingBets(enrichedBets);
                     setTrendingLastUpdated(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
                 }
             }
@@ -688,15 +743,25 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
     });
 
     useEffect(() => {
-        if (!userProfile?.subscription_end || userProfile?.plan !== 'trial') return;
+        const isAdmin = userProfile?.plan === 'admin' || userProfile?.email === 'admin@livebetmentor.com';
+        if (isAdmin || !userProfile?.subscription_end) return;
+
         const updateTimer = () => {
             const diff = Math.floor((new Date(userProfile.subscription_end).getTime() - Date.now()) / 1000);
-            setRemainingTrialSeconds(diff > 0 ? diff : 0);
+            if (diff <= 0) {
+                setRemainingTrialSeconds(0);
+                if (typeof onExpire === 'function') {
+                    onExpire();
+                }
+            } else {
+                setRemainingTrialSeconds(diff);
+            }
         };
+
         updateTimer();
         const timer = setInterval(updateTimer, 1000);
         return () => clearInterval(timer);
-    }, [userProfile?.subscription_end, userProfile?.plan]);
+    }, [userProfile?.subscription_end, userProfile?.plan, userProfile?.email, onExpire]);
 
     const formatTrialCountdown = (seconds) => {
         if (seconds <= 0) return '00:00:00';
@@ -4301,66 +4366,113 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                             </div>
 
                                             {/* Score & Minute Evolution Timeline */}
-                                            {(m.primaryBet.firstSeenScore || m.primaryTimeline?.sanitizedScore) && (
-                                                <div style={{
-                                                    marginTop: '0.5rem',
-                                                    padding: '0.4rem 0.65rem',
-                                                    borderRadius: '8px',
-                                                    background: 'rgba(0, 0, 0, 0.25)',
-                                                    border: '1px solid rgba(255, 255, 255, 0.06)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    fontSize: '0.72rem',
-                                                    fontWeight: 700,
-                                                    gap: '0.4rem',
-                                                    flexWrap: 'wrap'
-                                                }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                                        <span style={{ color: '#94a3b8' }}>📍 {lang === 'tr' ? 'Giriş:' : (lang === 'de' ? 'Start:' : 'Entry:')}</span>
-                                                        <span style={{ color: '#fbbf24', fontWeight: 800 }}>
-                                                            ⚽ {m.primaryTimeline?.sanitizedScore || evalInfo.sanitizedFirstSeenScore || m.primaryBet.firstSeenScore}
-                                                            {m.primaryTimeline?.entryMinStr ? (
-                                                                <span style={{ opacity: 0.85, marginLeft: '2px', fontWeight: 700, color: '#38bdf8' }}>
-                                                                    ({m.primaryTimeline.entryMinStr})
+                                            {(m.primaryBet.firstSeenScore || m.primaryTimeline?.sanitizedScore) && (() => {
+                                                const entryScore = m.primaryTimeline?.sanitizedScore || evalInfo.sanitizedFirstSeenScore || m.primaryBet.firstSeenScore || '0 - 0';
+                                                const currentScore = evalInfo.currentScoreStr || m.score || '0 - 0';
+                                                const entryMinStr = m.primaryTimeline?.entryMinStr || (evalInfo.liveMatch?.minute ? `${String(evalInfo.liveMatch.minute).replace(/'/g, '')}'` : null);
+                                                const currentMinStr = evalInfo.liveMatch?.minute ? renderMatchMinute(evalInfo.liveMatch.minute, t) : null;
+                                                const durMin = m.primaryTimeline?.durMin ?? 0;
+                                                const norm = (s) => String(s || '').replace(/[\s-:]/g, '');
+                                                const isSameScore = norm(entryScore) === norm(currentScore);
+                                                const hasEvolved = (evalInfo.goalsScoredSince > 0) || !isSameScore || (durMin >= 2);
+
+                                                return (
+                                                    <div style={{
+                                                        marginTop: '0.5rem',
+                                                        padding: '0.45rem 0.65rem',
+                                                        borderRadius: '8px',
+                                                        background: 'rgba(0, 0, 0, 0.28)',
+                                                        border: hasEvolved ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(56, 189, 248, 0.25)',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'space-between',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 700,
+                                                        gap: '0.4rem',
+                                                        flexWrap: 'wrap'
+                                                    }}>
+                                                        {hasEvolved ? (
+                                                            /* Evolution Progression: Entry -> Now */
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                                                                <span style={{ color: '#94a3b8' }}>📍 {lang === 'tr' ? 'Giriş:' : (lang === 'de' ? 'Start:' : 'Entry:')}</span>
+                                                                <span style={{ color: '#fbbf24', fontWeight: 800 }}>
+                                                                    ⚽ {entryScore}
+                                                                    {entryMinStr && (
+                                                                        <span style={{ opacity: 0.9, marginLeft: '2px', fontWeight: 700, color: '#38bdf8' }}>
+                                                                            ({entryMinStr})
+                                                                        </span>
+                                                                    )}
                                                                 </span>
-                                                            ) : (
-                                                                evalInfo.liveMatch?.minute && (
-                                                                    <span style={{ opacity: 0.7, marginLeft: '2px', fontWeight: 600 }}>
-                                                                        ({renderMatchMinute(evalInfo.liveMatch.minute, t)})
+                                                                <span style={{ opacity: 0.45, color: '#94a3b8' }}>──►</span>
+                                                                <span style={{ color: '#94a3b8' }}>🔴 {lang === 'tr' ? 'Şu An:' : (lang === 'de' ? 'Aktuell:' : 'Now:')}</span>
+                                                                <span style={{ color: '#f8fafc', fontWeight: 800 }}>
+                                                                    ⚽ {currentScore}
+                                                                    {currentMinStr && (
+                                                                        <span style={{ color: '#f87171', marginLeft: '2px', fontWeight: 800 }}>
+                                                                            ({currentMinStr})
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                                {durMin >= 2 && m.primaryTimeline?.durationText && (
+                                                                    <span style={{ color: '#94a3b8', opacity: 0.75, fontSize: '0.66rem', marginLeft: '2px' }}>
+                                                                        • ⏱️ {m.primaryTimeline.durationText}
                                                                     </span>
-                                                                )
-                                                            )}
-                                                        </span>
-                                                        <span style={{ opacity: 0.35 }}>──►</span>
-                                                        <span style={{ color: '#94a3b8' }}>🔴 {lang === 'tr' ? 'Şu An:' : (lang === 'de' ? 'Aktuell:' : 'Now:')}</span>
-                                                        <span style={{ color: '#f8fafc', fontWeight: 800 }}>
-                                                            ⚽ {evalInfo.currentScoreStr || m.score || '0 - 0'}
-                                                            {evalInfo.liveMatch?.minute && (
-                                                                <span style={{ color: '#f87171', marginLeft: '2px', fontWeight: 800 }}>
-                                                                    ({renderMatchMinute(evalInfo.liveMatch.minute, t)})
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            /* Freshly Detected in Radar: Clean single-badge entry without confusing duplicate -> duplicate arrow */
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                                                <span style={{
+                                                                    color: '#38bdf8',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px',
+                                                                    fontWeight: 800
+                                                                }}>
+                                                                    <span>⚡</span>
+                                                                    <span>{lang === 'tr' ? 'Radara Yeni Girdi:' : (lang === 'de' ? 'Neu im Radar:' : 'Newly In Radar:')}</span>
                                                                 </span>
-                                                            )}
-                                                        </span>
+                                                                <span style={{ color: '#fbbf24', fontWeight: 800 }}>
+                                                                    ⚽ {entryScore}
+                                                                    {entryMinStr && (
+                                                                        <span style={{ color: '#38bdf8', marginLeft: '2px', fontWeight: 700 }}>
+                                                                            ({entryMinStr})
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                                <span style={{
+                                                                    fontSize: '0.66rem',
+                                                                    padding: '1px 6px',
+                                                                    borderRadius: '4px',
+                                                                    background: 'rgba(56, 189, 248, 0.12)',
+                                                                    color: '#7dd3fc',
+                                                                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                                                                    fontWeight: 600
+                                                                }}>
+                                                                    {lang === 'tr' ? 'Canlı Takip Başladı (< 1 dk)' : (lang === 'de' ? 'Live-Tracking aktiv (< 1m)' : 'Live tracking active (< 1m)')}
+                                                                </span>
+                                                            </div>
+                                                        )}
+
+                                                        {evalInfo.goalsScoredSince > 0 ? (
+                                                            <span style={{
+                                                                color: '#10b981',
+                                                                fontWeight: 900,
+                                                                background: 'rgba(16, 185, 129, 0.15)',
+                                                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                                padding: '1px 6px',
+                                                                borderRadius: '4px'
+                                                            }}>
+                                                                +{evalInfo.goalsScoredSince} {lang === 'tr' ? 'Gol Geldi!' : (lang === 'de' ? 'Tore!' : 'Goal(s)!')}
+                                                            </span>
+                                                        ) : (
+                                                            <span style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>
+                                                                {lang === 'tr' ? 'Gol henüz yok' : (lang === 'de' ? 'Noch kein Tor' : 'No goals yet')}
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    {evalInfo.goalsScoredSince > 0 ? (
-                                                        <span style={{
-                                                            color: '#10b981',
-                                                            fontWeight: 900,
-                                                            background: 'rgba(16, 185, 129, 0.15)',
-                                                            border: '1px solid rgba(16, 185, 129, 0.3)',
-                                                            padding: '1px 6px',
-                                                            borderRadius: '4px'
-                                                        }}>
-                                                            +{evalInfo.goalsScoredSince} {lang === 'tr' ? 'Gol Geldi!' : (lang === 'de' ? 'Tore!' : 'Goal(s)!')}
-                                                        </span>
-                                                    ) : (
-                                                        <span style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 600 }}>
-                                                            {lang === 'tr' ? 'Gol henüz yok' : (lang === 'de' ? 'Noch kein Tor' : 'No goals yet')}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            )}
+                                                );
+                                            })()}
 
                                             {/* Market Synergy / Conflict Banner */}
                                             {m.synergy && (
@@ -8115,8 +8227,13 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                     </span>
                                 )}
                             </div>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-color)' }}>
-                                {renderMatchMinute(showAlertPopup.minute, t, false)} • {lang === 'tr' ? 'Skor:' : (lang === 'de' ? 'Stand:' : 'Score:')} {showAlertPopup.score}
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>{renderMatchMinute(showAlertPopup.minute, t, false)} • {lang === 'tr' ? 'Skor:' : (lang === 'de' ? 'Stand:' : 'Score:')} {showAlertPopup.score}</span>
+                                {showAlertPopup.timestamp && (
+                                    <span style={{ fontSize: '0.65rem', opacity: 0.7, color: '#94a3b8', fontWeight: 600 }}>
+                                        ({new Date(showAlertPopup.timestamp).toLocaleDateString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: '2-digit' })} {new Date(showAlertPopup.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+                                    </span>
+                                )}
                             </div>
                         </div>
 
@@ -8416,7 +8533,9 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                         {alertHistoryList.map(alert => {
                                             const rec = alert.recommendation || {};
                                             const betTitle = rec.predictionText || rec.marketLabel || rec.marketKey || (lang === 'tr' ? 'Tahmin' : (lang === 'de' ? 'Prognose' : 'Prediction'));
-                                            const timeStr = alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                                            const dateObj = alert.timestamp ? new Date(alert.timestamp) : null;
+                                            const dateStr = dateObj ? dateObj.toLocaleDateString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+                                            const timeStr = dateObj ? dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
                                             return (
                                                 <div
                                                     key={alert.id}
@@ -8473,7 +8592,23 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 )}
                                                             </span>
                                                         </div>
-                                                        <div style={{ fontSize: '0.7rem', opacity: 0.6 }}>{timeStr}</div>
+                                                        <div style={{
+                                                            fontSize: '0.72rem',
+                                                            opacity: 0.85,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '5px',
+                                                            fontWeight: 600,
+                                                            background: 'rgba(255,255,255,0.06)',
+                                                            padding: '2px 8px',
+                                                            borderRadius: '6px',
+                                                            border: '1px solid rgba(255,255,255,0.1)'
+                                                        }}>
+                                                            <span style={{ fontSize: '0.7rem' }}>📅</span>
+                                                            <span>{dateStr || '-'}</span>
+                                                            <span style={{ opacity: 0.35 }}>•</span>
+                                                            <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{timeStr || '-'}</span>
+                                                        </div>
                                                     </div>
 
                                                     {(() => {
@@ -8905,7 +9040,34 @@ export const Dashboard = ({ user, userProfile, onLogout, lang, setLang, settings
                                                                 )}
                                                             </div>
 
-                                                            <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '2px' }}>{pred.match}</div>
+                                                            {(() => {
+                                                                const predDateObj = (pred.timestamp || pred.created_at) ? new Date(pred.timestamp || pred.created_at) : null;
+                                                                const predDateStr = predDateObj ? predDateObj.toLocaleDateString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+                                                                const predTimeStr = predDateObj ? predDateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                                                                return (
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px', flexWrap: 'wrap', gap: '4px' }}>
+                                                                        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff' }}>{pred.match}</div>
+                                                                        {predDateObj && (
+                                                                            <div style={{
+                                                                                fontSize: '0.68rem',
+                                                                                opacity: 0.85,
+                                                                                display: 'inline-flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '4px',
+                                                                                background: 'rgba(255,255,255,0.06)',
+                                                                                padding: '2px 6px',
+                                                                                borderRadius: '4px',
+                                                                                border: '1px solid rgba(255,255,255,0.08)'
+                                                                            }}>
+                                                                                <span style={{ fontSize: '0.65rem' }}>📅</span>
+                                                                                <span>{predDateStr}</span>
+                                                                                <span style={{ opacity: 0.35 }}>•</span>
+                                                                                <span style={{ color: 'var(--accent-color)', fontWeight: 700 }}>{predTimeStr}</span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })()}
                                                             <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: 700 }}>
                                                                 🎯 {t[pred.market] || pred.market} • %{pred.confidence} {t.confidence_score}
                                                             </div>

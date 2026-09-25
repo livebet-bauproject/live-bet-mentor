@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
+import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
 import { CONFIG } from '../config';
@@ -224,6 +224,7 @@ export const LiveTerminalMobile = ({
                     const isTrendApproved = hasTrend && dqsVal >= 0.50;
                     const isTrendTrap = hasTrend && dqsVal < 0.40;
                     const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
+                    const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
 
                     // Consolidated Intelligence (Bayesian Radar & Risk Guard)
                     const bayesian = m?.observations?.bayesian;
@@ -333,6 +334,11 @@ export const LiveTerminalMobile = ({
                                             </span>
                                         )}
                                         <span style={{ opacity: 0.85, fontSize: '0.62rem' }}>• {totalTrendCount} {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Wettscheine' : 'Bets')}</span>
+                                        {trendInfo && (
+                                            <span style={{ opacity: 0.9, fontSize: '0.62rem', color: trendInfo.isNew ? '#34d399' : '#93c5fd', fontWeight: 700 }}>
+                                                • ⚽ {trendInfo.entryScore} {trendInfo.durMinutes > 0 ? `(${trendInfo.durMinutes}dk)` : ''}
+                                            </span>
+                                        )}
                                     </span>
                                 </div>
                             )}
@@ -700,11 +706,66 @@ export const LiveTerminalMobile = ({
                                                         : (lang === 'de' ? '📊 Marktzufluss' : (lang === 'tr' ? '📊 Piyasa Akışı' : '📊 Market Flow'))}
                                                 </span>
                                             </div>
+
+                                            {/* ⏱️ Score & Time Evolution Timeline Strip */}
+                                            {trendInfo && (
+                                                <div style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px',
+                                                    flexWrap: 'wrap',
+                                                    background: 'rgba(15, 23, 42, 0.65)',
+                                                    border: '1px solid rgba(56, 189, 248, 0.16)',
+                                                    borderRadius: '6px',
+                                                    padding: '5px 8px',
+                                                    fontSize: '0.68rem',
+                                                    marginBottom: '6px'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <span style={{ color: '#94a3b8' }}>📍 {lang === 'tr' ? 'Giriş:' : (lang === 'de' ? 'Start:' : 'Entry:')}</span>
+                                                        <span style={{ color: '#fbbf24', fontWeight: 900 }}>
+                                                            ⚽ {trendInfo.entryScore}
+                                                            {trendInfo.entryMinStr && <span style={{ color: '#38bdf8', marginLeft: '3px' }}>({trendInfo.entryMinStr})</span>}
+                                                        </span>
+                                                    </div>
+
+                                                    <span style={{ color: 'rgba(255,255,255,0.2)' }}>•</span>
+
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <span style={{ color: '#94a3b8' }}>⏱️ {trendInfo.durationLabel}</span>
+                                                        {trendInfo.isNew && (
+                                                            <span style={{ fontSize: '0.58rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '0 4px', borderRadius: '3px', fontWeight: 800 }}>
+                                                                {lang === 'tr' ? 'TAZE' : (lang === 'de' ? 'NEU' : 'FRESH')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+
+                                                    {trendInfo.goalsSince > 0 && (
+                                                        <div style={{ width: '100%', marginTop: '2px' }}>
+                                                            <span style={{ color: '#10b981', fontWeight: 900, background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.64rem' }}>
+                                                                ⚡ +{trendInfo.goalsSince} {lang === 'tr' ? 'Gol Geldi' : (lang === 'de' ? 'Tor gefallen' : 'Goal')} ({trendInfo.entryScore} ➔ {trendInfo.currentScoreStr})
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
                                             <div style={{ color: 'var(--tb-text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
                                                 <span><strong>{lang === 'tr' ? 'Piyasa Tercihi:' : (lang === 'de' ? 'Marktprognose:' : 'Market Pick:')}</strong> <span style={{ color: '#fff', fontWeight: 900 }}>{marketPrediction}</span></span>
                                                 <span><strong>{lang === 'tr' ? 'Oran:' : (lang === 'de' ? 'Quote:' : 'Odds:')}</strong> <span style={{ color: '#fbbf24', fontWeight: 800 }}>@{primaryTrend.odds}</span></span>
                                                 <span><strong>{lang === 'tr' ? 'Hacim:' : (lang === 'de' ? 'Volumen:' : 'Vol:')}</strong> <span style={{ color: '#f87171', fontWeight: 800 }}>{totalTrendCount} {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Wettscheine' : 'Bets')}</span></span>
                                             </div>
+
+                                            {trendInfo?.isRest && (
+                                                <div style={{ fontSize: '0.65rem', color: '#7dd3fc', background: 'rgba(56, 189, 248, 0.08)', border: '1px dashed rgba(56, 189, 248, 0.25)', borderRadius: '4px', padding: '3px 6px', marginBottom: '4px' }}>
+                                                    ℹ️ {lang === 'tr'
+                                                        ? `Kalan Süre: ${trendInfo.entryScore} anından sonraki goller sayılır (Toplam en az ${trendInfo.initialGoals + 1} gol).`
+                                                        : (lang === 'de'
+                                                            ? `Restzeit: Zählt ab ${trendInfo.entryScore} (Mind. ${trendInfo.initialGoals + 1} Tore gesamt).`
+                                                            : `Rest of match: Counts goals after ${trendInfo.entryScore} (Min ${trendInfo.initialGoals + 1} total goals).`)}
+                                                </div>
+                                            )}
+
                                             <div style={{ fontSize: '0.68rem', color: 'var(--tb-text-muted)', lineHeight: 1.3 }}>
                                                 {isTrendApproved
                                                     ? (lang === 'tr' ? `DQS (%${(dqsVal * 100).toFixed(0)}) piyasadaki tercihi (${marketPrediction}) teyit ediyor.` : (lang === 'de' ? `DQS (%${(dqsVal * 100).toFixed(0)}) bestätigt die Marktprognose (${marketPrediction}).` : `DQS (${(dqsVal * 100).toFixed(0)}%) confirms market pick (${marketPrediction}).`))

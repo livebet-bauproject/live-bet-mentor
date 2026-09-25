@@ -360,7 +360,24 @@ app.get('/api/debug', async (req, res) => {
 // --- INSTITUTIONAL MARKET MONEY FLOW ENDPOINT (EU LIVESTREAM) ---
 let marketTrendingCache = { data: null, time: 0 };
 const trendingHistoryMap = new Map();
-const TREND_TTL_MS = 30 * 60 * 1000; // 30 minutes TTL for inactive trends
+const TREND_TTL_MS = 45 * 60 * 1000; // 45 minutes TTL for inactive trends
+const TRENDING_HISTORY_FILE = path.join(__dirname, 'trending_history.json');
+
+// Restore trending history on startup so server restarts don't lose first-seen data
+try {
+    if (fs.existsSync(TRENDING_HISTORY_FILE)) {
+        const rawHistory = JSON.parse(fs.readFileSync(TRENDING_HISTORY_FILE, 'utf-8'));
+        const now = Date.now();
+        for (const [key, val] of Object.entries(rawHistory)) {
+            if (now - (val.lastSeenAt || 0) < TREND_TTL_MS) {
+                trendingHistoryMap.set(key, val);
+            }
+        }
+        console.log(`[MARKET_TRENDS] Restored ${trendingHistoryMap.size} trends from disk history.`);
+    }
+} catch (e) {
+    console.warn('[MARKET_TRENDS] History restore warning:', e.message);
+}
 
 app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
     // Return cache if fresh (< 45 seconds)
@@ -451,11 +468,19 @@ app.get(['/api/market/trending', '/api/tipico/trending'], async (req, res) => {
             };
         });
 
-        // Prune trends not seen in > 30 minutes to prevent memory leaks
+        // Prune trends not seen in > 45 minutes to prevent memory leaks
         for (const [key, val] of trendingHistoryMap.entries()) {
             if (now - val.lastSeenAt > TREND_TTL_MS) {
                 trendingHistoryMap.delete(key);
             }
+        }
+
+        // Persist trending history snapshot to disk
+        try {
+            const obj = Object.fromEntries(trendingHistoryMap.entries());
+            fs.writeFileSync(TRENDING_HISTORY_FILE, JSON.stringify(obj), 'utf-8');
+        } catch (saveErr) {
+            // Non-fatal disk write error
         }
 
         const result = {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
+import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
 import { CONFIG } from '../config';
@@ -233,6 +233,7 @@ export const LiveTerminalTable = ({
                             const isTrendApproved = hasTrend && dqsVal >= 0.50;
                             const isTrendTrap = hasTrend && dqsVal < 0.40;
                             const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
+                            const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
 
                             const riskFilters = (dataWorker && typeof dataWorker.checkRiskFilters === 'function')
                                 ? dataWorker.checkRiskFilters(m)
@@ -335,7 +336,7 @@ export const LiveTerminalTable = ({
                                                 <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <span
                                                         className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
-                                                        title={`Piyasa Bahis Hacmi: ${totalTrendCount} Kupon • Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
+                                                        title={`Piyasa Bahis Hacmi: ${totalTrendCount} Kupon • ${trendInfo ? `Giriş Skoru: ${trendInfo.entryScore}${trendInfo.entryMinStr ? ` (${trendInfo.entryMinStr})` : ''} • Süre: ${trendInfo.durationLabel} • ` : ''}Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})`}
                                                     >
                                                         <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
                                                         <span style={{ fontWeight: 900 }}>
@@ -350,6 +351,11 @@ export const LiveTerminalTable = ({
                                                             </span>
                                                         )}
                                                         <span style={{ opacity: 0.8, fontSize: '0.62rem' }}>• {totalTrendCount} {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Wettscheine' : 'Bets')}</span>
+                                                        {trendInfo && (
+                                                            <span style={{ opacity: 0.9, fontSize: '0.62rem', color: trendInfo.isNew ? '#34d399' : '#93c5fd', fontWeight: 700 }}>
+                                                                • ⚽ {trendInfo.entryScore} {trendInfo.durMinutes > 0 ? `(${trendInfo.durMinutes}dk)` : ''}
+                                                            </span>
+                                                        )}
                                                     </span>
                                                 </div>
                                             )}
@@ -923,7 +929,7 @@ export const LiveTerminalTable = ({
 
                                                         {hasTrend && (
                                                             <div className="tb-trend-box">
-                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                                                                     <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8' }}>
                                                                         📈 {lang === 'tr' ? 'AVRUPA PİYASA AKIŞI & HALK BAHİSİ' : (lang === 'de' ? 'EUROPÄISCHER MARKTZUFLUSS & PUBLIKUMSWETTEN' : 'EUROPEAN MARKET FLOW & PUBLIC BET')}
                                                                     </span>
@@ -935,12 +941,82 @@ export const LiveTerminalTable = ({
                                                                             : (lang === 'de' ? '📊 HOHER PUBLIKUMS-ZUFLUSS' : (lang === 'tr' ? '📊 YOĞUN HALK AKIŞI' : '📊 HIGH PUBLIC INFLUX'))}
                                                                     </span>
                                                                 </div>
+
+                                                                {/* ⏱️ Entry Score & Active Duration Timeline Strip */}
+                                                                {trendInfo && (
+                                                                    <div style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '12px',
+                                                                        flexWrap: 'wrap',
+                                                                        background: 'rgba(15, 23, 42, 0.65)',
+                                                                        border: '1px solid rgba(56, 189, 248, 0.16)',
+                                                                        borderRadius: '6px',
+                                                                        padding: '6px 10px',
+                                                                        fontSize: '0.72rem'
+                                                                    }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                            <span style={{ color: '#94a3b8' }}>📍 {lang === 'tr' ? 'Tahmin Giriş Skoru:' : (lang === 'de' ? 'Einstiegs-Spielstand:' : 'Entry Score:')}</span>
+                                                                            <span style={{ color: '#fbbf24', fontWeight: 900 }}>
+                                                                                ⚽ {trendInfo.entryScore}
+                                                                                {trendInfo.entryMinStr && (
+                                                                                    <span style={{ color: '#38bdf8', marginLeft: '4px', fontWeight: 700 }}>
+                                                                                        ({trendInfo.entryMinStr})
+                                                                                    </span>
+                                                                                )}
+                                                                            </span>
+                                                                        </div>
+
+                                                                        <span style={{ color: 'rgba(255,255,255,0.2)' }}>•</span>
+
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                            <span style={{ color: '#94a3b8' }}>⏱️ {lang === 'tr' ? 'Piyasa Süresi:' : (lang === 'de' ? 'Marktdauer:' : 'Market Duration:')}</span>
+                                                                            <span style={{ color: trendInfo.isNew ? '#34d399' : '#f1f5f9', fontWeight: 800 }}>
+                                                                                {trendInfo.durationLabel}
+                                                                            </span>
+                                                                            {trendInfo.isNew && (
+                                                                                <span style={{ fontSize: '0.62rem', background: 'rgba(52, 211, 153, 0.15)', color: '#34d399', padding: '1px 5px', borderRadius: '4px', fontWeight: 800 }}>
+                                                                                    {lang === 'tr' ? 'TAZE AKIŞ' : (lang === 'de' ? 'FRISCH' : 'FRESH')}
+                                                                                </span>
+                                                                            )}
+                                                                            {trendInfo.isStale && (
+                                                                                <span style={{ fontSize: '0.62rem', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>
+                                                                                    {lang === 'tr' ? 'UZUN SÜRELİ' : (lang === 'de' ? 'LANGZEIT' : 'EXTENDED')}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {trendInfo.goalsSince > 0 && (
+                                                                            <>
+                                                                                <span style={{ color: 'rgba(255,255,255,0.2)' }}>•</span>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                                    <span style={{ color: '#10b981', fontWeight: 900, background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                                                                                        ⚡ +{trendInfo.goalsSince} {lang === 'tr' ? 'Gol Geldi' : (lang === 'de' ? 'Tor gefallen' : 'Goal Scored')} ({trendInfo.entryScore} ➔ {trendInfo.currentScoreStr})
+                                                                                    </span>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
                                                                 <div style={{ fontSize: '0.75rem', color: 'var(--tb-text-secondary)', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
                                                                     <span><strong>{lang === 'tr' ? 'Piyasa Tercihi / Tahmini:' : (lang === 'de' ? 'Marktprognose:' : 'Market Prediction:')}</strong> <span style={{ color: '#fff', fontWeight: 900 }}>{marketPrediction}</span></span>
                                                                     <span><strong>{lang === 'tr' ? 'Pazar:' : (lang === 'de' ? 'Wettmarkt:' : 'Market:')}</strong> {primaryTrend.market}</span>
                                                                     <span><strong>{lang === 'tr' ? 'Oran:' : (lang === 'de' ? 'Quote:' : 'Odds:')}</strong> <span style={{ color: '#fbbf24', fontWeight: 800 }}>@{primaryTrend.odds}</span></span>
                                                                     <span><strong>{lang === 'tr' ? 'Son 5 Dk Hacim:' : (lang === 'de' ? 'Volumen letzte 5 Min.:' : 'Last 5m Volume:')}</strong> <span style={{ color: '#f87171', fontWeight: 800 }}>{totalTrendCount} {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Wettscheine' : 'Coupons')}</span></span>
                                                                 </div>
+
+                                                                {trendInfo?.isRest && (
+                                                                    <div style={{ fontSize: '0.69rem', color: '#7dd3fc', background: 'rgba(56, 189, 248, 0.08)', border: '1px dashed rgba(56, 189, 248, 0.25)', borderRadius: '4px', padding: '4px 8px' }}>
+                                                                        ℹ️ <strong>{lang === 'tr' ? 'Kalan Süre Kuralı:' : (lang === 'de' ? 'Restzeit-Regel:' : 'Rest of Match Rule:')}</strong>{' '}
+                                                                        {lang === 'tr'
+                                                                            ? `Bu bahis giriş anındaki (${trendInfo.entryScore}) skordan sonraki golleri sayar. Bahsin tutması için maçta toplam en az ${trendInfo.initialGoals + 1} gol gereklidir.`
+                                                                            : (lang === 'de'
+                                                                                ? `Diese Wette zählt Tore erst ab dem Spielstand ${trendInfo.entryScore}. Für einen Gewinn sind insgesamt mind. ${trendInfo.initialGoals + 1} Tore erforderlich.`
+                                                                                : `This bet counts goals scored after the ${trendInfo.entryScore} entry score. At least ${trendInfo.initialGoals + 1} total match goals are required.`)}
+                                                                    </div>
+                                                                )}
+
                                                                 <div style={{ fontSize: '0.7rem', color: 'var(--tb-text-muted)', lineHeight: 1.4 }}>
                                                                     {isTrendApproved
                                                                         ? (lang === 'tr' 
