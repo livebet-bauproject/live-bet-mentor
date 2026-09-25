@@ -16642,26 +16642,26 @@
   ],
   "betano": [
     {
-      "home": "Türkei",
-      "away": "Frankreich",
-      "league": "Nations League A",
+      "home": "Türkiye",
+      "away": "Fransa",
+      "league": "UEFA Uluslar Ligi A",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
         "1X2": {
           "pred": "2",
-          "price": 1.42,
+          "price": 1.4,
           "source_note": "Piyasa Yoğunluğu (6506 kupon)"
         }
       },
       "public_bets": 6506,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967090"
+      "timestamp": "2026-09-25T20:10:45.385777"
     },
     {
-      "home": "Italien",
-      "away": "Belgien",
-      "league": "Nations League A",
+      "home": "İtalya",
+      "away": "Belçika",
+      "league": "UEFA Uluslar Ligi A",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
@@ -16672,12 +16672,12 @@
       },
       "public_bets": 3341,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967119"
+      "timestamp": "2026-09-25T20:10:45.385801"
     },
     {
-      "home": "Montenegro",
-      "away": "Zypern",
-      "league": "Nations League C",
+      "home": "Karadağ",
+      "away": "Kıbrıs",
+      "league": "UEFA Uluslar Ligi C",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
@@ -16689,28 +16689,28 @@
       },
       "public_bets": 2720,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967133"
+      "timestamp": "2026-09-25T20:10:45.385818"
     },
     {
-      "home": "Ungarn",
-      "away": "Ukraine",
-      "league": "Nations League B",
+      "home": "Macaristan",
+      "away": "Ukrayna",
+      "league": "UEFA Uluslar Ligi B",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
         "OU15": {
           "pred": "OVER",
-          "price": 1.39
+          "price": 1.4
         }
       },
       "public_bets": 2569,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967147"
+      "timestamp": "2026-09-25T20:10:45.385832"
     },
     {
-      "home": "Marokko",
-      "away": "Gabun",
-      "league": "Afrika Cup Der Nationen - Qualifikationsspiele",
+      "home": "Fas",
+      "away": "Gabon",
+      "league": "Afrika Uluslar Kupası Elemeleri",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
@@ -16721,29 +16721,29 @@
       },
       "public_bets": 753,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967160"
+      "timestamp": "2026-09-25T20:10:45.385846"
     },
     {
-      "home": "Türkei",
-      "away": "Frankreich",
-      "league": "Nations League A",
+      "home": "Türkiye",
+      "away": "Fransa",
+      "league": "UEFA Uluslar Ligi A",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
         "1X2": {
           "pred": "2",
-          "price": 1.42,
+          "price": 1.4,
           "source_note": "Piyasa Yoğunluğu (6506 kupon)"
         }
       },
       "public_bets": 6506,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967218"
+      "timestamp": "2026-09-25T20:10:45.385935"
     },
     {
-      "home": "Ägypten",
+      "home": "Mısır",
       "away": "Angola",
-      "league": "Afrika Cup Der Nationen - Qualifikationsspiele",
+      "league": "Afrika Uluslar Kupası Elemeleri",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
@@ -16754,12 +16754,12 @@
       },
       "public_bets": 749,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967231"
+      "timestamp": "2026-09-25T20:10:45.385948"
     },
     {
-      "home": "Slowenien",
-      "away": "Schottland",
-      "league": "Nations League B",
+      "home": "Slovenya",
+      "away": "İskoçya",
+      "league": "UEFA Uluslar Ligi B",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
@@ -16770,12 +16770,12 @@
       },
       "public_bets": 552,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967242"
+      "timestamp": "2026-09-25T20:10:45.385960"
     },
     {
-      "home": "Algerien",
-      "away": "Sambia",
-      "league": "Afrika Cup Der Nationen - Qualifikationsspiele",
+      "home": "Cezayir",
+      "away": "Zambiya",
+      "league": "Afrika Uluslar Kupası Elemeleri",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
@@ -16786,12 +16786,12 @@
       },
       "public_bets": 519,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967253"
+      "timestamp": "2026-09-25T20:10:45.385971"
     },
     {
-      "home": "England U21",
-      "away": "Kasachstan U21",
-      "league": "Europäische Meisterschaft - Qualifikationsspiele U21",
+      "home": "İngiltere U21",
+      "away": "Kazakistan U21",
+      "league": "Avrupa U21 Şampiyonası Elemeleri",
       "date": "25.09",
       "score_pred": "N/A",
       "markets": {
@@ -16802,7 +16802,7 @@
       },
       "public_bets": 505,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:01:37.967265"
+      "timestamp": "2026-09-25T20:10:45.385984"
     }
   ]
 }

@@ -1,5 +1,248 @@
 import React, { useState, useEffect } from 'react';
 
+const DE_TO_TR_TEAMS = {
+    'Türkei': 'Türkiye',
+    'Frankreich': 'Fransa',
+    'Italien': 'İtalya',
+    'Belgien': 'Belçika',
+    'Montenegro': 'Karadağ',
+    'Zypern': 'Kıbrıs',
+    'Ungarn': 'Macaristan',
+    'Ukraine': 'Ukrayna',
+    'Marokko': 'Fas',
+    'Gabun': 'Gabon',
+    'Ägypten': 'Mısır',
+    'Angola': 'Angola',
+    'Slowenien': 'Slovenya',
+    'Schottland': 'İskoçya',
+    'Algerien': 'Cezayir',
+    'Sambia': 'Zambiya',
+    'England': 'İngiltere',
+    'Kasachstan': 'Kazakistan',
+    'Deutschland': 'Almanya',
+    'Spanien': 'İspanya',
+    'Niederlande': 'Hollanda',
+    'Portugal': 'Portekiz',
+    'Kroatien': 'Hırvatistan',
+    'Dänemark': 'Danimarka',
+    'Schweden': 'İsveç',
+    'Schweiz': 'İsviçre',
+    'Polen': 'Polonya',
+    'Serbien': 'Sırbistan',
+    'Bosnien': 'Bosna Hersek',
+    'Bosnien und Herzegowina': 'Bosna Hersek',
+    'Albanien': 'Arnavutluk',
+    'Griechenland': 'Yunanistan',
+    'Tschechien': 'Çekya',
+    'Slowakei': 'Slovakya',
+    'Rumänien': 'Romanya',
+    'Bulgarien': 'Bulgaristan',
+    'Österreich': 'Avusturya',
+    'Norwegen': 'Norveç',
+    'Finnland': 'Finlandiya',
+    'Island': 'İzlanda',
+    'Irland': 'İrlanda',
+    'Nordirland': 'Kuzey İrlanda',
+    'Wales': 'Galler',
+    'Georgien': 'Gürcistan',
+    'Armenien': 'Ermenistan',
+    'Aserbaidschan': 'Azerbaycan',
+    'Israel': 'İsrail',
+    'Saudi-Arabien': 'Suudi Arabistan',
+    'Katar': 'Katar',
+    'Vereinigte Arabische Emirate': 'BAE',
+    'Iran': 'İran',
+    'Irak': 'Irak',
+    'Japan': 'Japonya',
+    'Südkorea': 'Güney Kore',
+    'Australien': 'Avustralya',
+    'USA': 'ABD',
+    'Mexiko': 'Meksika',
+    'Kanada': 'Kanada',
+    'Brasilien': 'Brezilya',
+    'Argentinien': 'Arjantin',
+    'Kolombien': 'Kolombiya',
+    'Uruguay': 'Uruguay',
+    'Chile': 'Şili',
+    'Peru': 'Peru',
+    'Ecuador': 'Ekvador',
+    'Paraguay': 'Paraguay',
+    'Venezuela': 'Venezuela',
+    'Bolivien': 'Bolivya',
+    'Südafrika': 'Güney Afrika',
+    'Nigeria': 'Nijerya',
+    'Senegal': 'Senegal',
+    'Kamerun': 'Kamerun',
+    'Ghana': 'Gana',
+    'Elfenbeinküste': 'Fildişi Sahili',
+    'Tunesien': 'Tunus',
+    'Mali': 'Mali',
+    'Burkina Faso': 'Burkina Faso',
+    'Kongo': 'Kongo',
+    'DR Kongo': 'Kongo DC',
+    'Guinea': 'Gine',
+    'Kap Verde': 'Yeşil Burun Adaları',
+    'Madagaskar': 'Madagaskar',
+    'Mosambik': 'Mozambik',
+    'Benin': 'Benin',
+    'Togo': 'Togo',
+    'Uganda': 'Uganda',
+    'Kenia': 'Kenya',
+    'Tansania': 'Tanzanya',
+    'Simbabwe': 'Zimbabve',
+    'Sudan': 'Sudan',
+    'Libyen': 'Libya',
+    'Nordmazedonien': 'Kuzey Makedonya',
+    'Kosovo': 'Kosova',
+    'Moldawien': 'Moldova',
+    'Litauen': 'Litvanya',
+    'Lettland': 'Letonya',
+    'Estland': 'Estonya',
+    'Luxemburg': 'Lüksemburg',
+    'Malta': 'Malta',
+    'Andorra': 'Andorra',
+    'San Marino': 'San Marino',
+    'Gibraltar': 'Cebelitarık',
+    'Liechtenstein': 'Lihtenştayn',
+    'Färöer': 'Faroe Adaları',
+    'Usbekistan': 'Özbekistan',
+    'Jordanien': 'Ürdün',
+    'Bayern München': 'Bayern Münih',
+    'Roter Stern Belgrad': 'Kızılyıldız',
+    'Sporting Lissabon': 'Sporting Lizbon',
+    'Inter Mailand': 'Inter',
+    'AC Mailand': 'Milan',
+    'Juventus Turin': 'Juventus'
+};
+
+const DE_TO_TR_LEAGUES = {
+    'Nations League A': 'UEFA Uluslar Ligi A',
+    'Nations League B': 'UEFA Uluslar Ligi B',
+    'Nations League C': 'UEFA Uluslar Ligi C',
+    'Nations League D': 'UEFA Uluslar Ligi D',
+    'UEFA Nations League': 'UEFA Uluslar Ligi',
+    'Afrika Cup Der Nationen - Qualifikationsspiele': 'Afrika Uluslar Kupası Elemeleri',
+    'Afrika Cup der Nationen - Qualifikation': 'Afrika Uluslar Kupası Elemeleri',
+    'Afrika Cup': 'Afrika Uluslar Kupası',
+    'Europäische Meisterschaft - Qualifikationsspiele U21': 'Avrupa U21 Şampiyonası Elemeleri',
+    'Europäische Meisterschaft - Qualifikationsspiele': 'Avrupa Şampiyonası Elemeleri',
+    'Europameisterschaft - Qualifikation': 'Avrupa Şampiyonası Elemeleri',
+    'Weltmeisterschaft - Qualifikation': 'Dünya Kupası Elemeleri',
+    'Champions League': 'UEFA Şampiyonlar Ligi',
+    'Europa League': 'UEFA Avrupa Ligi',
+    'Conference League': 'UEFA Konferans Ligi',
+    'Freundschaftsspiele': 'Hazırlık Maçları',
+    'Internationale Freundschaftsspiele': 'Uluslararası Hazırlık Maçları',
+    'Premier League': 'İngiltere Premier Lig',
+    'LaLiga': 'İspanya La Liga',
+    'Serie A': 'İtalya Serie A',
+    'Bundesliga': 'Almanya Bundesliga',
+    '2. Bundesliga': 'Almanya 2. Bundesliga',
+    'Ligue 1': 'Fransa Ligue 1',
+    'Süper Lig': 'Trendyol Süper Lig'
+};
+
+const DE_TO_TR_MARKETS = {
+    'Endergebnis SuperQuoten': 'Maç Sonucu (Süper Oran)',
+    'Endergebnis Super Quoten': 'Maç Sonucu (Süper Oran)',
+    'Endergebnis': 'Maç Sonucu',
+    'Sieger': 'Maç Sonucu',
+    'Über/Unter Tore Gesamt': 'Toplam Gol Alt/Üst',
+    'Über / Unter Tore Gesamt': 'Toplam Gol Alt/Üst',
+    'Tore Gesamt': 'Toplam Gol',
+    'Beide Teams treffen': 'Karşılıklı Gol (KG)',
+    'Beide Teams treffen?': 'Karşılıklı Gol (KG)',
+    'Doppelte Chance': 'Çifte Şans',
+    'Halbzeit/Endstand': 'İlk Yarı / Maç Sonucu',
+    'Erste Halbzeit - Endergebnis': 'İlk Yarı Sonucu',
+    'Zweite Halbzeit - Endergebnis': 'İkinci Yarı Sonucu',
+    'Eckbälle Gesamt': 'Toplam Korner',
+    'Karten Gesamt': 'Toplam Kart'
+};
+
+function formatSingleTeam(name, isTr = true) {
+    if (!name || !isTr) return name || '';
+    let clean = name.trim();
+    let suffix = '';
+    for (const s of [' U21', ' U19', ' U20', ' U23', ' Frauen', ' (F)']) {
+        if (clean.endsWith(s)) {
+            suffix = s === ' Frauen' || s === ' (F)' ? ' Kadınlar' : s;
+            clean = clean.slice(0, -s.length).trim();
+            break;
+        }
+    }
+    return (DE_TO_TR_TEAMS[clean] || clean) + suffix;
+}
+
+function formatTeamName(name, isTr = true) {
+    if (!name) return '';
+    if (!isTr) return name;
+    if (name.includes(' - ')) {
+        const [t1, t2] = name.split(' - ');
+        return `${formatSingleTeam(t1, isTr)} - ${formatSingleTeam(t2, isTr)}`;
+    }
+    return formatSingleTeam(name, isTr);
+}
+
+function formatLeagueName(league, isTr = true) {
+    if (!league || !isTr) return league || '';
+    const clean = league.trim();
+    if (DE_TO_TR_LEAGUES[clean]) return DE_TO_TR_LEAGUES[clean];
+    let res = clean;
+    res = res.replace(/Nations League/g, 'UEFA Uluslar Ligi')
+             .replace(/Afrika Cup Der Nationen/g, 'Afrika Uluslar Kupası')
+             .replace(/Afrika Cup der Nationen/g, 'Afrika Uluslar Kupası')
+             .replace(/Europäische Meisterschaft/g, 'Avrupa Şampiyonası')
+             .replace(/Europameisterschaft/g, 'Avrupa Şampiyonası')
+             .replace(/Weltmeisterschaft/g, 'Dünya Kupası')
+             .replace(/Qualifikationsspiele/g, 'Elemeleri')
+             .replace(/Qualifikation/g, 'Elemeleri')
+             .replace(/Freundschaftsspiele/g, 'Hazırlık Maçları');
+    return res;
+}
+
+function formatMarketName(market, isTr = true) {
+    if (!market || !isTr) return market || '';
+    const clean = market.trim();
+    if (DE_TO_TR_MARKETS[clean]) return DE_TO_TR_MARKETS[clean];
+    let res = clean;
+    res = res.replace(/Endergebnis SuperQuoten/g, 'Maç Sonucu (Süper Oran)')
+             .replace(/Endergebnis/g, 'Maç Sonucu')
+             .replace(/Über\/Unter Tore Gesamt/g, 'Toplam Gol Alt/Üst')
+             .replace(/Über \/ Unter Tore Gesamt/g, 'Toplam Gol Alt/Üst')
+             .replace(/Tore Gesamt/g, 'Toplam Gol')
+             .replace(/Beide Teams treffen/g, 'Karşılıklı Gol');
+    return res;
+}
+
+function formatSelectionName(sel, leg = {}, isTr = true) {
+    if (!sel || !isTr) return sel || '';
+    const clean = sel.trim();
+    if (clean === 'Über 0.5') return '0.5 Gol Üst';
+    if (clean === 'Über 1.5') return '1.5 Gol Üst';
+    if (clean === 'Über 2.5') return '2.5 Gol Üst';
+    if (clean === 'Über 3.5') return '3.5 Gol Üst';
+    if (clean === 'Unter 0.5') return '0.5 Gol Alt';
+    if (clean === 'Unter 1.5') return '1.5 Gol Alt';
+    if (clean === 'Unter 2.5') return '2.5 Gol Alt';
+    if (clean === 'Unter 3.5') return '3.5 Gol Alt';
+    if (clean.startsWith('Über ')) return clean.replace('Über ', '') + ' Gol Üst';
+    if (clean.startsWith('Unter ')) return clean.replace('Unter ', '') + ' Gol Alt';
+    if (clean.toLowerCase().includes('unentschieden')) return 'Beraberlik (X)';
+    if (clean === 'Ja') return 'Evet (KG Var)';
+    if (clean === 'Nein') return 'Hayır (KG Yok)';
+
+    const home = leg.home || (leg.event_name ? leg.event_name.split(' - ')[0] : '');
+    const away = leg.away || (leg.event_name ? leg.event_name.split(' - ')[1] : '');
+    if (home && (clean.toLowerCase() === home.toLowerCase() || DE_TO_TR_TEAMS[clean] === home)) {
+        return `${formatSingleTeam(clean, isTr)} (MS 1)`;
+    }
+    if (away && (clean.toLowerCase() === away.toLowerCase() || DE_TO_TR_TEAMS[clean] === away)) {
+        return `${formatSingleTeam(clean, isTr)} (MS 2)`;
+    }
+    return formatSingleTeam(clean, isTr);
+}
+
 export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -195,7 +438,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                     boxShadow: isActive ? '0 4px 15px rgba(249, 115, 22, 0.2)' : 'none'
                                 }}
                             >
-                                <span>{c.title}</span>
+                                <span>
+                                    {isTr
+                                        ? (c.title || 'Sıcak Seçimler').replace(/Beliebte Kombiwette/gi, 'Sıcak Trend Seçim').replace(/Hot Picks/gi, 'Sıcak Seçimler')
+                                        : isDe
+                                        ? (c.title || 'Hot-Picks')
+                                        : (c.title || 'Hot Picks')}
+                                </span>
                                 <span style={{
                                     padding: '2px 6px',
                                     borderRadius: '6px',
@@ -346,10 +595,10 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                             {isTr ? 'KOMBİDEN AYIKLANAN CEVHER SEÇİM (TEKLİ DEĞER)' : 'AUS DER KOMBI SELEKTIERTER VALUE-TIPP'}
                                         </div>
                                         <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', marginTop: '0.2rem' }}>
-                                            {diamondPick.event_name}
+                                            {formatTeamName(diamondPick.event_name, isTr)}
                                         </div>
                                         <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem' }}>
-                                            <span style={{ color: '#cbd5e1' }}>[{diamondPick.league}]</span> &bull; {diamondPick.market}: <strong style={{ color: '#10b981' }}>{diamondPick.selection}</strong>
+                                            <span style={{ color: '#cbd5e1' }}>[{formatLeagueName(diamondPick.league, isTr)}]</span> &bull; {formatMarketName(diamondPick.market, isTr)}: <strong style={{ color: '#10b981' }}>{formatSelectionName(diamondPick.selection, diamondPick, isTr)}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -433,10 +682,10 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                                 </div>
                                                 <div>
                                                     <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#f8fafc' }}>
-                                                        {leg.event_name}
+                                                        {formatTeamName(leg.event_name, isTr)}
                                                     </div>
                                                     <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.1rem' }}>
-                                                        <span style={{ color: '#64748b' }}>[{leg.league}]</span> &bull; {leg.market}: <strong style={{ color: isDiamond ? '#10b981' : isTrap ? '#f87171' : '#e2e8f0' }}>{leg.selection}</strong>
+                                                        <span style={{ color: '#64748b' }}>[{formatLeagueName(leg.league, isTr)}]</span> &bull; {formatMarketName(leg.market, isTr)}: <strong style={{ color: isDiamond ? '#10b981' : isTrap ? '#f87171' : '#e2e8f0' }}>{formatSelectionName(leg.selection, leg, isTr)}</strong>
                                                     </div>
                                                 </div>
                                             </div>
@@ -452,10 +701,10 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                                         color: isDiamond ? '#10b981' : isTrap ? '#ef4444' : '#f59e0b',
                                                         border: isDiamond ? '1px solid rgba(16, 185, 129, 0.4)' : isTrap ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.3)'
                                                     }}>
-                                                        {isDiamond ? '💎 CEVHER (SEÇİLDİ)' : isTrap ? '⚠️ TUZAK (ELENDİ)' : 'ORTA RİSK'}
+                                                        {isDiamond ? (isTr ? '💎 CEVHER (SEÇİLDİ)' : '💎 VALUE-TIPP') : isTrap ? (isTr ? '⚠️ TUZAK (ELENDİ)' : '⚠️ FALLE') : (isTr ? 'ORTA RİSK' : 'MITTEL')}
                                                     </span>
                                                     <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                                        {leg.selection_count > 0 ? `${leg.selection_count} Oynanma` : ''}
+                                                        {leg.selection_count > 0 ? (isTr ? `${leg.selection_count} Oynanma` : `${leg.selection_count} Tipps`) : ''}
                                                     </div>
                                                 </div>
 

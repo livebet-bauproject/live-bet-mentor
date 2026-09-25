@@ -163,6 +163,33 @@ class LiveOpportunityScorer {
         const matchId = match.id;
         const minute = isHalftime ? 45 : this._parseMinute(match.minute, match);
 
+        // Strict Exclusion 1c: Blowout / Dead Match (Kopmuş / Ölü Maç)
+        // 4+ fark her zaman, 40'tan sonra 3+ fark, 65'ten sonra 3+ fark, 75'ten sonra 2+ fark veya toplam 6+ golde 2+ fark
+        let curHome = 0;
+        let curAway = 0;
+        if (typeof match.score === 'object' && match.score !== null) {
+            curHome = Number(match.score.home ?? 0);
+            curAway = Number(match.score.away ?? 0);
+        } else if (typeof match.score === 'string') {
+            const parts = match.score.split('-');
+            curHome = parseInt(parts[0], 10) || 0;
+            curAway = parseInt(parts[1], 10) || 0;
+        } else if (match.homeScore !== undefined || match.awayScore !== undefined) {
+            curHome = Number(match.homeScore?.current ?? match.homeScore ?? 0);
+            curAway = Number(match.awayScore?.current ?? match.awayScore ?? 0);
+        }
+        const curGoalDiff = Math.abs(curHome - curAway);
+        const curTotalGoals = curHome + curAway;
+        const isBlowout = curGoalDiff >= 4 ||
+            (minute >= 40 && curGoalDiff >= 3) ||
+            (minute >= 65 && curGoalDiff >= 3) ||
+            (minute >= 75 && curGoalDiff >= 2) ||
+            (curTotalGoals >= 6 && curGoalDiff >= 2);
+
+        if (isBlowout) {
+            return this._createEmptyResult('EXCLUDED_BLOWOUT', matchId);
+        }
+
         // Strict Exclusion 2: Outside active in-play window (late game closing/dead zone 80'+ or 90+)
         const maxMin = thresholds.MAX_MINUTE || 80;
         if (minute >= maxMin || minStr.includes('90+')) {
@@ -1301,9 +1328,9 @@ class LiveOpportunityScorer {
         }
     }
 
-    _createEmptyResult(reason = 'NO_DATA') {
+    _createEmptyResult(reason = 'NO_DATA', matchId = null) {
         return {
-            matchId: null,
+            matchId: matchId || null,
             score: 0,
             trend: 'STABLE',
             trendDelta: 0,

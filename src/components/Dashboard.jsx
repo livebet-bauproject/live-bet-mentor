@@ -26,7 +26,7 @@ import { LegalModal } from './LegalModal';
 import { LiveSupportChat } from './LiveSupportChat';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
+import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, isMatchBlowout, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import { trackPageView, trackAnalyticsEvent } from '../utils/analyticsTracker';
 import { getAdminHeaders } from '../utils/adminAuth';
 import '../styles/global.css';
@@ -2434,11 +2434,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             list = list.filter(m => isMatchHot(m, signals[m.id]));
         } else if (terminalCategoryFilter === 'RADAR_ALL') {
             list = list.filter(m => 
-                isMatchHighGoalProb(m, signals[m.id], 0.55) ||
-                isMatchXgSurplus(m, signals[m.id]) ||
-                isMatchSurgingLast20(m, signals[m.id]) ||
-                isMatchGoldenMinutes(m, signals[m.id]) ||
-                isMatchComeback(m, signals[m.id])
+                !isMatchBlowout(m) && (
+                    isMatchHighGoalProb(m, signals[m.id], 0.55) ||
+                    isMatchXgSurplus(m, signals[m.id]) ||
+                    isMatchSurgingLast20(m, signals[m.id]) ||
+                    isMatchGoldenMinutes(m, signals[m.id]) ||
+                    isMatchComeback(m, signals[m.id])
+                )
             );
         } else if (terminalCategoryFilter === 'SURGE_20') {
             list = list.filter(m => isMatchSurgingLast20(m, signals[m.id]));
@@ -6381,11 +6383,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             {/* Quick Category Filter Strip with Two Mini Sub-Tabs */}
                             {(() => {
                                 const radarMatchesCount = enforcedMatches.filter(filterByTier).filter(m => 
-                                    isMatchHighGoalProb(m, signals[m.id], 0.55) ||
-                                    isMatchXgSurplus(m, signals[m.id]) ||
-                                    isMatchSurgingLast20(m, signals[m.id]) ||
-                                    isMatchGoldenMinutes(m, signals[m.id]) ||
-                                    isMatchComeback(m, signals[m.id])
+                                    !isMatchBlowout(m) && (
+                                        isMatchHighGoalProb(m, signals[m.id], 0.55) ||
+                                        isMatchXgSurplus(m, signals[m.id]) ||
+                                        isMatchSurgingLast20(m, signals[m.id]) ||
+                                        isMatchGoldenMinutes(m, signals[m.id]) ||
+                                        isMatchComeback(m, signals[m.id])
+                                    )
                                 ).length;
 
                                 return (

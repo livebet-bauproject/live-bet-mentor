@@ -37,11 +37,35 @@ export const parseNumericMinute = (minute) => {
 };
 
 /**
+ * Determines if a match is a blowout / dead match (Kopmuş / Ölü Maç)
+ * Mirrors dataWorker.js deadMatch filter:
+ * 4+ fark her zaman, 40'tan sonra 3+ fark, 65'ten sonra 3+ fark, 75'ten sonra 2+ fark veya toplam 6+ golde 2+ fark
+ */
+export const isMatchBlowout = (match) => {
+    if (!match) return false;
+    const min = parseNumericMinute(match.minute);
+    let goalsHome = 0;
+    let goalsAway = 0;
+    if (typeof match.score === 'object' && match.score !== null) {
+        goalsHome = Number(match.score.home ?? 0);
+        goalsAway = Number(match.score.away ?? 0);
+    } else {
+        const parts = String(match.score || '0-0').split('-');
+        goalsHome = parseInt(parts[0], 10) || 0;
+        goalsAway = parseInt(parts[1], 10) || 0;
+    }
+    const goalDiff = Math.abs(goalsHome - goalsAway);
+    const totalGoals = goalsHome + goalsAway;
+    return goalDiff >= 4 || (min >= 40 && goalDiff >= 3) || (min >= 65 && goalDiff >= 3) || (min >= 75 && goalDiff >= 2) || (totalGoals >= 6 && goalDiff >= 2);
+};
+
+/**
  * Compute real-time Heat / Momentum Rank (0 - 100) for a match.
  * Used for dynamic auto-reordering.
  */
 export const calculateMatchHeatScore = (match, signal = null, oppData = null) => {
     if (!match) return 0;
+    if (isMatchBlowout(match)) return 0;
 
     // Direct opportunity score from liveOpportunityScorer if available
     const rawDirectOpp = oppData?.score ?? match.opportunityData?.score;
@@ -140,6 +164,7 @@ export const calculateMatchHeatScore = (match, signal = null, oppData = null) =>
  */
 export const isMatchHot = (match, signal = null) => {
     if (!match) return false;
+    if (isMatchBlowout(match)) return false;
     const sig = signal || match.signal;
     const opp = match.opportunityData;
     const heat = calculateMatchHeatScore(match, sig, opp);
@@ -345,9 +370,9 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
     const surgeScore = Math.max(0, Math.min(100, Math.round(score)));
 
     // Balanced Condition to be considered "Surging":
-    // Match in-play (between 15' and 87'), not finished.
+    // Match in-play (between 15' and 87'), not finished, not a blowout.
     const isLateOrFinished = currentMinute >= 88 || String(match.minute || '').includes('MS') || String(match.minute || '').includes('FT');
-    const isSurging = !isLateOrFinished && currentMinute >= 15 && (
+    const isSurging = !isLateOrFinished && !isMatchBlowout(match) && currentMinute >= 15 && (
         surgeScore >= 45 ||
         (deltaDA >= 5 && deltaShots >= 1) ||
         (livePressure >= 58 && deltaDA >= 4)
@@ -448,31 +473,9 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
  */
 export const isMatchSurgingLast20 = (match, signal = null) => {
     if (!match) return false;
+    if (isMatchBlowout(match)) return false;
     const metrics = calculateLast20MinMetrics(match, signal);
     return metrics.isSurging;
-};
-
-/**
- * Determines if a match is a blowout / dead match (Kopmuş / Ölü Maç)
- * Mirrors dataWorker.js deadMatch filter:
- * 65'ten sonra 3+ fark, 75'ten sonra 2+ fark, veya 4+ fark
- */
-export const isMatchBlowout = (match) => {
-    if (!match) return false;
-    const min = parseNumericMinute(match.minute);
-    let goalsHome = 0;
-    let goalsAway = 0;
-    if (typeof match.score === 'object') {
-        goalsHome = Number(match.score.home ?? 0);
-        goalsAway = Number(match.score.away ?? 0);
-    } else {
-        const parts = String(match.score || '0-0').split('-');
-        goalsHome = parseInt(parts[0], 10) || 0;
-        goalsAway = parseInt(parts[1], 10) || 0;
-    }
-    const goalDiff = Math.abs(goalsHome - goalsAway);
-    const totalGoals = goalsHome + goalsAway;
-    return (min >= 65 && goalDiff >= 3) || (min >= 75 && goalDiff >= 2) || (totalGoals >= 6 && goalDiff >= 2) || goalDiff >= 4;
 };
 
 /**
@@ -519,6 +522,7 @@ export const calculateGoalProbability = (match, signal = null) => {
  */
 export const isMatchHighGoalProb = (match, signal = null, threshold = 0.55) => {
     if (!match) return false;
+    if (isMatchBlowout(match)) return false;
     const minStr = String(match.minute || '').toLowerCase();
     const min = parseNumericMinute(match.minute);
     const isLateOrFinished = min >= 88 || minStr.includes('ms') || minStr.includes('ft');
@@ -534,6 +538,7 @@ export const isMatchHighGoalProb = (match, signal = null, threshold = 0.55) => {
  */
 export const isMatchXgSurplus = (match, signal = null) => {
     if (!match) return false;
+    if (isMatchBlowout(match)) return false;
     const min = parseNumericMinute(match.minute);
     const minStr = String(match.minute || '').toLowerCase();
     const isLateOrFinished = min >= 88 || minStr.includes('ms') || minStr.includes('ft');
@@ -587,6 +592,7 @@ export const isMatchXgSurplus = (match, signal = null) => {
  */
 export const isMatchGoldenMinutes = (match, signal = null) => {
     if (!match) return false;
+    if (isMatchBlowout(match)) return false;
     const min = parseNumericMinute(match.minute);
     const minStr = String(match.minute || '').toLowerCase();
     const isLateOrFinished = min > 86 || minStr.includes('ms') || minStr.includes('ft');
@@ -594,19 +600,6 @@ export const isMatchGoldenMinutes = (match, signal = null) => {
 
     // Must be in 68'-85' window
     if (min < 68 || min > 85) return false;
-
-    let goalsHome = 0;
-    let goalsAway = 0;
-    if (typeof match.score === 'object') {
-        goalsHome = Number(match.score.home ?? 0);
-        goalsAway = Number(match.score.away ?? 0);
-    } else {
-        const parts = String(match.score || '0-0').split('-');
-        goalsHome = parseInt(parts[0], 10) || 0;
-        goalsAway = parseInt(parts[1], 10) || 0;
-    }
-    const goalDiff = Math.abs(goalsHome - goalsAway);
-    if (goalDiff > 2) return false; // Exclude blowouts
 
     const heat = calculateMatchHeatScore(match, signal);
     const metrics = calculateLast20MinMetrics(match, signal);
