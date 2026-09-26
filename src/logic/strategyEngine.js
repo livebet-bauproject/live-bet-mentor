@@ -154,7 +154,7 @@ export const strategyEngine = {
      * İlk 30 dakika içindeki yüksek tempo.
      */
     checkFHG(match) {
-        const minute = match.minute || 0;
+        const minute = this._parseMinute(match);
         const score = match.score || { home: 0, away: 0 };
         const observations = match.observations || {};
         const pressure = observations.pressure?.total || 0;
@@ -252,7 +252,7 @@ export const strategyEngine = {
         const stats = match.stats || {};
         const observations = match.observations || {};
         const pressure = observations.pressure || {};
-        const minute = match.minute || 0;
+        const minute = this._parseMinute(match);
 
         const totalPressure = (pressure.home || 0) + (pressure.away || 0);
         const totalSog = (stats.shotsOnGoal?.home || 0) + (stats.shotsOnGoal?.away || 0);
@@ -412,7 +412,7 @@ export const strategyEngine = {
         const observations = match.observations || {};
         const pressure = observations.pressure || {};
         const redCards = pressure.redCards || {};
-        const minute = parseInt(match.minute) || 0;
+        const minute = this._parseMinute(match);
 
         if (redCards.advantage && redCards.advantage !== 'NONE' && redCards.advantage !== 'BALANCED_REDS') {
             const advTeam = redCards.advantage === 'HOME' ? match.homeTeam : match.awayTeam;

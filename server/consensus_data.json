@@ -16642,167 +16642,70 @@
   ],
   "betano": [
     {
-      "home": "Türkiye",
-      "away": "Fransa",
-      "league": "UEFA Uluslar Ligi A",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "2",
-          "price": 1.4,
-          "source_note": "Piyasa Yoğunluğu (6506 kupon)"
-        }
-      },
-      "public_bets": 6506,
-      "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385777"
-    },
-    {
-      "home": "İtalya",
-      "away": "Belçika",
-      "league": "UEFA Uluslar Ligi A",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "OU15": {
-          "pred": "OVER",
-          "price": 1.22
-        }
-      },
-      "public_bets": 3341,
-      "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385801"
-    },
-    {
-      "home": "Karadağ",
-      "away": "Kıbrıs",
-      "league": "UEFA Uluslar Ligi C",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "1X2": {
-          "pred": "1",
-          "price": 1.65,
-          "source_note": "Piyasa Yoğunluğu (2720 kupon)"
-        }
-      },
-      "public_bets": 2720,
-      "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385818"
-    },
-    {
-      "home": "Macaristan",
-      "away": "Ukrayna",
+      "home": "Kuzey Makedonya",
+      "away": "İsviçre",
       "league": "UEFA Uluslar Ligi B",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "OU15": {
-          "pred": "OVER",
-          "price": 1.4
-        }
-      },
-      "public_bets": 2569,
-      "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385832"
-    },
-    {
-      "home": "Fas",
-      "away": "Gabon",
-      "league": "Afrika Uluslar Kupası Elemeleri",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "OU25": {
-          "pred": "OVER",
-          "price": 1.5
-        }
-      },
-      "public_bets": 753,
-      "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385846"
-    },
-    {
-      "home": "Türkiye",
-      "away": "Fransa",
-      "league": "UEFA Uluslar Ligi A",
-      "date": "25.09",
+      "date": "26.09",
       "score_pred": "N/A",
       "markets": {
         "1X2": {
           "pred": "2",
-          "price": 1.4,
-          "source_note": "Piyasa Yoğunluğu (6506 kupon)"
+          "price": 1.38,
+          "source_note": "Piyasa Yoğunluğu (2156 kupon)"
         }
       },
-      "public_bets": 6506,
+      "public_bets": 2156,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385935"
+      "timestamp": "2026-09-26T12:39:56.205813"
     },
     {
-      "home": "Mısır",
-      "away": "Angola",
-      "league": "Afrika Uluslar Kupası Elemeleri",
-      "date": "25.09",
+      "home": "Çekya",
+      "away": "Hırvatistan",
+      "league": "UEFA Uluslar Ligi A",
+      "date": "26.09",
       "score_pred": "N/A",
       "markets": {
         "OU15": {
           "pred": "OVER",
-          "price": 1.42
+          "price": 1.28
         }
       },
-      "public_bets": 749,
+      "public_bets": 1547,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385948"
+      "timestamp": "2026-09-26T12:39:56.205842"
     },
     {
       "home": "Slovenya",
       "away": "İskoçya",
       "league": "UEFA Uluslar Ligi B",
-      "date": "25.09",
+      "date": "26.09",
       "score_pred": "N/A",
       "markets": {
         "OU15": {
           "pred": "OVER",
-          "price": 1.42
+          "price": 1.45
         }
       },
-      "public_bets": 552,
+      "public_bets": 1479,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385960"
+      "timestamp": "2026-09-26T12:39:56.205857"
     },
     {
-      "home": "Cezayir",
-      "away": "Zambiya",
-      "league": "Afrika Uluslar Kupası Elemeleri",
-      "date": "25.09",
+      "home": "Arnavutluk",
+      "away": "Belarus",
+      "league": "UEFA Uluslar Ligi C",
+      "date": "26.09",
       "score_pred": "N/A",
       "markets": {
-        "OU15": {
-          "pred": "OVER",
-          "price": 1.27
+        "1X2": {
+          "pred": "1",
+          "price": 1.62,
+          "source_note": "Piyasa Yoğunluğu (1427 kupon)"
         }
       },
-      "public_bets": 519,
+      "public_bets": 1427,
       "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385971"
-    },
-    {
-      "home": "İngiltere U21",
-      "away": "Kazakistan U21",
-      "league": "Avrupa U21 Şampiyonası Elemeleri",
-      "date": "25.09",
-      "score_pred": "N/A",
-      "markets": {
-        "OU25": {
-          "pred": "OVER",
-          "price": 1.22
-        }
-      },
-      "public_bets": 505,
-      "card_source": "Global Hot Picks",
-      "timestamp": "2026-09-25T20:10:45.385984"
+      "timestamp": "2026-09-26T12:39:56.205872"
     }
   ]
 }

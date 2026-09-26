@@ -95,6 +95,9 @@ const DE_TO_TR_TEAMS = {
     'Nordmazedonien': 'Kuzey Makedonya',
     'Kosovo': 'Kosova',
     'Moldawien': 'Moldova',
+    'Weißrussland': 'Belarus',
+    'Weissrussland': 'Belarus',
+    'Belarus': 'Belarus',
     'Litauen': 'Litvanya',
     'Lettland': 'Letonya',
     'Estland': 'Estonya',
@@ -243,6 +246,32 @@ function formatSelectionName(sel, leg = {}, isTr = true) {
     return formatSingleTeam(clean, isTr);
 }
 
+function formatTimeAgo(timestamp, isTr) {
+    if (!timestamp) return '';
+    try {
+        const date = new Date(timestamp);
+        if (isNaN(date.getTime())) return '';
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const timeStr = `${hours}:${minutes}`;
+
+        if (diffMins < 2) {
+            return `${timeStr} (${isTr ? 'Az önce' : 'Gerade'})`;
+        }
+        if (diffMins < 60) {
+            return `${timeStr} (${diffMins} ${isTr ? 'dk önce' : 'Min'})`;
+        }
+        const diffHours = Math.floor(diffMins / 60);
+        return `${timeStr} (${diffHours} ${isTr ? 'sa önce' : 'Std'})`;
+    } catch {
+        return '';
+    }
+}
+
 export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -299,6 +328,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
     const metrics = activeCard?.metrics || {};
     const diamondPick = metrics?.diamond_pick;
     const legs = activeCard?.events || [];
+    const lastScrapedTime = data?.timestamp || data?.last_scraped;
 
     return (
         <div style={{
@@ -313,6 +343,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
             <style>{`
                 .hot-picks-tabs-bar::-webkit-scrollbar { display: none !important; }
                 .hot-picks-tabs-bar { -ms-overflow-style: none !important; scrollbar-width: none !important; }
+                @keyframes spin-clockwise {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .spin-anim {
+                    animation: spin-clockwise 0.8s linear infinite !important;
+                }
             `}</style>
 
             {/* Header */}
@@ -357,6 +394,23 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                             }}>
                                 HOT
                             </span>
+                            {lastScrapedTime && (
+                                <span style={{
+                                    fontSize: '0.62rem',
+                                    fontWeight: 700,
+                                    padding: '1px 6px',
+                                    borderRadius: '5px',
+                                    background: 'rgba(255, 255, 255, 0.06)',
+                                    color: '#94a3b8',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    letterSpacing: '0.2px'
+                                }} title={`Son Tarama: ${lastScrapedTime}`}>
+                                    ⏱️ {formatTimeAgo(lastScrapedTime, isTr)}
+                                </span>
+                            )}
                         </div>
                         {!isMobile && (
                             <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
@@ -374,22 +428,23 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                     <button
                         onClick={() => fetchBetanoCards(true)}
                         disabled={refreshing}
+                        title={isTr ? 'Verileri Betano API üzerinden anlık güncelle' : 'Daten jetzt aktualisieren'}
                         style={{
                             padding: isMobile ? '0.45rem 0.65rem' : '0.55rem 1rem',
                             borderRadius: '10px',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: '#e2e8f0',
+                            background: refreshing ? 'rgba(249, 115, 22, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                            border: refreshing ? '1px solid rgba(249, 115, 22, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                            color: refreshing ? '#f97316' : '#e2e8f0',
                             fontSize: isMobile ? '0.72rem' : '0.75rem',
                             fontWeight: 700,
-                            cursor: 'pointer',
+                            cursor: refreshing ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.35rem',
                             transition: 'all 0.2s'
                         }}
                     >
-                        <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.8s ease' }}>
+                        <span className={refreshing ? 'spin-anim' : ''} style={{ display: 'inline-block', lineHeight: 1 }}>
                             🔄
                         </span>
                         {!isMobile && (refreshing ? (isTr ? 'Taranıyor...' : 'Laden...') : (isTr ? 'Yenile' : 'Aktualisieren'))}

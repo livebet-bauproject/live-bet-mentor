@@ -28,6 +28,15 @@ OUTPUT_FILE = os.path.join(SERVER_DIR, "betano_cards.json")
 CONSENSUS_FILE = os.path.join(SERVER_DIR, "consensus_data.json")
 
 try:
+    import site
+    if hasattr(site, 'getusersitepackages'):
+        _usp = site.getusersitepackages()
+        if _usp and _usp not in sys.path:
+            sys.path.insert(0, _usp)
+except Exception:
+    pass
+
+try:
     from curl_cffi import requests
 except ImportError:
     import requests
@@ -138,6 +147,9 @@ TEAM_TRANSLATIONS = {
     "Mazedonien": "Kuzey Makedonya",
     "Kosovo": "Kosova",
     "Moldawien": "Moldova",
+    "Weißrussland": "Belarus",
+    "Weissrussland": "Belarus",
+    "Belarus": "Belarus",
     "Litauen": "Litvanya",
     "Lettland": "Letonya",
     "Estland": "Estonya",

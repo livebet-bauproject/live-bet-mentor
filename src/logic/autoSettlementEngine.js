@@ -14,6 +14,7 @@
  */
 
 import { bankrollManager } from './bankrollManager.js';
+import { sofaScoreAdapter } from '../backend/sofaScoreAdapter.js';
 
 export class AutoSettlementEngine {
     constructor() {
@@ -44,6 +45,18 @@ export class AutoSettlementEngine {
         const minNum = parseInt(minStr, 10) || 0;
         return statusDesc.includes('ht') || statusDesc.includes('half') || 
                minStr === 'İY' || minStr === 'HT' || minNum >= 46 || this.isMatchFinished(match);
+    }
+
+    /**
+     * Checks if a match is cancelled, postponed, or abandoned
+     */
+    isMatchCancelledOrPostponed(match) {
+        if (!match) return false;
+        const statusType = (match.status?.type || '').toLowerCase();
+        const statusDesc = (match.status?.description || match.status || '').toString().toLowerCase();
+        return statusType === 'canceled' || statusType === 'postponed' || statusType === 'abandoned' ||
+               statusDesc.includes('postponed') || statusDesc.includes('cancel') || 
+               statusDesc.includes('ertelen') || statusDesc.includes('iptal') || statusDesc.includes('abandoned');
     }
 
     /**
@@ -105,8 +118,66 @@ export class AutoSettlementEngine {
             const homeScored = ftHome > (Number(scoreAtBet.home) || 0);
             const awayScored = ftAway > (Number(scoreAtBet.away) || 0);
 
-            if (isHomeTarget && !isAwayTarget) return homeScored;
-            if (isAwayTarget && !isHomeTarget) return awayScored;
+            // 1. Check incidents if available (from match.incidents or sofaScoreAdapter cache)
+            const incidents = (Array.isArray(match.incidents) && match.incidents.length > 0)
+                ? match.incidents
+                : (typeof sofaScoreAdapter !== 'undefined' && sofaScoreAdapter.getCachedIncidents ? sofaScoreAdapter.getCachedIncidents(match.id) : null);
+
+            const betMinute = Number(openEntry.minute) || 0;
+
+            if (Array.isArray(incidents) && incidents.length > 0) {
+                const goalIncidents = incidents
+                    .filter(inc => (inc.incidentType === 'goal' || inc.type === 'goal') && (inc.time > betMinute || betMinute === 0))
+                    .sort((a, b) => (a.time || 0) - (b.time || 0));
+
+                if (goalIncidents.length > 0) {
+                    const firstGoalAfterBet = goalIncidents[0];
+                    const firstGoalIsHome = (firstGoalAfterBet.isHome === true || firstGoalAfterBet.scoringTeam === 1);
+                    if (isHomeTarget && !isAwayTarget) return firstGoalIsHome;
+                    if (isAwayTarget && !isHomeTarget) return !firstGoalIsHome;
+                } else if (ftTotal <= totalAtBet) {
+                    // No goals occurred after the bet minute
+                    return false;
+                }
+            }
+
+            // 2. Check snapshot history if available
+            const history = (match.history && match.history.length > 0) ? match.history : (match.minuteHistory || []);
+            if (Array.isArray(history) && history.length >= 2) {
+                const betTime = openEntry.timestamp || 0;
+                const snapshotsAfterBet = history
+                    .filter(h => (h.timestamp || 0) >= betTime)
+                    .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+                for (const snap of snapshotsAfterBet) {
+                    const sHome = Number(snap.score?.home ?? snap.homeScore ?? 0);
+                    const sAway = Number(snap.score?.away ?? snap.awayScore ?? 0);
+                    const homeChanged = sHome > (Number(scoreAtBet.home) || 0);
+                    const awayChanged = sAway > (Number(scoreAtBet.away) || 0);
+
+                    if (homeChanged && !awayChanged) {
+                        return isHomeTarget && !isAwayTarget;
+                    }
+                    if (awayChanged && !homeChanged) {
+                        return isAwayTarget && !isHomeTarget;
+                    }
+                }
+            }
+
+            // 3. Score-Delta Fallback when incidents/history are not available:
+            // Neither team scored after the bet -> bet LOST
+            if (!homeScored && !awayScored) return false;
+
+            // Only ONE team scored after the bet -> that team definitely scored next
+            if (homeScored && !awayScored) return isHomeTarget && !isAwayTarget;
+            if (awayScored && !homeScored) return isAwayTarget && !isHomeTarget;
+
+            // BOTH teams scored after bet and timeline is unknown:
+            // Conservative settlement: do not award win if opposing team also scored
+            const homeNewGoals = ftHome - (Number(scoreAtBet.home) || 0);
+            const awayNewGoals = ftAway - (Number(scoreAtBet.away) || 0);
+            if (isHomeTarget && !isAwayTarget) return homeNewGoals > awayNewGoals;
+            if (isAwayTarget && !isHomeTarget) return awayNewGoals > homeNewGoals;
 
             // Fallback: Did total goals increase after bet was placed?
             return ftTotal > totalAtBet;
@@ -196,13 +267,20 @@ export class AutoSettlementEngine {
 
             if (!match) continue;
 
+            const cacheKey = `${matchId}_${bet.id}`;
+            if (this.settledCache.has(cacheKey)) continue;
+
+            // Automatically VOID bets on cancelled, postponed, or abandoned matches
+            if (this.isMatchCancelledOrPostponed(match)) {
+                bankrollManager.voidBet(bet.id || matchId, 'Maç Ertelendi / İptal Edildi');
+                this.settledCache.add(cacheKey);
+                continue;
+            }
+
             const isFH = (bet.market || bet.strategy_id || '').toUpperCase().includes('FH');
             const canSettle = isFH ? this.isFirstHalfFinished(match) : this.isMatchFinished(match);
 
             if (!canSettle) continue;
-
-            const cacheKey = `${matchId}_${bet.id}`;
-            if (this.settledCache.has(cacheKey)) continue;
 
             // Determine Outcome
             const isWin = this.evaluateBetOutcome(bet.market, bet, match);

@@ -150,6 +150,7 @@ class BankrollManager {
         // Kelly Formula: f = (p*b - q) / b
         const q = 1 - p;
         const fullKelly = (p * b - q) / b;
+        if (fullKelly <= 0) return 0;
 
         // We use "Quarter Kelly" (0.25 multiplier) as a safe standard in betting
         let percentage = fullKelly * 0.25;

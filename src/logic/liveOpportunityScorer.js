@@ -820,26 +820,54 @@ class LiveOpportunityScorer {
         const { thresholds } = this.getConfig();
         const stats = match.stats || {};
 
-        // 1. Get Market Probability (P_mkt)
+        // 1. Get Market Probability (P_mkt) with overround normalization
         const homeOdds = parseFloat(oddsInfo.home) || 0;
         const drawOdds = parseFloat(oddsInfo.draw) || 0;
         const awayOdds = parseFloat(oddsInfo.away) || 0;
         if (homeOdds <= 1 || awayOdds <= 1) return 50;
 
-        const pMktHome = 1 / homeOdds;
-        const pMktAway = 1 / awayOdds;
+        const rawMktHome = 1 / homeOdds;
+        const rawMktAway = 1 / awayOdds;
+        const rawMktDraw = drawOdds > 1 ? (1 / drawOdds) : Math.max(0.15, 1 - rawMktHome - rawMktAway);
+        const overround = rawMktHome + rawMktAway + rawMktDraw;
 
-        // 2. Derive Situational Probability (P_sit) from stats (0.0 - 1.0)
-        // High weights on Pressure and Momentum
-        const pSitHome = (this._calculatePressureScore(match, 'home') * 0.4 +
-            this._calculateMomentumScore(match, 'home') * 0.4 +
-            this._calculateXGScore(match, 'home') * 0.2) / 100;
+        const pMktHome = rawMktHome / overround;
+        const pMktAway = rawMktAway / overround;
 
-        const pSitAway = (this._calculatePressureScore(match, 'away') * 0.4 +
-            this._calculateMomentumScore(match, 'away') * 0.4 +
-            this._calculateXGScore(match, 'away') * 0.2) / 100;
+        // 2. Derive Situational Probability (P_sit) from stats (Normalized)
+        let pSitHome = 0;
+        let pSitAway = 0;
 
-        // 3. Calculate Expected Value (EV)
+        const poissonProbs = match.observations?.poisson?.probabilities || match.poisson?.probabilities;
+        if (poissonProbs && poissonProbs.homeWin !== undefined && poissonProbs.awayWin !== undefined) {
+            pSitHome = poissonProbs.homeWin;
+            pSitAway = poissonProbs.awayWin;
+        } else {
+            // Softmax / Relative share normalization of pressure, momentum and xG
+            const rawHome = (this._calculatePressureScore(match, 'home') * 0.4 +
+                this._calculateMomentumScore(match, 'home') * 0.4 +
+                this._calculateXGScore(match, 'home') * 0.2);
+
+            const rawAway = (this._calculatePressureScore(match, 'away') * 0.4 +
+                this._calculateMomentumScore(match, 'away') * 0.4 +
+                this._calculateXGScore(match, 'away') * 0.2);
+
+            const totalRaw = Math.max(1, rawHome + rawAway);
+            const homeDominance = rawHome / totalRaw;
+            const awayDominance = rawAway / totalRaw;
+
+            // Situational Bayesian adjustment from baseline market probabilities:
+            // Shifts win probability proportionally to live pitch dominance without breaking probability axioms
+            const winMass = pMktHome + pMktAway;
+            pSitHome = winMass * (homeDominance * 0.6 + (pMktHome / winMass) * 0.4);
+            pSitAway = winMass * (awayDominance * 0.6 + (pMktAway / winMass) * 0.4);
+        }
+
+        // Ensure non-zero and bounds
+        pSitHome = Math.min(0.92, Math.max(0.04, pSitHome));
+        pSitAway = Math.min(0.92, Math.max(0.04, pSitAway));
+
+        // 3. Calculate Expected Value (EV) against actual bookmaker odds
         const evHome = (pSitHome * homeOdds) - 1;
         const evAway = (pSitAway * awayOdds) - 1;
 
@@ -847,8 +875,11 @@ class LiveOpportunityScorer {
         const movement = this._detectOddsMovement(match);
         let trapPenalty = 0;
         // If stats are great for home but home odds are rising (drifting)
-        if (pSitHome > 0.6 && movement.homeWeight > 0.05) {
+        if (pSitHome > 0.55 && movement.homeWeight > 0.05) {
             trapPenalty = 30; // High risk of trap
+        }
+        if (pSitAway > 0.55 && movement.awayWeight > 0.05) {
+            trapPenalty = 30;
         }
 
         // 5. Final Score Mapping
@@ -857,8 +888,9 @@ class LiveOpportunityScorer {
 
         if (maxEV > thresholds.ALPHA_THRESHOLD) valueScore = 95;
         else if (maxEV > thresholds.VALUE_THRESHOLD) valueScore = 80;
-        else if (maxEV > 0) valueScore = 65;
-        else if (maxEV < -0.2) valueScore = 30;
+        else if (maxEV > 0.04) valueScore = 68;
+        else if (maxEV > 0) valueScore = 60;
+        else if (maxEV < -0.15) valueScore = 30;
 
         return Math.max(0, valueScore - trapPenalty);
     }

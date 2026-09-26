@@ -4950,54 +4950,57 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span className="tg-live-dot" title="Online"></span>
                             <span className="tg-icon">💬</span>
                             <span className="tg-label-full">{lang === 'tr' ? '7/24 Canlı Destek' : (lang === 'de' ? '24/7 Live-Support' : '24/7 Live Support')}</span>
-                            <span className="tg-label-short">{lang === 'tr' ? '7/24 Destek' : (lang === 'de' ? '24/7 Support' : '24/7 Support')}</span>
+                            <span className="tg-label-short">{lang === 'tr' ? '7/24 Destek' : (lang === 'de' ? 'Support' : 'Support')}</span>
                         </button>
 
-                        {/* Notification Mode Toggle */}
-                        <button
-                            className="icon-ctrl-btn"
-                            onClick={() => {
-                                const nextMode = alertNotifyMode === 'TOAST' ? 'SILENT' : alertNotifyMode === 'SILENT' ? 'OFF' : 'TOAST';
-                                setAlertNotifyMode(nextMode);
-                                try { localStorage.setItem('alert_notify_mode', nextMode); } catch (e) {}
-                            }}
-                            title={alertNotifyMode === 'TOAST' ? 'Bildirim: Açık (Toast)' : alertNotifyMode === 'SILENT' ? 'Bildirim: Sessiz' : 'Bildirim: Kapalı'}
-                        >
-                            <span>{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
-                            <span className="ctrl-label">{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Açık' : (lang === 'de' ? 'An' : 'On')) : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
-                        </button>
+                        {/* Quick Utility Control Center Group */}
+                        <div className="header-ctrl-group">
+                            {/* Notification Mode Toggle */}
+                            <button
+                                className={`icon-ctrl-btn ${alertNotifyMode === 'TOAST' ? 'mode-toast' : alertNotifyMode === 'SILENT' ? 'mode-silent' : 'mode-off'}`}
+                                onClick={() => {
+                                    const nextMode = alertNotifyMode === 'TOAST' ? 'SILENT' : alertNotifyMode === 'SILENT' ? 'OFF' : 'TOAST';
+                                    setAlertNotifyMode(nextMode);
+                                    try { localStorage.setItem('alert_notify_mode', nextMode); } catch (e) {}
+                                }}
+                                title={alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim: Açık (Toast)' : 'Notifications: On') : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Bildirim: Sessiz' : 'Notifications: Silent') : (lang === 'tr' ? 'Bildirim: Kapalı' : 'Notifications: Off')}
+                            >
+                                <span className="ctrl-icon">{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
+                                <span className="ctrl-label">{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim' : (lang === 'de' ? 'Meldung' : 'Alerts')) : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
+                            </button>
 
-                        {/* Audio Alert Toggle */}
-                        <button
-                            className="icon-ctrl-btn"
-                            onClick={() => {
-                                const newMuted = audioAlert.toggle();
-                                setAudioMuted(newMuted);
-                            }}
-                            title={!audioMuted ? 'Ses: Açık' : 'Ses: Kapalı'}
-                        >
-                            <span>{!audioMuted ? '🔊' : '🔇'}</span>
-                            <span className="ctrl-label">{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : (lang === 'de' ? 'Ton an' : 'Audio On')) : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
-                        </button>
+                            {/* Audio Alert Toggle */}
+                            <button
+                                className={`icon-ctrl-btn ${!audioMuted ? 'mode-sound-on' : 'mode-sound-muted'}`}
+                                onClick={() => {
+                                    const newMuted = audioAlert.toggle();
+                                    setAudioMuted(newMuted);
+                                }}
+                                title={!audioMuted ? (lang === 'tr' ? 'Sesli Uyarı: Açık' : 'Audio: On') : (lang === 'tr' ? 'Sesli Uyarı: Kapalı' : 'Audio: Muted')}
+                            >
+                                <span className="ctrl-icon">{!audioMuted ? '🔊' : '🔇'}</span>
+                                <span className="ctrl-label">{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : (lang === 'de' ? 'Ton an' : 'Sound On')) : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
+                            </button>
 
-                        {/* Signal History & Bets Button */}
-                        <button
-                            className="icon-ctrl-btn signal-history-btn"
-                            onClick={() => {
-                                smartAlertService.autoResolveAlerts(matches);
-                                setAlertHistoryList(smartAlertService.getHistory(50));
-                                setTrackingStats(predictionTracker.getStats());
-                                setTrackingActiveTab('ALERTS');
-                                setShowTrackingPanel(true);
-                            }}
-                            title="Sinyal Geçmişi & Tahmin Karnesi"
-                        >
-                            <span>📊</span>
-                            <span className="ctrl-label">{lang === 'tr' ? 'Sinyaller' : (lang === 'de' ? 'Signale' : 'Signals')}</span>
-                            {alertHistoryList.length > 0 && (
-                                <span className="badge-count">{alertHistoryList.length}</span>
-                            )}
-                        </button>
+                            {/* Signal History & Bets Button */}
+                            <button
+                                className="icon-ctrl-btn signal-history-btn"
+                                onClick={() => {
+                                    smartAlertService.autoResolveAlerts(matches);
+                                    setAlertHistoryList(smartAlertService.getHistory(50));
+                                    setTrackingStats(predictionTracker.getStats());
+                                    setTrackingActiveTab('ALERTS');
+                                    setShowTrackingPanel(true);
+                                }}
+                                title={lang === 'tr' ? 'Sinyal Geçmişi & Tahmin Karnesi' : 'Signal History & Bets'}
+                            >
+                                <span className="ctrl-icon">📊</span>
+                                <span className="ctrl-label">{lang === 'tr' ? 'Sinyaller' : (lang === 'de' ? 'Signale' : 'Signals')}</span>
+                                {alertHistoryList.length > 0 && (
+                                    <span className="badge-count">{alertHistoryList.length}</span>
+                                )}
+                            </button>
+                        </div>
 
                         {/* User Profile Avatar / Menu Trigger */}
                         <div className="user-menu-wrapper" style={{ position: 'relative', zIndex: 9999 }}>
@@ -5051,6 +5054,23 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             ))}
                                         </div>
                                     </div>
+
+                                    {/* Admin Panel Shortcut */}
+                                    {isAdmin && (
+                                        <button
+                                            className="popover-action-btn"
+                                            onClick={() => { setView('ADMIN'); setShowUserMenu(false); }}
+                                            style={{
+                                                color: '#f59e0b',
+                                                background: 'rgba(245, 158, 11, 0.12)',
+                                                border: '1px solid rgba(245, 158, 11, 0.35)',
+                                                fontWeight: 800
+                                            }}
+                                        >
+                                            <span>🛡️</span>
+                                            <span>{lang === 'tr' ? 'Admin Paneli' : (lang === 'de' ? 'Admin-Panel' : 'Admin Panel')}</span>
+                                        </button>
+                                    )}
 
                                     {/* System Guide / FAQ Button */}
                                     <button
@@ -5110,100 +5130,85 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
                 {/* Middle Row: Single Unified Navigation Bar */}
                 <div className="terminal-nav-row">
-                    <div className="unified-nav-tabs">
+                    <nav className="unified-nav-tabs" aria-label="Terminal Navigation">
+                        {/* 1. Canlı Radar */}
                         <button
-                            className={`unified-tab-btn ${view === 'DASHBOARD' ? 'active' : ''}`}
+                            className={`unified-tab-btn tab-live ${view === 'DASHBOARD' ? 'active' : ''}`}
                             onClick={() => setView('DASHBOARD')}
                         >
-                            <span>⚡</span>
-                            <span>{lang === 'tr' ? 'CANLI RADAR' : (lang === 'de' ? 'LIVE-RADAR' : 'LIVE RADAR')}</span>
-                            <span className="tab-live-count">{matches.length}</span>
+                            <span className="tab-icon">⚡</span>
+                            <span className="tab-label">{lang === 'tr' ? 'CANLI RADAR' : (lang === 'de' ? 'LIVE-RADAR' : 'LIVE RADAR')}</span>
+                            <span className="tab-live-count count-live">{matches.length}</span>
                         </button>
+
+                        {/* 2. Piyasa Trendleri */}
                         <button
-                            className={`unified-tab-btn trending ${view === 'TRENDING' ? 'active' : ''}`}
+                            className={`unified-tab-btn tab-trending ${view === 'TRENDING' ? 'active' : ''}`}
                             onClick={() => setView('TRENDING')}
                         >
-                            <span>🔥</span>
-                            <span>{lang === 'tr' ? 'PİYASA TRENDLERİ' : (lang === 'de' ? 'MARKT-TRENDS' : 'MARKET TRENDS')}</span>
+                            <span className="tab-icon">🔥</span>
+                            <span className="tab-label">{lang === 'tr' ? 'PİYASA TRENDLERİ' : (lang === 'de' ? 'MARKT-TRENDS' : 'MARKET TRENDS')}</span>
                             {trendingBets && trendingBets.length > 0 && (
-                                <span className="tab-live-count trending" style={{
-                                    background: view === 'TRENDING' ? 'rgba(0,0,0,0.3)' : 'rgba(239, 68, 68, 0.25)',
-                                    color: view === 'TRENDING' ? '#ffffff' : '#f87171',
-                                    border: view === 'TRENDING' ? 'none' : '1px solid rgba(239, 68, 68, 0.4)'
-                                }}>
+                                <span className="tab-live-count count-trending">
                                     {trendingBets.length}
                                 </span>
                             )}
                         </button>
+
+                        {/* 3. Günlük Radar */}
                         <button
-                            className={`unified-tab-btn ${view === 'RADAR' ? 'active' : ''}`}
+                            className={`unified-tab-btn tab-daily ${view === 'RADAR' ? 'active' : ''}`}
                             onClick={() => setView('RADAR')}
                         >
-                            <span>🎯</span>
-                            <span>{t.daily_radar}</span>
+                            <span className="tab-icon">🎯</span>
+                            <span className="tab-label">{lang === 'tr' ? 'GÜNLÜK RADAR' : (lang === 'de' ? 'TAGES-RADAR' : 'DAILY RADAR')}</span>
+                            <span className="tab-live-count count-sub">PRE</span>
                         </button>
+
+                        {/* 4. Keskin Seçimler */}
                         <button
-                            className={`unified-tab-btn ${view === 'SHARP_PICKS' ? 'active' : ''}`}
+                            className={`unified-tab-btn tab-sharp ${view === 'SHARP_PICKS' ? 'active' : ''}`}
                             onClick={() => setView('SHARP_PICKS')}
-                            style={{
-                                border: '1px solid rgba(56, 189, 248, 0.45)',
-                                background: view === 'SHARP_PICKS' ? 'linear-gradient(135deg, #0284c7, #38bdf8)' : 'linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(129, 140, 248, 0.12))',
-                                color: view === 'SHARP_PICKS' ? '#ffffff' : '#38bdf8',
-                                fontWeight: 800
-                            }}
                         >
-                            <span>⭐</span>
-                            <span>{lang === 'tr' ? 'KESKİN SEÇİMLER' : (lang === 'de' ? 'SHARP-PICKS' : 'SHARP PICKS')}</span>
-                            <span className="tab-live-count" style={{ background: view === 'SHARP_PICKS' ? 'rgba(0,0,0,0.3)' : '#0284c7', color: '#fff', fontWeight: 800 }}>10</span>
+                            <span className="tab-icon">⭐</span>
+                            <span className="tab-label">{lang === 'tr' ? 'KESKİN SEÇİMLER' : (lang === 'de' ? 'SHARP-PICKS' : 'SHARP PICKS')}</span>
+                            <span className="tab-live-count count-sharp">10</span>
                         </button>
+
+                        {/* 5. Sıcak Trendler */}
                         <button
-                            className="unified-tab-btn"
+                            className={`unified-tab-btn tab-hot ${showBetanoRadar ? 'active' : ''}`}
                             onClick={() => setShowBetanoRadar(true)}
-                            style={{
-                                border: '1px solid rgba(249, 115, 22, 0.45)',
-                                background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.22), rgba(234, 88, 12, 0.12))',
-                                color: '#f97316',
-                                fontWeight: 800
-                            }}
                         >
-                            <span>🔥</span>
-                            <span>{lang === 'tr' ? 'SICAK TRENDLER' : (lang === 'de' ? 'HOT-PICKS' : 'HOT PICKS')}</span>
-                            <span className="tab-live-count" style={{ background: '#f97316', color: '#000', fontWeight: 900 }}>HOT</span>
+                            <span className="tab-icon">🔥</span>
+                            <span className="tab-label">{lang === 'tr' ? 'SICAK TRENDLER' : (lang === 'de' ? 'HOT-PICKS' : 'HOT PICKS')}</span>
+                            <span className="tab-live-count count-hot">HOT</span>
                         </button>
+
+                        {/* 6. Kasa & Portföy */}
                         <button
-                            className={`unified-tab-btn ${view === 'PORTFOLIO' ? 'active' : ''}`}
+                            className={`unified-tab-btn tab-portfolio ${view === 'PORTFOLIO' ? 'active' : ''}`}
                             onClick={() => setView('PORTFOLIO')}
-                            style={{
-                                border: view === 'PORTFOLIO' ? '1px solid rgba(16, 185, 129, 0.6)' : '1px solid rgba(16, 185, 129, 0.3)',
-                                background: view === 'PORTFOLIO' ? 'linear-gradient(135deg, #059669, #10b981)' : 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.08))',
-                                color: view === 'PORTFOLIO' ? '#ffffff' : '#34d399',
-                                fontWeight: 800
-                            }}
                         >
-                            <span>💼</span>
-                            <span>{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO & STATS')}</span>
-                            <span className="tab-live-count" style={{
-                                background: view === 'PORTFOLIO' ? 'rgba(0,0,0,0.35)' : 'rgba(16, 185, 129, 0.25)',
-                                color: view === 'PORTFOLIO' ? '#ffffff' : '#34d399',
-                                border: '1px solid rgba(16, 185, 129, 0.35)',
-                                fontWeight: 800,
-                                fontSize: '0.68rem',
-                                padding: '2px 7px',
-                                borderRadius: '6px'
-                            }}>
+                            <span className="tab-icon">💼</span>
+                            <span className="tab-label">{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO')}</span>
+                            <span className="tab-live-count count-portfolio">
                                 {Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺
                             </span>
                         </button>
+
+                        {/* 7. Admin (if admin) */}
                         {isAdmin && (
                             <button
-                                className={`unified-tab-btn admin ${view === 'ADMIN' ? 'active' : ''}`}
+                                className={`unified-tab-btn tab-admin ${view === 'ADMIN' ? 'active' : ''}`}
                                 onClick={() => setView('ADMIN')}
                             >
-                                <span>🛡️</span>
-                                <span>ADMIN</span>
+                                <span className="tab-icon">🛡️</span>
+                                <span className="tab-label">ADMIN</span>
+                                <span className="tab-live-count count-admin">ROOT</span>
                             </button>
                         )}
-                    </div>
+                    </nav>
                 </div>
 
                 {/* Bottom Row: Micro Live Telemetry Strip */}

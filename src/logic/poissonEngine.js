@@ -38,7 +38,15 @@ export class PoissonEngine {
      * Calculates dynamic remaining-game lambda for home and away
      */
     calculateLiveLambda(match) {
-        const minute = Math.min(90, Math.max(1, parseInt(match.minute) || 1));
+        const minStr = String(match?.minute || '').toUpperCase().trim();
+        const statusType = (match?.status?.type || '').toLowerCase();
+        const isFinished = minStr === 'FT' || minStr === 'MS' || minStr === '999' || 
+                           statusType === 'finished' || statusType === 'ended';
+        if (isFinished) {
+            return { home: 0, away: 0, total: 0, remainingFraction: 0 };
+        }
+        const parsed = parseInt(minStr.replace(/[^0-9]/g, ''), 10);
+        const minute = Math.min(90, Math.max(1, isNaN(parsed) ? 1 : parsed));
         const remainingFraction = Math.max(0.02, (90 - minute) / 90);
         
         const stats = match.stats || {};

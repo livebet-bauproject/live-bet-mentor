@@ -5,6 +5,7 @@ import { bayesianModel } from './bayesianModel';
 import { pressureIndex } from './pressureIndex';
 import { velocityModule } from './velocityModule';
 import { strategyEngine } from './strategyEngine';
+import { poissonEngine } from './poissonEngine';
 
 /**
  * MATCH ANALYZER (STRATEGY ENGINE UPGRADE)
@@ -74,11 +75,29 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
     observations.bayesian = bayesianResult;
     const finalP = bayesianResult?.posterior || pSituation;
 
+    // 2.1 Market-Specific EV Evaluation with Poisson Engine
+    const enrichedForPoisson = {
+        ...fixture,
+        observations,
+        stats,
+        score: { home: homeScore, away: awayScore },
+        odds: odds || fixture.odds
+    };
+    const poissonAnalysis = poissonEngine.analyzeMatch(enrichedForPoisson);
+    observations.poisson = poissonAnalysis;
+
     let maxEV = -1;
-    if (odds && (odds.home || odds.away)) {
-        const evHome = (finalP * (parseFloat(odds.home) || 0)) - 1;
-        const evAway = (finalP * (parseFloat(odds.away) || 0)) - 1;
-        maxEV = Math.max(evHome, evAway);
+    let selectedMarketProb = finalP;
+
+    if (poissonAnalysis?.bestEV) {
+        maxEV = (poissonAnalysis.bestEV.ev || 0) / 100; // convert e.g. +12.5% to +0.125
+        selectedMarketProb = ((poissonAnalysis.bestEV.trueProb || 0) / 100) || finalP;
+    } else if (odds && (odds.over || odds.over05 || odds.over15 || odds.over25)) {
+        // Goal market odds (Over lines) correctly matched with goal probability (finalP)
+        const goalOdds = parseFloat(odds.over || odds.over05 || odds.over15 || odds.over25) || 0;
+        if (goalOdds > 1.0) {
+            maxEV = (finalP * goalOdds) - 1;
+        }
     }
 
     // 3. RUN MODULAR STRATEGY ENGINE
@@ -109,7 +128,9 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
         reason,
         activeStrategies,
         maxEV,
-        pSituation: finalP,
+        pSituation: selectedMarketProb,
+        goalProbability: finalP,
+        bestMarket: poissonAnalysis?.bestEV || null,
         observations
     };
 };

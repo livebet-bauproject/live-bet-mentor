@@ -679,7 +679,7 @@ app.post('/api/sync/bundle', express.json({ limit: '15mb' }), (req, res) => {
     if (req.headers['x-sync-secret'] !== RENDER_UPLOAD_SECRET) {
         return res.status(403).json({ error: 'Forbidden' });
     }
-    const { live, consensus, stats, odds } = req.body || {};
+    const { live, consensus, stats, odds, betano } = req.body || {};
     let statsSaved = 0;
 
     if (live && Array.isArray(live.events)) {
@@ -701,6 +701,11 @@ app.post('/api/sync/bundle', express.json({ limit: '15mb' }), (req, res) => {
     if (consensus) {
         memoryConsensusData = consensus;
         try { fs.writeFileSync(CONSENSUS_FILE, JSON.stringify(consensus), 'utf8'); } catch(e) {}
+    }
+
+    if (betano) {
+        memoryBetanoCards = betano;
+        try { fs.writeFileSync(BETANO_CARDS_FILE, JSON.stringify(betano), 'utf8'); } catch(e) {}
     }
 
     if (odds) {
@@ -912,22 +917,41 @@ app.get(['/api/betano/cards', '/api/betano/acca'], (req, res) => {
         try {
             const stats = fs.statSync(BETANO_CARDS_FILE);
             const ageMinutes = (Date.now() - stats.mtimeMs) / (1000 * 60);
-            if (ageMinutes > 30) shouldRunScraper = true;
+            if (ageMinutes > 15) shouldRunScraper = true;
         } catch (e) {
             shouldRunScraper = true;
         }
     }
 
-    if (shouldRunScraper && !IS_CLOUD) {
+    if (shouldRunScraper) {
         try {
-            console.log('[PROXY] Refreshing Betano cards via betano_scraper.py...');
-            spawnSync('python', [path.join(__dirname, 'betano_scraper.py')], { timeout: 15000 });
+            const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
+            console.log(`[PROXY] Refreshing Betano cards via ${pyCmd} betano_scraper.py (refresh=${refresh})...`);
+            if (refresh || !fs.existsSync(BETANO_CARDS_FILE)) {
+                spawnSync(pyCmd, [path.join(__dirname, 'betano_scraper.py')], { timeout: 15000 });
+                if (fs.existsSync(BETANO_CARDS_FILE)) {
+                    try {
+                        const fresh = fs.readFileSync(BETANO_CARDS_FILE, 'utf8');
+                        memoryBetanoCards = JSON.parse(fresh);
+                    } catch (e) {}
+                }
+            } else {
+                const pyProc = spawn(pyCmd, [path.join(__dirname, 'betano_scraper.py')]);
+                pyProc.on('close', (code) => {
+                    if (code === 0 && fs.existsSync(BETANO_CARDS_FILE)) {
+                        try {
+                            const fresh = fs.readFileSync(BETANO_CARDS_FILE, 'utf8');
+                            memoryBetanoCards = JSON.parse(fresh);
+                        } catch (e) {}
+                    }
+                });
+            }
         } catch (e) {
             console.error('[PROXY] Error refreshing Betano cards:', e.message);
         }
     }
 
-    if (memoryBetanoCards) {
+    if (memoryBetanoCards && !refresh) {
         return res.json(memoryBetanoCards);
     }
 
@@ -939,6 +963,10 @@ app.get(['/api/betano/cards', '/api/betano/acca'], (req, res) => {
         } catch (e) {
             console.error('[PROXY] Error reading betano_cards.json:', e.message);
         }
+    }
+
+    if (memoryBetanoCards) {
+        return res.json(memoryBetanoCards);
     }
 
     res.json({ status: 'pending', cards: [] });
@@ -4493,19 +4521,38 @@ function startSharpPicksEngine() {
 }
 
 function startBetanoScraper() {
-    if (IS_CLOUD) return;
-    console.log('[PROXY] Initializing Betano Acca & Sentiment Scraper...');
+    console.log('[PROXY] Initializing Hot Picks (Betano) Sentiment Scraper (24/7 autonomous)...');
+    const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
+    let isRunning = false;
     const runBetano = () => {
+        if (isRunning) return;
+        isRunning = true;
         try {
-            const pyProc = spawn('python', [path.join(__dirname, 'betano_scraper.py')]);
+            console.log(`[PROXY] 🔄 Scheduled Hot Picks scrape via ${pyCmd} betano_scraper.py...`);
+            const pyProc = spawn(pyCmd, [path.join(__dirname, 'betano_scraper.py')]);
             pyProc.stdout.on('data', (d) => console.log(`[BETANO_STDOUT] ${d}`));
             pyProc.stderr.on('data', (d) => console.error(`[BETANO_STDERR] ${d}`));
+            pyProc.on('close', (code) => {
+                isRunning = false;
+                if (code === 0 && fs.existsSync(BETANO_CARDS_FILE)) {
+                    try {
+                        const raw = fs.readFileSync(BETANO_CARDS_FILE, 'utf8');
+                        memoryBetanoCards = JSON.parse(raw);
+                        console.log('[PROXY] ✅ Updated memoryBetanoCards with fresh scrape!');
+                    } catch (e) {}
+                }
+            });
+            pyProc.on('error', (e) => {
+                isRunning = false;
+                console.error('[PROXY] Betano scraper spawn error:', e.message);
+            });
         } catch (e) {
-            console.error('[PROXY] Betano scraper spawn error:', e.message);
+            isRunning = false;
+            console.error('[PROXY] Betano scraper error:', e.message);
         }
     };
     runBetano();
-    setInterval(runBetano, 30 * 60 * 1000); // Poll every 30 minutes
+    setInterval(runBetano, 15 * 60 * 1000); // Autonomous scrape every 15 minutes
 }
 
 // --- START SERVER ---
@@ -4591,6 +4638,14 @@ app.listen(PORT, '0.0.0.0', async () => {
                     } catch (e) {}
                 }
 
+                // 2.6 Read Betano Hot Picks if present
+                let betanoData = null;
+                if (fs.existsSync(BETANO_CARDS_FILE)) {
+                    try {
+                        betanoData = JSON.parse(fs.readFileSync(BETANO_CARDS_FILE, 'utf8'));
+                    } catch (e) {}
+                }
+
                 // 3. Gather stats for active in-progress football matches & auto-resolve Telegram signals
                 if (liveData && Array.isArray(liveData.events)) {
                     telegramBot.autoResolveSignals(liveData.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
@@ -4633,11 +4688,12 @@ app.listen(PORT, '0.0.0.0', async () => {
                 const cleanLiveList = cleanEvents(liveData?.events || []);
                 const validLiveToSend = cleanLiveList.length >= 10 ? liveData : null;
 
-                if (validLiveToSend || oddsData || Object.keys(statsBundle).length > 0) {
+                if (validLiveToSend || oddsData || betanoData || Object.keys(statsBundle).length > 0) {
                     const payload = {
                         live: validLiveToSend,
                         consensus: consensusData,
                         odds: oddsData,
+                        betano: betanoData,
                         stats: statsBundle
                     };
 

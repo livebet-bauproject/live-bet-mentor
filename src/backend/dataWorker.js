@@ -703,10 +703,14 @@ class DataWorker {
                     verdict = 'BET';
                     mainReason = matchAnalysis.reason;
                     reasonKey = 'full_stack_ok';
-                } else {
+                } else if (matchAnalysis.activeStrategies && matchAnalysis.activeStrategies.length > 0) {
                     verdict = 'BET';
-                    mainReason = 'DQS + Risk Filtreleri OK';
-                    reasonKey = 'full_stack_ok';
+                    mainReason = matchAnalysis.activeStrategies[0].label;
+                    reasonKey = 'strategy_bet';
+                } else {
+                    verdict = 'PASS';
+                    mainReason = 'Kriterlere Uygun Strateji Bulunamadı';
+                    reasonKey = 'waiting_strategy';
                 }
             }
         }
