@@ -5241,7 +5241,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span className="tab-icon">💼</span>
                             <span className="tab-label">
                                 <span className="label-full">{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO')}</span>
-                                <span className="label-short">{lang === 'tr' ? 'PORTFÖY' : (lang === 'de' ? 'DEPOT' : 'PORTFOLIO')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO')}</span>
                             </span>
                             <span className="tab-live-count count-portfolio">
                                 {Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺

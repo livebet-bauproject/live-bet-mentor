@@ -2088,12 +2088,13 @@ body {
 .terminal-nav-row {
   width: 100%;
   box-sizing: border-box;
+  container-type: inline-size;
 }
 
 .unified-nav-tabs {
   display: flex;
   align-items: center;
-  gap: 0.38rem;
+  gap: 0.32rem;
   background: rgba(8, 14, 28, 0.75);
   padding: 5px;
   border-radius: 14px;
@@ -2113,22 +2114,22 @@ body {
 }
 
 .unified-tab-btn {
-  flex: 1 1 0%;
+  flex: 1 1 auto;
   min-width: 0;
-  min-height: 42px;
-  padding: 0.5rem 0.65rem;
+  min-height: 40px;
+  padding: 0.45rem 0.55rem;
   border-radius: 10px;
   border: 1px solid transparent;
   background: rgba(255, 255, 255, 0.025);
   color: #94a3b8;
-  font-size: 0.76rem;
+  font-size: 0.73rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   white-space: nowrap;
   position: relative;
@@ -2307,6 +2308,7 @@ body {
 
 /* Base Inactive Portfolio Tab - Elevated Institutional Financial Hub */
 .unified-tab-btn.tab-portfolio {
+  flex: 1.2 1 auto;
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.09), rgba(6, 78, 59, 0.24)) !important;
   border: 1px solid rgba(16, 185, 129, 0.32) !important;
   color: #f1f5f9 !important;
@@ -2377,8 +2379,34 @@ body {
   border-radius: 6px;
 }
 
-/* Responsive Desktop / Laptop viewports */
-@media (max-width: 1260px) and (min-width: 769px) {
+/* Container Query: When nav container width is <= 1180px */
+@container (max-width: 1180px) {
+  .unified-tab-btn .tab-label .label-full {
+    display: none !important;
+  }
+  .unified-tab-btn .tab-label .label-short {
+    display: inline !important;
+  }
+  .unified-tab-btn {
+    padding: 0.42rem 0.46rem !important;
+    font-size: 0.71rem !important;
+    gap: 0.28rem !important;
+  }
+  .unified-nav-tabs {
+    gap: 0.24rem !important;
+  }
+  .tab-live-count {
+    font-size: 0.6rem !important;
+    padding: 1px 5px !important;
+  }
+  .tab-live-count.count-portfolio {
+    font-size: 0.65rem !important;
+    padding: 1px 6px !important;
+  }
+}
+
+/* Responsive Desktop / Laptop viewports fallback */
+@media (max-width: 1400px) and (min-width: 769px) {
   .terminal-header {
     padding: 1rem 1.25rem !important;
   }
@@ -2389,20 +2417,20 @@ body {
     display: inline !important;
   }
   .unified-nav-tabs {
-    gap: 0.28rem;
+    gap: 0.26rem;
     padding: 4px;
   }
   .unified-tab-btn {
-    padding: 0.45rem 0.5rem;
-    font-size: 0.72rem;
-    gap: 0.3rem;
+    padding: 0.42rem 0.46rem;
+    font-size: 0.71rem;
+    gap: 0.28rem;
   }
   .tab-live-count {
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     padding: 1px 5px;
   }
   .tab-live-count.count-portfolio {
-    font-size: 0.66rem;
+    font-size: 0.65rem;
     padding: 1px 6px;
   }
 }
@@ -2412,24 +2440,24 @@ body {
     padding: 0.85rem 1rem !important;
   }
   .unified-tab-btn {
-    padding: 0.4rem 0.32rem;
-    font-size: 0.67rem;
-    gap: 0.22rem;
+    padding: 0.38rem 0.3rem !important;
+    font-size: 0.66rem !important;
+    gap: 0.2rem !important;
   }
   .unified-tab-btn .tab-icon {
-    font-size: 0.82rem;
+    font-size: 0.8rem !important;
   }
   .unified-nav-tabs {
-    gap: 0.2rem;
-    padding: 3px;
+    gap: 0.18rem !important;
+    padding: 3px !important;
   }
   .tab-live-count {
-    font-size: 0.58rem;
-    padding: 1px 4px;
+    font-size: 0.56rem !important;
+    padding: 1px 4px !important;
   }
   .tab-live-count.count-portfolio {
-    font-size: 0.62rem;
-    padding: 1px 5px;
+    font-size: 0.6rem !important;
+    padding: 1px 5px !important;
   }
 }
 
