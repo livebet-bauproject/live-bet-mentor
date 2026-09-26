@@ -1,5 +1,68 @@
 import React, { useState } from 'react';
 
+const LOCALES = {
+    tr: {
+        title: 'Haftalık Kuant Analist Ligi',
+        seasonBadge: 'HAFTALIK SEZON #12',
+        subtitle: 'Sıralama para miktarına göre değil; % ROI (Büyüme) ve Bankroll IQ Disiplin Skoru bileşkesine göredir.',
+        nickLabel: 'Ligdeki Adın:',
+        editPrompt: 'Takma adı düzenle',
+        youBadge: 'SEN',
+        pillar1Title: 'EŞİT & ADİL YARIŞMA',
+        pillar1Desc: '500 ₺ ile 10.000 ₺ aynı oranda yarışır.',
+        pillar2Title: 'DİSİPLİN KORUYUCU',
+        pillar2Desc: "Stop-loss'a uyan ekstra puan kazanır.",
+        pillar3Title: 'PRESTİJ ÖDÜLÜ',
+        pillar3Desc: "Haftanın 1.'sine VIP Şampiyon Tacı verilir.",
+        thRank: '#',
+        thAnalyst: 'ANALİST & RÜTBE',
+        thRoi: 'HAFTALIK ROI',
+        thWinRate: 'BAŞARI ORANI',
+        thIQ: 'BANKROLL IQ',
+        thStatus: 'DURUM'
+    },
+    en: {
+        title: 'Weekly Quant Analyst League',
+        seasonBadge: 'WEEKLY SEASON #12',
+        subtitle: 'Rankings are based strictly on % ROI growth and Bankroll IQ discipline score, ensuring fair equality.',
+        nickLabel: 'League Nick:',
+        editPrompt: 'Edit nickname',
+        youBadge: 'YOU',
+        pillar1Title: 'FAIR & EQUAL COMPETITION',
+        pillar1Desc: '500 ₺ and 10,000 ₺ compete purely on % percentage.',
+        pillar2Title: 'DISCIPLINE GUARDIAN',
+        pillar2Desc: 'Respecting stop-loss rules rewards bonus discipline points.',
+        pillar3Title: 'PRESTIGE REWARDS',
+        pillar3Desc: '1st place is awarded the Weekly Champion Crown.',
+        thRank: '#',
+        thAnalyst: 'ANALYST & BADGE',
+        thRoi: 'WEEKLY ROI',
+        thWinRate: 'WIN RATE',
+        thIQ: 'BANKROLL IQ',
+        thStatus: 'STATUS'
+    },
+    de: {
+        title: 'Wöchentliche Quant-Analysten-Liga',
+        seasonBadge: 'WÖCHENTLICHE SAISON #12',
+        subtitle: 'Die Rangliste basiert auf prozentualem ROI-Wachstum und dem Bankroll IQ Disziplin-Score (faire Chancengleichheit).',
+        nickLabel: 'Dein Liga-Name:',
+        editPrompt: 'Name bearbeiten',
+        youBadge: 'DU',
+        pillar1Title: 'FAIRER WETTBEWERB',
+        pillar1Desc: '500 ₺ und 10.000 ₺ konkurrieren gleichberechtigt nach %.',
+        pillar2Title: 'DISZIPLIN-SCHUTZ',
+        pillar2Desc: 'Einhaltung des Stop-Loss bringt zusätzliche IQ-Punkte.',
+        pillar3Title: 'PRESTIGE-AUSZEICHNUNG',
+        pillar3Desc: 'Platz 1 erhält die wöchentliche Meister-Krone.',
+        thRank: '#',
+        thAnalyst: 'ANALYST & RANG',
+        thRoi: 'WÖCHENTL. ROI',
+        thWinRate: 'TREFFERQUOTE',
+        thIQ: 'BANKROLL IQ',
+        thStatus: 'STATUS'
+    }
+};
+
 export const AnalystLeaderboard = ({
     leaderboardData,
     currentNickname,
@@ -15,6 +78,8 @@ export const AnalystLeaderboard = ({
             setIsEditingNick(false);
         }
     };
+
+    const loc = LOCALES[lang] || LOCALES.tr;
 
     return (
         <div className="analyst-leaderboard-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -43,8 +108,8 @@ export const AnalystLeaderboard = ({
                             🏆
                         </div>
                         <div>
-                            <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span>{lang === 'tr' ? 'Haftalık Kuant Analist Ligi' : 'Weekly Quant Analyst League'}</span>
+                            <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                <span>{loc.title}</span>
                                 <span style={{
                                     fontSize: '0.65rem',
                                     padding: '2px 8px',
@@ -54,20 +119,18 @@ export const AnalystLeaderboard = ({
                                     border: '1px solid rgba(245, 158, 11, 0.35)',
                                     fontWeight: 900
                                 }}>
-                                    HAFTALIK SEZON #12
+                                    {loc.seasonBadge}
                                 </span>
                             </div>
                             <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                                {lang === 'tr' 
-                                    ? 'Sıralama para miktarına göre değil; % ROI (Büyüme) ve Bankroll IQ Disiplin Skoru bileşkesine göredir.' 
-                                    : 'Rankings are based strictly on % ROI growth and Bankroll IQ discipline score, ensuring fair equality.'}
+                                {loc.subtitle}
                             </div>
                         </div>
                     </div>
 
                     {/* Nickname Editor */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.4rem 0.8rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Ligdeki Adın:' : 'League Nick:'}</span>
+                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{loc.nickLabel}</span>
                         {isEditingNick ? (
                             <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                 <input
@@ -114,7 +177,7 @@ export const AnalystLeaderboard = ({
                                         cursor: 'pointer',
                                         fontSize: '0.75rem'
                                     }}
-                                    title={lang === 'tr' ? 'Takma adı düzenle' : 'Edit nickname'}
+                                    title={loc.editPrompt}
                                 >
                                     ✏️
                                 </button>
@@ -123,7 +186,7 @@ export const AnalystLeaderboard = ({
                     </div>
                 </div>
 
-                {/* Fair Play & Reward Pills */}
+                {/* Fair Play & Reward Pillars */}
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
@@ -136,22 +199,22 @@ export const AnalystLeaderboard = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{ fontSize: '1.1rem' }}>⚖️</span>
                         <div>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8' }}>EŞİT & ADİL YARIŞMA</div>
-                            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>500 ₺ ile 10.000 ₺ aynı oranda yarışır.</div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8' }}>{loc.pillar1Title}</div>
+                            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{loc.pillar1Desc}</div>
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{ fontSize: '1.1rem' }}>🛡️</span>
                         <div>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#10b981' }}>DİSİPLİN KORUYUCU</div>
-                            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Stop-loss'a uyan ekstra puan kazanır.</div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#10b981' }}>{loc.pillar2Title}</div>
+                            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{loc.pillar2Desc}</div>
                         </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span style={{ fontSize: '1.1rem' }}>👑</span>
                         <div>
-                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b' }}>PRESTİJ ÖDÜLÜ</div>
-                            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Haftanın 1.'sine VIP Şampiyon Tacı verilir.</div>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b' }}>{loc.pillar3Title}</div>
+                            <div style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{loc.pillar3Desc}</div>
                         </div>
                     </div>
                 </div>
@@ -176,12 +239,12 @@ export const AnalystLeaderboard = ({
                     color: '#94a3b8',
                     letterSpacing: '0.5px'
                 }}>
-                    <span>#</span>
-                    <span>{lang === 'tr' ? 'ANALİST & RÜTBE' : 'ANALYST & BADGE'}</span>
-                    <span style={{ textAlign: 'right' }}>{lang === 'tr' ? 'HAFTALIK ROI' : 'WEEKLY ROI'}</span>
-                    <span style={{ textAlign: 'right' }}>{lang === 'tr' ? 'BAŞARI ORANI' : 'WIN RATE'}</span>
-                    <span style={{ textAlign: 'right' }}>BANKROLL IQ</span>
-                    <span style={{ textAlign: 'center' }}>{lang === 'tr' ? 'DURUM' : 'STATUS'}</span>
+                    <span>{loc.thRank}</span>
+                    <span>{loc.thAnalyst}</span>
+                    <span style={{ textAlign: 'right' }}>{loc.thRoi}</span>
+                    <span style={{ textAlign: 'right' }}>{loc.thWinRate}</span>
+                    <span style={{ textAlign: 'right' }}>{loc.thIQ}</span>
+                    <span style={{ textAlign: 'center' }}>{loc.thStatus}</span>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -237,7 +300,7 @@ export const AnalystLeaderboard = ({
                                                     color: '#0f172a',
                                                     fontWeight: 900
                                                 }}>
-                                                    SEN
+                                                    {loc.youBadge}
                                                 </span>
                                             )}
                                         </div>

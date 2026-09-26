@@ -641,8 +641,30 @@ function App() {
         alignItems: 'center',
         justifyContent: 'center',
         background: 'linear-gradient(135deg, #030712, #0f172a)',
-        padding: '2rem'
+        padding: '2rem',
+        position: 'relative'
       }}>
+        {/* Language Switcher */}
+        <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.06)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          {['tr', 'en', 'de'].map(l => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              style={{
+                background: lang === l ? 'rgba(56, 189, 248, 0.3)' : 'transparent',
+                border: 'none',
+                color: lang === l ? '#38bdf8' : '#94a3b8',
+                padding: '0.35rem 0.65rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 800,
+                fontSize: '0.75rem'
+              }}
+            >
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <div className="glass-panel" style={{
           padding: '3rem',
           maxWidth: '520px',
@@ -739,8 +761,30 @@ function App() {
         justifyContent: 'center',
         background: 'radial-gradient(circle at center, #0f172a 0%, #030712 100%)',
         padding: '1.5rem',
-        fontFamily: "'Inter', sans-serif"
+        fontFamily: "'Inter', sans-serif",
+        position: 'relative'
       }}>
+        {/* Language Switcher */}
+        <div style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.06)', padding: '4px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+          {['tr', 'en', 'de'].map(l => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              style={{
+                background: lang === l ? 'rgba(168, 85, 247, 0.3)' : 'transparent',
+                border: 'none',
+                color: lang === l ? '#c084fc' : '#94a3b8',
+                padding: '0.35rem 0.65rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: 800,
+                fontSize: '0.75rem'
+              }}
+            >
+              {l.toUpperCase()}
+            </button>
+          ))}
+        </div>
         <div className="glass-panel" style={{
           padding: '2.5rem',
           maxWidth: '560px',

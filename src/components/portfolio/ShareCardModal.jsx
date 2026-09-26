@@ -1,5 +1,44 @@
 import React, { useRef } from 'react';
 
+const LOCALES = {
+    tr: {
+        alertMsg: 'Ekran görüntüsü alabilir veya bu kartı Instagram / Telegram gruplarınızda başarı raporu olarak paylaşabilirsiniz! 📸',
+        algoSubtitle: 'ALGORİTMİK PORTFÖY LABORATUVARI',
+        verifiedBadge: 'ONAYLI ALGO',
+        lockedBadge: '🔒 GÜNLÜK HEDEF KİLİTLENDİ',
+        perfBadge: '📈 PORTFÖY PERFORMANSI',
+        roiLabel: 'Bileşik Portföy Getirisi (ROI)',
+        winRateLabel: 'İSABET ORANI',
+        complianceText: '🛡️ 7258 Sayılı Kanuna Uyumlu Risksiz Sanal Simülasyon • livebetmentor.com',
+        closeBtn: 'Kapat',
+        shareBtn: 'Paylaş / Ekranı Kaydet'
+    },
+    en: {
+        alertMsg: 'You can take a screenshot or share this report with your community on Telegram or Instagram! 📸',
+        algoSubtitle: 'ALGORITHMIC PORTFOLIO LAB',
+        verifiedBadge: 'VERIFIED ALGO',
+        lockedBadge: '🔒 DAILY TARGET LOCKED',
+        perfBadge: '📈 PORTFOLIO PERFORMANCE',
+        roiLabel: 'Compound Portfolio ROI',
+        winRateLabel: 'WIN RATE',
+        complianceText: '🛡️ Educational Virtual Paper-Trading Simulation • livebetmentor.com',
+        closeBtn: 'Close',
+        shareBtn: 'Share / Save Card'
+    },
+    de: {
+        alertMsg: 'Sie können einen Screenshot erstellen oder diesen Bericht in Ihren Telegram- oder Social-Media-Kanälen teilen! 📸',
+        algoSubtitle: 'ALGORITHMISCHES PORTFOLIO-LABOR',
+        verifiedBadge: 'VERIFIZIERT',
+        lockedBadge: '🔒 TAGESZIEL GESICHERT',
+        perfBadge: '📈 PORTFOLIO-PERFORMANCE',
+        roiLabel: 'Portfolio-Rendite (ROI)',
+        winRateLabel: 'TREFFERQUOTE',
+        complianceText: '🛡️ Risikofreie virtuelle Paper-Trading-Simulation • livebetmentor.com',
+        closeBtn: 'Schließen',
+        shareBtn: 'Teilen / Karte speichern'
+    }
+};
+
 export const ShareCardModal = ({
     isOpen,
     onClose,
@@ -22,12 +61,13 @@ export const ShareCardModal = ({
     const losses = settled.filter(l => l.status === 'LOSS' || l.outcome === 'LOST').length;
     const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
 
+    const loc = LOCALES[lang] || LOCALES.tr;
+
     const handleCopyOrDownload = () => {
-        // Simple clipboard alert or toast
-        alert(lang === 'tr' 
-            ? 'Ekran görüntüsü alabilir veya bu kartı Instagram / Telegram gruplarınızda başarı raporu olarak paylaşabilirsiniz! 📸' 
-            : 'You can take a screenshot or share this report with your community! 📸');
+        alert(loc.alertMsg);
     };
+
+    const dateStr = new Date().toLocaleDateString(lang === 'de' ? 'de-DE' : (lang === 'en' ? 'en-US' : 'tr-TR'));
 
     return (
         <div style={{
@@ -87,7 +127,7 @@ export const ShareCardModal = ({
                                     LIVE BET MENTOR
                                 </div>
                                 <div style={{ fontSize: '0.62rem', color: '#38bdf8', fontWeight: 800 }}>
-                                    ALGORİTMİK PORTFÖY LABORATUVARI
+                                    {loc.algoSubtitle}
                                 </div>
                             </div>
                         </div>
@@ -101,7 +141,7 @@ export const ShareCardModal = ({
                             fontSize: '0.65rem',
                             fontWeight: 900
                         }}>
-                            VERIFIED ALGO
+                            {loc.verifiedBadge}
                         </div>
                     </div>
 
@@ -119,14 +159,14 @@ export const ShareCardModal = ({
                             marginBottom: '0.85rem',
                             boxShadow: '0 0 15px rgba(16, 185, 129, 0.3)'
                         }}>
-                            {dailyProgress.isTargetReached ? '🔒 GÜNLÜK HEDEF KİLİTLENDİ' : '📈 PORTFÖY PERFORMANSI'}
+                            {dailyProgress.isTargetReached ? loc.lockedBadge : loc.perfBadge}
                         </div>
 
                         <div style={{ fontSize: '3rem', fontWeight: 900, color: roi >= 0 ? '#10b981' : '#ef4444', lineHeight: 1 }}>
                             {roi >= 0 ? '+' : ''}{roi.toFixed(1)}%
                         </div>
                         <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#94a3b8', marginTop: '0.35rem' }}>
-                            {lang === 'tr' ? 'Bileşik Portföy Getirisi (ROI)' : 'Compound Portfolio ROI'}
+                            {loc.roiLabel}
                         </div>
                     </div>
 
@@ -150,7 +190,7 @@ export const ShareCardModal = ({
                         </div>
 
                         <div>
-                            <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800 }}>İSABET ORANI</div>
+                            <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 800 }}>{loc.winRateLabel}</div>
                             <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#38bdf8' }}>
                                 %{winRate.toFixed(1)}
                             </div>
@@ -162,10 +202,10 @@ export const ShareCardModal = ({
                     <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', zIndex: 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.68rem', color: '#94a3b8' }}>
                             <span style={{ fontWeight: 800, color: '#f8fafc' }}>@{bankrollState.nickname || 'KuantAnalist'}</span>
-                            <span>{new Date().toLocaleDateString('tr-TR')}</span>
+                            <span>{dateStr}</span>
                         </div>
                         <div style={{ fontSize: '0.58rem', color: '#64748b', textAlign: 'center', marginTop: '0.5rem' }}>
-                            🛡️ 7258 Sayılı Kanuna Uyumlu Risksiz Sanal Simülasyon • livebetmentor.com
+                            {loc.complianceText}
                         </div>
                     </div>
                 </div>
@@ -186,7 +226,7 @@ export const ShareCardModal = ({
                             cursor: 'pointer'
                         }}
                     >
-                        {lang === 'tr' ? 'Kapat' : 'Close'}
+                        {loc.closeBtn}
                     </button>
                     <button
                         onClick={handleCopyOrDownload}
@@ -203,7 +243,7 @@ export const ShareCardModal = ({
                             boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)'
                         }}
                     >
-                        📸 {lang === 'tr' ? 'Paylaş / Ekranı Kaydet' : 'Share / Save Card'}
+                        📸 {loc.shareBtn}
                     </button>
                 </div>
             </div>

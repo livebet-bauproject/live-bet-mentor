@@ -1,9 +1,71 @@
 import React, { useState, useMemo } from 'react';
 
+const LOCALES = {
+    tr: {
+        title: 'Bileşik Büyüme & Gelecek Projeksiyon Simülatörü',
+        subtitle: 'Hırsla değil; küçük, istikrarlı kâr hedefleri ve bileşik faiz ile sermayenin nasıl büyüdüğünü canlı test edin.',
+        paramsTitle: 'SİMÜLASYON PARAMETRELERİ',
+        capLabel: 'Başlangıç Sermayesi:',
+        dailyGainLabel: 'Günlük Ortalama Disiplin Hedefi:',
+        horizonLabel: 'Projeksiyon Vadesi:',
+        daysUnit: 'Gün',
+        finalCapTitle: (days) => `${days}. GÜN NİHAİ SANAL PORTFÖY`,
+        totalNetGrowth: 'Toplam Net Büyüme:',
+        netCapitalGain: 'Net Katma Değer:',
+        powerTitle: 'Matematiğin ve Disiplinin Gücü',
+        powerDesc: (dailyPct, days, growthPct) => `Günde yalnızca %${dailyPct.toFixed(1)} hedef koyup kasayı kilitlediğinizde; ${days} gün sonunda sermayeniz hırsa ve kumara gerek kalmadan %${growthPct} büyür. Profesyonel fon yöneticilerinin sırrı işte bu bileşik sabırdır.`,
+        chartTitle: (days) => `${days} Günlük Bileşik Eğri (Üstel Büyüme)`,
+        legendCompound: 'Bileşik Büyüme',
+        legendLinear: 'Düz Doğrusal Getiri',
+        day0: '0. Gün (Başlangıç)',
+        dayN: (days) => `${days}. Gün`
+    },
+    en: {
+        title: 'Compound Growth & Future Projection Simulator',
+        subtitle: 'Simulate the exponential power of disciplined, daily compound growth over time without gambling.',
+        paramsTitle: 'SIMULATION PARAMETERS',
+        capLabel: 'Starting Capital:',
+        dailyGainLabel: 'Daily Target Gain:',
+        horizonLabel: 'Time Horizon:',
+        daysUnit: 'Days',
+        finalCapTitle: (days) => `DAY ${days} FINAL VIRTUAL CAPITAL`,
+        totalNetGrowth: 'Total Net Growth:',
+        netCapitalGain: 'Net Capital Gain:',
+        powerTitle: 'The Power of Compounding & Discipline',
+        powerDesc: (dailyPct, days, growthPct) => `By locking in just %${dailyPct.toFixed(1)} daily, your capital compounds by %${growthPct} in ${days} days without emotional gambling. This disciplined compound patience is the institutional fund secret.`,
+        chartTitle: (days) => `${days} Day Exponential Compound Curve`,
+        legendCompound: 'Compound Growth',
+        legendLinear: 'Linear Return',
+        day0: 'Day 0 (Start)',
+        dayN: (days) => `Day ${days}`
+    },
+    de: {
+        title: 'Zinseszins-Wachstum & Zukunftsprojektions-Simulator',
+        subtitle: 'Erleben Sie, wie kleine, beständige Gewinne durch den Zinseszinseffekt über die Zeit exponentiell wachsen.',
+        paramsTitle: 'SIMULATIONSPARAMETER',
+        capLabel: 'Startkapital:',
+        dailyGainLabel: 'Tägliches Ziel-Wachstum:',
+        horizonLabel: 'Projektions-Zeithorizont:',
+        daysUnit: 'Tage',
+        finalCapTitle: (days) => `TAG ${days} FINALES VIRTUELLES KAPITAL`,
+        totalNetGrowth: 'Gesamtes Netto-Wachstum:',
+        netCapitalGain: 'Netto-Kapitalzuwachs:',
+        powerTitle: 'Die mathematische Kraft des Zinseszinses',
+        powerDesc: (dailyPct, days, growthPct) => `Indem Sie täglich nur %${dailyPct.toFixed(1)} sichern, wächst Ihr Kapital in ${days} Tagen um %${growthPct} – ganz ohne emotionales Zocken. Diese Zinseszins-Geduld ist das Fundament professioneller Fonds.`,
+        chartTitle: (days) => `${days}-Tage exponentielle Zinseszins-Kurve`,
+        legendCompound: 'Zinseszins-Wachstum',
+        legendLinear: 'Lineare Rendite',
+        day0: 'Tag 0 (Start)',
+        dayN: (days) => `Tag ${days}`
+    }
+};
+
 export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }) => {
     const [capital, setCapital] = useState(currentStartingBalance || 2000);
     const [dailyPct, setDailyPct] = useState(2.0); // 2.0%
     const [days, setDays] = useState(30); // 15, 30, 60, 90
+
+    const loc = LOCALES[lang] || LOCALES.tr;
 
     const projection = useMemo(() => {
         const points = [];
@@ -78,12 +140,10 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                     </div>
                     <div>
                         <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span>{lang === 'tr' ? 'Bileşik Büyüme & Gelecek Projeksiyon Simülatörü' : 'Compound Growth & Future Projection Simulator'}</span>
+                            <span>{loc.title}</span>
                         </div>
                         <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                            {lang === 'tr' 
-                                ? 'Hırsla değil; küçük, istikrarlı kâr hedefleri ve bileşik faiz ile sermayenin nasıl büyüdüğünü canlı test edin.' 
-                                : 'Simulate the exponential power of disciplined, daily compound growth over time.'}
+                            {loc.subtitle}
                         </div>
                     </div>
                 </div>
@@ -106,14 +166,14 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                     gap: '1.2rem'
                 }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 900, color: '#38bdf8' }}>
-                        ⚙️ {lang === 'tr' ? 'SİMÜLASYON PARAMETRELERİ' : 'SIMULATION PARAMETERS'}
+                        ⚙️ {loc.paramsTitle}
                     </div>
 
                     {/* Capital Slider */}
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                             <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700 }}>
-                                {lang === 'tr' ? 'Başlangıç Sermayesi:' : 'Starting Capital:'}
+                                {loc.capLabel}
                             </span>
                             <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#f8fafc' }}>
                                 {capital.toLocaleString()} ₺
@@ -154,7 +214,7 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
                             <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700 }}>
-                                {lang === 'tr' ? 'Günlük Ortalama Disiplin Hedefi:' : 'Daily Target Gain:'}
+                                {loc.dailyGainLabel}
                             </span>
                             <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#10b981' }}>
                                 %{dailyPct.toFixed(1)}
@@ -194,7 +254,7 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                     {/* Time Horizon Pills */}
                     <div>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, marginBottom: '0.4rem' }}>
-                            {lang === 'tr' ? 'Projeksiyon Vadesi:' : 'Time Horizon:'}
+                            {loc.horizonLabel}
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
                             {[15, 30, 60, 90].map(d => (
@@ -213,7 +273,7 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                                         textAlign: 'center'
                                     }}
                                 >
-                                    {d} {lang === 'tr' ? 'Gün' : 'Days'}
+                                    {d} {loc.daysUnit}
                                 </button>
                             ))}
                         </div>
@@ -233,16 +293,16 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                     <div>
                         <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             <span>🚀</span>
-                            <span>{days}. GÜN NİHAİ SANAL PORTFÖY</span>
+                            <span>{loc.finalCapTitle(days)}</span>
                         </div>
                         <div style={{ fontSize: '2.1rem', fontWeight: 900, color: '#10b981', margin: '0.5rem 0' }}>
                             {projection.finalBalance.toLocaleString()} ₺
                         </div>
                         <div style={{ fontSize: '0.8rem', color: '#f8fafc', fontWeight: 800 }}>
-                            {lang === 'tr' ? 'Toplam Net Büyüme:' : 'Total Net Growth:'} <span style={{ color: '#10b981' }}>+{projection.totalGrowthPct}%</span>
+                            {loc.totalNetGrowth} <span style={{ color: '#10b981' }}>+{projection.totalGrowthPct}%</span>
                         </div>
                         <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                            {lang === 'tr' ? 'Net Katma Değer:' : 'Net Capital Gain:'} +{projection.netGain.toLocaleString()} ₺
+                            {loc.netCapitalGain} +{projection.netGain.toLocaleString()} ₺
                         </div>
                     </div>
 
@@ -254,12 +314,10 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                         marginTop: '1rem'
                     }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 900, color: '#f8fafc', marginBottom: '0.3rem' }}>
-                            💡 {lang === 'tr' ? 'Matematiğin ve Disiplinin Gücü' : 'The Power of Compounding'}
+                            💡 {loc.powerTitle}
                         </div>
                         <div style={{ fontSize: '0.68rem', color: '#94a3b8', lineHeight: '1.5' }}>
-                            {lang === 'tr'
-                                ? `Günde yalnızca %${dailyPct.toFixed(1)} hedef koyup kasayı kilitlediğinizde; ${days} gün sonunda sermayeniz hırsa ve kumara gerek kalmadan %${projection.totalGrowthPct} büyür. Profesyonel fon yöneticilerinin sırrı işte bu bileşik sabırdır.`
-                                : `By locking in just %${dailyPct.toFixed(1)} daily, your capital compounds by %${projection.totalGrowthPct} in ${days} days without emotional gambling.`}
+                            {loc.powerDesc(dailyPct, days, projection.totalGrowthPct)}
                         </div>
                     </div>
                 </div>
@@ -273,14 +331,14 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                 padding: '1.25rem 1.5rem',
                 boxShadow: '0 8px 30px rgba(0,0,0,0.3)'
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span>📊</span>
-                        <span>{days} {lang === 'tr' ? 'Günlük Bileşik Eğri (Üstel Büyüme)' : 'Day Exponential Compound Curve'}</span>
+                        <span>{loc.chartTitle(days)}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '0.8rem', fontSize: '0.68rem' }}>
-                        <span style={{ color: '#10b981', fontWeight: 800 }}>● {lang === 'tr' ? 'Bileşik Büyüme' : 'Compound Curve'}</span>
-                        <span style={{ color: '#64748b', fontWeight: 700 }}>● {lang === 'tr' ? 'Düz Doğrusal Getiri' : 'Linear Growth'}</span>
+                        <span style={{ color: '#10b981', fontWeight: 800 }}>● {loc.legendCompound}</span>
+                        <span style={{ color: '#64748b', fontWeight: 700 }}>● {loc.legendLinear}</span>
                     </div>
                 </div>
 
@@ -317,8 +375,8 @@ export const CompoundSimulator = ({ currentStartingBalance = 2000, lang = 'tr' }
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8', marginTop: '0.5rem' }}>
-                    <span>{lang === 'tr' ? '0. Gün (Başlangıç)' : 'Day 0 (Start)'}: {capital.toLocaleString()} ₺</span>
-                    <span style={{ color: '#10b981', fontWeight: 800 }}>{days}. Gün: {projection.finalBalance.toLocaleString()} ₺</span>
+                    <span>{loc.day0}: {capital.toLocaleString()} ₺</span>
+                    <span style={{ color: '#10b981', fontWeight: 800 }}>{loc.dayN(days)}: {projection.finalBalance.toLocaleString()} ₺</span>
                 </div>
             </div>
 

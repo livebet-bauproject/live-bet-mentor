@@ -1,5 +1,70 @@
 import React, { useState } from 'react';
 import { RISK_PROFILES, BADGE_DEFINITIONS } from '../../logic/bankrollManager';
+import { PortfolioGuideCard } from './PortfolioGuideCard';
+
+const BADGE_TRANSLATIONS = {
+    WELCOME_TRADER: {
+        tr: { title: 'Analitik Başlangıç', desc: 'Sanal portföy laboratuvarını başlattı ve ilk stratejisini oluşturdu.' },
+        en: { title: 'Analytic Starter', desc: 'Launched virtual portfolio lab and established initial strategy.' },
+        de: { title: 'Analytischer Start', desc: 'Virtuelles Portfolio-Labor gestartet und erste Strategie erstellt.' }
+    },
+    IRON_WILL: {
+        tr: { title: 'Çelik İrade', desc: 'Stop-loss veya temkinli mod sınırına saygı gösterip sermayesini korudu.' },
+        en: { title: 'Iron Will', desc: 'Respected stop-loss or caution limits to safeguard overall capital.' },
+        de: { title: 'Eiserner Wille', desc: 'Stop-Loss- oder Vorsichtsgrenzen beachtet und Kapital geschützt.' }
+    },
+    SNIPER: {
+        tr: { title: 'Keskin Nişancı', desc: 'Art arda 4 veya daha fazla kazanan simülasyon işlemi gerçekleştirdi.' },
+        en: { title: 'Sniper Strike', desc: 'Executed 4 or more consecutive winning simulation trades.' },
+        de: { title: 'Scharfschütze', desc: '4 oder mehr aufeinanderfolgende Gewinnwetten in der Simulation erzielt.' }
+    },
+    COMPOUND_MASTER: {
+        tr: { title: 'Bileşik Büyücü', desc: 'Portföyünü pozitif getiri eğrisinde istikrarlı şekilde büyüttü.' },
+        en: { title: 'Compound Master', desc: 'Consistently compounded portfolio on a positive trajectory.' },
+        de: { title: 'Zinseszins-Meister', desc: 'Portfolio kontinuierlich auf einer positiven Wachstumskurve gesteigert.' }
+    },
+    DISCIPLINE_LOCK: {
+        tr: { title: 'Hedef Kilitleyici', desc: 'Günlük kâr hedefine ulaşıp kurala uyarak günü yeşil kapattı.' },
+        en: { title: 'Discipline Lock', desc: 'Hit daily profit target and locked the day green with strict discipline.' },
+        de: { title: 'Ziel-Sicherung', desc: 'Tagesziel erreicht und den Tag mit strikter Disziplin im Plus beendet.' }
+    },
+    QUANT_SCHOLAR: {
+        tr: { title: 'Kuant Bilgini', desc: '10 veya daha fazla simülasyon işlemini detaylı inceledi.' },
+        en: { title: 'Quant Scholar', desc: 'Analyzed and executed 10 or more simulation trades in depth.' },
+        de: { title: 'Quant-Gelehrter', desc: '10 oder mehr Simulationswetten detailliert analysiert und abgeschlossen.' }
+    },
+    WHALE: {
+        tr: { title: 'Portföy Mimarı', desc: 'Sanal sermayesini başlangıç bakiyesinden %25 veya daha fazla büyüttü.' },
+        en: { title: 'Portfolio Architect', desc: 'Expanded virtual capital by +25% or more above starting balance.' },
+        de: { title: 'Portfolio-Architekt', desc: 'Virtuelles Startkapital um +25% oder mehr gesteigert.' }
+    }
+};
+
+const RISK_PROFILE_TRANSLATIONS = {
+    CONSERVATIVE: {
+        tr: { label: 'Muhafazakar Fon', desc: 'Sermaye koruma odaklı, düşük dalgalanmalı kurumsal fon disiplini.' },
+        en: { label: 'Conservative Fund', desc: 'Preservation-focused, low-volatility institutional discipline.' },
+        de: { label: 'Konservativer Fonds', desc: 'Fokus auf Kapitalschutz und minimale Schwankungen.' }
+    },
+    BALANCED: {
+        tr: { label: 'Dengeli Radar', desc: 'Değerli oran ve standart fraksiyonel Kelly dengesi.' },
+        en: { label: 'Balanced Radar', desc: 'Value odds and balanced fractional Kelly stake modeling.' },
+        de: { label: 'Ausgewogener Radar', desc: 'Ausgewogene Balance aus Value-Quoten und fraktionalem Kelly.' }
+    },
+    DYNAMIC: {
+        tr: { label: 'Dinamik Fırsat', desc: 'Yüksek xG ve momentum fırsatlarına odaklı dinamik simülasyon.' },
+        en: { label: 'Dynamic Opportunity', desc: 'Momentum and high-xG offensive trading simulation.' },
+        de: { label: 'Dynamische Chance', desc: 'Fokus auf hohes xG-Momentum und offensive Chancen.' }
+    }
+};
+
+const BANKROLL_IQ_LABELS = {
+    'Elit Fon Mimarı': { tr: 'Elit Fon Mimarı', en: 'Elite Fund Architect', de: 'Elite-Fonds-Architekt' },
+    'Disiplinli Kuant Analist': { tr: 'Disiplinli Kuant Analist', en: 'Disciplined Quant Analyst', de: 'Disziplinierter Quant-Analyst' },
+    'Dengeli Analist': { tr: 'Dengeli Analist', en: 'Balanced Analyst', de: 'Ausgewogener Analyst' },
+    'Risk Eğitimi Önerilir': { tr: 'Risk Eğitimi Önerilir', en: 'Risk Training Recommended', de: 'Risikotraining empfohlen' },
+    'Gelişen Stratejist': { tr: 'Gelişen Stratejist', en: 'Emerging Strategist', de: 'Aufstrebender Stratege' }
+};
 
 export const PortfolioCockpit = ({
     bankrollState,
@@ -12,10 +77,9 @@ export const PortfolioCockpit = ({
     isSyncingResults,
     settlementMessage,
     onOpenShareModal,
-    lang = 'tr'
+    lang = 'tr',
+    onSelectTab
 }) => {
-    const [showFaqGuide, setShowFaqGuide] = useState(false);
-
     const startBal = bankrollState.starting_balance || 2000;
     const curBal = bankrollState.current_balance || 2000;
     const realizedProfit = curBal - startBal;
@@ -30,7 +94,11 @@ export const PortfolioCockpit = ({
     const openBets = (bankrollState.ledger || []).filter(l => !l.is_settled && (l.status === 'OPEN' || l.type === 'BET_OPEN'));
     const activeExposure = openBets.reduce((acc, b) => acc + Number(b.stake || b.stake_amount || 0), 0);
 
-    const activeProfile = RISK_PROFILES[bankrollState.risk_profile] || RISK_PROFILES.BALANCED;
+    const profileKey = bankrollState.risk_profile || 'BALANCED';
+    const activeProfile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
+    const profileTrans = (RISK_PROFILE_TRANSLATIONS[profileKey] && RISK_PROFILE_TRANSLATIONS[profileKey][lang]) 
+        || (RISK_PROFILE_TRANSLATIONS[profileKey] && RISK_PROFILE_TRANSLATIONS[profileKey].tr) 
+        || { label: activeProfile.label, desc: activeProfile.description };
 
     // SVG Growth Chart points
     const rawPoints = [startBal];
@@ -54,9 +122,18 @@ export const PortfolioCockpit = ({
 
     const unlockedBadgeIds = new Set(bankrollState.badges || ['WELCOME_TRADER']);
 
+    const iqLabel = (BANKROLL_IQ_LABELS[bankrollIQ.label] && BANKROLL_IQ_LABELS[bankrollIQ.label][lang]) || bankrollIQ.label;
+
     return (
         <div className="portfolio-cockpit-container" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             
+            {/* 0. Educational User Guide (Collapsible 3-Language Onboarding Banner) */}
+            <PortfolioGuideCard
+                lang={lang}
+                onOpenCapitalModal={onOpenCapitalModal}
+                onSelectTab={onSelectTab}
+            />
+
             {/* 1. Hukuki & Simülasyon Bilgilendirme Rozeti (Compliance Ribbon) */}
             <div style={{
                 background: 'linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.85) 100%)',
@@ -85,8 +162,10 @@ export const PortfolioCockpit = ({
                         ⚖️
                     </div>
                     <div>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <span>{lang === 'tr' ? 'Algoritmik Strateji & Portföy Laboratuvarı (Paper Trading)' : 'Algorithmic Strategy & Portfolio Lab (Paper Trading)'}</span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <span>
+                                {lang === 'tr' ? 'Algoritmik Strateji & Portföy Laboratuvarı (Paper Trading)' : (lang === 'de' ? 'Algorithmisches Strategie- & Portfolio-Labor (Paper Trading)' : 'Algorithmic Strategy & Portfolio Lab (Paper Trading)')}
+                            </span>
                             <span style={{
                                 fontSize: '0.62rem',
                                 padding: '2px 8px',
@@ -96,18 +175,20 @@ export const PortfolioCockpit = ({
                                 border: '1px solid rgba(16, 185, 129, 0.4)',
                                 fontWeight: 800
                             }}>
-                                100% YASAL SİMÜLASYON
+                                {lang === 'tr' ? '100% YASAL SİMÜLASYON' : (lang === 'de' ? '100% LEGALE SIMULATION' : '100% LEGAL SIMULATION')}
                             </span>
                         </div>
                         <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
                             {lang === 'tr' 
                                 ? '7258 sayılı kanuna tam uyumlu, gerçek para kabul edilmeyen karar destek ve matematiksel sermaye koruma ortamı.' 
-                                : 'Strictly educational paper trading lab for risk modeling and discipline. No real money betting processed.'}
+                                : (lang === 'de' 
+                                    ? 'Reines Simulations-Labor für Risikomodellierung und Disziplin. Keine Echtgeldeinsätze.' 
+                                    : 'Strictly educational paper trading lab for risk modeling and discipline. No real money betting processed.')}
                         </div>
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                     <button
                         onClick={onOpenCapitalModal}
                         style={{
@@ -126,7 +207,7 @@ export const PortfolioCockpit = ({
                         }}
                     >
                         <span>⚙️</span>
-                        <span>{lang === 'tr' ? 'Sermaye & Modu Ayarla' : 'Configure Capital'}</span>
+                        <span>{lang === 'tr' ? 'Sermaye & Modu Ayarla' : (lang === 'de' ? 'Kapital & Modus einstellen' : 'Configure Capital')}</span>
                     </button>
 
                     <button
@@ -147,7 +228,7 @@ export const PortfolioCockpit = ({
                         }}
                     >
                         <span>📸</span>
-                        <span>{lang === 'tr' ? 'Başarı Kartı Çıkar' : 'Export Brag Card'}</span>
+                        <span>{lang === 'tr' ? 'Başarı Kartı Çıkar' : (lang === 'de' ? 'Erfolgs-Karte erstellen' : 'Export Brag Card')}</span>
                     </button>
                 </div>
             </div>
@@ -172,15 +253,21 @@ export const PortfolioCockpit = ({
                         <div>
                             <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.2px' }}>
                                 {dailyProgress.isTargetReached 
-                                    ? (lang === 'tr' ? 'GÜNLÜK HEDEF KİLİTLENDİ (KASA KORUMA AKTİF)' : 'DAILY TARGET LOCKED (CAPITAL SECURED)')
+                                    ? (lang === 'tr' ? 'GÜNLÜK HEDEF KİLİTLENDİ (KASA KORUMA AKTİF)' : (lang === 'de' ? 'TAGESZIEL GESICHERT (KAPITALSCHUTZ AKTIV)' : 'DAILY TARGET LOCKED (CAPITAL SECURED)'))
                                     : (dailyProgress.isStopLossReached 
-                                        ? (lang === 'tr' ? 'STOP-LOSS DİSİPLİN MOLASI (İŞLEM DURDURULDU)' : 'STOP-LOSS DISCIPLINE HALT')
-                                        : (lang === 'tr' ? `GÜNLÜK HEDEF & SERMAYE KORUMA KOKPİTİ (%${dailyProgress.targetPct} Hedef)` : `DAILY CAPITAL DISCIPLINE COCKPIT (%${dailyProgress.targetPct} Target)`))}
+                                        ? (lang === 'tr' ? 'STOP-LOSS DİSİPLİN MOLASI (İŞLEM DURDURULDU)' : (lang === 'de' ? 'STOP-LOSS DISZIPLIN-PAUSE (HANDEL GESTOPPT)' : 'STOP-LOSS DISCIPLINE HALT'))
+                                        : (lang === 'tr' 
+                                            ? `GÜNLÜK HEDEF & SERMAYE KORUMA KOKPİTİ (%${dailyProgress.targetPct} Hedef)` 
+                                            : (lang === 'de' 
+                                                ? `TAGESZIEL & KAPITALSCHUTZ-COCKPIT (%${dailyProgress.targetPct} Ziel)` 
+                                                : `DAILY CAPITAL DISCIPLINE COCKPIT (%${dailyProgress.targetPct} Target)`)))}
                             </div>
                             <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
                                 {lang === 'tr'
-                                    ? `Aktif Profil: ${activeProfile.icon} ${activeProfile.label} • Hedef: +%${dailyProgress.targetPct} • Stop-Loss: -%${dailyProgress.stopLossPct}`
-                                    : `Active Profile: ${activeProfile.label} • Target: +%${dailyProgress.targetPct} • Stop-Loss: -%${dailyProgress.stopLossPct}`}
+                                    ? `Aktif Profil: ${activeProfile.icon} ${profileTrans.label} • Hedef: +%${dailyProgress.targetPct} • Stop-Loss: -%${dailyProgress.stopLossPct}`
+                                    : (lang === 'de' 
+                                        ? `Aktives Profil: ${activeProfile.icon} ${profileTrans.label} • Ziel: +%${dailyProgress.targetPct} • Stop-Loss: -%${dailyProgress.stopLossPct}`
+                                        : `Active Profile: ${activeProfile.icon} ${profileTrans.label} • Target: +%${dailyProgress.targetPct} • Stop-Loss: -%${dailyProgress.stopLossPct}`)}
                             </div>
                         </div>
                     </div>
@@ -194,7 +281,7 @@ export const PortfolioCockpit = ({
                             {dailyProgress.dailyPL >= 0 ? '+' : ''}{dailyProgress.dailyPL.toFixed(2)} ₺ ({dailyProgress.dailyPLPct >= 0 ? '+' : ''}{dailyProgress.dailyPLPct}%)
                         </div>
                         <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                            {lang === 'tr' ? 'Bugünkü Net Simülasyon Hareketi' : 'Today Net Simulation P/L'}
+                            {lang === 'tr' ? 'Bugünkü Net Simülasyon Hareketi' : (lang === 'de' ? 'Heutige Netto-Entwicklung' : 'Today Net Simulation P/L')}
                         </div>
                     </div>
                 </div>
@@ -218,9 +305,15 @@ export const PortfolioCockpit = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.68rem', color: '#94a3b8' }}>
                     <span>0%</span>
                     <span style={{ color: '#38bdf8', fontWeight: 800 }}>
-                        {dailyProgress.isTargetReached ? '🏆 100% Tamamlandı' : `%${dailyProgress.progressPct} Hedefe Yaklaşıldı`}
+                        {dailyProgress.isTargetReached 
+                            ? (lang === 'tr' ? '🏆 100% Tamamlandı' : (lang === 'de' ? '🏆 100% Erreicht' : '🏆 100% Completed')) 
+                            : (lang === 'tr' 
+                                ? `%${dailyProgress.progressPct} Hedefe Yaklaşıldı` 
+                                : (lang === 'de' ? `%${dailyProgress.progressPct} Ziel erreicht` : `%${dailyProgress.progressPct} Target Progress`))}
                     </span>
-                    <span style={{ color: '#10b981', fontWeight: 800 }}>+{dailyProgress.targetPct}% Kilit</span>
+                    <span style={{ color: '#10b981', fontWeight: 800 }}>
+                        +{dailyProgress.targetPct}% {lang === 'tr' ? 'Kilit' : (lang === 'de' ? 'Sperre' : 'Lock')}
+                    </span>
                 </div>
             </div>
 
@@ -232,34 +325,40 @@ export const PortfolioCockpit = ({
             }}>
                 {/* 1. Toplam Kâr */}
                 <div className="portfolio-card glass-panel" style={{ padding: '1.2rem', borderRadius: '14px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>{lang === 'tr' ? 'TOPLAM KÂR / ZARAR (P/L)' : 'NET REALIZED P/L'}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>
+                        {lang === 'tr' ? 'TOPLAM KÂR / ZARAR (P/L)' : (lang === 'de' ? 'GESAMT GEWINN/VERLUST (G/V)' : 'NET REALIZED P/L')}
+                    </div>
                     <div style={{ fontSize: '1.45rem', fontWeight: 900, color: realizedProfit >= 0 ? '#10b981' : '#ef4444', margin: '0.4rem 0' }}>
                         {realizedProfit >= 0 ? '+' : ''}{realizedProfit.toFixed(2)} ₺
                     </div>
                     <div style={{ fontSize: '0.72rem', fontWeight: 800, color: realizedProfit >= 0 ? '#10b981' : '#ef4444' }}>
-                        {realizedProfit >= 0 ? '↑' : '↓'} {roi.toFixed(1)}% ROI ({settled.length} {lang === 'tr' ? 'İşlem' : 'Bets'})
+                        {realizedProfit >= 0 ? '↑' : '↓'} {roi.toFixed(1)}% ROI ({settled.length} {lang === 'tr' ? 'İşlem' : (lang === 'de' ? 'Wetten' : 'Bets')})
                     </div>
                 </div>
 
                 {/* 2. Başarı Oranı */}
                 <div className="portfolio-card glass-panel" style={{ padding: '1.2rem', borderRadius: '14px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>{lang === 'tr' ? 'İSABET & BAŞARI ORANI' : 'WIN RATE'}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>
+                        {lang === 'tr' ? 'İSABET & BAŞARI ORANI' : (lang === 'de' ? 'TREFFERQUOTE & ERFOLG' : 'WIN RATE')}
+                    </div>
                     <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#38bdf8', margin: '0.4rem 0' }}>
                         %{winRate.toFixed(1)}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700 }}>
-                        <span style={{ color: '#10b981' }}>{wins} Kazan</span> • <span style={{ color: '#ef4444' }}>{losses} Kaybet</span>
+                        <span style={{ color: '#10b981' }}>{wins} {lang === 'tr' ? 'Kazan' : (lang === 'de' ? 'Siege' : 'Wins')}</span> • <span style={{ color: '#ef4444' }}>{losses} {lang === 'tr' ? 'Kaybet' : (lang === 'de' ? 'Niederlagen' : 'Losses')}</span>
                     </div>
                 </div>
 
                 {/* 3. Güncel Bakiye & Sermaye */}
                 <div className="portfolio-card glass-panel" style={{ padding: '1.2rem', borderRadius: '14px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>{lang === 'tr' ? 'GÜNCEL SANAL BAKİYE' : 'VIRTUAL CAPITAL'}</div>
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>
+                        {lang === 'tr' ? 'GÜNCEL SANAL BAKİYE' : (lang === 'de' ? 'AKTUELLES VIRTUELLES KAPITAL' : 'VIRTUAL CAPITAL')}
+                    </div>
                     <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#f8fafc', margin: '0.4rem 0' }}>
                         {curBal.toFixed(2)} ₺
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        {lang === 'tr' ? 'Başlangıç' : 'Initial'}: {startBal.toLocaleString()} ₺ {activeExposure > 0 ? `(${activeExposure.toFixed(0)} ₺ Riskte)` : ''}
+                        {lang === 'tr' ? 'Başlangıç' : (lang === 'de' ? 'Startkapital' : 'Initial')}: {startBal.toLocaleString()} ₺ {activeExposure > 0 ? `(${activeExposure.toFixed(0)} ₺ ${lang === 'tr' ? 'Riskte' : (lang === 'de' ? 'im Risiko' : 'at Risk')})` : ''}
                     </div>
                 </div>
 
@@ -271,7 +370,9 @@ export const PortfolioCockpit = ({
                     border: `1px solid ${bankrollIQ.color}55`
                 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>BANKROLL IQ (DİSİPLİN)</div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 800 }}>
+                            {lang === 'tr' ? 'BANKROLL IQ (DİSİPLİN)' : (lang === 'de' ? 'BANKROLL IQ (DISZIPLIN)' : 'BANKROLL IQ (DISCIPLINE)')}
+                        </div>
                         <span style={{
                             fontSize: '0.65rem',
                             fontWeight: 900,
@@ -287,7 +388,7 @@ export const PortfolioCockpit = ({
                         {bankrollIQ.score} <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8' }}>/ 100</span>
                     </div>
                     <div style={{ fontSize: '0.72rem', color: bankrollIQ.color, fontWeight: 800 }}>
-                        {bankrollIQ.label}
+                        {iqLabel}
                     </div>
                 </div>
             </div>
@@ -302,23 +403,25 @@ export const PortfolioCockpit = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div style={{ fontSize: '0.88rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                         <span>🏅</span>
-                        <span>{lang === 'tr' ? 'Disiplin & Başarı Rozetleri' : 'Discipline & Achievement Badges'}</span>
+                        <span>{lang === 'tr' ? 'Disiplin & Başarı Rozetleri' : (lang === 'de' ? 'Disziplin- & Erfolgs-Abzeichen' : 'Discipline & Achievement Badges')}</span>
                         <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700 }}>
-                            ({unlockedBadgeIds.size} / {BADGE_DEFINITIONS.length} {lang === 'tr' ? 'Açıldı' : 'Unlocked'})
+                            ({unlockedBadgeIds.size} / {BADGE_DEFINITIONS.length} {lang === 'tr' ? 'Açıldı' : (lang === 'de' ? 'Freigeschaltet' : 'Unlocked')})
                         </span>
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 700 }}>
-                        {lang === 'tr' ? 'Disiplinli kaldıkça Bankroll IQ yükselir' : 'Consistent discipline boosts your Bankroll IQ'}
+                        {lang === 'tr' ? 'Disiplinli kaldıkça Bankroll IQ yükselir' : (lang === 'de' ? 'Diszipliniertes Handeln steigert Ihren Bankroll IQ' : 'Consistent discipline boosts your Bankroll IQ')}
                     </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.7rem' }}>
                     {BADGE_DEFINITIONS.map(b => {
                         const isUnlocked = unlockedBadgeIds.has(b.id);
+                        const trans = (BADGE_TRANSLATIONS[b.id] && BADGE_TRANSLATIONS[b.id][lang]) || (BADGE_TRANSLATIONS[b.id] && BADGE_TRANSLATIONS[b.id].tr) || { title: b.title, desc: b.description };
+
                         return (
                             <div
                                 key={b.id}
-                                title={b.description}
+                                title={trans.desc}
                                 style={{
                                     background: isUnlocked ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.02)',
                                     border: `1px solid ${isUnlocked ? 'rgba(56, 189, 248, 0.35)' : 'rgba(255, 255, 255, 0.04)'}`,
@@ -332,10 +435,10 @@ export const PortfolioCockpit = ({
                             >
                                 <div style={{ fontSize: '1.5rem', marginBottom: '0.2rem' }}>{b.icon}</div>
                                 <div style={{ fontSize: '0.75rem', fontWeight: 800, color: isUnlocked ? '#f8fafc' : '#64748b' }}>
-                                    {b.title}
+                                    {trans.title}
                                 </div>
                                 <div style={{ fontSize: '0.62rem', color: isUnlocked ? '#38bdf8' : '#475569', marginTop: '2px' }}>
-                                    {isUnlocked ? (lang === 'tr' ? 'Kazanıldı' : 'Earned') : (lang === 'tr' ? 'Kilitli' : 'Locked')}
+                                    {isUnlocked ? (lang === 'tr' ? 'Kazanıldı' : (lang === 'de' ? 'Erreicht' : 'Earned')) : (lang === 'tr' ? 'Kilitli' : (lang === 'de' ? 'Gesperrt' : 'Locked'))}
                                 </div>
                             </div>
                         );
@@ -345,13 +448,13 @@ export const PortfolioCockpit = ({
 
             {/* 5. İnteraktif Büyüme Grafiği */}
             <div className="chart-panel glass-panel" style={{ padding: '1.25rem 1.5rem', borderRadius: '16px', background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <span>📈</span>
-                        <span>{lang === 'tr' ? 'Portföy Gelişim Eğrisi' : 'Portfolio Growth Curve'}</span>
+                        <span>{lang === 'tr' ? 'Portföy Gelişim Eğrisi' : (lang === 'de' ? 'Portfolio-Wachstumskurve' : 'Portfolio Growth Curve')}</span>
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        {lang === 'tr' ? 'Başlangıçtan bugüne sermaye serüveni' : 'Historical capital growth curve'}
+                        {lang === 'tr' ? 'Başlangıçtan bugüne sermaye serüveni' : (lang === 'de' ? 'Historische Entwicklung Ihres Kapitals' : 'Historical capital growth curve')}
                     </div>
                 </div>
 
@@ -422,7 +525,11 @@ export const PortfolioCockpit = ({
                         }}
                     >
                         <span style={{ display: 'inline-block', transform: isSyncingResults ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s' }}>🔄</span>
-                        <span>{isSyncingResults ? (lang === 'tr' ? 'Sonuçlar Sorgulanıyor...' : 'Scanning Results...') : (lang === 'tr' ? 'Biten Maçları Otomatik Sonuçlandır' : 'Auto-Settle Finished Matches')}</span>
+                        <span>
+                            {isSyncingResults 
+                                ? (lang === 'tr' ? 'Sonuçlar Sorgulanıyor...' : (lang === 'de' ? 'Ergebnisse werden geprüft...' : 'Scanning Results...')) 
+                                : (lang === 'tr' ? 'Biten Maçları Otomatik Sonuçlandır' : (lang === 'de' ? 'Beendete Spiele automatisch abrechnen' : 'Auto-Settle Finished Matches'))}
+                        </span>
                     </button>
 
                     <button
@@ -443,7 +550,7 @@ export const PortfolioCockpit = ({
                         }}
                     >
                         <span>🗑️</span>
-                        <span>{lang === 'tr' ? 'Portföyü Sıfırla' : 'Reset Portfolio'}</span>
+                        <span>{lang === 'tr' ? 'Portföyü Sıfırla' : (lang === 'de' ? 'Portfolio zurücksetzen' : 'Reset Portfolio')}</span>
                     </button>
                 </div>
 

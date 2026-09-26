@@ -2877,7 +2877,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     <div>
                         <h2 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px' }}>📈 {t.portfolio_title}</h2>
                         <p style={{ opacity: 0.5, fontSize: '0.9rem', fontWeight: 600 }}>
-                            {lang === 'tr' ? 'Algoritmik Disiplin, Sanal Portföy & Karar Destek Laboratuvarı v3.0' : 'Algorithmic Discipline & Virtual Portfolio Lab v3.0'}
+                            {lang === 'tr' 
+                                ? 'Algoritmik Disiplin, Sanal Portföy & Karar Destek Laboratuvarı v3.0' 
+                                : (lang === 'de' 
+                                    ? 'Algorithmische Disziplin, Virtuelles Portfolio & Entscheidungs-Labor v3.0' 
+                                    : 'Algorithmic Discipline, Virtual Portfolio & Decision Support Lab v3.0')}
                         </p>
                     </div>
 
@@ -2935,7 +2939,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         }}
                     >
                         <span>🛡️</span>
-                        <span>{lang === 'tr' ? 'Kokpit & Sermaye Koruma' : 'Cockpit & Protection'}</span>
+                        <span>{lang === 'tr' ? 'Kokpit & Sermaye Koruma' : (lang === 'de' ? 'Cockpit & Kapitalschutz' : 'Cockpit & Protection')}</span>
                     </button>
 
                     <button
@@ -2958,7 +2962,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         }}
                     >
                         <span>🏆</span>
-                        <span>{lang === 'tr' ? 'Haftalık Analist Ligi' : 'Analyst League'}</span>
+                        <span>{lang === 'tr' ? 'Haftalık Analist Ligi' : (lang === 'de' ? 'Wöchentliche Analysten-Liga' : 'Weekly Analyst League')}</span>
                     </button>
 
                     <button
@@ -2981,7 +2985,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         }}
                     >
                         <span>🔮</span>
-                        <span>{lang === 'tr' ? 'Gelecek Simülatörü' : 'Future Simulator'}</span>
+                        <span>{lang === 'tr' ? 'Gelecek Simülatörü' : (lang === 'de' ? 'Zukunft-Simulator' : 'Future Simulator')}</span>
                     </button>
 
                     <button
@@ -3004,7 +3008,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         }}
                     >
                         <span>📜</span>
-                        <span>{lang === 'tr' ? 'Simülasyon Defteri & Pozisyonlar' : 'Simulation Journal'}</span>
+                        <span>{lang === 'tr' ? 'Simülasyon Defteri & Pozisyonlar' : (lang === 'de' ? 'Simulations-Journal & Positionen' : 'Simulation Journal & Positions')}</span>
                         {openBetsList.length > 0 && (
                             <span style={{
                                 background: '#ef4444',
@@ -3035,6 +3039,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             settlementMessage={settlementMessage}
                             onOpenShareModal={() => setIsShareModalOpen(true)}
                             lang={lang}
+                            onSelectTab={setPortfolioTab}
                         />
 
                         {/* Algorithmic Strategy Scorecard (Transparency & Confidence) */}
@@ -3151,7 +3156,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     }}
                                 >
                                     <span style={{ display: 'inline-block', transform: isSyncingResults ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s' }}>🔄</span>
-                                    <span>{isSyncingResults ? (lang === 'tr' ? 'Sonuçlar Sorgulanıyor...' : 'Scanning Results...') : (lang === 'tr' ? 'Biten Maçları Otomatik Sonuçlandır' : 'Auto-Settle Finished Matches')}</span>
+                                    <span>
+                                        {isSyncingResults 
+                                            ? (lang === 'tr' ? 'Sonuçlar Sorgulanıyor...' : (lang === 'de' ? 'Ergebnisse werden geprüft...' : 'Scanning Results...')) 
+                                            : (lang === 'tr' ? 'Biten Maçları Otomatik Sonuçlandır' : (lang === 'de' ? 'Beendete Spiele automatisch abrechnen' : 'Auto-Settle Finished Matches'))}
+                                    </span>
                                 </button>
                             </div>
 
@@ -3244,16 +3253,16 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         statusText = lang === 'tr' ? '⚡ DEVAM EDİYOR' : (lang === 'de' ? '⚡ LÄUFT' : '⚡ IN PLAY');
                                         statusStyle = { background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)' };
                                     } else if (isInit) {
-                                        statusText = lang === 'tr' ? 'BAŞLANGIÇ' : 'INIT';
+                                        statusText = lang === 'tr' ? 'BAŞLANGIÇ' : (lang === 'de' ? 'START' : 'INIT');
                                         statusStyle = { background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.4)' };
                                     }
 
                                     const matchTitle = isInit 
-                                        ? (lang === 'tr' ? 'Sistem Kasa Başlangıcı' : 'System Bankroll Init') 
-                                        : (l.match_name || l.match || 'Canlı Bahis');
+                                        ? (lang === 'tr' ? 'Sistem Kasa Başlangıcı' : (lang === 'de' ? 'System-Startkapital' : 'System Bankroll Init')) 
+                                        : (l.match_name || l.match || (lang === 'tr' ? 'Canlı Bahis' : (lang === 'de' ? 'Live-Wette' : 'Live Bet')));
                                     const subText = isInit 
-                                        ? (lang === 'tr' ? `${(initialBalance).toLocaleString('tr-TR')} ₺ Sanal Bakiye Tahsis Edildi` : `${initialBalance} ₺ Balance Allocated`)
-                                        : (l.strategy_label || l.reason || l.market || 'Kuant Analizi');
+                                        ? (lang === 'tr' ? `${(initialBalance).toLocaleString('tr-TR')} ₺ Sanal Bakiye Tahsis Edildi` : (lang === 'de' ? `${initialBalance} ₺ Virtuelles Startkapital zugewiesen` : `${initialBalance} ₺ Balance Allocated`))
+                                        : (l.strategy_label || l.reason || l.market || (lang === 'tr' ? 'Kuant Analizi' : (lang === 'de' ? 'Quant-Analyse' : 'Quant Analysis')));
                                     const stakeText = isInit ? '-' : `${(l.stake || l.stake_amount || 0)} ₺`;
 
                                     return (
@@ -3275,9 +3284,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                 fontWeight: 800,
                                                                 cursor: 'pointer'
                                                             }}
-                                                            title={lang === 'tr' ? 'Kazandı olarak işaretle' : 'Mark as Won'}
+                                                            title={lang === 'tr' ? 'Kazandı olarak işaretle' : (lang === 'de' ? 'Als gewonnen markieren' : 'Mark as Won')}
                                                         >
-                                                            ✅ {lang === 'tr' ? 'Kazan' : 'Won'}
+                                                            ✅ {lang === 'tr' ? 'Kazan' : (lang === 'de' ? 'Sieg' : 'Won')}
                                                         </button>
                                                         <button
                                                             onClick={() => handleManualSettle(l.id || l.match_id, 'LOSS')}
@@ -3291,9 +3300,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                 fontWeight: 800,
                                                                 cursor: 'pointer'
                                                             }}
-                                                            title={lang === 'tr' ? 'Kaybetti olarak işaretle' : 'Mark as Lost'}
+                                                            title={lang === 'tr' ? 'Kaybetti olarak işaretle' : (lang === 'de' ? 'Als verloren markieren' : 'Mark as Lost')}
                                                         >
-                                                            ❌ {lang === 'tr' ? 'Kaybet' : 'Lost'}
+                                                            ❌ {lang === 'tr' ? 'Kaybet' : (lang === 'de' ? 'Verloren' : 'Lost')}
                                                         </button>
                                                         <button
                                                             onClick={() => handleManualSettle(l.id || l.match_id, 'VOID')}
@@ -3307,9 +3316,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                 fontWeight: 800,
                                                                 cursor: 'pointer'
                                                             }}
-                                                            title={lang === 'tr' ? 'Bahsi iptal et / Tutarı kasaya iade et' : 'Void bet / Refund stake'}
+                                                            title={lang === 'tr' ? 'Bahsi iptal et / Tutarı kasaya iade et' : (lang === 'de' ? 'Wette stornieren / Einsatz rückerstatten' : 'Void bet / Refund stake')}
                                                         >
-                                                            ↩️ {lang === 'tr' ? 'İptal / İade' : 'Void'}
+                                                            ↩️ {lang === 'tr' ? 'İptal / İade' : (lang === 'de' ? 'Storno' : 'Void')}
                                                         </button>
                                                     </div>
                                                 )}

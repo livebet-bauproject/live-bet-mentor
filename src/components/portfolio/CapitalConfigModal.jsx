@@ -1,6 +1,60 @@
 import React, { useState } from 'react';
 import { RISK_PROFILES } from '../../logic/bankrollManager';
 
+const PROFILE_LOCALES = {
+    CONSERVATIVE: {
+        tr: { label: 'Muhafazakar Fon', desc: 'Sermaye koruma odaklı, düşük dalgalanmalı kurumsal fon disiplini.' },
+        en: { label: 'Conservative Fund', desc: 'Capital preservation-focused, low-volatility institutional discipline.' },
+        de: { label: 'Konservativer Fonds', desc: 'Fokus auf Kapitalschutz und minimale Schwankungen (institutionell).' }
+    },
+    BALANCED: {
+        tr: { label: 'Dengeli Radar', desc: 'Değerli oran ve standart fraksiyonel Kelly dengesi.' },
+        en: { label: 'Balanced Radar', desc: 'Optimal balance of value odds and fractional Kelly staking.' },
+        de: { label: 'Ausgewogener Radar', desc: 'Ideale Balance aus Value-Quoten und fraktionalem Kelly-Einsatz.' }
+    },
+    DYNAMIC: {
+        tr: { label: 'Dinamik Fırsat', desc: 'Yüksek xG ve momentum fırsatlarına odaklı dinamik simülasyon.' },
+        en: { label: 'Dynamic Opportunity', desc: 'High-xG momentum and aggressive value opportunity simulation.' },
+        de: { label: 'Dynamische Chance', desc: 'Fokus auf hohes xG-Momentum und dynamische Spielsituationen.' }
+    }
+};
+
+const TEXTS = {
+    tr: {
+        title: 'Sanal Portföy & Risk Ayarları',
+        subtitle: 'Başlangıç sermayenizi ve risk iştahı profilinizi belirleyin',
+        capLabel: 'SANAL BAŞLANGIÇ SERMAYESİ (₺)',
+        profileLabel: 'STRATEJİ & RİSK PROFİLİ SEÇİMİ',
+        maxRisk: 'Max Risk',
+        targetLabel: 'Hedef',
+        disclaimer: 'Bu bakiye tamamen matematiksel bir simülasyondur. Gerçek para kabul edilmez. Amacımız cebinizi riske atmadan stratejileri test etmenizdir.',
+        cancel: 'Vazgeç',
+        save: 'Kaydet & Simülasyonu Başlat'
+    },
+    en: {
+        title: 'Virtual Portfolio & Risk Setup',
+        subtitle: 'Configure your starting capital and select your risk appetite profile',
+        capLabel: 'STARTING VIRTUAL CAPITAL (₺ / € / $)',
+        profileLabel: 'STRATEGY & RISK PROFILE SELECTION',
+        maxRisk: 'Max Risk',
+        targetLabel: 'Target',
+        disclaimer: 'This balance is strictly a mathematical paper trading simulation. No real money processed. Test strategies with zero risk.',
+        cancel: 'Cancel',
+        save: 'Save & Launch Simulation'
+    },
+    de: {
+        title: 'Virtuelles Portfolio & Risiko-Einstellungen',
+        subtitle: 'Legen Sie Ihr Startkapital fest und wählen Sie Ihr Risikoprofil',
+        capLabel: 'VIRTUELLES STARTKAPITAL (₺ / €)',
+        profileLabel: 'STRATEGIE- & RISIKOPROFIL WÄHLEN',
+        maxRisk: 'Max. Risiko',
+        targetLabel: 'Ziel',
+        disclaimer: 'Dieses Guthaben ist eine reine mathematische Simulation (Paper Trading). Kein echtes Geld erforderlich. Testen Sie Strategien risikofrei.',
+        cancel: 'Abbrechen',
+        save: 'Speichern & Simulation starten'
+    }
+};
+
 export const CapitalConfigModal = ({
     isOpen,
     onClose,
@@ -18,6 +72,8 @@ export const CapitalConfigModal = ({
         onSave(amount, selectedProfile);
         onClose();
     };
+
+    const loc = TEXTS[lang] || TEXTS.tr;
 
     return (
         <div style={{
@@ -70,10 +126,10 @@ export const CapitalConfigModal = ({
                     <span style={{ fontSize: '1.8rem' }}>⚙️</span>
                     <div>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, color: '#f8fafc' }}>
-                            {lang === 'tr' ? 'Sanal Portföy & Risk Ayarları' : 'Virtual Portfolio & Risk Setup'}
+                            {loc.title}
                         </h3>
                         <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '3px' }}>
-                            {lang === 'tr' ? 'Başlangıç sermayenizi ve risk iştahı profilinizi belirleyin' : 'Set your starting capital and risk profile'}
+                            {loc.subtitle}
                         </div>
                     </div>
                 </div>
@@ -81,7 +137,7 @@ export const CapitalConfigModal = ({
                 {/* Capital Input & Presets */}
                 <div style={{ marginBottom: '1.5rem' }}>
                     <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#38bdf8', display: 'block', marginBottom: '0.45rem' }}>
-                        {lang === 'tr' ? 'SANAL BAŞLANGIÇ SERMAYESİ (₺)' : 'STARTING VIRTUAL CAPITAL (₺)'}
+                        {loc.capLabel}
                     </label>
                     <input
                         type="number"
@@ -129,12 +185,14 @@ export const CapitalConfigModal = ({
                 {/* Risk Profile Selection */}
                 <div style={{ marginBottom: '1.5rem' }}>
                     <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#38bdf8', display: 'block', marginBottom: '0.6rem' }}>
-                        {lang === 'tr' ? 'STRATEJİ & RİSK PROFİLİ SEÇİMİ' : 'SELECT RISK PROFILE'}
+                        {loc.profileLabel}
                     </label>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                         {Object.values(RISK_PROFILES).map(p => {
                             const isSelected = selectedProfile === p.id;
+                            const pTrans = (PROFILE_LOCALES[p.id] && PROFILE_LOCALES[p.id][lang]) || (PROFILE_LOCALES[p.id] && PROFILE_LOCALES[p.id].tr) || { label: p.label, desc: p.description };
+
                             return (
                                 <div
                                     key={p.id}
@@ -154,17 +212,17 @@ export const CapitalConfigModal = ({
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                                         <span style={{ fontSize: '1.3rem' }}>{p.icon}</span>
                                         <div>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>{p.label}</div>
-                                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>{p.description}</div>
+                                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f8fafc' }}>{pTrans.label}</div>
+                                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '2px' }}>{pTrans.desc}</div>
                                         </div>
                                     </div>
 
-                                    <div style={{ textAlign: 'right' }}>
+                                    <div style={{ textAlign: 'right', whiteSpace: 'nowrap', marginLeft: '0.5rem' }}>
                                         <div style={{ fontSize: '0.72rem', fontWeight: 900, color: p.color }}>
-                                            Max %{(p.maxStakePct * 100).toFixed(1)} Risk
+                                            {loc.maxRisk} %{(p.maxStakePct * 100).toFixed(1)}
                                         </div>
                                         <div style={{ fontSize: '0.62rem', color: '#64748b' }}>
-                                            Hedef: +%{(p.targetDailyPct * 100).toFixed(0)}
+                                            {loc.targetLabel}: +%{(p.targetDailyPct * 100).toFixed(0)}
                                         </div>
                                     </div>
                                 </div>
@@ -184,9 +242,7 @@ export const CapitalConfigModal = ({
                     lineHeight: '1.4',
                     marginBottom: '1.5rem'
                 }}>
-                    ℹ️ {lang === 'tr' 
-                        ? 'Bu bakiye tamamen matematiksel bir simülasyondur. Gerçek para kabul edilmez. Amacımız cebinizi riske atmadan stratejileri test etmenizdir.' 
-                        : 'This is purely an educational paper trading simulator. No real funds involved.'}
+                    ℹ️ {loc.disclaimer}
                 </div>
 
                 {/* Action Buttons */}
@@ -204,7 +260,7 @@ export const CapitalConfigModal = ({
                             cursor: 'pointer'
                         }}
                     >
-                        {lang === 'tr' ? 'Vazgeç' : 'Cancel'}
+                        {loc.cancel}
                     </button>
                     <button
                         onClick={handleSave}
@@ -220,7 +276,7 @@ export const CapitalConfigModal = ({
                             boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)'
                         }}
                     >
-                        {lang === 'tr' ? 'Kaydet & Simülasyonu Başlat' : 'Save & Launch'}
+                        {loc.save}
                     </button>
                 </div>
             </div>
