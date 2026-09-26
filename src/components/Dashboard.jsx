@@ -26,6 +26,11 @@ import { LegalModal } from './LegalModal';
 import { LiveSupportChat } from './LiveSupportChat';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
+import { PortfolioCockpit } from './portfolio/PortfolioCockpit';
+import { AnalystLeaderboard } from './portfolio/AnalystLeaderboard';
+import { CompoundSimulator } from './portfolio/CompoundSimulator';
+import { CapitalConfigModal } from './portfolio/CapitalConfigModal';
+import { ShareCardModal } from './portfolio/ShareCardModal';
 import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, isMatchBlowout, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import { trackPageView, trackAnalyticsEvent } from '../utils/analyticsTracker';
 import { getAdminHeaders } from '../utils/adminAuth';
@@ -106,6 +111,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
     const [bankState, setBankState] = useState(bankrollManager.getState());
+    const [portfolioTab, setPortfolioTab] = useState('cockpit'); // 'cockpit', 'leaderboard', 'simulator', 'journal'
+    const [isCapitalModalOpen, setIsCapitalModalOpen] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [lastFetchSeconds, setLastFetchSeconds] = useState(0);
     const [healthStats, setHealthStats] = useState(dataWorker.healthStats);
     const [selectedMatch, setSelectedMatch] = useState(null);
@@ -192,16 +200,29 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     };
 
     const handleResetBankroll = () => {
+        const curStart = bankState.starting_balance || 2000;
         const confirmText = lang === 'tr' 
-            ? 'Sanal kasayı sıfırlamak ve 2.000 ₺ başlangıç bakiyesine dönmek istiyor musunuz? Eski takılı kalmış tüm test işlemleri temizlenecektir.' 
-            : 'Do you want to reset bankroll to 2,000 ₺? All pending bets will be cleared.';
+            ? `Sanal portföyü sıfırlamak ve ${curStart.toLocaleString()} ₺ başlangıç bakiyesine dönmek istiyor musunuz? Eski takılı kalmış tüm test işlemleri temizlenecektir.` 
+            : `Do you want to reset bankroll to ${curStart} ₺? All pending bets will be cleared.`;
         if (window.confirm(confirmText)) {
-            bankrollManager.reset(2000);
+            bankrollManager.reset(curStart);
             autoSettlementEngine.settledCache.clear();
             setBankState(bankrollManager.getState());
-            setSettlementMessage(lang === 'tr' ? '✅ Kasa 2.000 ₺ olarak sıfırlandı.' : '✅ Bankroll reset to 2,000 ₺.');
+            setSettlementMessage(lang === 'tr' ? `✅ Portföy ${curStart.toLocaleString()} ₺ olarak sıfırlandı.` : `✅ Bankroll reset to ${curStart} ₺.`);
             setTimeout(() => setSettlementMessage(''), 5000);
         }
+    };
+
+    const handleSaveCapital = (amount, profile) => {
+        bankrollManager.setInitialCapital(amount, profile);
+        setBankState(bankrollManager.getState());
+        setSettlementMessage(lang === 'tr' ? `✅ Sanal portföy ${Number(amount).toLocaleString()} ₺ olarak güncellendi.` : `✅ Portfolio updated to ${amount} ₺.`);
+        setTimeout(() => setSettlementMessage(''), 4000);
+    };
+
+    const handleSaveNickname = (nick) => {
+        bankrollManager.setNickname(nick);
+        setBankState(bankrollManager.getState());
     };
 
     const handleManualSettle = (idOrMatchId, outcome) => {
@@ -2834,7 +2855,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         );
     };
 
-    // Portfolio Rendering Logic
+    // Portfolio Rendering Logic - Master Suite v3.0
     const renderPortfolio = () => {
         const state = bankrollManager.getState();
         const ledger = state.ledger || [];
@@ -2843,499 +2864,505 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
         // Pending/Active in-play bets
         const openBetsList = ledger.filter(l => (l.status === 'OPEN' || l.type === 'BET_OPEN') && !l.is_settled);
-        const activeExposure = openBetsList.reduce((acc, curr) => acc + (curr.stake || curr.stake_amount || 0), 0);
 
-        // Settled bets: Realized Profit calculation (so pending bets don't display as false losses)
-        const settledBets = ledger.filter(l => (l.is_settled || l.status === 'WIN' || l.status === 'LOSS') && l.status !== 'VOID');
-        const realizedProfit = settledBets.reduce((sum, l) => sum + (Number(l.profit) || 0), 0);
-        const roi = initialBalance > 0 ? (realizedProfit / initialBalance) * 100 : 0;
-
-        const wins = ledger.filter(l => l.status === 'WIN' || l.type === 'BET_WIN' || l.outcome === 'WON').length;
-        const losses = ledger.filter(l => l.status === 'LOSS' || l.type === 'BET_LOSS' || l.outcome === 'LOST').length;
-        const winRate = (wins + losses) > 0 ? (wins / (wins + losses)) * 100 : 0;
-
-        // Custom SVG Chart Data
-        const settlementPoints = ledger
-            .filter(l => l.balance_after !== undefined || l.type === 'SETTLEMENT' || l.type === 'BET_WIN' || l.type === 'BET_LOSS' || l.type === 'SYSTEM_INIT')
-            .map(l => l.balance_after || l.balance || initialBalance);
-        const points = settlementPoints.length > 0 ? [initialBalance, ...settlementPoints] : [initialBalance];
-        const max = Math.max(...points, initialBalance * 1.05);
-        const min = Math.min(...points, initialBalance * 0.95);
-        const range = max - min || 1;
-        
-        const svgPoints = points.map((p, i) => {
-            const x = points.length > 1 ? (i / (points.length - 1)) * 100 : 50;
-            const y = 100 - ((p - min) / range) * 100;
-            return `${x},${y}`;
-        }).join(' ');
+        // Advanced metrics & calculations
+        const dailyProgress = bankrollManager.getDailyProgress();
+        const bankrollIQ = bankrollManager.calculateBankrollIQ();
+        const leaderboardData = bankrollManager.getLeaderboard();
 
         return (
             <div className="portfolio-view" style={{ paddingBottom: '5rem' }}>
-                <div className="section-header" style={{ marginBottom: '1.5rem' }}>
-                    <h2 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px' }}>📈 {t.portfolio_title}</h2>
-                    <p style={{ opacity: 0.5, fontSize: '0.9rem', fontWeight: 600 }}>{t.subtitle} — v2.0 Algorithm Tracking</p>
-                </div>
+                {/* Header */}
+                <div className="section-header" style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.8rem' }}>
+                    <div>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: 800, letterSpacing: '-0.5px' }}>📈 {t.portfolio_title}</h2>
+                        <p style={{ opacity: 0.5, fontSize: '0.9rem', fontWeight: 600 }}>
+                            {lang === 'tr' ? 'Algoritmik Disiplin, Sanal Portföy & Karar Destek Laboratuvarı v3.0' : 'Algorithmic Discipline & Virtual Portfolio Lab v3.0'}
+                        </p>
+                    </div>
 
-                {/* Bankroll Discipline & Capital Protection Showcase */}
-                <div className="glass-panel" style={{
-                    padding: '1.2rem 1.5rem',
-                    marginBottom: '1.8rem',
-                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(15, 23, 42, 0.7))',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                    borderRadius: '16px'
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.8rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <span style={{ fontSize: '1.3rem' }}>🛡️</span>
-                            <div>
-                                <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.3px' }}>
-                                    {lang === 'tr' ? 'Algoritmik Sermaye Koruma Protokolü' : (lang === 'de' ? 'Algorithmisches Kapitalschutz-Protokoll' : 'Algorithmic Capital Protection Protocol')}
-                                </div>
-                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                                    {lang === 'tr' ? 'Hırsı ve kasa sıfırlanmasını (tilt) önleyen otomatik risk kuralları' : (lang === 'de' ? 'Automatisierte Risikoregeln gegen Drawdown und emotionalen Tilt' : 'Automated risk rules preventing drawdown and emotional tilt')}
-                                </div>
-                            </div>
-                        </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                         <button
                             onClick={() => { setFaqMode('staking'); setShowFAQ(true); }}
                             style={{
                                 background: 'rgba(56, 189, 248, 0.12)',
                                 border: '1px solid rgba(56, 189, 248, 0.35)',
                                 color: '#38bdf8',
-                                padding: '0.35rem 0.8rem',
+                                padding: '0.45rem 0.85rem',
                                 borderRadius: '8px',
-                                fontSize: '0.72rem',
+                                fontSize: '0.75rem',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '0.4rem',
-                                transition: 'all 0.2s'
+                                gap: '0.4rem'
                             }}
                         >
                             <span>❓</span>
                             <span>{lang === 'tr' ? 'Disiplin Rehberi' : (lang === 'de' ? 'Disziplin-Leitfaden' : 'Discipline Guide')}</span>
                         </button>
                     </div>
-
-                    <div className="bankroll-rules-grid" style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '0.8rem'
-                    }}>
-                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>🔒</span> {lang === 'tr' ? 'GÜNLÜK %5 KÂR KİLİDİ' : (lang === 'de' ? 'TÄGLICHE 5%-GEWINNSPERRE' : 'DAILY 5% TARGET LOCK')}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Günde %5 kâra ulaşıldığında kazancı korumak için sistem kilitlenir.' : (lang === 'de' ? 'Bei Erreichen von 5% Tagesgewinn pausiert das System, um Profite zu sichern.' : 'System stops trading upon hitting 5% daily gain to lock in profits.')}
-                            </div>
-                        </div>
-                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>🛑</span> {lang === 'tr' ? 'GÜNLÜK %3 STOP-LOSS' : (lang === 'de' ? 'TÄGLICHER 3%-STOP-LOSS' : 'DAILY 3% STOP-LOSS')}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Maksimum %3 kayıpta hırsı engellemek için işlem alımı durdurulur.' : (lang === 'de' ? 'Bei 3% Tagesverlust wird der Handel gestoppt, um Tilt zu verhindern.' : 'Trading halts at 3% daily drawdown to avoid emotional tilt.')}
-                            </div>
-                        </div>
-                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>🛡️</span> {lang === 'tr' ? 'TEMKİNLİ MOD (%50 KISMA)' : (lang === 'de' ? 'VORSICHTSMODUS (-50% EINSATZ)' : 'CAUTION MODE (-50%)')}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Üst üste 2 kayıpta bahis miktarı risk güvenliği için yarıya indirilir.' : (lang === 'de' ? 'Nach 2 aufeinanderfolgenden Verlusten wird der Einsatz halbiert.' : 'Consecutive 2 losses automatically halves stake size for capital safety.')}
-                            </div>
-                        </div>
-                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                                <span>📈</span> {lang === 'tr' ? 'BİLEŞİK KELLY MOTORU' : (lang === 'de' ? 'FRAKTIONALE KELLY-FORMEL' : 'FRACTIONAL KELLY')}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '4px', lineHeight: '1.4' }}>
-                                {lang === 'tr' ? 'Kasa büyüdükçe kâr katlanır, bakiye gerilediğinde risk otomatik küçülür.' : (lang === 'de' ? 'Einsätze wachsen mit der Bankroll und sinken im Verlustfall automatisch.' : 'Stake scales with bankroll growth; risks decrease during drawdown.')}
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                <div className="portfolio-grid">
-                    <div className="portfolio-card glass-panel">
-                        <span className="label">{t.total_profit}</span>
-                        <div className="value" style={{ color: realizedProfit >= 0 ? 'var(--success-color)' : 'var(--danger-color)' }}>
-                            {realizedProfit >= 0 ? '+' : ''}{realizedProfit.toFixed(2)} ₺
-                        </div>
-                        <div className="trend" style={{ color: realizedProfit >= 0 ? 'var(--success-color)' : 'var(--danger-color)' }}>
-                            {realizedProfit >= 0 ? '↑' : '↓'} {roi.toFixed(1)}% ROI
-                        </div>
-                    </div>
-                    <div className="portfolio-card glass-panel">
-                        <span className="label">{t.win_rate}</span>
-                        <div className="value" style={{ color: 'var(--accent-color)' }}>
-                            %{winRate.toFixed(1)}
-                        </div>
-                        <div className="trend" style={{ opacity: 0.6 }}>
-                            {wins}W - {losses}L
-                        </div>
-                    </div>
-                    <div className="portfolio-card glass-panel">
-                        <span className="label">{t.current_balance}</span>
-                        <div className="value">{currentBalance.toFixed(2)} ₺</div>
-                        <div className="trend" style={{ opacity: 0.6 }}>
-                            {t.starting_balance}: {initialBalance} ₺ {activeExposure > 0 ? `(${activeExposure.toFixed(0)} ₺ Riskte)` : ''}
-                        </div>
-                    </div>
-                    <div className="portfolio-card glass-panel">
-                        <span className="label">{t.active_exposure}</span>
-                        <div className="value" style={{ color: 'var(--warning-color)' }}>
-                            {activeExposure.toFixed(2)} ₺
-                        </div>
-                        <div className="trend" style={{ opacity: 0.6 }}>{openBetsList.length} {t.open_short}</div>
-                    </div>
-                </div>
-
-                <div className="chart-panel glass-panel">
-                    <h3>📊 {t.growth_chart}</h3>
-                    <div className="svg-chart-container">
-                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                            <defs>
-                                <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="var(--accent-color)" stopOpacity="0.4" />
-                                    <stop offset="100%" stopColor="var(--accent-color)" stopOpacity="0" />
-                                </linearGradient>
-                            </defs>
-                            {points.length > 1 && (
-                                <>
-                                    <path
-                                        d={`M 0,100 L ${svgPoints} L 100,100 Z`}
-                                        fill="url(#chartGradient)"
-                                    />
-                                    <polyline
-                                        fill="none"
-                                        stroke="var(--accent-color)"
-                                        strokeWidth="0.5"
-                                        points={svgPoints}
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                </>
-                            )}
-                            {points.map((p, i) => {
-                                const x = points.length > 1 ? (i / (points.length - 1)) * 100 : 50;
-                                const y = 100 - ((p - min) / range) * 100;
-                                return (
-                                    <circle key={i} cx={x} cy={y} r="0.8" fill="var(--accent-color)" />
-                                );
-                            })}
-                        </svg>
-                    </div>
-                </div>
-
-                {/* Algorithmic Strategy Scorecard (Transparency & Confidence) */}
-                <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '1.5rem', borderRadius: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.6rem' }}>
-                        <div>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span>📊</span> {lang === 'tr' ? 'Algoritmik Strateji Karnesi' : (lang === 'de' ? 'Algorithmischer Strategie-Report' : 'Algorithmic Strategy Scorecard')}
-                            </h3>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                                {lang === 'tr' ? 'Sistem motorlarının geçmiş performans ve getiri (ROI) karnesi' : (lang === 'de' ? 'Historische Performance und Ertragsbewertung (ROI) der System-Engines' : 'Historical performance and ROI grading of predictive engines')}
-                            </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>
-                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 800 }}>A+ (Elit: %70+ Başarı)</span>
-                            <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }}>A (Pozitif Getiri)</span>
-                        </div>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.8rem' }}>
-                        {bankrollManager.getStrategyAnalytics().map(st => (
-                            <div key={st.id} style={{
-                                background: 'rgba(255, 255, 255, 0.02)',
-                                border: '1px solid rgba(255, 255, 255, 0.06)',
-                                borderRadius: '12px',
-                                padding: '0.85rem 1rem',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}>
-                                <div>
-                                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <span>{st.icon}</span>
-                                        <span>{st.label}</span>
-                                    </div>
-                                    <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '3px' }}>
-                                        {st.totalBets} {lang === 'tr' ? 'İşlem' : (lang === 'de' ? 'Wetten' : 'Bets')} • {st.wins}W - {st.losses}L
-                                    </div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{
-                                        display: 'inline-block',
-                                        fontSize: '0.65rem',
-                                        fontWeight: 900,
-                                        padding: '0.15rem 0.45rem',
-                                        borderRadius: '4px',
-                                        background: st.badge === 'A+' ? 'rgba(16, 185, 129, 0.2)' : st.badge === 'A' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)',
-                                        color: st.badge === 'A+' ? '#10b981' : st.badge === 'A' ? '#38bdf8' : '#94a3b8',
-                                        border: `1px solid ${st.badge === 'A+' ? 'rgba(16, 185, 129, 0.4)' : st.badge === 'A' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.1)'}`
-                                    }}>
-                                        {st.badge}
-                                    </div>
-                                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: st.roi >= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
-                                        %{st.winRate} {lang === 'tr' ? 'İsabet' : (lang === 'de' ? 'Treffer' : 'Win')}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Portfolio Control Toolbar */}
+                {/* Sub-Tab Navigation Bar */}
                 <div style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '1rem',
+                    gap: '0.6rem',
+                    marginBottom: '1.5rem',
                     flexWrap: 'wrap',
-                    gap: '0.8rem',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    padding: '0.85rem 1.2rem',
-                    borderRadius: '14px',
+                    background: 'rgba(15, 23, 42, 0.6)',
+                    padding: '0.4rem',
+                    borderRadius: '12px',
                     border: '1px solid rgba(255, 255, 255, 0.06)'
                 }}>
-                    <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <button
-                            onClick={handleSyncRemoteResults}
-                            disabled={isSyncingResults}
-                            style={{
-                                background: isSyncingResults ? 'rgba(56, 189, 248, 0.08)' : 'rgba(56, 189, 248, 0.16)',
-                                border: '1px solid rgba(56, 189, 248, 0.45)',
-                                color: '#38bdf8',
-                                padding: '0.5rem 1rem',
-                                borderRadius: '8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 800,
-                                cursor: isSyncingResults ? 'not-allowed' : 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            <span style={{ display: 'inline-block', transform: isSyncingResults ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s' }}>🔄</span>
-                            <span>{isSyncingResults ? (lang === 'tr' ? 'Sonuçlar Sorgulanıyor...' : 'Scanning Results...') : (lang === 'tr' ? 'Biten Maçları Otomatik Sonuçlandır' : 'Auto-Settle Finished Matches')}</span>
-                        </button>
+                    <button
+                        onClick={() => setPortfolioTab('cockpit')}
+                        style={{
+                            flex: '1 1 auto',
+                            padding: '0.6rem 1rem',
+                            borderRadius: '8px',
+                            background: portfolioTab === 'cockpit' ? 'linear-gradient(135deg, #38bdf8, #0284c7)' : 'transparent',
+                            color: portfolioTab === 'cockpit' ? '#fff' : '#94a3b8',
+                            border: 'none',
+                            fontSize: '0.8rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <span>🛡️</span>
+                        <span>{lang === 'tr' ? 'Kokpit & Sermaye Koruma' : 'Cockpit & Protection'}</span>
+                    </button>
 
-                        <button
-                            onClick={handleResetBankroll}
-                            style={{
-                                background: 'rgba(239, 68, 68, 0.12)',
-                                border: '1px solid rgba(239, 68, 68, 0.35)',
-                                color: '#ef4444',
-                                padding: '0.5rem 0.95rem',
-                                borderRadius: '8px',
-                                fontSize: '0.78rem',
-                                fontWeight: 800,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.45rem',
-                                transition: 'all 0.2s'
-                            }}
-                            title={lang === 'tr' ? 'Kasayı sıfırlar ve 2.000 ₺ başlangıç bakiyesine döner' : 'Resets bankroll to 2,000 ₺'}
-                        >
-                            <span>🗑️</span>
-                            <span>{lang === 'tr' ? 'Kasayı Sıfırla (2.000 ₺)' : (lang === 'de' ? 'Kassa zurücksetzen' : 'Reset Bankroll')}</span>
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => setPortfolioTab('leaderboard')}
+                        style={{
+                            flex: '1 1 auto',
+                            padding: '0.6rem 1rem',
+                            borderRadius: '8px',
+                            background: portfolioTab === 'leaderboard' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'transparent',
+                            color: portfolioTab === 'leaderboard' ? '#fff' : '#94a3b8',
+                            border: 'none',
+                            fontSize: '0.8rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <span>🏆</span>
+                        <span>{lang === 'tr' ? 'Haftalık Analist Ligi' : 'Analyst League'}</span>
+                    </button>
 
-                    {settlementMessage && (
-                        <div style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            padding: '0.35rem 0.8rem',
-                            borderRadius: '6px',
-                            background: settlementMessage.includes('❌') || settlementMessage.includes('⚠️') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                            color: settlementMessage.includes('❌') || settlementMessage.includes('⚠️') ? '#ef4444' : '#10b981',
-                            border: `1px solid ${settlementMessage.includes('❌') || settlementMessage.includes('⚠️') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
-                        }}>
-                            {settlementMessage}
-                        </div>
-                    )}
+                    <button
+                        onClick={() => setPortfolioTab('simulator')}
+                        style={{
+                            flex: '1 1 auto',
+                            padding: '0.6rem 1rem',
+                            borderRadius: '8px',
+                            background: portfolioTab === 'simulator' ? 'linear-gradient(135deg, #10b981, #059669)' : 'transparent',
+                            color: portfolioTab === 'simulator' ? '#fff' : '#94a3b8',
+                            border: 'none',
+                            fontSize: '0.8rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <span>🔮</span>
+                        <span>{lang === 'tr' ? 'Gelecek Simülatörü' : 'Future Simulator'}</span>
+                    </button>
+
+                    <button
+                        onClick={() => setPortfolioTab('journal')}
+                        style={{
+                            flex: '1 1 auto',
+                            padding: '0.6rem 1rem',
+                            borderRadius: '8px',
+                            background: portfolioTab === 'journal' ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 'transparent',
+                            color: portfolioTab === 'journal' ? '#fff' : '#94a3b8',
+                            border: 'none',
+                            fontSize: '0.8rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <span>📜</span>
+                        <span>{lang === 'tr' ? 'Simülasyon Defteri & Pozisyonlar' : 'Simulation Journal'}</span>
+                        {openBetsList.length > 0 && (
+                            <span style={{
+                                background: '#ef4444',
+                                color: '#fff',
+                                fontSize: '0.62rem',
+                                padding: '1px 5px',
+                                borderRadius: '10px',
+                                fontWeight: 900
+                            }}>
+                                {openBetsList.length}
+                            </span>
+                        )}
+                    </button>
                 </div>
 
-                <div className="portfolio-list-panel glass-panel" style={{ padding: '0' }}>
-                    <div className="portfolio-row" style={{ borderBottom: '1px solid var(--glass-border)', opacity: 0.5, fontSize: '0.7rem', fontWeight: 800 }}>
-                        <span>{t.match_score}</span>
-                        <span>{t.recom_stake_short}</span>
-                        <span>{t.status}</span>
-                        <span>{lang === 'tr' ? 'NET KÂR/ZARAR' : (lang === 'de' ? 'NETTO G/V' : 'NET P/L')}</span>
-                        <span>{lang === 'tr' ? 'ZAMAN' : (lang === 'de' ? 'ZEIT' : 'TIME')}</span>
-                    </div>
-                    {(() => {
-                        const validEntries = ledger.slice().reverse().filter(l => 
-                            l.type === 'SETTLEMENT' || 
-                            l.type === 'BET_WIN' || 
-                            l.type === 'BET_LOSS' || 
-                            l.type === 'BET_VOID' ||
-                            l.type === 'BET_OPEN' || 
-                            l.status === 'OPEN' || 
-                            l.status === 'WIN' || 
-                            l.status === 'LOSS' || 
-                            l.status === 'VOID' || 
-                            l.type === 'SYSTEM_INIT'
-                        );
+                {/* Sub-Tab 1: Cockpit */}
+                {portfolioTab === 'cockpit' && (
+                    <>
+                        <PortfolioCockpit
+                            bankrollState={state}
+                            dailyProgress={dailyProgress}
+                            bankrollIQ={bankrollIQ}
+                            onOpenCapitalModal={() => setIsCapitalModalOpen(true)}
+                            onSelectProfile={(p) => { bankrollManager.setRiskProfile(p); setBankState(bankrollManager.getState()); }}
+                            onResetBankroll={handleResetBankroll}
+                            onSyncRemoteResults={handleSyncRemoteResults}
+                            isSyncingResults={isSyncingResults}
+                            settlementMessage={settlementMessage}
+                            onOpenShareModal={() => setIsShareModalOpen(true)}
+                            lang={lang}
+                        />
 
-                        // Deduplicate: If an entry has a settled state, don't show an orphaned BET_OPEN for the same match
-                        const seenKeys = new Set();
-                        const deduplicatedEntries = [];
-                        for (const entry of validEntries) {
-                            const key = entry.type === 'SYSTEM_INIT' ? entry.id : (entry.id || entry.match_id);
-                            if (!seenKeys.has(key)) {
-                                seenKeys.add(key);
-                                deduplicatedEntries.push(entry);
-                            }
-                        }
-
-                        if (deduplicatedEntries.length === 0) {
-                            return (
-                                <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
-                                    <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>💼</div>
-                                    <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f1f5f9' }}>
-                                        {lang === 'tr' ? 'Henüz İşleme Alınmış Bahis Bulunmuyor' : (lang === 'de' ? 'Noch keine aktiven Wetten' : 'No Placed Bets Yet')}
-                                    </div>
-                                    <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem', maxWidth: '420px', margin: '0.35rem auto 0 auto', lineHeight: '1.4' }}>
-                                        {lang === 'tr' 
-                                            ? 'Canlı Radar terminalindeki sinyalleri onayladığınızda veya kuant botu işlem açtığında, bahisler burada anlık takip edilir ve maç bitiminde (FT) otomatik sonuçlandırılır.' 
-                                            : (lang === 'de' 
-                                                ? 'Sobald Sie Signale im Live-Terminal genehmigen, werden Wetten hier automatisch erfasst und nach Spielende ausgewertet.' 
-                                                : 'When you approve signals from the Live Terminal, bets are tracked here and automatically settled at FT.')}
-                                    </div>
+                        {/* Algorithmic Strategy Scorecard (Transparency & Confidence) */}
+                        <div className="glass-panel" style={{ padding: '1.5rem', marginTop: '1.5rem', borderRadius: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+                                <div>
+                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span>📊</span> {lang === 'tr' ? 'Algoritmik Strateji Karnesi' : (lang === 'de' ? 'Algorithmischer Strategie-Report' : 'Algorithmic Strategy Scorecard')}
+                                    </h3>
+                                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
+                                        {lang === 'tr' ? 'Sistem motorlarının geçmiş performans ve getiri (ROI) karnesi' : (lang === 'de' ? 'Historische Performance und Ertragsbewertung (ROI) der System-Engines' : 'Historical performance and ROI grading of predictive engines')}
+                                    </p>
                                 </div>
-                            );
-                        }
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontWeight: 800 }}>A+ (Elit: %70+ Başarı)</span>
+                                    <span style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 800 }}>A (Pozitif Getiri)</span>
+                                </div>
+                            </div>
 
-                        return deduplicatedEntries.slice(0, 30).map((l, i) => {
-                            const isWin = l.status === 'WIN' || l.outcome === 'WON' || l.type === 'BET_WIN';
-                            const isLoss = l.status === 'LOSS' || l.outcome === 'LOST' || l.type === 'BET_LOSS';
-                            const isVoid = l.status === 'VOID' || l.outcome === 'VOID' || l.type === 'BET_VOID';
-                            const isOpen = !l.is_settled && (l.status === 'OPEN' || l.type === 'BET_OPEN') && !isWin && !isLoss && !isVoid;
-                            const isInit = l.type === 'SYSTEM_INIT';
-
-                            let statusText = 'INFO';
-                            let statusClass = '';
-                            let statusStyle = {};
-
-                            if (isWin) {
-                                statusText = lang === 'tr' ? 'KAZANDI' : (lang === 'de' ? 'GEWONNEN' : 'WON');
-                                statusClass = 'ok';
-                            } else if (isLoss) {
-                                statusText = lang === 'tr' ? 'KAYBETTİ' : (lang === 'de' ? 'VERLOREN' : 'LOST');
-                                statusClass = 'fail';
-                            } else if (isVoid) {
-                                statusText = lang === 'tr' ? 'İADE / İPTAL' : (lang === 'de' ? 'STORNIERT' : 'VOID');
-                                statusStyle = { background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.35)' };
-                            } else if (isOpen) {
-                                statusText = lang === 'tr' ? '⚡ DEVAM EDİYOR' : (lang === 'de' ? '⚡ LÄUFT' : '⚡ IN PLAY');
-                                statusStyle = { background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)' };
-                            } else if (isInit) {
-                                statusText = lang === 'tr' ? 'BAŞLANGIÇ' : 'INIT';
-                                statusStyle = { background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.4)' };
-                            }
-
-                            const matchTitle = isInit 
-                                ? (lang === 'tr' ? 'Sistem Kasa Başlangıcı' : 'System Bankroll Init') 
-                                : (l.match_name || l.match || 'Canlı Bahis');
-                            const subText = isInit 
-                                ? (lang === 'tr' ? `${(initialBalance).toLocaleString('tr-TR')} ₺ Sanal Bakiye Tahsis Edildi` : `${initialBalance} ₺ Balance Allocated`)
-                                : (l.strategy_label || l.reason || l.market || 'Kuant Analizi');
-                            const stakeText = isInit ? '-' : `${(l.stake || l.stake_amount || 0)} ₺`;
-
-                            return (
-                                <div key={i} className="portfolio-row" style={{ borderBottom: i < deduplicatedEntries.length - 1 ? '1px solid var(--glass-border)' : 'none', padding: '0.85rem 1.2rem' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{matchTitle}</span>
-                                        <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{subText}</span>
-                                        {isOpen && (
-                                            <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.45rem', flexWrap: 'wrap' }}>
-                                                <button
-                                                    onClick={() => handleManualSettle(l.id || l.match_id, 'WIN')}
-                                                    style={{
-                                                        background: 'rgba(16, 185, 129, 0.2)',
-                                                        border: '1px solid rgba(16, 185, 129, 0.5)',
-                                                        color: '#10b981',
-                                                        padding: '0.2rem 0.5rem',
-                                                        borderRadius: '5px',
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: 800,
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    title={lang === 'tr' ? 'Kazandı olarak işaretle' : 'Mark as Won'}
-                                                >
-                                                    ✅ {lang === 'tr' ? 'Kazan' : 'Won'}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleManualSettle(l.id || l.match_id, 'LOSS')}
-                                                    style={{
-                                                        background: 'rgba(239, 68, 68, 0.2)',
-                                                        border: '1px solid rgba(239, 68, 68, 0.5)',
-                                                        color: '#ef4444',
-                                                        padding: '0.2rem 0.5rem',
-                                                        borderRadius: '5px',
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: 800,
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    title={lang === 'tr' ? 'Kaybetti olarak işaretle' : 'Mark as Lost'}
-                                                >
-                                                    ❌ {lang === 'tr' ? 'Kaybet' : 'Lost'}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleManualSettle(l.id || l.match_id, 'VOID')}
-                                                    style={{
-                                                        background: 'rgba(148, 163, 184, 0.15)',
-                                                        border: '1px solid rgba(148, 163, 184, 0.4)',
-                                                        color: '#cbd5e1',
-                                                        padding: '0.2rem 0.5rem',
-                                                        borderRadius: '5px',
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: 800,
-                                                        cursor: 'pointer'
-                                                    }}
-                                                    title={lang === 'tr' ? 'Bahsi iptal et / Tutarı kasaya iade et' : 'Void bet / Refund stake'}
-                                                >
-                                                    ↩️ {lang === 'tr' ? 'İptal / İade' : 'Void'}
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{stakeText}</span>
-                                    <span>
-                                        <span className={`status-pill ${statusClass}`} style={statusStyle}>
-                                            {statusText}
-                                        </span>
-                                    </span>
-                                    <span style={{ 
-                                        color: isWin ? 'var(--success-color)' : isLoss ? 'var(--danger-color)' : 'var(--text-muted)', 
-                                        fontWeight: 800 
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.8rem' }}>
+                                {bankrollManager.getStrategyAnalytics().map(st => (
+                                    <div key={st.id} style={{
+                                        background: 'rgba(255, 255, 255, 0.02)',
+                                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                                        borderRadius: '12px',
+                                        padding: '0.85rem 1rem',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center'
                                     }}>
-                                        {isWin 
-                                            ? `+${Number(l.profit || 0).toFixed(2)} ₺` 
-                                            : isLoss 
-                                                ? `${Number(l.profit || 0).toFixed(2)} ₺` 
-                                                : isVoid 
-                                                    ? `0.00 ₺ (${lang === 'tr' ? 'İade' : 'Refund'})`
-                                                    : isOpen 
-                                                        ? (lang === 'tr' ? '⏳ Bekleniyor' : '⏳ In Play') 
-                                                        : '+0.00 ₺'}
-                                    </span>
-                                    <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
-                                        {l.timestamp ? new Date(l.timestamp).toLocaleString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
-                                    </span>
+                                        <div>
+                                            <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                <span>{st.icon}</span>
+                                                <span>{st.label}</span>
+                                            </div>
+                                            <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '3px' }}>
+                                                {st.totalBets} {lang === 'tr' ? 'İşlem' : (lang === 'de' ? 'Wetten' : 'Bets')} • {st.wins}W - {st.losses}L
+                                            </div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{
+                                                display: 'inline-block',
+                                                fontSize: '0.65rem',
+                                                fontWeight: 900,
+                                                padding: '0.15rem 0.45rem',
+                                                borderRadius: '4px',
+                                                background: st.badge === 'A+' ? 'rgba(16, 185, 129, 0.2)' : st.badge === 'A' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.05)',
+                                                color: st.badge === 'A+' ? '#10b981' : st.badge === 'A' ? '#38bdf8' : '#94a3b8',
+                                                border: `1px solid ${st.badge === 'A+' ? 'rgba(16, 185, 129, 0.4)' : st.badge === 'A' ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255,255,255,0.1)'}`
+                                            }}>
+                                                {st.badge}
+                                            </div>
+                                            <div style={{ fontSize: '0.72rem', fontWeight: 800, color: st.roi >= 0 ? '#10b981' : '#ef4444', marginTop: '2px' }}>
+                                                %{st.winRate} {lang === 'tr' ? 'İsabet' : (lang === 'de' ? 'Treffer' : 'Win')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {/* Sub-Tab 2: Leaderboard */}
+                {portfolioTab === 'leaderboard' && (
+                    <AnalystLeaderboard
+                        leaderboardData={leaderboardData}
+                        currentNickname={state.nickname}
+                        onSaveNickname={handleSaveNickname}
+                        lang={lang}
+                    />
+                )}
+
+                {/* Sub-Tab 3: Simulator */}
+                {portfolioTab === 'simulator' && (
+                    <CompoundSimulator
+                        currentStartingBalance={initialBalance}
+                        lang={lang}
+                    />
+                )}
+
+                {/* Sub-Tab 4: Journal & Live Positions */}
+                {portfolioTab === 'journal' && (
+                    <>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '1rem',
+                            flexWrap: 'wrap',
+                            gap: '0.8rem',
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            padding: '0.85rem 1.2rem',
+                            borderRadius: '14px',
+                            border: '1px solid rgba(255, 255, 255, 0.06)'
+                        }}>
+                            <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                    onClick={handleSyncRemoteResults}
+                                    disabled={isSyncingResults}
+                                    style={{
+                                        background: isSyncingResults ? 'rgba(56, 189, 248, 0.08)' : 'rgba(56, 189, 248, 0.16)',
+                                        border: '1px solid rgba(56, 189, 248, 0.45)',
+                                        color: '#38bdf8',
+                                        padding: '0.5rem 1rem',
+                                        borderRadius: '8px',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 800,
+                                        cursor: isSyncingResults ? 'not-allowed' : 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <span style={{ display: 'inline-block', transform: isSyncingResults ? 'rotate(180deg)' : 'none', transition: 'transform 0.5s' }}>🔄</span>
+                                    <span>{isSyncingResults ? (lang === 'tr' ? 'Sonuçlar Sorgulanıyor...' : 'Scanning Results...') : (lang === 'tr' ? 'Biten Maçları Otomatik Sonuçlandır' : 'Auto-Settle Finished Matches')}</span>
+                                </button>
+                            </div>
+
+                            {settlementMessage && (
+                                <div style={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    padding: '0.35rem 0.8rem',
+                                    borderRadius: '6px',
+                                    background: settlementMessage.includes('❌') || settlementMessage.includes('⚠️') ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                    color: settlementMessage.includes('❌') || settlementMessage.includes('⚠️') ? '#ef4444' : '#10b981',
+                                    border: `1px solid ${settlementMessage.includes('❌') || settlementMessage.includes('⚠️') ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                                }}>
+                                    {settlementMessage}
                                 </div>
-                            );
-                        });
-                    })()}
-                </div>
+                            )}
+                        </div>
+
+                        <div className="portfolio-list-panel glass-panel" style={{ padding: '0' }}>
+                            <div className="portfolio-row" style={{ borderBottom: '1px solid var(--glass-border)', opacity: 0.5, fontSize: '0.7rem', fontWeight: 800 }}>
+                                <span>{t.match_score}</span>
+                                <span>{t.recom_stake_short}</span>
+                                <span>{t.status}</span>
+                                <span>{lang === 'tr' ? 'NET KÂR/ZARAR' : (lang === 'de' ? 'NETTO G/V' : 'NET P/L')}</span>
+                                <span>{lang === 'tr' ? 'ZAMAN' : (lang === 'de' ? 'ZEIT' : 'TIME')}</span>
+                            </div>
+                            {(() => {
+                                const validEntries = ledger.slice().reverse().filter(l => 
+                                    l.type === 'SETTLEMENT' || 
+                                    l.type === 'BET_WIN' || 
+                                    l.type === 'BET_LOSS' || 
+                                    l.type === 'BET_VOID' ||
+                                    l.type === 'BET_OPEN' || 
+                                    l.status === 'OPEN' || 
+                                    l.status === 'WIN' || 
+                                    l.status === 'LOSS' || 
+                                    l.status === 'VOID' || 
+                                    l.type === 'SYSTEM_INIT'
+                                );
+
+                                const seenKeys = new Set();
+                                const deduplicatedEntries = [];
+                                for (const entry of validEntries) {
+                                    const key = entry.type === 'SYSTEM_INIT' ? entry.id : (entry.id || entry.match_id);
+                                    if (!seenKeys.has(key)) {
+                                        seenKeys.add(key);
+                                        deduplicatedEntries.push(entry);
+                                    }
+                                }
+
+                                if (deduplicatedEntries.length === 0) {
+                                    return (
+                                        <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+                                            <div style={{ fontSize: '2rem', marginBottom: '0.4rem' }}>💼</div>
+                                            <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#f1f5f9' }}>
+                                                {lang === 'tr' ? 'Henüz İşleme Alınmış Bahis Bulunmuyor' : (lang === 'de' ? 'Noch keine aktiven Wetten' : 'No Placed Bets Yet')}
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.35rem', maxWidth: '420px', margin: '0.35rem auto 0 auto', lineHeight: '1.4' }}>
+                                                {lang === 'tr' 
+                                                    ? 'Canlı Radar terminalindeki sinyalleri onayladığınızda veya kuant botu işlem açtığında, bahisler burada anlık takip edilir ve maç bitiminde (FT) otomatik sonuçlandırılır.' 
+                                                    : (lang === 'de' 
+                                                        ? 'Sobald Sie Signale im Live-Terminal genehmigen, werden Wetten hier automatisch erfasst und nach Spielende ausgewertet.' 
+                                                        : 'When you approve signals from the Live Terminal, bets are tracked here and automatically settled at FT.')}
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                return deduplicatedEntries.slice(0, 30).map((l, i) => {
+                                    const isWin = l.status === 'WIN' || l.outcome === 'WON' || l.type === 'BET_WIN';
+                                    const isLoss = l.status === 'LOSS' || l.outcome === 'LOST' || l.type === 'BET_LOSS';
+                                    const isVoid = l.status === 'VOID' || l.outcome === 'VOID' || l.type === 'BET_VOID';
+                                    const isOpen = !l.is_settled && (l.status === 'OPEN' || l.type === 'BET_OPEN') && !isWin && !isLoss && !isVoid;
+                                    const isInit = l.type === 'SYSTEM_INIT';
+
+                                    let statusText = 'INFO';
+                                    let statusClass = '';
+                                    let statusStyle = {};
+
+                                    if (isWin) {
+                                        statusText = lang === 'tr' ? 'KAZANDI' : (lang === 'de' ? 'GEWONNEN' : 'WON');
+                                        statusClass = 'ok';
+                                    } else if (isLoss) {
+                                        statusText = lang === 'tr' ? 'KAYBETTİ' : (lang === 'de' ? 'VERLOREN' : 'LOST');
+                                        statusClass = 'fail';
+                                    } else if (isVoid) {
+                                        statusText = lang === 'tr' ? 'İADE / İPTAL' : (lang === 'de' ? 'STORNIERT' : 'VOID');
+                                        statusStyle = { background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8', border: '1px solid rgba(148, 163, 184, 0.35)' };
+                                    } else if (isOpen) {
+                                        statusText = lang === 'tr' ? '⚡ DEVAM EDİYOR' : (lang === 'de' ? '⚡ LÄUFT' : '⚡ IN PLAY');
+                                        statusStyle = { background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)' };
+                                    } else if (isInit) {
+                                        statusText = lang === 'tr' ? 'BAŞLANGIÇ' : 'INIT';
+                                        statusStyle = { background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.4)' };
+                                    }
+
+                                    const matchTitle = isInit 
+                                        ? (lang === 'tr' ? 'Sistem Kasa Başlangıcı' : 'System Bankroll Init') 
+                                        : (l.match_name || l.match || 'Canlı Bahis');
+                                    const subText = isInit 
+                                        ? (lang === 'tr' ? `${(initialBalance).toLocaleString('tr-TR')} ₺ Sanal Bakiye Tahsis Edildi` : `${initialBalance} ₺ Balance Allocated`)
+                                        : (l.strategy_label || l.reason || l.market || 'Kuant Analizi');
+                                    const stakeText = isInit ? '-' : `${(l.stake || l.stake_amount || 0)} ₺`;
+
+                                    return (
+                                        <div key={i} className="portfolio-row" style={{ borderBottom: i < deduplicatedEntries.length - 1 ? '1px solid var(--glass-border)' : 'none', padding: '0.85rem 1.2rem' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{matchTitle}</span>
+                                                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{subText}</span>
+                                                {isOpen && (
+                                                    <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.45rem', flexWrap: 'wrap' }}>
+                                                        <button
+                                                            onClick={() => handleManualSettle(l.id || l.match_id, 'WIN')}
+                                                            style={{
+                                                                background: 'rgba(16, 185, 129, 0.2)',
+                                                                border: '1px solid rgba(16, 185, 129, 0.5)',
+                                                                color: '#10b981',
+                                                                padding: '0.2rem 0.5rem',
+                                                                borderRadius: '5px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 800,
+                                                                cursor: 'pointer'
+                                                            }}
+                                                            title={lang === 'tr' ? 'Kazandı olarak işaretle' : 'Mark as Won'}
+                                                        >
+                                                            ✅ {lang === 'tr' ? 'Kazan' : 'Won'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleManualSettle(l.id || l.match_id, 'LOSS')}
+                                                            style={{
+                                                                background: 'rgba(239, 68, 68, 0.2)',
+                                                                border: '1px solid rgba(239, 68, 68, 0.5)',
+                                                                color: '#ef4444',
+                                                                padding: '0.2rem 0.5rem',
+                                                                borderRadius: '5px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 800,
+                                                                cursor: 'pointer'
+                                                            }}
+                                                            title={lang === 'tr' ? 'Kaybetti olarak işaretle' : 'Mark as Lost'}
+                                                        >
+                                                            ❌ {lang === 'tr' ? 'Kaybet' : 'Lost'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleManualSettle(l.id || l.match_id, 'VOID')}
+                                                            style={{
+                                                                background: 'rgba(148, 163, 184, 0.15)',
+                                                                border: '1px solid rgba(148, 163, 184, 0.4)',
+                                                                color: '#cbd5e1',
+                                                                padding: '0.2rem 0.5rem',
+                                                                borderRadius: '5px',
+                                                                fontSize: '0.65rem',
+                                                                fontWeight: 800,
+                                                                cursor: 'pointer'
+                                                            }}
+                                                            title={lang === 'tr' ? 'Bahsi iptal et / Tutarı kasaya iade et' : 'Void bet / Refund stake'}
+                                                        >
+                                                            ↩️ {lang === 'tr' ? 'İptal / İade' : 'Void'}
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{stakeText}</span>
+                                            <span>
+                                                <span className={`status-pill ${statusClass}`} style={statusStyle}>
+                                                    {statusText}
+                                                </span>
+                                            </span>
+                                            <span style={{ 
+                                                color: isWin ? 'var(--success-color)' : isLoss ? 'var(--danger-color)' : 'var(--text-muted)', 
+                                                fontWeight: 800 
+                                            }}>
+                                                {isWin 
+                                                    ? `+${Number(l.profit || 0).toFixed(2)} ₺` 
+                                                    : isLoss 
+                                                        ? `${Number(l.profit || 0).toFixed(2)} ₺` 
+                                                        : isVoid 
+                                                            ? `0.00 ₺ (${lang === 'tr' ? 'İade' : 'Refund'})`
+                                                            : isOpen 
+                                                                ? (lang === 'tr' ? '⏳ Bekleniyor' : '⏳ In Play') 
+                                                                : '+0.00 ₺'}
+                                            </span>
+                                            <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
+                                                {l.timestamp ? new Date(l.timestamp).toLocaleString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}
+                                            </span>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+                    </>
+                )}
+
+                {/* Modals */}
+                <CapitalConfigModal
+                    isOpen={isCapitalModalOpen}
+                    onClose={() => setIsCapitalModalOpen(false)}
+                    currentCapital={initialBalance}
+                    currentProfile={state.risk_profile || 'BALANCED'}
+                    onSave={handleSaveCapital}
+                    lang={lang}
+                />
+
+                <ShareCardModal
+                    isOpen={isShareModalOpen}
+                    onClose={() => setIsShareModalOpen(false)}
+                    bankrollState={state}
+                    dailyProgress={dailyProgress}
+                    bankrollIQ={bankrollIQ}
+                    lang={lang}
+                />
             </div>
         );
     };
@@ -5135,9 +5162,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-live ${view === 'DASHBOARD' ? 'active' : ''}`}
                             onClick={() => setView('DASHBOARD')}
+                            title={lang === 'tr' ? 'Canlı Radar Terminali' : (lang === 'de' ? 'Live-Radar Terminal' : 'Live Radar Terminal')}
                         >
                             <span className="tab-icon">⚡</span>
-                            <span className="tab-label">{lang === 'tr' ? 'CANLI RADAR' : (lang === 'de' ? 'LIVE-RADAR' : 'LIVE RADAR')}</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'CANLI RADAR' : (lang === 'de' ? 'LIVE-RADAR' : 'LIVE RADAR')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'CANLI' : (lang === 'de' ? 'LIVE' : 'LIVE')}</span>
+                            </span>
                             <span className="tab-live-count count-live">{matches.length}</span>
                         </button>
 
@@ -5145,9 +5176,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-trending ${view === 'TRENDING' ? 'active' : ''}`}
                             onClick={() => setView('TRENDING')}
+                            title={lang === 'tr' ? 'Piyasa & Bahis Trendleri' : (lang === 'de' ? 'Markt-Trends' : 'Market Trends')}
                         >
                             <span className="tab-icon">🔥</span>
-                            <span className="tab-label">{lang === 'tr' ? 'PİYASA TRENDLERİ' : (lang === 'de' ? 'MARKT-TRENDS' : 'MARKET TRENDS')}</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'PİYASA TRENDLERİ' : (lang === 'de' ? 'MARKT-TRENDS' : 'MARKET TRENDS')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'TRENDLER' : (lang === 'de' ? 'TRENDS' : 'TRENDS')}</span>
+                            </span>
                             {trendingBets && trendingBets.length > 0 && (
                                 <span className="tab-live-count count-trending">
                                     {trendingBets.length}
@@ -5159,9 +5194,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-daily ${view === 'RADAR' ? 'active' : ''}`}
                             onClick={() => setView('RADAR')}
+                            title={lang === 'tr' ? 'Günlük Maç Radarı' : (lang === 'de' ? 'Tages-Radar' : 'Daily Radar')}
                         >
                             <span className="tab-icon">🎯</span>
-                            <span className="tab-label">{lang === 'tr' ? 'GÜNLÜK RADAR' : (lang === 'de' ? 'TAGES-RADAR' : 'DAILY RADAR')}</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'GÜNLÜK RADAR' : (lang === 'de' ? 'TAGES-RADAR' : 'DAILY RADAR')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'GÜNLÜK' : (lang === 'de' ? 'TAGES' : 'DAILY')}</span>
+                            </span>
                             <span className="tab-live-count count-sub">PRE</span>
                         </button>
 
@@ -5169,9 +5208,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-sharp ${view === 'SHARP_PICKS' ? 'active' : ''}`}
                             onClick={() => setView('SHARP_PICKS')}
+                            title={lang === 'tr' ? 'Günün Keskin Seçimleri' : (lang === 'de' ? 'Scharfe Auswahlen' : 'Sharp Picks')}
                         >
                             <span className="tab-icon">⭐</span>
-                            <span className="tab-label">{lang === 'tr' ? 'KESKİN SEÇİMLER' : (lang === 'de' ? 'SHARP-PICKS' : 'SHARP PICKS')}</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'KESKİN SEÇİMLER' : (lang === 'de' ? 'SHARP-PICKS' : 'SHARP PICKS')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'KESKİN' : (lang === 'de' ? 'SHARP' : 'SHARP')}</span>
+                            </span>
                             <span className="tab-live-count count-sharp">10</span>
                         </button>
 
@@ -5179,9 +5222,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-hot ${showBetanoRadar ? 'active' : ''}`}
                             onClick={() => setShowBetanoRadar(true)}
+                            title={lang === 'tr' ? 'Sıcak Trendler & Hızlı Fırsatlar' : (lang === 'de' ? 'Heiße Picks' : 'Hot Picks')}
                         >
                             <span className="tab-icon">🔥</span>
-                            <span className="tab-label">{lang === 'tr' ? 'SICAK TRENDLER' : (lang === 'de' ? 'HOT-PICKS' : 'HOT PICKS')}</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'SICAK TRENDLER' : (lang === 'de' ? 'HOT-PICKS' : 'HOT PICKS')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'SICAK' : (lang === 'de' ? 'HOT' : 'HOT')}</span>
+                            </span>
                             <span className="tab-live-count count-hot">HOT</span>
                         </button>
 
@@ -5189,9 +5236,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-portfolio ${view === 'PORTFOLIO' ? 'active' : ''}`}
                             onClick={() => setView('PORTFOLIO')}
+                            title={lang === 'tr' ? 'Kasa & Portföy Yönetimi' : (lang === 'de' ? 'Kassa & Depot-Verwaltung' : 'Bankroll & Portfolio Management')}
                         >
                             <span className="tab-icon">💼</span>
-                            <span className="tab-label">{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO')}</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'PORTFÖY' : (lang === 'de' ? 'DEPOT' : 'PORTFOLIO')}</span>
+                            </span>
                             <span className="tab-live-count count-portfolio">
                                 {Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺
                             </span>
@@ -5202,6 +5253,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <button
                                 className={`unified-tab-btn tab-admin ${view === 'ADMIN' ? 'active' : ''}`}
                                 onClick={() => setView('ADMIN')}
+                                title="Admin Panel"
                             >
                                 <span className="tab-icon">🛡️</span>
                                 <span className="tab-label">ADMIN</span>

@@ -1,10 +1,99 @@
 /**
- * BANKROLL MANAGER - Phase 13
- * Handles binding discipline, stake calculation, and append-only ledger.
+ * BANKROLL MANAGER - Phase 13 & v3.0 Master Portfolio Suite
+ * Handles binding discipline, stake calculation, fractional Kelly,
+ * multi-profile risk, gamification badges, Bankroll IQ, and append-only ledger.
  */
 
 import { CONFIG } from '../config.js';
 import { translations } from '../locales/translations.js';
+
+export const BADGE_DEFINITIONS = [
+    {
+        id: 'WELCOME_TRADER',
+        title: 'Analitik Başlangıç',
+        icon: '🌱',
+        description: 'Sanal portföy laboratuvarını başlattı ve ilk stratejisini oluşturdu.',
+        category: 'STARTER'
+    },
+    {
+        id: 'IRON_WILL',
+        title: 'Çelik İrade',
+        icon: '🛡️',
+        description: 'Stop-loss veya temkinli mod sınırına saygı gösterip sermayesini korudu.',
+        category: 'DISCIPLINE'
+    },
+    {
+        id: 'SNIPER',
+        title: 'Keskin Nişancı',
+        icon: '🎯',
+        description: 'Art arda 4 veya daha fazla kazanan simülasyon işlemi gerçekleştirdi.',
+        category: 'ACCURACY'
+    },
+    {
+        id: 'COMPOUND_MASTER',
+        title: 'Bileşik Büyücü',
+        icon: '🧙‍♂️',
+        description: 'Portföyünü pozitif getiri eğrisinde istikrarlı şekilde büyüttü.',
+        category: 'GROWTH'
+    },
+    {
+        id: 'DISCIPLINE_LOCK',
+        title: 'Hedef Kilitleyici',
+        icon: '🔒',
+        description: 'Günlük kâr hedefine ulaşıp kurala uyarak günü yeşil kapattı.',
+        category: 'DISCIPLINE'
+    },
+    {
+        id: 'QUANT_SCHOLAR',
+        title: 'Kuant Bilgini',
+        icon: '🧬',
+        description: '10 veya daha fazla simülasyon işlemini detaylı inceledi.',
+        category: 'EXPERIENCE'
+    },
+    {
+        id: 'WHALE',
+        title: 'Portföy Mimarı',
+        icon: '💎',
+        description: 'Sanal sermayesini başlangıç bakiyesinden %25 veya daha fazla büyüttü.',
+        category: 'GROWTH'
+    }
+];
+
+export const RISK_PROFILES = {
+    CONSERVATIVE: {
+        id: 'CONSERVATIVE',
+        label: 'Muhafazakar Fon',
+        maxStakePct: 0.01, // %1
+        kellyMultiplier: 0.15,
+        targetDailyPct: 0.03, // %3
+        stopLossPct: 0.02, // %2
+        color: '#10b981',
+        icon: '🛡️',
+        description: 'Sermaye koruma odaklı, düşük dalgalanmalı kurumsal fon disiplini.'
+    },
+    BALANCED: {
+        id: 'BALANCED',
+        label: 'Dengeli Radar',
+        maxStakePct: 0.025, // %2.5
+        kellyMultiplier: 0.25,
+        targetDailyPct: 0.05, // %5
+        stopLossPct: 0.03, // %3
+        color: '#38bdf8',
+        icon: '⚖️',
+        description: 'Değerli oran ve standart fraksiyonel Kelly dengesi.'
+    },
+    DYNAMIC: {
+        id: 'DYNAMIC',
+        label: 'Dinamik Fırsat',
+        maxStakePct: 0.035, // %3.5
+        kellyMultiplier: 0.35,
+        targetDailyPct: 0.08, // %8
+        stopLossPct: 0.04, // %4
+        color: '#f59e0b',
+        icon: '⚡',
+        description: 'Yüksek xG ve momentum fırsatlarına odaklı dinamik simülasyon.'
+    }
+};
 
 class BankrollManager {
     constructor() {
@@ -32,7 +121,13 @@ class BankrollManager {
                 passCount: 0,
                 noBetCount: 0,
                 betCount: 0
-            }
+            },
+            risk_profile: 'BALANCED',
+            nickname: 'Analist_' + Math.floor(1000 + Math.random() * 9000),
+            bankroll_iq: 85,
+            badges: ['WELCOME_TRADER'],
+            target_daily_profit_pct: 0.05,
+            stop_loss_pct: 0.03
         };
 
         if (saved) {
@@ -45,7 +140,11 @@ class BankrollManager {
                     stats: { ...defaultState.stats, ...(parsed.stats || {}) },
                     strategyStats: { ...defaultState.strategyStats, ...(parsed.strategyStats || {}) },
                     clvStats: { ...defaultState.clvStats, ...(parsed.clvStats || {}) },
-                    processedToday: parsed.processedToday || {}
+                    processedToday: parsed.processedToday || {},
+                    badges: parsed.badges && parsed.badges.length > 0 ? parsed.badges : defaultState.badges,
+                    risk_profile: parsed.risk_profile || defaultState.risk_profile,
+                    nickname: parsed.nickname || defaultState.nickname,
+                    bankroll_iq: parsed.bankroll_iq || defaultState.bankroll_iq
                 };
 
                 // Dynamic daily reset
@@ -152,11 +251,13 @@ class BankrollManager {
         const fullKelly = (p * b - q) / b;
         if (fullKelly <= 0) return 0;
 
-        // We use "Quarter Kelly" (0.25 multiplier) as a safe standard in betting
-        let percentage = fullKelly * 0.25;
+        // Use profile-based Kelly multiplier (Conservative: 0.15, Balanced: 0.25, Dynamic: 0.35)
+        const profileKey = this.state.risk_profile || 'BALANCED';
+        const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
+        let percentage = fullKelly * (profile.kellyMultiplier || 0.25);
 
-        // Safety Caps
-        const maxAllowed = fixture.tier === 1 ? h.STAKE_PERCENTAGE.TIER_1 : h.STAKE_PERCENTAGE.TIER_2;
+        // Safety Caps based on risk profile
+        const maxAllowed = profile.maxStakePct || (fixture.tier === 1 ? h.STAKE_PERCENTAGE.TIER_1 : h.STAKE_PERCENTAGE.TIER_2);
         percentage = Math.min(maxAllowed, Math.max(0.001, percentage));
 
         // Caution mode: halve the stake
@@ -421,10 +522,15 @@ class BankrollManager {
         const prevMode = this.state.current_mode;
         let newMode = h.MODES.NORMAL;
 
+        const profileKey = this.state.risk_profile || 'BALANCED';
+        const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
+        const targetDailyPct = profile.targetDailyPct || 0.05;
+        const stopLossPct = profile.stopLossPct || 0.03;
+
         // EXPERT DISCIPLINE: Stop-Loss & Target Profit
-        const dailyProfitPercent = (this.state.daily_pl / this.state.starting_balance);
-        const targetReached = dailyProfitPercent >= 0.05; // %5 Kar Hedefi
-        const stopLossReached = dailyProfitPercent <= -0.03; // %3 Zarar Durdur
+        const dailyProfitPercent = (this.state.daily_pl / (this.state.starting_balance || 2000));
+        const targetReached = dailyProfitPercent >= targetDailyPct;
+        const stopLossReached = dailyProfitPercent <= -stopLossPct;
 
         if (this.state.loss_streak >= h.THRESHOLDS.STOP_LOSS_STREAK ||
             this.state.daily_loss_count >= h.THRESHOLDS.DAILY_LOSS_LIMIT ||
@@ -439,8 +545,8 @@ class BankrollManager {
         if (newMode !== prevMode) {
             this.state.current_mode = newMode;
             let reasonKey = 'stop_rules_reason';
-            if (targetReached) reasonKey = 'SSS: Günlük %5 kar hedefine ulaşıldı. Kasa koruma modu aktif.';
-            else if (stopLossReached) reasonKey = 'SSS: Günlük %3 zarar limitine ulaşıldı. Disiplin molası.';
+            if (targetReached) reasonKey = `Hedef Kilitlendi: Günlük %${(targetDailyPct * 100).toFixed(0)} kâr hedefine ulaşıldı. Kasa koruma kalkanı aktif.`;
+            else if (stopLossReached) reasonKey = `Disiplin Molası: Günlük %${(stopLossPct * 100).toFixed(0)} zarar sınırına ulaşıldı. Risk durduruldu.`;
 
             this.addToLedger('MODE_CHANGE', {
                 from: prevMode,
@@ -448,10 +554,261 @@ class BankrollManager {
                 reason: reasonKey
             });
         }
+
+        this.checkBadges();
+    }
+
+    /**
+     * Calculates 0-100 Bankroll IQ (Discipline Score)
+     */
+    calculateBankrollIQ() {
+        let score = 75;
+        const settled = (this.state.ledger || []).filter(l => l.is_settled);
+        const total = settled.length;
+        const wins = settled.filter(l => l.status === 'WIN' || l.outcome === 'WON').length;
+        const winRate = total > 0 ? (wins / total) * 100 : 50;
+
+        // Win rate impact
+        score += Math.round((winRate - 50) * 0.35);
+
+        // Badges bonus (+2.5 each)
+        const badgeCount = (this.state.badges || []).length;
+        score += Math.min(12, Math.round(badgeCount * 2.5));
+
+        // Daily discipline bonus: If target reached or positive growth
+        if (this.state.daily_pl > 0) score += 6;
+        if (this.state.win_streak >= 3) score += 5;
+
+        // Drawdown / Tilt penalties
+        if (this.state.loss_streak >= 3) score -= 15;
+        else if (this.state.loss_streak >= 2) score -= 7;
+
+        if (this.state.current_mode === CONFIG.BANKROLL.HIERARCHY.MODES.CAUTION) score -= 4;
+
+        score = Math.min(100, Math.max(25, score));
+
+        let grade = 'B';
+        let label = 'Dengeli Analist';
+        let color = '#38bdf8';
+
+        if (score >= 90) {
+            grade = 'A+';
+            label = 'Elit Fon Mimarı';
+            color = '#10b981';
+        } else if (score >= 80) {
+            grade = 'A';
+            label = 'Disiplinli Kuant Analist';
+            color = '#34d399';
+        } else if (score >= 70) {
+            grade = 'B';
+            label = 'Gelişen Stratejist';
+            color = '#38bdf8';
+        } else {
+            grade = 'C';
+            label = 'Risk Eğitimi Önerilir';
+            color = '#f59e0b';
+        }
+
+        return { score, grade, label, color, winRate: parseFloat(winRate.toFixed(1)) };
+    }
+
+    /**
+     * Checks criteria for all badges and unlocks newly earned ones
+     */
+    checkBadges() {
+        if (!this.state.badges) this.state.badges = ['WELCOME_TRADER'];
+        const current = new Set(this.state.badges);
+        const newlyUnlocked = [];
+
+        const settled = (this.state.ledger || []).filter(l => l.is_settled);
+        const totalSettled = settled.length;
+        const startBal = this.state.starting_balance || 2000;
+        const dailyProfitPercent = (this.state.daily_pl / startBal);
+        const totalGrowthPercent = ((this.state.current_balance - startBal) / startBal);
+
+        if (!current.has('WELCOME_TRADER')) {
+            current.add('WELCOME_TRADER');
+            newlyUnlocked.push('WELCOME_TRADER');
+        }
+        if (this.state.win_streak >= 4 && !current.has('SNIPER')) {
+            current.add('SNIPER');
+            newlyUnlocked.push('SNIPER');
+        }
+        if ((this.state.current_mode === CONFIG.BANKROLL.HIERARCHY.MODES.CAUTION || this.state.daily_loss_count >= 1) && !current.has('IRON_WILL')) {
+            current.add('IRON_WILL');
+            newlyUnlocked.push('IRON_WILL');
+        }
+        if (dailyProfitPercent >= 0.049 && !current.has('DISCIPLINE_LOCK')) {
+            current.add('DISCIPLINE_LOCK');
+            newlyUnlocked.push('DISCIPLINE_LOCK');
+        }
+        if (totalSettled >= 10 && !current.has('QUANT_SCHOLAR')) {
+            current.add('QUANT_SCHOLAR');
+            newlyUnlocked.push('QUANT_SCHOLAR');
+        }
+        if (totalGrowthPercent >= 0.10 && !current.has('COMPOUND_MASTER')) {
+            current.add('COMPOUND_MASTER');
+            newlyUnlocked.push('COMPOUND_MASTER');
+        }
+        if (totalGrowthPercent >= 0.25 && !current.has('WHALE')) {
+            current.add('WHALE');
+            newlyUnlocked.push('WHALE');
+        }
+
+        this.state.badges = Array.from(current);
+        this.state.bankroll_iq = this.calculateBankrollIQ().score;
+        return newlyUnlocked;
+    }
+
+    /**
+     * Returns daily progress towards %5 target and %3 stop loss
+     */
+    getDailyProgress() {
+        const starting = this.state.starting_balance || 2000;
+        const dailyPL = this.state.daily_pl || 0;
+        const dailyPLPct = (dailyPL / starting) * 100;
+        const profileKey = this.state.risk_profile || 'BALANCED';
+        const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
+        const targetPct = (profile.targetDailyPct || 0.05) * 100;
+        const stopLossPct = (profile.stopLossPct || 0.03) * 100;
+
+        let progressPct = 0;
+        if (dailyPLPct > 0) {
+            progressPct = Math.min(100, (dailyPLPct / targetPct) * 100);
+        }
+
+        const isTargetReached = dailyPLPct >= targetPct;
+        const isStopLossReached = dailyPLPct <= -stopLossPct;
+
+        return {
+            dailyPL,
+            dailyPLPct: parseFloat(dailyPLPct.toFixed(2)),
+            targetPct,
+            stopLossPct,
+            progressPct: parseFloat(progressPct.toFixed(1)),
+            isTargetReached,
+            isStopLossReached,
+            profile
+        };
+    }
+
+    /**
+     * Compound Growth Simulator Engine
+     */
+    getProjectedGrowth(days = 30, dailyTargetPct = 2, customStartingBalance = null) {
+        const initial = Number(customStartingBalance) || Number(this.state.starting_balance) || 2000;
+        const rate = (Number(dailyTargetPct) || 2) / 100;
+        const points = [];
+        let current = initial;
+
+        for (let day = 0; day <= days; day++) {
+            points.push({
+                day,
+                balance: Math.round(current * 100) / 100,
+                growthPct: Math.round(((current - initial) / initial) * 1000) / 10
+            });
+            current = current * (1 + rate);
+        }
+
+        const finalBalance = points[points.length - 1].balance;
+        const totalGrowthPct = points[points.length - 1].growthPct;
+        const netGain = Math.round((finalBalance - initial) * 100) / 100;
+
+        return {
+            initial,
+            days,
+            dailyTargetPct,
+            finalBalance,
+            totalGrowthPct,
+            netGain,
+            points
+        };
+    }
+
+    /**
+     * Weekly Analyst League Leaderboard
+     */
+    getLeaderboard() {
+        const userIQ = this.calculateBankrollIQ();
+        const settled = (this.state.ledger || []).filter(l => l.is_settled);
+        const wins = settled.filter(l => l.status === 'WIN' || l.outcome === 'WON').length;
+        const total = settled.length;
+        const userWinRate = total > 0 ? (wins / total) * 100 : 64.0;
+        const userROI = this.state.starting_balance > 0 
+            ? ((this.state.current_balance - this.state.starting_balance) / this.state.starting_balance) * 100 
+            : 0;
+
+        const baseAnalysts = [
+            { id: '1', nickname: 'KuantAlpha', roi: 24.8, winRate: 78.4, bankrollIQ: 98, badge: '👑 Elit Analist', tier: 'PRO', avatar: '🦅' },
+            { id: '2', nickname: 'MomentumSniper', roi: 19.5, winRate: 74.0, bankrollIQ: 95, badge: '🎯 Keskin', tier: 'VIP', avatar: '⚡' },
+            { id: '3', nickname: 'DemirDisiplin', roi: 16.2, winRate: 71.5, bankrollIQ: 96, badge: '🛡️ Koruyucu', tier: 'PRO', avatar: '🛡️' },
+            { id: '4', nickname: 'BarlasKuant', roi: 14.1, winRate: 69.2, bankrollIQ: 91, badge: '🧙‍♂️ Büyücü', tier: 'VIP', avatar: '🔮' },
+            { id: '5', nickname: 'VeriUzmani_34', roi: 11.8, winRate: 66.7, bankrollIQ: 89, badge: '📊 İstatistikçi', tier: 'PRO', avatar: '📈' },
+            { id: '6', nickname: 'Sarp_Kelly', roi: 9.4, winRate: 64.1, bankrollIQ: 88, badge: '⚖️ Kelly Fan', tier: 'COMMUNITY', avatar: '🎯' },
+            { id: '7', nickname: 'Eren_Algo', roi: 7.2, winRate: 61.5, bankrollIQ: 86, badge: '🧬 Kuant', tier: 'COMMUNITY', avatar: '🧠' },
+            { id: '8', nickname: 'RiskYoneticisi', roi: 5.5, winRate: 60.0, bankrollIQ: 85, badge: '💼 Fon Koçu', tier: 'COMMUNITY', avatar: '💼' }
+        ];
+
+        const userEntry = {
+            id: 'user_current',
+            isCurrentUser: true,
+            nickname: this.state.nickname || 'Sen (Portföyün)',
+            roi: parseFloat(userROI.toFixed(1)),
+            winRate: parseFloat(userWinRate.toFixed(1)),
+            bankrollIQ: userIQ.score,
+            badge: userIQ.label,
+            tier: 'YOU',
+            avatar: '🚀'
+        };
+
+        const all = [...baseAnalysts, userEntry].sort((a, b) => {
+            const scoreA = a.roi * 1.5 + a.bankrollIQ * 0.5;
+            const scoreB = b.roi * 1.5 + b.bankrollIQ * 0.5;
+            return scoreB - scoreA;
+        });
+
+        return all.map((item, idx) => ({ ...item, rank: idx + 1 }));
+    }
+
+    /**
+     * Custom Starting Capital and Risk Profile configuration
+     */
+    setInitialCapital(amount, profile = 'BALANCED') {
+        const numAmount = Math.max(100, Number(amount) || 2000);
+        this.state.starting_balance = numAmount;
+        this.state.current_balance = numAmount;
+        this.state.max_balance_seen = numAmount;
+        this.state.daily_pl = 0;
+        this.state.win_streak = 0;
+        this.state.loss_streak = 0;
+        this.state.current_mode = CONFIG.BANKROLL.HIERARCHY.MODES.NORMAL;
+        this.state.risk_profile = profile;
+        this.saveState();
+        this.addToLedger('CAPITAL_CONFIGURED', {
+            starting_balance: numAmount,
+            profile,
+            reason: 'Kullanıcı sanal sermaye ve risk profili ataması'
+        });
+        return this.getState();
+    }
+
+    setRiskProfile(profile) {
+        if (RISK_PROFILES[profile]) {
+            this.state.risk_profile = profile;
+            this.saveState();
+        }
+        return this.state.risk_profile;
+    }
+
+    setNickname(name) {
+        if (name && typeof name === 'string' && name.trim().length > 0) {
+            this.state.nickname = name.trim().substring(0, 20);
+            this.saveState();
+        }
+        return this.state.nickname;
     }
 
     getState() {
-        // Return a copy to ensure React re-renders on state change
         return JSON.parse(JSON.stringify(this.state));
     }
 
@@ -464,14 +821,18 @@ class BankrollManager {
         return mode;
     }
 
-    reset(startingBalance = CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 2000) {
+    reset(startingBalance = null) {
+        const profile = this.state?.risk_profile || 'BALANCED';
+        const nickname = this.state?.nickname || ('Analist_' + Math.floor(1000 + Math.random() * 9000));
+        const balance = startingBalance || this.state?.starting_balance || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 2000;
+
         if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('lbm_bankroll_state');
         }
         const defaultState = {
-            starting_balance: startingBalance,
-            current_balance: startingBalance,
-            max_balance_seen: startingBalance,
+            starting_balance: balance,
+            current_balance: balance,
+            max_balance_seen: balance,
             daily_pl: 0,
             win_streak: 0,
             loss_streak: 0,
@@ -487,7 +848,13 @@ class BankrollManager {
                 passCount: 0,
                 noBetCount: 0,
                 betCount: 0
-            }
+            },
+            risk_profile: profile,
+            nickname: nickname,
+            bankroll_iq: 85,
+            badges: ['WELCOME_TRADER'],
+            target_daily_profit_pct: 0.05,
+            stop_loss_pct: 0.03
         };
         this.state = defaultState;
         this.saveState();
