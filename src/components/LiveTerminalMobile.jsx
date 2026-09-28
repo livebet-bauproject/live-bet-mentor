@@ -42,7 +42,9 @@ export const LiveTerminalMobile = ({
     hideInTableMode = false,
     userProfile = null,
     onOpenUpgrade = () => {},
-    terminalCategoryFilter = 'ALL'
+    terminalCategoryFilter = 'ALL',
+    isAdmin = false,
+    onSendToTelegram = null
 }) => {
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
@@ -324,7 +326,18 @@ export const LiveTerminalMobile = ({
                                     </span>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {isAdmin && onSendToTelegram && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); onSendToTelegram(e, m, opp); }}
+                                            className="tb-action-ignore opp-telegram-btn"
+                                            style={{ width: '24px', height: '24px', fontSize: '0.72rem', cursor: 'pointer' }}
+                                            title={lang === 'tr' ? "VIP Gruba Gönder" : (lang === 'de' ? "An VIP-Gruppe senden" : "Send to VIP")}
+                                        >
+                                            ✈️
+                                        </button>
+                                    )}
                                     <span
                                         className={`tb-heat-badge tb-heat-${(rawHeatLevel || 'soguk').toLowerCase()}`}
                                         title={lang === 'tr' ? `Isı Skoru: ${heatScore} • Seviye: ${heatLevel}` : (lang === 'de' ? `Hitze-Score: ${heatScore} • Level: ${heatLevel}` : `Heat Score: ${heatScore} • Level: ${heatLevel}`)}
@@ -363,6 +376,37 @@ export const LiveTerminalMobile = ({
                                     </div>
                                     <span className="tb-m-team-score">{scores.away}</span>
                                 </div>
+
+                                {/* Opportunity Micro-Badges (from Classic Cards) */}
+                                {opp && (
+                                    <div className="tb-badges-row" style={{ marginTop: '5px', display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                                        {opp.isHalftime && (
+                                            <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : '2ND HALF VALUE'}
+                                            </span>
+                                        )}
+                                        {opp.valueDetected && (
+                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : 'VALUE ODDS'}
+                                            </span>
+                                        )}
+                                        {opp.hasValueEV && opp.bestEV && (
+                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', color: '#fff', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                💎 +EV %{opp.bestEV.ev}
+                                            </span>
+                                        )}
+                                        {opp.smartMoney?.active && (
+                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                📉 {lang === 'tr' ? 'BÜYÜK PARA' : 'SMART MONEY'} (-%{opp.smartMoney.dropPct?.toFixed ? opp.smartMoney.dropPct.toFixed(0) : opp.smartMoney.dropPct}%)
+                                            </span>
+                                        )}
+                                        {opp.cashOutWarning && (
+                                            <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff', animation: 'pulse 1.5s infinite', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : 'CASHOUT'}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Line 3: European Market Flow / Akıllı Para Pill (Dedicated full-width line) */}
@@ -551,20 +595,89 @@ export const LiveTerminalMobile = ({
                             {/* Mobile Drawer on Click */}
                             {isExpanded && (
                                 <div className="tb-m-drawer tb-action-ignore">
-                                    {/* Quick Favorite Action Button */}
-                                    <button
-                                        type="button"
-                                        className={`tb-drawer-fav-action ${isPinned ? 'pinned' : ''}`}
-                                        onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
-                                    >
-                                        <StarIcon filled={isPinned} size={15} />
-                                        <span>
-                                            {isPinned 
-                                                ? (lang === 'tr' ? 'Favorilerden Çıkar (Sabitlendi ★)' : (lang === 'de' ? 'Aus Favoriten entfernen (Fixiert ★)' : 'Remove from Favorites (Pinned ★)'))
-                                                : (lang === 'tr' ? '☆ Bu Maçı Favorilere Ekle / Sabitle' : (lang === 'de' ? '☆ Zu Favoriten hinzufügen / Anheften' : '☆ Add Match to Favorites / Pin'))
-                                            }
-                                        </span>
-                                    </button>
+                                    {/* Action Buttons Row */}
+                                    <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+                                        <button
+                                            type="button"
+                                            className={`tb-drawer-fav-action ${isPinned ? 'pinned' : ''}`}
+                                            style={{ flex: 1 }}
+                                            onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
+                                        >
+                                            <StarIcon filled={isPinned} size={15} />
+                                            <span>
+                                                {isPinned 
+                                                    ? (lang === 'tr' ? 'Favorilerden Çıkar ★' : 'Remove ★')
+                                                    : (lang === 'tr' ? '☆ Favorilere Ekle' : '☆ Pin Match')
+                                                }
+                                            </span>
+                                        </button>
+                                        {isAdmin && onSendToTelegram && (
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); onSendToTelegram(e, m, opp); }}
+                                                className="opp-telegram-btn"
+                                                style={{ width: '38px', height: '38px', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer' }}
+                                                title={lang === 'tr' ? "VIP Gruba Gönder" : "Send to VIP"}
+                                            >
+                                                ✈️
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Dual Colored Momentum Bar (from Classic) */}
+                                    {(() => {
+                                        const cornersHome = Number(m.stats?.corners?.home || 0);
+                                        const cornersAway = Number(m.stats?.corners?.away || 0);
+                                        const pressHome = Number(m.observations?.pressure?.home || 0);
+                                        const pressAway = Number(m.observations?.pressure?.away || 0);
+                                        const homePower = (daHome * 1.0) + (sogHome * 3.5) + (cornersHome * 1.5) + (xgHome * 15) + (pressHome * 0.5);
+                                        const awayPower = (daAway * 1.0) + (sogAway * 3.5) + (cornersAway * 1.5) + (xgAway * 15) + (pressAway * 0.5);
+                                        const totalPower = homePower + awayPower;
+                                        let homePct = 50;
+                                        if (totalPower > 0) {
+                                            homePct = Math.min(88, Math.max(12, Math.round((homePower / totalPower) * 100)));
+                                        } else if (daHome + daAway > 0) {
+                                            homePct = Math.round((daHome / (daHome + daAway)) * 100);
+                                        }
+                                        const awayPct = 100 - homePct;
+                                        const isHomeHeavy = homePct >= 62;
+                                        const isAwayHeavy = awayPct >= 62;
+                                        const velocityTrend = m.observations?.velocity?.trend || 'STABLE';
+                                        const isHot = velocityTrend === 'HOT';
+
+                                        return (
+                                            <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--tb-border)', borderRadius: '8px', padding: '0.6rem 0.75rem', marginTop: '6px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px', fontSize: '0.68rem' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8', fontWeight: isHomeHeavy ? 900 : 700 }}>
+                                                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }} />
+                                                        <span>{m.homeTeam} (%{homePct})</span>
+                                                    </div>
+
+                                                    <div style={{
+                                                        fontSize: '0.62rem',
+                                                        fontWeight: 800,
+                                                        padding: '1px 6px',
+                                                        borderRadius: '4px',
+                                                        background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
+                                                        color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
+                                                    }}>
+                                                        {isHot ? '🔥 RİTİM' : (isHomeHeavy ? '⚡ EV BASKI' : isAwayHeavy ? '⚡ DEP BASKI' : '⚪ DENGELİ')}
+                                                    </div>
+
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8', fontWeight: isAwayHeavy ? 900 : 700 }}>
+                                                        <span>(%{awayPct}) {m.awayTeam}</span>
+                                                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block' }} />
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ position: 'relative', height: '6px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '3px', overflow: 'hidden', display: 'flex' }}>
+                                                    <div style={{ width: `${homePct}%`, background: 'linear-gradient(90deg, #0284c7, #38bdf8)', height: '100%' }} />
+                                                    <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: 'rgba(255, 255, 255, 0.6)', zIndex: 2 }} />
+                                                    <div style={{ width: `${awayPct}%`, background: 'linear-gradient(90deg, #f43f5e, #e11d48)', height: '100%' }} />
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Momentum Graph */}
                                     {EffectiveAttackGraph && (

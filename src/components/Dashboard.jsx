@@ -2503,6 +2503,18 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         return map;
     }, [enforcedMatches, activeTierFilter, signals, momentumWindow]);
 
+    const terminalGoldenCombo = useMemo(() => {
+        const oppMatches = enforcedMatches.filter(filterByTier).filter(m => {
+            const minStr = String(m.minute || '').toLowerCase();
+            const code = m.status?.code;
+            const desc = String(m.status?.description || '').toLowerCase();
+            const isPen = code === 120 || code === 110 || minStr === 'pen.' || minStr.includes('pen') || desc.includes('penalt');
+            return !isPen;
+        });
+        const opps = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
+        return betBuilderEngine.generateGoldenCombo(opps, oppMatches, lang);
+    }, [enforcedMatches, activeTierFilter, signals, momentumWindow, lang]);
+
     const handleGenerateGlobalReport = async (type) => {
         // Enforce AI Usage Limits
         const limitCheck = aiUsageLimiter.canMakeAIRequest(user?.id, userProfile?.plan || 'trial');
@@ -6361,6 +6373,34 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 </button>
                             )}
 
+                            {/* Momentum Window Selector (5D / 10D / 20D) */}
+                            {displayViewMode === 'TERMINAL' && (
+                                <div className="tb-momentum-selector" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255, 255, 255, 0.05)', padding: '3px 6px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800, padding: '0 4px' }}>⏱️ {lang === 'tr' ? 'İvme:' : (lang === 'de' ? 'Dynamik:' : 'Window:')}</span>
+                                    {[5, 10, 20].map(m => (
+                                        <button
+                                            key={m}
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
+                                            style={{
+                                                padding: '2px 8px',
+                                                fontSize: '0.68rem',
+                                                fontWeight: 800,
+                                                borderRadius: '4px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s ease',
+                                                background: momentumWindow === m ? '#38bdf8' : 'transparent',
+                                                color: momentumWindow === m ? '#000' : '#cbd5e1'
+                                            }}
+                                            title={lang === 'tr' ? `Son ${m} dakikalık ivme ve baskı penceresi` : `${m}-minute momentum window`}
+                                        >
+                                            {m}D
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
                             {/* Mobile Sub-View Switcher: [ 📱 Kart | 📋 Tablo ] */}
                             {displayViewMode === 'TERMINAL' && (
                                 <div className="tb-mobile-view-toggle">
@@ -6434,6 +6474,97 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
                     {displayViewMode === 'TERMINAL' ? (
                         <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
+                            {/* GÜNÜN CANLI ALTIN İKİLİSİ (CANLI KUPON SİHİRBAZI v4.0) */}
+                            {terminalGoldenCombo && (
+                                <div className="golden-combo-ticket" style={{ marginBottom: '1.25rem' }}>
+                                    <div className="golden-combo-header">
+                                        <div className="golden-combo-hero-left">
+                                            <span className="golden-combo-icon">🎟️</span>
+                                            <div className="golden-combo-text-block">
+                                                <div className="golden-combo-title-row">
+                                                    <span className="golden-combo-main-title">
+                                                        {lang === 'tr' ? 'GÜNÜN CANLI ALTIN İKİLİSİ' : (lang === 'de' ? 'LIVE-GOLD-DOPPEL DES TAGES' : 'LIVE GOLDEN DOUBLE')}
+                                                    </span>
+                                                    <span className="golden-combo-vtag">
+                                                        {lang === 'tr' ? 'KUPON SİHİRBAZI v4.0' : (lang === 'de' ? 'WETTSCHEIN-ASSISTENT v4.0' : 'COMBO WIZARD v4.0')}
+                                                    </span>
+                                                </div>
+                                                <div className="golden-combo-desc">
+                                                    {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : (lang === 'de' ? 'Institutionelle Kombination der 2 aussichtsreichsten korrelierten Live-Chancen' : 'Algorithmic 2-leg combo combining the highest conviction opportunities')}
+                                                </div>
+                                                <div className="golden-combo-disclaimer">
+                                                    ℹ️ {lang === 'tr' ? 'Olasılık bazlı algoritmik analiz modelidir. Kesin kazanç garantisi içermez, yatırım tavsiyesi değildir.' : (lang === 'de' ? 'Wahrscheinlichkeitsbasiertes algorithmisches Modell. Keine Gewinngarantie, keine Anlageberatung.' : 'Algorithmic probability model. Does not guarantee winnings.')}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="golden-combo-hero-right">
+                                            <div className="golden-combo-conf-box">
+                                                <div className="golden-combo-conf-lbl">
+                                                    {lang === 'tr' ? 'SİSTEM GÜVENİ' : (lang === 'de' ? 'SYSTEM-KONFIDENZ' : 'CONVICTION')}
+                                                </div>
+                                                <div className="golden-combo-conf-val">
+                                                    %{terminalGoldenCombo.averageConfidence}
+                                                </div>
+                                            </div>
+                                            <div className="golden-combo-odds-badge">
+                                                <span className="golden-combo-odds-lbl">
+                                                    {lang === 'tr' ? 'TOPLAM ORAN' : (lang === 'de' ? 'GESAMTQUOTE' : 'TOTAL ODDS')}
+                                                </span>
+                                                <span className="golden-combo-odds-val">{terminalGoldenCombo.totalOdds}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 2 Picks Grid */}
+                                    <div className="golden-combo-picks">
+                                        {terminalGoldenCombo.picks.map((pick, pIdx) => (
+                                            <div key={pIdx} className="golden-pick-card">
+                                                <div className="golden-pick-info">
+                                                    <div className="golden-pick-match">
+                                                        {pick.matchTitle}
+                                                    </div>
+                                                    <div className="golden-pick-meta">
+                                                        {renderMatchMinute(pick.minute, t, false)} • {lang === 'tr' ? 'Skor' : (lang === 'de' ? 'Stand' : 'Score')}: {pick.score} • {pick.league}
+                                                    </div>
+                                                    <div className="golden-pick-market">
+                                                        🎯 {pick.market}
+                                                    </div>
+                                                </div>
+                                                <div className="golden-pick-odds-wrap">
+                                                    <div className="golden-pick-odds">
+                                                        {pick.odds}
+                                                    </div>
+                                                    <div className="golden-pick-conf">
+                                                        %{pick.confidence} {lang === 'tr' ? 'Güven' : (lang === 'de' ? 'Konfidenz' : 'Conviction')}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Golden Combo Action Bar (Admin Only) */}
+                                    {isAdmin && (
+                                        <div className="golden-combo-actions">
+                                            <button
+                                                type="button"
+                                                disabled={isSendingGoldenCombo}
+                                                onClick={(e) => handleSendGoldenComboToTelegram(e, terminalGoldenCombo)}
+                                                className="golden-combo-vip-btn"
+                                                style={isSendingGoldenCombo ? { opacity: 0.65, cursor: 'wait' } : undefined}
+                                            >
+                                                <span>{isSendingGoldenCombo ? '⏳' : '✈️'}</span>
+                                                <span>
+                                                    {isSendingGoldenCombo 
+                                                        ? (lang === 'tr' ? 'VIP Gruba İletiliyor...' : (lang === 'de' ? 'Wird an VIP-Gruppe gesendet...' : 'Sending to VIP...')) 
+                                                        : (lang === 'tr' ? 'VIP Gruba İlet' : (lang === 'de' ? 'An VIP-Gruppe senden' : 'Share to VIP'))}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* Quick Category Filter Strip with Two Mini Sub-Tabs */}
                             {(() => {
                                 const radarMatchesCount = enforcedMatches.filter(filterByTier).filter(m => 
@@ -6831,6 +6962,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 userProfile={userProfile}
                                 onOpenUpgrade={() => setShowPlanComparison(true)}
                                 terminalCategoryFilter={terminalCategoryFilter}
+                                isAdmin={isAdmin}
+                                onSendToTelegram={handleSendToTelegram}
                             />
 
                             <LiveTerminalMobile
@@ -6852,6 +6985,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 userProfile={userProfile}
                                 onOpenUpgrade={() => setShowPlanComparison(true)}
                                 terminalCategoryFilter={terminalCategoryFilter}
+                                isAdmin={isAdmin}
+                                onSendToTelegram={handleSendToTelegram}
                             />
 
                             {/* Global AI Section */}

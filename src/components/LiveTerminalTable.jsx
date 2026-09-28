@@ -42,7 +42,9 @@ export const LiveTerminalTable = ({
     mobileTableMode = false,
     userProfile = null,
     onOpenUpgrade = () => {},
-    terminalCategoryFilter = 'ALL'
+    terminalCategoryFilter = 'ALL',
+    isAdmin = false,
+    onSendToTelegram = null
 }) => {
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
@@ -333,8 +335,8 @@ export const LiveTerminalTable = ({
                                         className={`tb-row ${isExpanded ? 'expanded' : ''}`}
                                         onClick={(e) => handleRowClick(m, e)}
                                     >
-                                        {/* Pin / Star */}
-                                        <td style={{ textAlign: 'center' }} className="tb-action-ignore">
+                                        {/* Pin / Star & Quick VIP Broadcast */}
+                                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }} className="tb-action-ignore">
                                             <button
                                                 type="button"
                                                 className={`tb-action-ignore tb-fav-btn ${isPinned ? 'pinned' : ''}`}
@@ -344,6 +346,17 @@ export const LiveTerminalTable = ({
                                             >
                                                 <StarIcon filled={isPinned} size={14} />
                                             </button>
+                                            {isAdmin && onSendToTelegram && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); onSendToTelegram(e, m, opp); }}
+                                                    className="tb-action-ignore opp-telegram-btn"
+                                                    style={{ width: '22px', height: '22px', fontSize: '0.68rem', display: 'inline-flex', verticalAlign: 'middle', marginLeft: '4px' }}
+                                                    title={lang === 'tr' ? "Tek Tıkla VIP Gruba Gönder" : (lang === 'de' ? "Mit einem Klick an VIP-Gruppe senden" : "One-Click Send to VIP")}
+                                                >
+                                                    ✈️
+                                                </button>
+                                            )}
                                         </td>
 
                                         {/* Minute */}
@@ -381,6 +394,37 @@ export const LiveTerminalTable = ({
                                                     {m.awayTeam}
                                                 </span>
                                             </div>
+
+                                            {/* Opportunity Micro-Badges (from Classic Cards) */}
+                                            {opp && (
+                                                <div className="tb-badges-row" style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '3px', justifyContent: 'center' }}>
+                                                    {opp.isHalftime && (
+                                                        <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                            ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : (lang === 'de' ? '2. HZ VALUE' : '2ND HALF VALUE')}
+                                                        </span>
+                                                    )}
+                                                    {opp.valueDetected && (
+                                                        <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                            💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : (lang === 'de' ? 'VALUE-QUOTE' : 'VALUE ODDS')}
+                                                        </span>
+                                                    )}
+                                                    {opp.hasValueEV && opp.bestEV && (
+                                                        <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', color: '#fff', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                            💎 +EV %{opp.bestEV.ev}
+                                                        </span>
+                                                    )}
+                                                    {opp.smartMoney?.active && (
+                                                        <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                            📉 {lang === 'tr' ? 'BÜYÜK PARA' : 'SMART MONEY'} (-%{opp.smartMoney.dropPct?.toFixed ? opp.smartMoney.dropPct.toFixed(0) : opp.smartMoney.dropPct}%)
+                                                        </span>
+                                                    )}
+                                                    {opp.cashOutWarning && (
+                                                        <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff', animation: 'pulse 1.5s infinite', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
+                                                            🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : 'CASHOUT'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {/* Market Trend Pill (Shows exact market pick & volume) */}
                                             {hasTrend && (
@@ -709,11 +753,80 @@ export const LiveTerminalTable = ({
                                                             }}>
                                                                 DQS: {(m.dqs || 0).toFixed(2)} | Tier {m.tier || 1}
                                                             </span>
+                                                            {isAdmin && onSendToTelegram && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => { e.stopPropagation(); onSendToTelegram(e, m, opp); }}
+                                                                    className="tb-action-ignore opp-telegram-btn"
+                                                                    style={{ width: '30px', height: '30px', fontSize: '0.9rem', cursor: 'pointer' }}
+                                                                    title={lang === 'tr' ? "Analizi VIP Telegram Grubuna Gönder" : (lang === 'de' ? "An VIP-Gruppe senden" : "Send to VIP Group")}
+                                                                >
+                                                                    ✈️
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </div>
 
-                                                    {/* Left: Momentum Graph, Live Stats & Incidents */}
+                                                    {/* Left: Momentum Bar & Graph, Live Stats & Incidents */}
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                                        {/* Dual Colored Momentum Bar (from Classic) */}
+                                                        {(() => {
+                                                            const cornersHome = Number(m.stats?.corners?.home || 0);
+                                                            const cornersAway = Number(m.stats?.corners?.away || 0);
+                                                            const pressHome = Number(m.observations?.pressure?.home || 0);
+                                                            const pressAway = Number(m.observations?.pressure?.away || 0);
+                                                            const homePower = (daHome * 1.0) + (sogHome * 3.5) + (cornersHome * 1.5) + (xgHome * 15) + (pressHome * 0.5);
+                                                            const awayPower = (daAway * 1.0) + (sogAway * 3.5) + (cornersAway * 1.5) + (xgAway * 15) + (pressAway * 0.5);
+                                                            const totalPower = homePower + awayPower;
+                                                            let homePct = 50;
+                                                            if (totalPower > 0) {
+                                                                homePct = Math.min(88, Math.max(12, Math.round((homePower / totalPower) * 100)));
+                                                            } else if (daHome + daAway > 0) {
+                                                                homePct = Math.round((daHome / (daHome + daAway)) * 100);
+                                                            }
+                                                            const awayPct = 100 - homePct;
+                                                            const isHomeHeavy = homePct >= 62;
+                                                            const isAwayHeavy = awayPct >= 62;
+                                                            const velocityTrend = m.observations?.velocity?.trend || 'STABLE';
+                                                            const isHot = velocityTrend === 'HOT';
+
+                                                            return (
+                                                                <div style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--tb-border)', borderRadius: '8px', padding: '0.65rem 0.85rem' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.72rem' }}>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8', fontWeight: isHomeHeavy ? 900 : 700 }}>
+                                                                            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block', boxShadow: isHomeHeavy ? '0 0 8px #38bdf8' : 'none' }} />
+                                                                            <span>{m.homeTeam} (%{homePct})</span>
+                                                                            {isHomeHeavy && <span style={{ fontSize: '0.62rem', color: '#38bdf8' }}>⚡ BASKI</span>}
+                                                                        </div>
+
+                                                                        <div style={{
+                                                                            fontSize: '0.68rem',
+                                                                            fontWeight: 800,
+                                                                            padding: '2px 8px',
+                                                                            borderRadius: '4px',
+                                                                            background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
+                                                                            color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
+                                                                        }}>
+                                                                            {isHot ? (lang === 'tr' ? '🔥 RİTİM YÜKSEK' : '🔥 HIGH TEMPO') : (isHomeHeavy ? `⚡ ${m.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : isAwayHeavy ? `⚡ ${m.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : (lang === 'tr' ? '⚪ DENGELİ TEMPO' : '⚪ BALANCED TEMPO'))}
+                                                                        </div>
+
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8', fontWeight: isAwayHeavy ? 900 : 700 }}>
+                                                                            {isAwayHeavy && <span style={{ fontSize: '0.62rem', color: '#f43f5e' }}>BASKI ⚡</span>}
+                                                                            <span>(%{awayPct}) {m.awayTeam}</span>
+                                                                            <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block', boxShadow: isAwayHeavy ? '0 0 8px #f43f5e' : 'none' }} />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Dual Colored Gradient Bar */}
+                                                                    <div style={{ position: 'relative', height: '7px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                                                                        <div style={{ width: `${homePct}%`, background: 'linear-gradient(90deg, #0284c7, #38bdf8)', height: '100%' }} />
+                                                                        <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '2px', background: 'rgba(255, 255, 255, 0.6)', zIndex: 2 }} />
+                                                                        <div style={{ width: `${awayPct}%`, background: 'linear-gradient(90deg, #f43f5e, #e11d48)', height: '100%' }} />
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })()}
+
                                                         {/* Momentum Wave Header & Graph */}
                                                         <div>
                                                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
