@@ -233,6 +233,8 @@ export const LiveTerminalMobile = ({
                     const daDiff = Math.abs(daHome - daAway);
                     const xgHome = Number(m.stats?.xg?.home || 0);
                     const xgAway = Number(m.stats?.xg?.away || 0);
+                    const possHome = Number(m.stats?.possession?.home || 0);
+                    const possAway = Number(m.stats?.possession?.away || 0);
 
                     const redHome = Number(m.cards?.home?.red || m.stats?.cards?.home?.red || 0);
                     const redAway = Number(m.cards?.away?.red || m.stats?.cards?.away?.red || 0);
@@ -452,7 +454,7 @@ export const LiveTerminalMobile = ({
                                 </div>
                             )}
 
-                            {/* Line 5: 4-Column Live Stats Grid with Explicit Desktop Labels */}
+                            {/* Line 5: 5-Column Live Stats Grid with Explicit Desktop Labels */}
                             <div className="tb-m-stats-grid">
                                 {/* Column 1: BASKI / İVME */}
                                 <div className={`tb-m-stat-cell ${heatAlertClass}`}>
@@ -467,13 +469,24 @@ export const LiveTerminalMobile = ({
                                     </span>
                                 </div>
 
-                                {/* Column 2: ŞUT (İSB) */}
+                                {/* Column 2: TOPLA OYNAMA */}
+                                <div className="tb-m-stat-cell">
+                                    <span className="tb-m-stat-label">{lang === 'tr' ? 'TOP %' : (lang === 'de' ? 'BESITZ' : 'POSS')}</span>
+                                    <span className="tb-m-stat-value" style={{ 
+                                        fontSize: '0.70rem', 
+                                        color: possHome >= 60 ? '#38bdf8' : (possAway >= 60 ? '#f43f5e' : 'var(--tb-text-primary)') 
+                                    }}>
+                                        {(possHome > 0 || possAway > 0) ? `${possHome}-${possAway}` : '-'}
+                                    </span>
+                                </div>
+
+                                {/* Column 3: ŞUT (İSB) */}
                                 <div className="tb-m-stat-cell">
                                     <span className="tb-m-stat-label">{lang === 'tr' ? 'ŞUT (İSB)' : (lang === 'de' ? 'SCHÜSSE' : 'SOG')}</span>
                                     <span className="tb-m-stat-value">{sogHome} - {sogAway}</span>
                                 </div>
 
-                                {/* Column 3: T.ATAK */}
+                                {/* Column 4: T.ATAK */}
                                 <div className={`tb-m-stat-cell ${daAlertClass}`}>
                                     <span className="tb-m-stat-label">{lang === 'tr' ? 'T.ATAK' : (lang === 'de' ? 'G.ANGRIFF' : 'D.ATTACK')}</span>
                                     <span className="tb-m-stat-value">
@@ -481,7 +494,7 @@ export const LiveTerminalMobile = ({
                                     </span>
                                 </div>
 
-                                {/* Column 4: xG */}
+                                {/* Column 5: xG */}
                                 <div className="tb-m-stat-cell xg">
                                     <span className="tb-m-stat-label">xG</span>
                                     <span className="tb-m-stat-value">
@@ -571,22 +584,18 @@ export const LiveTerminalMobile = ({
                                         );
                                     }
 
-                                    if ((m.dqs || 0) >= (CONFIG?.DECISION?.DQS_THRESHOLD || 0.60)) {
-                                        return (
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.7rem' }}>
-                                                <span style={{ color: 'var(--tb-text-muted)' }}>
-                                                    AI DQS: <strong style={{ color: '#38bdf8' }}>{(m.dqs || 0).toFixed(2)}</strong>
-                                                </span>
-                                                <span style={{ color: '#34d399', fontWeight: 700, fontSize: '0.68rem' }}>
-                                                    ● {lang === 'tr' ? 'Tempolu' : (lang === 'de' ? 'Aktiv' : 'Active')}
-                                                </span>
-                                            </div>
-                                        );
-                                    }
+                                    const hasNoStats = sogHome === 0 && sogAway === 0 && daHome === 0 && daAway === 0;
 
                                     return (
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', fontSize: '0.68rem', color: 'var(--tb-text-muted)' }}>
-                                            <span>DQS: {(m.dqs || 0).toFixed(2)}</span>
+                                            <span>
+                                                AI DQS: <strong style={{ color: (m.dqs || 0) >= 0.50 ? '#38bdf8' : 'var(--tb-text-muted)' }}>{(m.dqs || 0).toFixed(2)}</strong>
+                                                {hasNoStats && (
+                                                    <span style={{ marginLeft: '5px', fontSize: '0.62rem', color: '#94a3b8', opacity: 0.85 }}>
+                                                        ({lang === 'tr' ? 'İstatistik Yok' : (lang === 'de' ? 'Keine Daten' : 'No Stats')})
+                                                    </span>
+                                                )}
+                                            </span>
                                             <span className="tb-signal-badge tb-signal-pass" style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
                                                 {t?.verdict_pass || 'PAS'}
                                             </span>
@@ -955,7 +964,7 @@ export const LiveTerminalMobile = ({
                                                     ? (lang === 'tr' ? `DQS (%${(dqsVal * 100).toFixed(0)}) piyasadaki tercihi (${marketPrediction}) teyit ediyor.` : (lang === 'de' ? `DQS (%${(dqsVal * 100).toFixed(0)}) bestätigt die Marktprognose (${marketPrediction}).` : `DQS (${(dqsVal * 100).toFixed(0)}%) confirms market pick (${marketPrediction}).`))
                                                     : isTrendTrap
                                                     ? (lang === 'tr' ? `Düşük DQS (%${(dqsVal * 100).toFixed(0)}%). Piyasada (${marketPrediction}) bahsine kalabalık tuzağa çekiliyor!` : (lang === 'de' ? `Niedriger DQS (%${(dqsVal * 100).toFixed(0)}%). Das Wettpublikum bei (${marketPrediction}) tappt möglicherweise in eine Falle!` : `Low DQS (${(dqsVal * 100).toFixed(0)}%). Crowd betting on (${marketPrediction}) may be in a trap!`))
-                                                    : (lang === 'de' ? `Gemäßigtes Tempo (%${(dqsVal * 100).toFixed(0)} DQS). Spiel weiter beobachten.` : (lang === 'tr' ? `Orta tempo (%${(dqsVal * 100).toFixed(0)}% DQS). Maçı canlı takip edin.` : `Moderate tempo (${(dqsVal * 100).toFixed(0)}% DQS). Keep observing.`))}
+                                                    : (lang === 'de' ? `Stabiler Datenfluss (%${(dqsVal * 100).toFixed(0)} DQS). Spiel weiter beobachten.` : (lang === 'tr' ? `Dengeli veri akışı (%${(dqsVal * 100).toFixed(0)} DQS). Maçı canlı takip edin.` : `Stable data flow (${(dqsVal * 100).toFixed(0)}% DQS). Keep observing.`))}
                                             </div>
                                         </div>
                                     )}

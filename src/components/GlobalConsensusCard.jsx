@@ -337,10 +337,32 @@ export const GlobalConsensusCard = ({
                                     {predSignals.map((sig, sIdx) => {
                                         const sourceDef = RADAR_SOURCES.find(rs => rs.id === sig.site);
                                         const label = sourceDef?.label || sig.site;
+                                        const desc = lang === 'tr' ? (sourceDef?.descTr || label) : (sourceDef?.descEn || label);
                                         const color = sourceDef?.color || '#94a3b8';
                                         const url = RADAR_BASE_URLS[sig.site];
                                         const scoreBustedInfo = checkScoreBusted(sig.score_pred);
                                         const formattedProb = formatSignalProb(sig.prob);
+
+                                        // Build informative tooltip
+                                        const tooltipParts = [desc];
+                                        if (sig.score_pred && sig.score_pred !== 'N/A') {
+                                            tooltipParts.push(`${lang === 'tr' ? 'Skor Tahmini' : 'Score'}: ${sig.score_pred}`);
+                                        }
+                                        if (formattedProb) {
+                                            tooltipParts.push(`${sig.site === 'olbg' ? (lang === 'tr' ? 'Topluluk Oyu' : 'Community Vote') : (lang === 'tr' ? 'Olasılık' : 'Probability')}: ${formattedProb}`);
+                                        }
+                                        if (scoreBustedInfo.isBusted) {
+                                            tooltipParts.push(`⚠️ ${scoreBustedInfo.reason}`);
+                                        }
+                                        if (url) {
+                                            tooltipParts.push(lang === 'tr' ? 'Siteyi Ziyaret Et ↗' : 'Visit Site ↗');
+                                        }
+                                        const badgeTitle = tooltipParts.join(' • ');
+
+                                        // For OLBG, clearly indicate it represents community votes
+                                        const displayProb = sig.site === 'olbg' && formattedProb
+                                            ? (lang === 'tr' ? `${formattedProb} Oy` : `${formattedProb} Tips`)
+                                            : formattedProb;
 
                                         return (
                                             <span
@@ -351,7 +373,7 @@ export const GlobalConsensusCard = ({
                                                         window.open(url, '_blank');
                                                     }
                                                 }}
-                                                title={url ? `${label} - ${url}` : label}
+                                                title={badgeTitle}
                                                 style={{
                                                     fontSize: '0.62rem',
                                                     fontWeight: 700,
@@ -382,9 +404,9 @@ export const GlobalConsensusCard = ({
                                                         ({sig.score_pred})
                                                     </span>
                                                 )}
-                                                {formattedProb && (
+                                                {displayProb && (
                                                     <span style={{ opacity: 0.9, fontSize: '0.58rem', fontWeight: 700 }}>
-                                                        {formattedProb}
+                                                        {displayProb}
                                                     </span>
                                                 )}
                                             </span>

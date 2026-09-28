@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo } from '../logic/liveSortEngine';
+import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo, parseNumericMinute } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
 import { CONFIG } from '../config';
@@ -51,6 +51,110 @@ export const LiveTerminalTable = ({
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
     const [expandedMatchId, setExpandedMatchId] = useState(null);
     const [trackedMatchIds, setTrackedMatchIds] = useState(() => new Set());
+    const [sortColumn, setSortColumn] = useState(null);
+    const [sortDirection, setSortDirection] = useState('desc');
+
+    const handleColumnSort = (colKey) => {
+        if (sortColumn === colKey) {
+            if (sortDirection === 'desc') {
+                setSortDirection('asc');
+            } else {
+                setSortColumn(null);
+                setSortDirection('desc');
+            }
+        } else {
+            setSortColumn(colKey);
+            setSortDirection('desc');
+        }
+    };
+
+    const renderSortIcon = (colKey) => {
+        if (sortColumn !== colKey) {
+            return <span className="tb-sort-indicator tb-sort-idle" aria-hidden="true">⇅</span>;
+        }
+        return (
+            <span className="tb-sort-indicator tb-sort-active" aria-hidden="true">
+                {sortDirection === 'desc' ? '▼' : '▲'}
+            </span>
+        );
+    };
+
+    const sortedMatches = useMemo(() => {
+        if (!sortColumn) return matches;
+        const modifier = sortDirection === 'asc' ? 1 : -1;
+
+        return [...matches].sort((a, b) => {
+            let valA = 0;
+            let valB = 0;
+
+            switch (sortColumn) {
+                case 'minute': {
+                    valA = parseNumericMinute(a.minute);
+                    valB = parseNumericMinute(b.minute);
+                    break;
+                }
+                case 'score': {
+                    const parseGoals = (m) => {
+                        if (typeof m.score === 'object' && m.score !== null) {
+                            return (Number(m.score.home) || 0) + (Number(m.score.away) || 0);
+                        }
+                        const parts = String(m.score || '0-0').replace(':', '-').split('-');
+                        return (parseInt(parts[0], 10) || 0) + (parseInt(parts[1], 10) || 0);
+                    };
+                    valA = parseGoals(a);
+                    valB = parseGoals(b);
+                    break;
+                }
+                case 'heat': {
+                    const sigA = signals[a.id];
+                    const oppA = (opportunitiesMap instanceof Map ? opportunitiesMap.get(a.id) : null) || a.opportunityData;
+                    valA = calculateMatchHeatScore(a, sigA, oppA);
+
+                    const sigB = signals[b.id];
+                    const oppB = (opportunitiesMap instanceof Map ? opportunitiesMap.get(b.id) : null) || b.opportunityData;
+                    valB = calculateMatchHeatScore(b, sigB, oppB);
+                    break;
+                }
+                case 'pressure': {
+                    const sigA = signals[a.id];
+                    const oppA = (opportunitiesMap instanceof Map ? opportunitiesMap.get(a.id) : null) || a.opportunityData;
+                    valA = a.observations?.pressure?.total ?? calculateMatchHeatScore(a, sigA, oppA);
+
+                    const sigB = signals[b.id];
+                    const oppB = (opportunitiesMap instanceof Map ? opportunitiesMap.get(b.id) : null) || b.opportunityData;
+                    valB = b.observations?.pressure?.total ?? calculateMatchHeatScore(b, sigB, oppB);
+                    break;
+                }
+                case 'possession': {
+                    valA = Math.abs((Number(a.stats?.possession?.home) || 50) - (Number(a.stats?.possession?.away) || 50));
+                    valB = Math.abs((Number(b.stats?.possession?.home) || 50) - (Number(b.stats?.possession?.away) || 50));
+                    break;
+                }
+                case 'shots': {
+                    valA = (Number(a.stats?.shotsOnGoal?.home) || 0) + (Number(a.stats?.shotsOnGoal?.away) || 0);
+                    valB = (Number(b.stats?.shotsOnGoal?.home) || 0) + (Number(b.stats?.shotsOnGoal?.away) || 0);
+                    break;
+                }
+                case 'da': {
+                    valA = (Number(a.stats?.dangerousAttacks?.home) || 0) + (Number(a.stats?.dangerousAttacks?.away) || 0);
+                    valB = (Number(b.stats?.dangerousAttacks?.home) || 0) + (Number(b.stats?.dangerousAttacks?.away) || 0);
+                    break;
+                }
+                case 'xg': {
+                    valA = (Number(a.stats?.xg?.home) || 0) + (Number(a.stats?.xg?.away) || 0);
+                    valB = (Number(b.stats?.xg?.home) || 0) + (Number(b.stats?.xg?.away) || 0);
+                    break;
+                }
+                default:
+                    return 0;
+            }
+
+            if (valA === valB) {
+                return parseNumericMinute(b.minute) - parseNumericMinute(a.minute);
+            }
+            return valA > valB ? modifier : -modifier;
+        });
+    }, [matches, sortColumn, sortDirection, signals, opportunitiesMap]);
 
     const handleRowClick = (match, e) => {
         // Prevent accordion trigger when clicking buttons or links
@@ -193,24 +297,105 @@ export const LiveTerminalTable = ({
                         <th style={{ width: '36px', textAlign: 'center' }} title={lang === 'tr' ? 'Favoriler' : (lang === 'de' ? 'Favoriten' : 'Favorites')}>
                             <StarIcon filled size={13} />
                         </th>
-                        <th style={{ width: '46px' }}>{t?.minute_short || (lang === 'tr' ? 'DK' : (lang === 'de' ? 'MIN' : 'MIN'))}</th>
+                        <th 
+                            className={`sortable ${sortColumn === 'minute' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('minute')}
+                            style={{ width: '48px', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'Dakikaya göre sırala' : 'Sort by minute'}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                                {t?.minute_short || (lang === 'tr' ? 'DK' : (lang === 'de' ? 'MIN' : 'MIN'))}
+                                {renderSortIcon('minute')}
+                            </span>
+                        </th>
                         <th style={{ width: '100px' }}>{t?.league_label || (lang === 'tr' ? 'LİG' : (lang === 'de' ? 'LIGA' : 'LEAGUE'))}</th>
                         <th style={{ minWidth: '170px' }}>{t?.match_label || (lang === 'tr' ? 'MAÇ' : (lang === 'de' ? 'SPIEL' : 'MATCH'))}</th>
-                        <th style={{ width: '50px', textAlign: 'center' }}>{t?.score_label || (lang === 'tr' ? 'SKOR' : (lang === 'de' ? 'STAND' : 'SCORE'))}</th>
-                        <th style={{ width: '78px', textAlign: 'center' }}>{lang === 'tr' ? 'ISI / DURUM' : (lang === 'de' ? 'HITZE / STATUS' : 'HEAT')}</th>
+                        <th 
+                            className={`sortable ${sortColumn === 'score' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('score')}
+                            style={{ width: '56px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'Toplam gole göre sırala' : 'Sort by score/goals'}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                {t?.score_label || (lang === 'tr' ? 'SKOR' : (lang === 'de' ? 'STAND' : 'SCORE'))}
+                                {renderSortIcon('score')}
+                            </span>
+                        </th>
+                        <th 
+                            className={`sortable ${sortColumn === 'heat' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('heat')}
+                            style={{ width: '84px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'Maç Sıcaklığına göre sırala' : 'Sort by match heat'}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                {lang === 'tr' ? 'ISI / DURUM' : (lang === 'de' ? 'HITZE / STATUS' : 'HEAT')}
+                                {renderSortIcon('heat')}
+                            </span>
+                        </th>
                         <th style={{ width: '72px', textAlign: 'center' }}>{lang === 'tr' ? '1X2 CANLI' : (lang === 'de' ? '1X2 LIVE' : '1X2 LIVE')}</th>
-                        <th style={{ width: '64px', textAlign: 'center' }}>{lang === 'tr' ? `BASKI (${momentumWindow}D)` : (lang === 'de' ? `DRUCK (${momentumWindow}M)` : `PRESS (${momentumWindow}M)`)}</th>
-                        <th style={{ width: '56px', textAlign: 'center' }}>{lang === 'tr' ? 'ŞUT (İSB)' : (lang === 'de' ? 'SCHÜSSE (TOR)' : 'SHOTS (SOG)')}</th>
-                        <th style={{ width: '54px', textAlign: 'center' }}>{lang === 'tr' ? 'T.ATAK' : (lang === 'de' ? 'G.ANGRIFF' : 'D.ATTACK')}</th>
-                        <th style={{ width: '56px', textAlign: 'center' }}>xG</th>
+                        <th 
+                            className={`sortable ${sortColumn === 'pressure' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('pressure')}
+                            style={{ width: '68px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? `Baskı İndeksine göre sırala (${momentumWindow}dk)` : `Sort by pressure (${momentumWindow}m)`}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                {lang === 'tr' ? `BASKI (${momentumWindow}D)` : (lang === 'de' ? `DRUCK (${momentumWindow}M)` : `PRESS (${momentumWindow}M)`)}
+                                {renderSortIcon('pressure')}
+                            </span>
+                        </th>
+                        <th 
+                            className={`sortable ${sortColumn === 'possession' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('possession')}
+                            style={{ width: '68px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'Top Hakimiyeti / Baskı Farkına göre sırala' : 'Sort by possession dominance'}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                {lang === 'tr' ? 'TOP %' : (lang === 'de' ? 'BESITZ' : 'POSS %')}
+                                {renderSortIcon('possession')}
+                            </span>
+                        </th>
+                        <th 
+                            className={`sortable ${sortColumn === 'shots' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('shots')}
+                            style={{ width: '62px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'İsabetli Şut sayısına göre sırala' : 'Sort by shots on goal'}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                {lang === 'tr' ? 'ŞUT (İSB)' : (lang === 'de' ? 'SCHÜSSE' : 'SHOTS')}
+                                {renderSortIcon('shots')}
+                            </span>
+                        </th>
+                        <th 
+                            className={`sortable ${sortColumn === 'da' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('da')}
+                            style={{ width: '58px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'Tehlikeli Atak sayısına göre sırala' : 'Sort by dangerous attacks'}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                {lang === 'tr' ? 'T.ATAK' : (lang === 'de' ? 'G.ANGRIFF' : 'D.ATTACK')}
+                                {renderSortIcon('da')}
+                            </span>
+                        </th>
+                        <th 
+                            className={`sortable ${sortColumn === 'xg' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('xg')}
+                            style={{ width: '58px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'Beklenen Gol (xG) değerine göre sırala' : 'Sort by expected goals'}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                xG
+                                {renderSortIcon('xg')}
+                            </span>
+                        </th>
                         <th style={{ width: '150px', textAlign: 'center' }}>{lang === 'tr' ? 'AI SİNYAL' : (lang === 'de' ? 'KI-SIGNAL' : 'AI SIGNAL')}</th>
                         <th style={{ width: '36px', textAlign: 'center' }}>{lang === 'tr' ? 'DETAY' : (lang === 'de' ? 'DETAILS' : 'DETAIL')}</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {matches.length === 0 ? (
+                    {sortedMatches.length === 0 ? (
                         <tr>
-                            <td colSpan={13} style={{ padding: '0', border: 'none' }}>
+                            <td colSpan={14} style={{ padding: '0', border: 'none' }}>
                                 {terminalCategoryFilter === 'PINNED' ? (
                                     <div className="tb-pinned-empty-state">
                                         <div className="tb-pinned-empty-icon">⭐</div>
@@ -233,7 +418,7 @@ export const LiveTerminalTable = ({
                             </td>
                         </tr>
                     ) : (
-                        matches.map(m => {
+                        sortedMatches.map(m => {
                             const isExpanded = expandedMatchId === m.id;
                             const signal = signals[m.id];
                             const isPinned = pinnedMatchIds.has(m.id);
@@ -250,6 +435,8 @@ export const LiveTerminalTable = ({
                             const windowMomentum = opp?.components?.momentum ?? opp?.score ?? heat;
                             const last20 = calculateLast20MinMetrics(m, signal, momentumWindow);
 
+                            const possHome = Number(m.stats?.possession?.home || 0);
+                            const possAway = Number(m.stats?.possession?.away || 0);
                             const sogHome = m.stats?.shotsOnGoal?.home || 0;
                             const sogAway = m.stats?.shotsOnGoal?.away || 0;
                             const daHome = m.stats?.dangerousAttacks?.home || 0;
@@ -518,6 +705,34 @@ export const LiveTerminalTable = ({
                                             )}
                                         </td>
 
+                                        {/* Topla Oynama (Possession) */}
+                                        <td className="tb-stat-cell" title={lang === 'tr' ? `Topla Oynama: ${m.homeTeam} %${possHome} - %${possAway} ${m.awayTeam}` : `Possession: ${m.homeTeam} ${possHome}% - ${possAway}% ${m.awayTeam}`}>
+                                            {(possHome > 0 || possAway > 0) ? (
+                                                <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px', minWidth: '48px' }}>
+                                                    <span style={{ 
+                                                        fontSize: '0.72rem', 
+                                                        fontWeight: 700, 
+                                                        color: possHome >= 60 ? '#38bdf8' : (possAway >= 60 ? '#f43f5e' : 'var(--tb-text-primary)') 
+                                                    }}>
+                                                        %{possHome} - %{possAway}
+                                                    </span>
+                                                    <div style={{ 
+                                                        width: '100%', 
+                                                        height: '3px', 
+                                                        background: 'rgba(255,255,255,0.08)', 
+                                                        borderRadius: '2px', 
+                                                        display: 'flex', 
+                                                        overflow: 'hidden' 
+                                                    }}>
+                                                        <div style={{ width: `${possHome}%`, background: possHome >= 60 ? '#38bdf8' : '#64748b' }} />
+                                                        <div style={{ width: `${possAway}%`, background: possAway >= 60 ? '#f43f5e' : '#475569' }} />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: 'var(--tb-text-muted)' }}>-</span>
+                                            )}
+                                        </td>
+
                                         {/* Shots on Goal */}
                                         <td className="tb-stat-cell">
                                             <span>{sogHome} - {sogAway}</span>
@@ -664,7 +879,7 @@ export const LiveTerminalTable = ({
                                     {/* Inline Accordion Detail Tray */}
                                     {isExpanded && (
                                         <tr className="tb-expanded-row">
-                                            <td colSpan={13}>
+                                            <td colSpan={14}>
                                                 <div className="tb-expanded-content">
                                                     {/* 🎖️ EXECUTIVE AI VERDICT BANNER (Single Source of Truth) */}
                                                     <div style={{
