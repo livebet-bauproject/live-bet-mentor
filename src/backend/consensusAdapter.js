@@ -2,7 +2,7 @@
  * CONSENSUS ADAPTER
  * Normalizes external predictions and applies fuzzy logic for team matching.
  */
-import { CONFIG } from '../config.js';
+import { CONFIG, getApiBaseUrl } from '../config.js';
 import { database, ref, get } from '../firebase/config.js';
 
 const cleanCache = new Map();
@@ -14,7 +14,7 @@ export const consensusAdapter = {
 
             if (isLocalDev) {
                 // LOCAL: Read from proxy which serves consensus_data.json
-                const proxyBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
+                const proxyBase = 'http://localhost:3001';
                 const response = await fetch(`${proxyBase}/api/consensus`);
                 if (!response.ok) {
                     console.warn('[CONSENSUS_ADAPTER] Proxy returned:', response.status);
@@ -24,8 +24,8 @@ export const consensusAdapter = {
                 console.log(`[CONSENSUS_ADAPTER] LOCAL: Loaded consensus with ${Object.keys(data).length} sources`);
                 return data;
             } else {
-                // PRODUCTION: Use Render backend proxy, Firebase as fallback
-                const renderBase = import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
+                // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
+                const renderBase = getApiBaseUrl();
                 try {
                     const response = await fetch(`${renderBase}/api/consensus`);
                     if (response.ok) {

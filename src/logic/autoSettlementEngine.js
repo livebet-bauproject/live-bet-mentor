@@ -15,6 +15,7 @@
 
 import { bankrollManager } from './bankrollManager.js';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter.js';
+import { getApiBaseUrl } from '../config.js';
 
 export class AutoSettlementEngine {
     constructor() {
@@ -201,12 +202,7 @@ export class AutoSettlementEngine {
      */
     async fetchFinishedMatchDetails(matchId) {
         if (!matchId) return null;
-        const isLocalDev = typeof window !== 'undefined' && 
-            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-        
-        const proxyBase = isLocalDev 
-            ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+        const proxyBase = getApiBaseUrl();
 
         try {
             const res = await fetch(`${proxyBase}/api/sofascore/event/${matchId}`, { 

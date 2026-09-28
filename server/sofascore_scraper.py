@@ -18,7 +18,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler("server/scraper.log"),
+        logging.FileHandler(os.path.join(SERVER_DIR, "scraper.log"), encoding='utf-8'),
         logging.StreamHandler()
     ]
 )

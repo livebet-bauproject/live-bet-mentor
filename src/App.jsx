@@ -553,9 +553,7 @@ function App() {
           });
           setSystemSettings(settingsObj);
           if (settingsObj.backend_api_url && typeof window !== 'undefined') {
-            try {
-              localStorage.setItem('lbm_backend_api_url', settingsObj.backend_api_url);
-            } catch(e) {}
+            localStorage.setItem('lbm_backend_api_url', settingsObj.backend_api_url.trim().replace(/\/$/, ''));
           }
         }
       } catch (err) {

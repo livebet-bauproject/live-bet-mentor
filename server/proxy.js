@@ -31,7 +31,8 @@ import {
     saveDeviceTrials, 
     loadUpgradeRequests, 
     saveUpgradeRequests,
-    initPersistence
+    initPersistence,
+    publishBackendTunnelUrl
 } from './persistenceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -4505,8 +4506,8 @@ function startScraper() {
         return;
     }
     try {
-        console.log('[PROXY] Starting SofaScore CDP Scraper (local mode)...');
-        scraperProcess = spawn('python', ['server/sofascore_scraper.py'], {
+        const pyCmd = process.env.PYTHON_CMD || (process.platform === 'win32' ? 'python' : 'python3');
+        scraperProcess = spawn(pyCmd, [path.join(__dirname, 'sofascore_scraper.py')], {
             stdio: 'inherit'
         });
 
@@ -4593,89 +4594,71 @@ function startBetanoScraper() {
     setInterval(runBetano, 15 * 60 * 1000); // Autonomous scrape every 15 minutes
 }
 
-// --- CLOUDFLARE TUNNEL (Expose local proxy to public internet for Vercel) ---
+// --- CLOUDFLARE 24/7 TUNNEL MANAGEMENT ---
 let tunnelProcess = null;
-let currentTunnelUrl = 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
+let activeTunnelUrl = null;
 
 function startCloudflareTunnel() {
-    const isWindows = process.platform === 'win32';
-    const cfBinary = path.join(__dirname, 'bin', isWindows ? 'cloudflared.exe' : 'cloudflared');
+    if (IS_CLOUD) {
+        console.log('[TUNNEL] Cloud environment detected. Cloudflare Tunnel skipped.');
+        return;
+    }
 
-    if (!fs.existsSync(cfBinary)) {
-        console.log('[TUNNEL] Cloudflare binary not found in server/bin/, downloading automatically...');
+    const isWindows = process.platform === 'win32';
+    let binPath = path.join(__dirname, 'bin', isWindows ? 'cloudflared.exe' : 'cloudflared');
+    if (!fs.existsSync(binPath)) {
         try {
             fs.mkdirSync(path.join(__dirname, 'bin'), { recursive: true });
             const dlUrl = isWindows 
                 ? 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe'
                 : 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64';
-            spawnSync('curl', ['-L', '-o', cfBinary, dlUrl], { timeout: 60000 });
-            if (!isWindows && fs.existsSync(cfBinary)) {
-                try { fs.chmodSync(cfBinary, 0o755); } catch(e) {}
+            console.log('[TUNNEL] Downloading cloudflared binary...');
+            spawnSync('curl', ['-L', '-o', binPath, dlUrl], { timeout: 60000 });
+            if (!isWindows && fs.existsSync(binPath)) {
+                try { fs.chmodSync(binPath, 0o755); } catch(e) {}
             }
-        } catch(dlErr) {
-            console.warn('[TUNNEL] Could not auto-download cloudflared:', dlErr.message);
-            return;
+        } catch(e) {
+            binPath = 'cloudflared';
         }
     }
 
-    if (!fs.existsSync(cfBinary)) {
-        console.log('[TUNNEL] Cloudflare binary not available, skipping tunnel start.');
-        return;
-    }
-
-    console.log(`[TUNNEL] 🚀 Launching Cloudflare Tunnel on port ${PORT}...`);
+    console.log(`[TUNNEL] 🌐 Launching 24/7 Cloudflare Tunnel for port ${PORT}...`);
     try {
-        tunnelProcess = spawn(cfBinary, ['tunnel', '--url', `http://localhost:${PORT}`], {
-            stdio: ['ignore', 'pipe', 'pipe']
-        });
+        tunnelProcess = spawn(binPath, ['tunnel', '--url', `http://localhost:${PORT}`]);
 
-        const handleTunnelOutput = async (data) => {
-            const text = data.toString();
-            const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
-            if (match && match[0]) {
-                const tunnelUrl = match[0];
-                if (tunnelUrl !== currentTunnelUrl) {
-                    currentTunnelUrl = tunnelUrl;
-                    console.log(`[TUNNEL] 🌐 Cloudflare Tunnel is LIVE: ${tunnelUrl}`);
-                    try {
-                        fs.writeFileSync(path.join(__dirname, 'tunnel_url.txt'), tunnelUrl, 'utf8');
-                    } catch(e) {}
-
-                    // Publish to Supabase system_settings so Vercel frontend automatically connects
-                    try {
-                        const { createClient } = await import('@supabase/supabase-js');
-                        const supUrl = process.env.VITE_SUPABASE_URL || 'https://benbfhpxgjiqmgcruwqv.supabase.co';
-                        const supKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_IQJcRKgo5VaTX5QqOQx-Nw_rvlP0YLk';
-                        const supabase = createClient(supUrl, supKey);
-                        await supabase.from('system_settings').upsert({
-                            key: 'backend_api_url',
-                            value: tunnelUrl,
-                            updated_at: new Date().toISOString()
-                        });
-                        console.log(`[TUNNEL] ✅ Published active tunnel URL to Supabase system_settings!`);
-                    } catch(err) {
-                        console.warn('[TUNNEL] Notice: could not publish to Supabase:', err.message);
-                    }
+        const handleLog = (data) => {
+            const str = data.toString();
+            const match = str.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
+            if (match) {
+                const foundUrl = match[0].trim();
+                if (foundUrl !== activeTunnelUrl) {
+                    activeTunnelUrl = foundUrl;
+                    console.log(`[TUNNEL] 🚀 Cloudflare Tunnel Active: ${foundUrl}`);
+                    publishBackendTunnelUrl(foundUrl).catch(e => console.warn('[TUNNEL] Publish error:', e.message));
                 }
             }
         };
 
-        tunnelProcess.stdout.on('data', handleTunnelOutput);
-        tunnelProcess.stderr.on('data', handleTunnelOutput);
+        tunnelProcess.stdout.on('data', handleLog);
+        tunnelProcess.stderr.on('data', handleLog);
+
+        tunnelProcess.on('error', (err) => {
+            console.warn('[TUNNEL] Cloudflare tunnel notice:', err.message);
+        });
 
         tunnelProcess.on('close', (code) => {
-            console.log(`[TUNNEL] Process exited with code ${code}. Restarting in 10s...`);
+            console.log(`[TUNNEL] Tunnel exited (code ${code}). Restarting in 10s...`);
             tunnelProcess = null;
             setTimeout(startCloudflareTunnel, 10000);
         });
-
-        tunnelProcess.on('error', (err) => {
-            console.error('[TUNNEL] Spawn error:', err.message);
-        });
-    } catch(e) {
-        console.error('[TUNNEL] Failed to start tunnel:', e.message);
+    } catch (e) {
+        console.warn('[TUNNEL] Failed to launch cloudflared:', e.message);
     }
 }
+
+app.get('/api/tunnel/url', (req, res) => {
+    res.json({ ok: true, url: activeTunnelUrl || null, port: PORT });
+});
 
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', async () => {
@@ -4703,9 +4686,7 @@ app.listen(PORT, '0.0.0.0', async () => {
     autonomousOffice.start(60000);
 
     startScraper();
-    if (!IS_CLOUD) {
-        startCloudflareTunnel();
-    }
+    startCloudflareTunnel();
     setTimeout(() => {
         startConsensusScraper();
         startSharpPicksEngine();

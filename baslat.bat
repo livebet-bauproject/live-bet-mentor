@@ -40,6 +40,12 @@ if errorlevel 1 (
     pip install undetected-chromedriver selenium curl_cffi requests python-dotenv
 )
 
+if not exist "server\bin\cloudflared.exe" (
+    echo [BILGI] 7/24 Guvenli Tunnel modulu (cloudflared) indiriliyor...
+    if not exist "server\bin" mkdir "server\bin"
+    curl.exe -L -o "server\bin\cloudflared.exe" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+)
+
 REM 4. Sunucuyu Baslat
 echo [4/4] Uygulama baslatiliyor...
 echo Bu pencereyi kapatmayin.

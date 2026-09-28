@@ -8,19 +8,16 @@
  */
 export function getApiBaseUrl() {
   if (typeof window !== 'undefined') {
-    const isLocal = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' ||
-                    window.location.hostname.startsWith('192.168.') ||
-                    window.location.hostname.startsWith('10.') ||
-                    window.location.hostname.startsWith('172.');
-    if (isLocal) return 'http://localhost:3001';
-
-    const dynamicBackend = localStorage.getItem('lbm_backend_api_url');
-    if (dynamicBackend && dynamicBackend.startsWith('http')) {
-      return dynamicBackend.replace(/\/$/, '');
+    const hostname = window.location.hostname;
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+      return 'http://localhost:3001';
+    }
+    const cached = localStorage.getItem('lbm_backend_api_url');
+    if (cached && cached.startsWith('http')) {
+      return cached.replace(/\/$/, '');
     }
   }
-  return ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com').replace(/\/$/, '');
+  return ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com').replace(/\/$/, '');
 }
 
 export const CONFIG = {
@@ -69,7 +66,9 @@ export const CONFIG = {
       SOFASCORE: 'SOFASCORE',
       REDSCORES: 'REDSCORES'
     },
-    SOFASCORE_LOCAL_PROXY_URL: getApiBaseUrl() + '/api/sofascore/live'
+    get SOFASCORE_LOCAL_PROXY_URL() {
+      return getApiBaseUrl() + '/api/sofascore/live';
+    }
   },
 
   // Bankroll Management

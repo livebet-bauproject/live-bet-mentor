@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js';
+import { CONFIG, getApiBaseUrl } from '../config.js';
 import { aiUsageLimiter } from './aiUsageLimiter.js';
 import { getAdminHeaders } from '../utils/adminAuth.js';
 
@@ -1025,9 +1025,7 @@ class SmartAlertService {
         const pending = this.alertHistory.filter(a => a.status === 'PENDING');
         if (pending.length === 0) return 0;
 
-        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+        const proxyBase = getApiBaseUrl();
 
         let resolvedCount = 0;
         const now = Date.now();
@@ -1094,9 +1092,7 @@ class SmartAlertService {
             return; // Regular members must NEVER broadcast to Telegram
         }
         try {
-            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const proxyBase = getApiBaseUrl();
 
             fetch(`${proxyBase}/api/telegram/send-signal`, {
                 method: 'POST',
@@ -1148,9 +1144,7 @@ class SmartAlertService {
             return; // Regular members must NEVER forward resolutions to Telegram
         }
         try {
-            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const proxyBase = getApiBaseUrl();
 
             fetch(`${proxyBase}/api/telegram/resolve-signal`, {
                 method: 'POST',

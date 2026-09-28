@@ -264,6 +264,28 @@ async function syncKeyToCloud(key, data) {
     }
 }
 
+export async function publishBackendTunnelUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    const cleanUrl = url.trim().replace(/\/$/, '');
+    try {
+        const payload = {
+            key: 'backend_api_url',
+            value: cleanUrl,
+            updated_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('system_settings').upsert(payload);
+        if (error) {
+            console.warn('[PERSISTENCE] Supabase upsert error for backend_api_url:', error.message);
+            return false;
+        }
+        console.log(`[TUNNEL] 🌐 Published active backend URL to Supabase: ${cleanUrl}`);
+        return true;
+    } catch (e) {
+        console.warn('[PERSISTENCE] Error publishing backend_api_url:', e.message);
+        return false;
+    }
+}
+
 /**
  * Call on application startup to restore any data lost due to Render ephemeral container redeploy.
  */
