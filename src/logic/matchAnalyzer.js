@@ -43,6 +43,7 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
         homeScore = parseInt(parts[0]) || 0;
         awayScore = parseInt(parts[1]) || 0;
     }
+    const goalDiff = Math.abs(homeScore - awayScore);
     const minStr = String(minute || '').toLowerCase();
     const isHalftime = fixture.status?.code === 31 || minStr.includes('iy') || minStr.includes('ht') || minStr.includes('devre') || minStr.includes('halftime');
     const minNum = isHalftime ? 45 : (parseInt(minStr.replace(/[^0-9]/g, '')) || 0);
