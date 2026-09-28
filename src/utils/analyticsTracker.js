@@ -101,7 +101,7 @@ class AnalyticsTracker {
                         window.location.hostname.startsWith('192.168.') ||
                         window.location.hostname.startsWith('10.');
         if (isLocal) return 'http://localhost:3001';
-        return (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+        return (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
     }
 
     getOrCreateSessionId() {

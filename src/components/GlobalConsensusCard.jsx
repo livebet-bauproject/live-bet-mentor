@@ -75,10 +75,10 @@ export const GlobalConsensusCard = ({
         const predTotal = predH + predA;
 
         if (curHome > predH || curAway > predA || currentTotalGoals > predTotal) {
-            return { isBusted: true, reason: lang === 'tr' ? `Skor aşıldı (${curHome}-${curAway})` : `Score exceeded (${curHome}-${curAway})` };
+            return { isBusted: true, reason: lang === 'tr' ? `Skor aşıldı (${curHome}-${curAway})` : (lang === 'de' ? `Ergebnis überschritten (${curHome}-${curAway})` : `Score exceeded (${curHome}-${curAway})`) };
         }
         if (minute >= 80 && (curHome !== predH || curAway !== predA)) {
-            return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late game mismatch (${minute}')` };
+            return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : (lang === 'de' ? `Zu wenig Restzeit (${minute}')` : `Late game mismatch (${minute}')`) };
         }
         return { isBusted: false };
     };
@@ -91,44 +91,44 @@ export const GlobalConsensusCard = ({
 
         // Home win (1)
         if (p === '1' || p.includes('EV') || p.includes('HOME')) {
-            if (minute >= 40 && diff <= -3) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            if (minute >= 75 && diff <= -2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            if (minute >= 82 && diff < 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late (${minute}')` };
-            if (minute >= 88 && diff <= 0) return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late mismatch (${minute}')` };
+            if (minute >= 40 && diff <= -3) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : (lang === 'de' ? `Rückstand uneinholbar (${curHome}-${curAway})` : `Diff insurmountable`) };
+            if (minute >= 75 && diff <= -2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : (lang === 'de' ? `Rückstand uneinholbar (${curHome}-${curAway})` : `Diff insurmountable`) };
+            if (minute >= 82 && diff < 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : (lang === 'de' ? `Später Rückstand (${minute}')` : `Behind late (${minute}')`) };
+            if (minute >= 88 && diff <= 0) return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : (lang === 'de' ? `Zeit abgelaufen (${minute}')` : `Late mismatch (${minute}')`) };
         }
 
         // Away win (2)
         if (p === '2' || p.includes('DEP') || p.includes('AWAY')) {
-            if (minute >= 40 && diff >= 3) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            if (minute >= 75 && diff >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            if (minute >= 82 && diff > 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late (${minute}')` };
-            if (minute >= 88 && diff >= 0) return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : `Late mismatch (${minute}')` };
+            if (minute >= 40 && diff >= 3) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : (lang === 'de' ? `Rückstand uneinholbar (${curHome}-${curAway})` : `Diff insurmountable`) };
+            if (minute >= 75 && diff >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : (lang === 'de' ? `Rückstand uneinholbar (${curHome}-${curAway})` : `Diff insurmountable`) };
+            if (minute >= 82 && diff > 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : (lang === 'de' ? `Später Rückstand (${minute}')` : `Behind late (${minute}')`) };
+            if (minute >= 88 && diff >= 0) return { isBusted: true, reason: lang === 'tr' ? `Süre yetersiz (${minute}')` : (lang === 'de' ? `Zeit abgelaufen (${minute}')` : `Late mismatch (${minute}')`) };
         }
 
         // Draw (X)
         if (p === 'X' || p.includes('BER') || p.includes('DRAW')) {
-            if (minute >= 40 && Math.abs(diff) >= 3) return { isBusted: true, reason: lang === 'tr' ? `Fark 3+ (${curHome}-${curAway})` : `Draw impossible (3+ diff)` };
-            if (minute >= 75 && Math.abs(diff) >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark 2+ (${curHome}-${curAway})` : `Draw unlikely late` };
-            if (minute >= 86 && Math.abs(diff) >= 1) return { isBusted: true, reason: lang === 'tr' ? `Beraberlik zor (${minute}')` : `Draw impossible late` };
+            if (minute >= 40 && Math.abs(diff) >= 3) return { isBusted: true, reason: lang === 'tr' ? `Fark 3+ (${curHome}-${curAway})` : (lang === 'de' ? `Remis unmöglich (3+ Diff)` : `Draw impossible (3+ diff)`) };
+            if (minute >= 75 && Math.abs(diff) >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark 2+ (${curHome}-${curAway})` : (lang === 'de' ? `Remis unwahrscheinlich spät` : `Draw unlikely late`) };
+            if (minute >= 86 && Math.abs(diff) >= 1) return { isBusted: true, reason: lang === 'tr' ? `Beraberlik zor (${minute}')` : (lang === 'de' ? `Remis unmöglich spät (${minute}')` : `Draw impossible late`) };
         }
 
         // Double Chance 1X
         if (p === '1X') {
-            if (minute >= 75 && diff <= -2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            if (minute >= 85 && diff < 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late` };
+            if (minute >= 75 && diff <= -2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : (lang === 'de' ? `Rückstand uneinholbar (${curHome}-${curAway})` : `Diff insurmountable`) };
+            if (minute >= 85 && diff < 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : (lang === 'de' ? `Später Rückstand (${minute}')` : `Behind late`) };
         }
 
         // Double Chance X2
         if (p === 'X2') {
-            if (minute >= 75 && diff >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : `Diff insurmountable` };
-            if (minute >= 85 && diff > 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : `Behind late` };
+            if (minute >= 75 && diff >= 2) return { isBusted: true, reason: lang === 'tr' ? `Fark kapandı (${curHome}-${curAway})` : (lang === 'de' ? `Rückstand uneinholbar (${curHome}-${curAway})` : `Diff insurmountable`) };
+            if (minute >= 85 && diff > 0) return { isBusted: true, reason: lang === 'tr' ? `Maç geride (${minute}')` : (lang === 'de' ? `Später Rückstand (${minute}')` : `Behind late`) };
         }
 
         // Under checks
         if (p.includes('ALT') || p.includes('UNDER')) {
             const threshold = parseFloat((p.match(/(?:alt|under)\s*([0-9.]+)/i) || [])[1]) || 2.5;
             if (currentTotalGoals > threshold) {
-                return { isBusted: true, reason: lang === 'tr' ? `${threshold} Üstü oldu (${currentTotalGoals} Gol)` : `Over ${threshold} exceeded` };
+                return { isBusted: true, reason: lang === 'tr' ? `${threshold} Üstü oldu (${currentTotalGoals} Gol)` : (lang === 'de' ? `Über ${threshold} gefallen (${currentTotalGoals} Tore)` : `Over ${threshold} exceeded (${currentTotalGoals} Goals)`) };
             }
         }
 
@@ -201,7 +201,7 @@ export const GlobalConsensusCard = ({
                 <span style={{ fontSize: compact ? '0.72rem' : '0.76rem', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '0.9rem' }}>🌐</span>
                     <span>{titleLabel}</span>
-                    <span style={{ fontSize: '0.62rem', color: 'var(--tb-text-muted)', fontWeight: 600 }}>({lang === 'tr' ? 'Maç Öncesi' : 'Pre-match'})</span>
+                    <span style={{ fontSize: '0.62rem', color: 'var(--tb-text-muted)', fontWeight: 600 }}>({lang === 'tr' ? 'Maç Öncesi' : (lang === 'de' ? 'Pre-Match' : 'Pre-match')})</span>
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {isStrongConsensus && (
@@ -228,7 +228,7 @@ export const GlobalConsensusCard = ({
                             color: '#f87171',
                             border: '1px solid rgba(239, 68, 68, 0.35)'
                         }}>
-                            ⚠️ {lang === 'tr' ? 'TAHMİNLER GEÇERSİZ (AŞILDI)' : 'TIPS BUSTED (EXCEEDED)'}
+                            ⚠️ {lang === 'tr' ? 'TAHMİNLER GEÇERSİZ (AŞILDI)' : (lang === 'de' ? 'TIPPS NICHT MEHR MÖGLICH' : 'TIPS BUSTED (EXCEEDED)')}
                         </span>
                     )}
                     {isDivergent && (
@@ -241,7 +241,7 @@ export const GlobalConsensusCard = ({
                             color: '#f87171',
                             border: '1px solid rgba(239, 68, 68, 0.3)'
                         }}>
-                            ⚠️ {lang === 'tr' ? 'AYRIŞMA' : 'DIVERGENCE'}
+                            ⚠️ {lang === 'tr' ? 'AYRIŞMA' : (lang === 'de' ? 'DIVERGENZ' : 'DIVERGENCE')}
                         </span>
                     )}
                     <span style={{
@@ -305,7 +305,7 @@ export const GlobalConsensusCard = ({
                                                 padding: '1px 6px',
                                                 borderRadius: '3px'
                                             }}>
-                                                ✗ {lang === 'tr' ? `TUTMADI (${bustedReason})` : `BUSTED (${bustedReason})`}
+                                                ✗ {lang === 'tr' ? `TUTMADI (${bustedReason})` : (lang === 'de' ? `NICHT ZUGETROFFEN (${bustedReason})` : `BUSTED (${bustedReason})`)}
                                             </span>
                                         )}
                                         {!isBusted && (

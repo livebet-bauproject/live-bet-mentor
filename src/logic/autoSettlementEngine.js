@@ -206,7 +206,7 @@ export class AutoSettlementEngine {
         
         const proxyBase = isLocalDev 
             ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
         try {
             const res = await fetch(`${proxyBase}/api/sofascore/event/${matchId}`, { 

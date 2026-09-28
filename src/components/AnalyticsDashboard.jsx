@@ -219,7 +219,7 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
     const getProxyBase = () => {
         if (typeof window === 'undefined') return 'http://localhost:3001';
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        return isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+        return isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
     };
 
     const fetchSummary = async (isManual = false) => {
@@ -307,7 +307,7 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                 headers: getAdminHeaders()
             });
             if (res.ok) {
-                setStatusMsg({ type: 'success', text: lang === 'tr' ? 'Analitik verileri sıfırlandı.' : 'Analytics data wiped.' });
+                setStatusMsg({ type: 'success', text: lang === 'tr' ? 'Analitik verileri sıfırlandı.' : (lang === 'de' ? 'Analysedaten zurückgesetzt.' : 'Analytics data wiped.') });
                 setTimeout(() => setStatusMsg(null), 4000);
                 fetchSummary();
                 fetchLive();
@@ -1727,10 +1727,10 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                                                         {ev.name}
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: '0.7rem 0.6rem', color: '#10b981', fontWeight: 800 }}>{ev.count} kez</td>
-                                                <td style={{ padding: '0.7rem 0.6rem', color: '#fff', fontWeight: 700 }}>{ev.uniqueVisitors} kişi</td>
+                                                <td style={{ padding: '0.7rem 0.6rem', color: '#10b981', fontWeight: 800 }}>{ev.count} {lang === 'tr' ? 'kez' : (lang === 'de' ? 'Mal' : 'times')}</td>
+                                                <td style={{ padding: '0.7rem 0.6rem', color: '#fff', fontWeight: 700 }}>{ev.uniqueVisitors} {lang === 'tr' ? 'kişi' : (lang === 'de' ? 'Besucher' : 'visitors')}</td>
                                                 <td style={{ padding: '0.7rem 0.6rem', color: '#94a3b8', textAlign: 'right' }}>
-                                                    {Math.max(Math.round((Date.now() - ev.lastSeen) / 1000), 0)}s önce
+                                                    {Math.max(Math.round((Date.now() - ev.lastSeen) / 1000), 0)}{lang === 'tr' ? 's önce' : (lang === 'de' ? 's her' : 's ago')}
                                                 </td>
                                             </tr>
                                         ))}
@@ -1751,11 +1751,11 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                             const f = data?.funnel || { visitors: 0, registered: 0, engaged: 0, upgradeRequests: 0, paidUsers: 0, dropoffs: {} };
                             const base = Math.max(f.visitors, 1);
                             const steps = [
-                                { label: '1. Site Ziyaretçisi', count: f.visitors, pct: 100, color: '#38bdf8', icon: '🌐', dropoff: f.dropoffs?.step1to2 },
-                                { label: '2. Kayıt / Deneme', count: f.registered, pct: Math.round((f.registered / base) * 100), color: '#10b981', icon: '📝', dropoff: f.dropoffs?.step2to3 },
-                                { label: '3. Canlı Masada Aktif', count: f.engaged, pct: Math.round((f.engaged / base) * 100), color: '#fbbf24', icon: '⚡', dropoff: f.dropoffs?.step3to4 },
-                                { label: '4. VIP Yükseltme Talebi', count: f.upgradeRequests, pct: Math.round((f.upgradeRequests / base) * 100), color: '#a78bfa', icon: '💎', dropoff: f.dropoffs?.step4to5 },
-                                { label: '5. Aktif VIP / Pro Üye', count: f.paidUsers, pct: Math.round((f.paidUsers / base) * 100), color: '#f59e0b', icon: '👑', dropoff: 0 }
+                                { label: lang === 'tr' ? '1. Site Ziyaretçisi' : (lang === 'de' ? '1. Website-Besucher' : '1. Site Visitors'), count: f.visitors, pct: 100, color: '#38bdf8', icon: '🌐', dropoff: f.dropoffs?.step1to2 },
+                                { label: lang === 'tr' ? '2. Kayıt / Deneme' : (lang === 'de' ? '2. Registriert / Testphase' : '2. Registered / Trial'), count: f.registered, pct: Math.round((f.registered / base) * 100), color: '#10b981', icon: '📝', dropoff: f.dropoffs?.step2to3 },
+                                { label: lang === 'tr' ? '3. Canlı Masada Aktif' : (lang === 'de' ? '3. Aktiv am Live-Tisch' : '3. Active In-Play'), count: f.engaged, pct: Math.round((f.engaged / base) * 100), color: '#fbbf24', icon: '⚡', dropoff: f.dropoffs?.step3to4 },
+                                { label: lang === 'tr' ? '4. VIP Yükseltme Talebi' : (lang === 'de' ? '4. VIP-Upgrade-Anfrage' : '4. VIP Upgrade Request'), count: f.upgradeRequests, pct: Math.round((f.upgradeRequests / base) * 100), color: '#a78bfa', icon: '💎', dropoff: f.dropoffs?.step4to5 },
+                                { label: lang === 'tr' ? '5. Aktif VIP / Pro Üye' : (lang === 'de' ? '5. Aktives VIP / Pro Mitglied' : '5. Active VIP / Pro Member'), count: f.paidUsers, pct: Math.round((f.paidUsers / base) * 100), color: '#f59e0b', icon: '👑', dropoff: 0 }
                             ];
 
                             return (
@@ -1765,10 +1765,10 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                                             <div style={{ fontSize: '1.4rem', marginBottom: '0.4rem' }}>{step.icon}</div>
                                             <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', marginBottom: '0.3rem' }}>{step.label}</div>
                                             <div style={{ fontSize: '1.6rem', fontWeight: 900, color: step.color }}>{step.count}</div>
-                                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.3rem' }}>Oran: <strong>%{step.pct}</strong></div>
+                                            <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.3rem' }}>{lang === 'tr' ? 'Oran:' : (lang === 'de' ? 'Rate:' : 'Rate:')} <strong>{lang === 'tr' ? `%${step.pct}` : `${step.pct}%`}</strong></div>
                                             {step.dropoff > 0 && (
                                                 <div style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: '0.3rem', fontWeight: 700 }}>
-                                                    ⚠️ %{step.dropoff} terk
+                                                    ⚠️ {lang === 'tr' ? `%${step.dropoff} terk` : (lang === 'de' ? `${step.dropoff}% Absprung` : `${step.dropoff}% dropoff`)}
                                                 </div>
                                             )}
                                         </div>
@@ -1784,12 +1784,12 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
             {subTab === 'traffic' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--glass-border)', borderRadius: '16px', padding: '1.5rem' }}>
-                        <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 1rem 0', color: '#fff' }}>HARİCİ YÖNLENDİREN ALAN ADLARI</h3>
+                        <h3 style={{ fontSize: '0.95rem', fontWeight: 800, margin: '0 0 1rem 0', color: '#fff' }}>{lang === 'tr' ? 'HARİCİ YÖNLENDİREN ALAN ADLARI' : (lang === 'de' ? 'EXTERNE REFERRER-DOMAINS' : 'EXTERNAL REFERRER DOMAINS')}</h3>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.8rem' }}>
                             {(data?.topReferrers || []).map((ref, idx) => (
                                 <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '0.8rem', display: 'flex', justifyContent: 'space-between' }}>
                                     <span style={{ color: '#fff', fontWeight: 700, fontSize: '0.8rem' }}>🌐 {ref.domain}</span>
-                                    <span style={{ color: '#38bdf8', fontWeight: 900 }}>{ref.count} hit</span>
+                                    <span style={{ color: '#38bdf8', fontWeight: 900 }}>{ref.count} {lang === 'tr' ? 'hit' : (lang === 'de' ? 'Aufrufe' : 'hits')}</span>
                                 </div>
                             ))}
                         </div>
@@ -1838,7 +1838,7 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                                     {t.inspectorTitle}
                                 </h3>
                                 <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.2rem' }}>
-                                    Oturum: <span style={{ fontFamily: 'monospace', color: '#fff' }}>{inspectingSession.sessionId}</span>
+                                    {lang === 'tr' ? 'Oturum:' : (lang === 'de' ? 'Sitzung:' : 'Session:')} <span style={{ fontFamily: 'monospace', color: '#fff' }}>{inspectingSession.sessionId}</span>
                                 </div>
                             </div>
                             <button
@@ -1867,22 +1867,22 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                             flexWrap: 'wrap',
                             fontSize: '0.8rem'
                         }}>
-                            <div><span style={{ color: '#64748b' }}>Kullanıcı: </span><strong style={{ color: '#fff' }}>{inspectingSession.email || 'Anonim'}</strong></div>
-                            <div><span style={{ color: '#64748b' }}>Şehir & Konum: </span><strong style={{ color: '#fff' }}>{inspectingSession.countryFlag} {inspectingSession.city}, {inspectingSession.countryName}</strong></div>
-                            <div><span style={{ color: '#64748b' }}>Cihaz: </span><strong style={{ color: '#fff' }}>{inspectingSession.deviceType} / {inspectingSession.browser}</strong></div>
-                            <div><span style={{ color: '#64748b' }}>Toplam Süre: </span><strong style={{ color: '#10b981' }}>{formatDuration(inspectingSession.durationSeconds)}</strong></div>
+                            <div><span style={{ color: '#64748b' }}>{lang === 'tr' ? 'Kullanıcı:' : (lang === 'de' ? 'Benutzer:' : 'User:')} </span><strong style={{ color: '#fff' }}>{inspectingSession.email || (lang === 'tr' ? 'Anonim' : (lang === 'de' ? 'Anonym' : 'Anonymous'))}</strong></div>
+                            <div><span style={{ color: '#64748b' }}>{lang === 'tr' ? 'Şehir & Konum:' : (lang === 'de' ? 'Stadt & Standort:' : 'City & Location:')} </span><strong style={{ color: '#fff' }}>{inspectingSession.countryFlag} {inspectingSession.city}, {inspectingSession.countryName}</strong></div>
+                            <div><span style={{ color: '#64748b' }}>{lang === 'tr' ? 'Cihaz:' : (lang === 'de' ? 'Gerät:' : 'Device:')} </span><strong style={{ color: '#fff' }}>{inspectingSession.deviceType} / {inspectingSession.browser}</strong></div>
+                            <div><span style={{ color: '#64748b' }}>{lang === 'tr' ? 'Toplam Süre:' : (lang === 'de' ? 'Gesamtdauer:' : 'Total Duration:')} </span><strong style={{ color: '#10b981' }}>{formatDuration(inspectingSession.durationSeconds)}</strong></div>
                         </div>
 
                         <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
                             {inspectingLoading ? (
                                 <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>{t.loadingText}</div>
                             ) : !inspectingDetail || inspectingDetail.events.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Olay detayı bulunamadı.</div>
+                                <div style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>{lang === 'tr' ? 'Olay detayı bulunamadı.' : (lang === 'de' ? 'Keine Ereignisdetails gefunden.' : 'No event details found.')}</div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
                                     {inspectingDetail.events.map((ev, evIdx) => {
                                         const d = new Date(ev.time);
-                                        const timeFormatted = d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                                        const timeFormatted = d.toLocaleTimeString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
                                         return (
                                             <div key={evIdx} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
@@ -1891,7 +1891,7 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
                                                 </div>
                                                 <div style={{ flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '10px', padding: '0.7rem 1rem' }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                                                        <span style={{ fontWeight: 800, color: '#38bdf8', fontSize: '0.75rem' }}>{ev.type === 'pageview' ? 'SAYFA' : ev.name}</span>
+                                                        <span style={{ fontWeight: 800, color: '#38bdf8', fontSize: '0.75rem' }}>{ev.type === 'pageview' ? (lang === 'tr' ? 'SAYFA' : (lang === 'de' ? 'SEITE' : 'PAGE')) : ev.name}</span>
                                                         <span style={{ color: '#64748b', fontSize: '0.72rem', fontFamily: 'monospace' }}>{timeFormatted}</span>
                                                     </div>
                                                     <div style={{ color: '#fff', fontFamily: 'monospace', fontSize: '0.8rem' }}>{ev.path}</div>

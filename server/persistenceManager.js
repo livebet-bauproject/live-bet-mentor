@@ -66,7 +66,7 @@ export function loadMembers() {
     return [];
 }
 
-export function saveMembers(members, syncToCloud = true) {
+export function saveMembers(members, syncToCloud = true, isExplicitDelete = false) {
     if (!Array.isArray(members)) return false;
     memoryMembers = members;
     try {
@@ -75,8 +75,17 @@ export function saveMembers(members, syncToCloud = true) {
         console.error('[PERSISTENCE] Error saving web_members.json:', e.message);
     }
 
+    // Keep seed_members.json updated as a persistent fallback
+    try {
+        fs.writeFileSync(SEED_MEMBERS_FILE, JSON.stringify(members, null, 2), 'utf8');
+    } catch (e) {}
+
     if (syncToCloud) {
-        syncKeyToCloud('persistent_web_members', members);
+        if (isExplicitDelete) {
+            syncKeyToCloud('persistent_web_members', members);
+        } else {
+            syncMembersToCloudWithMerge(members);
+        }
     }
     return true;
 }
@@ -179,6 +188,64 @@ export function saveUpgradeRequests(requests, syncToCloud = true) {
 // 5. CLOUD BACKUP & RESTORE VIA SUPABASE
 // ==========================================
 
+async function syncMembersToCloudWithMerge(localMembers) {
+    try {
+        const { data: row, error } = await supabase
+            .from('system_settings')
+            .select('value')
+            .eq('key', 'persistent_web_members')
+            .maybeSingle();
+
+        const mergedMap = new Map();
+
+        // 1. Existing cloud members first
+        if (!error && row && row.value) {
+            try {
+                const cloudList = JSON.parse(row.value);
+                if (Array.isArray(cloudList)) {
+                    cloudList.forEach(m => {
+                        if (m && m.email) mergedMap.set(m.email.toLowerCase().trim(), m);
+                    });
+                }
+            } catch (pErr) {}
+        }
+
+        // 2. Local updates (take precedence for newly modified or registered users)
+        localMembers.forEach(m => {
+            if (m && m.email) {
+                const clean = m.email.toLowerCase().trim();
+                const existing = mergedMap.get(clean);
+                mergedMap.set(clean, { ...(existing || {}), ...m });
+            }
+        });
+
+        const mergedList = Array.from(mergedMap.values());
+
+        // Keep local in-memory cache and files enriched if cloud had additional members
+        if (mergedList.length > localMembers.length) {
+            memoryMembers = mergedList;
+            try {
+                fs.writeFileSync(MEMBERS_FILE, JSON.stringify(mergedList, null, 2), 'utf8');
+                fs.writeFileSync(SEED_MEMBERS_FILE, JSON.stringify(mergedList, null, 2), 'utf8');
+            } catch (e) {}
+        }
+
+        const payload = {
+            key: 'persistent_web_members',
+            value: JSON.stringify(mergedList),
+            updated_at: new Date().toISOString()
+        };
+        const { error: upsertErr } = await supabase.from('system_settings').upsert(payload);
+        if (upsertErr) {
+            console.warn('[PERSISTENCE] Supabase cloud upsert error for persistent_web_members:', upsertErr.message);
+        } else {
+            console.log(`[PERSISTENCE] Successfully merged & synced ${mergedList.length} members to Supabase cloud!`);
+        }
+    } catch (err) {
+        console.warn('[PERSISTENCE] Network error syncing persistent_web_members to Supabase:', err.message);
+    }
+}
+
 async function syncKeyToCloud(key, data) {
     try {
         const payload = {
@@ -234,6 +301,7 @@ export async function initPersistence() {
                     const mergedList = Array.from(mergedMap.values());
                     memoryMembers = mergedList;
                     fs.writeFileSync(MEMBERS_FILE, JSON.stringify(mergedList, null, 2), 'utf8');
+                    fs.writeFileSync(SEED_MEMBERS_FILE, JSON.stringify(mergedList, null, 2), 'utf8');
                     console.log(`[PERSISTENCE] Restored ${mergedList.length} members from Supabase Cloud!`);
                 }
             } catch (pErr) {

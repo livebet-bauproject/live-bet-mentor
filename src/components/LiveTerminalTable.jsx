@@ -82,16 +82,29 @@ export const LiveTerminalTable = ({
         const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
         if (isLateOrFinished) return null;
 
+        const sm = m.opportunityData?.suggestedMarket;
+        if (sm?.marketKey && t?.[sm.marketKey]) {
+            let trMarket = t[sm.marketKey]
+                .replace('{team}', sm.team || '')
+                .replace('{goals}', sm.target || '');
+            if (trMarket) return trMarket;
+        }
+
         const strat = signal.activeStrategies?.[0];
-        let label = strat?.label || signal.prediction || m.opportunityData?.suggestedMarket?.label;
+        if (strat?.id && t?.[strat.id]) {
+            let trStrat = t[strat.id].replace('{team}', strat.team || '');
+            if (trStrat) return trStrat;
+        }
+
+        let label = strat?.label || signal.prediction || sm?.label;
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
             label = signal.reason;
         }
         if (lang === 'de' && label) {
             if (label.startsWith('Sıradaki Gol:')) {
                 label = label.replace('Sıradaki Gol:', 'Nächstes Tor:');
-            } else if (label === 'İY 0.5 ÜST') {
-                label = 'HZ Über 0.5';
+            } else if (label === 'İY 0.5 ÜST' || label === 'İlk Yarı 0.5 Üst') {
+                label = '1. HZ Über 0.5';
             } else if (label === 'SON 15DK PATLAMASI') {
                 label = '15m MOMENTUM-SCHWUNG';
             } else if (label === 'GERİ DÖNÜŞ') {
@@ -100,18 +113,37 @@ export const LiveTerminalTable = ({
                 label = 'FAVORITEN-COMEBACK';
             } else if (label === 'KORNER BASKISI') {
                 label = 'ECKENDIFFERENZ';
-            } else if (label === 'KG VAR DİNAMİĞİ') {
+            } else if (label === 'KG VAR DİNAMİĞİ' || label === 'KG VAR') {
                 label = 'BEIDE TREFFEN (BTTS)';
             } else if (label === 'SAYISAL ÜSTÜNLÜK') {
                 label = 'ÜBERZAHL-VORTEIL';
             } else if (label === 'SKOR MARUZİYETİ') {
                 label = 'TORREICHES SPIEL';
+            } else if (label === 'Maç Sonu / Kilitli') {
+                label = 'Spielende / Gesperrt';
+            } else if (label === 'Kopmuş Maç (Rehavet / Riskli)') {
+                label = 'Entschiedenes Spiel (Riskant)';
+            } else if (label === 'Son Dakikalar / Fark 2+ (Stabil)') {
+                label = 'Späte Phase (Stabil)';
+            } else if (label === 'Düşük Tempo (Ölü Maç)') {
+                label = 'Niedriges Tempo (Totes Spiel)';
+            } else if (label === 'Oran Değersiz (Pas)') {
+                label = 'Quote ohne Wert (Pass)';
+            } else if (label === 'Geç Dakika / Riskli (Pas)') {
+                label = 'Späte Phase / Riskant (Pass)';
+            } else if (label === 'Maç Kopmuş / Oran Düşük') {
+                label = 'Spiel entschieden / Quote niedrig';
+            } else {
+                label = label
+                    .replace(/Maç Sonu Galibiyeti \(MS 1\)/g, 'Heimsieg (1)')
+                    .replace(/Maç Sonu Galibiyeti \(MS 2\)/g, 'Auswärtssieg (2)')
+                    .replace(/Üst Bekleniyor/g, 'Tore erwartet');
             }
         } else if (lang === 'en' && label) {
             if (label.startsWith('Sıradaki Gol:')) {
                 label = label.replace('Sıradaki Gol:', 'Next Goal:');
-            } else if (label === 'İY 0.5 ÜST') {
-                label = 'HT Over 0.5';
+            } else if (label === 'İY 0.5 ÜST' || label === 'İlk Yarı 0.5 Üst') {
+                label = '1st Half Over 0.5';
             } else if (label === 'SON 15DK PATLAMASI') {
                 label = '15m MOMENTUM BURST';
             } else if (label === 'GERİ DÖNÜŞ') {
@@ -120,12 +152,31 @@ export const LiveTerminalTable = ({
                 label = 'FAVORITE COMEBACK';
             } else if (label === 'KORNER BASKISI') {
                 label = 'CORNER PRESSURE';
-            } else if (label === 'KG VAR DİNAMİĞİ') {
+            } else if (label === 'KG VAR DİNAMİĞİ' || label === 'KG VAR') {
                 label = 'BTTS DYNAMIC';
             } else if (label === 'SAYISAL ÜSTÜNLÜK') {
                 label = 'NUMERICAL ADVANTAGE';
             } else if (label === 'SKOR MARUZİYETİ') {
                 label = 'HIGH SCORE EXPOSURE';
+            } else if (label === 'Maç Sonu / Kilitli') {
+                label = 'Match Ended / Locked';
+            } else if (label === 'Kopmuş Maç (Rehavet / Riskli)') {
+                label = 'Blowout Match (High Risk)';
+            } else if (label === 'Son Dakikalar / Fark 2+ (Stabil)') {
+                label = 'Late Phase (Stable)';
+            } else if (label === 'Düşük Tempo (Ölü Maç)') {
+                label = 'Low Tempo (Dead Match)';
+            } else if (label === 'Oran Değersiz (Pas)') {
+                label = 'No Value in Odds (Pass)';
+            } else if (label === 'Geç Dakika / Riskli (Pas)') {
+                label = 'Late Minute / Risky (Pass)';
+            } else if (label === 'Maç Kopmuş / Oran Düşük') {
+                label = 'Blowout / Low Odds';
+            } else {
+                label = label
+                    .replace(/Maç Sonu Galibiyeti \(MS 1\)/g, 'Full-Time Win (1)')
+                    .replace(/Maç Sonu Galibiyeti \(MS 2\)/g, 'Full-Time Win (2)')
+                    .replace(/Üst Bekleniyor/g, 'Goals Expected');
             }
         }
         return label || (lang === 'tr' ? 'BAHİS' : lang === 'de' ? 'WETTE' : 'BET');
@@ -136,7 +187,7 @@ export const LiveTerminalTable = ({
             <table className="tb-table">
                 <thead>
                     <tr>
-                        <th style={{ width: '36px', textAlign: 'center' }} title={lang === 'tr' ? 'Favoriler' : 'Favorites'}>
+                        <th style={{ width: '36px', textAlign: 'center' }} title={lang === 'tr' ? 'Favoriler' : (lang === 'de' ? 'Favoriten' : 'Favorites')}>
                             <StarIcon filled size={13} />
                         </th>
                         <th style={{ width: '46px' }}>{t?.minute_short || (lang === 'tr' ? 'DK' : (lang === 'de' ? 'MIN' : 'MIN'))}</th>
@@ -336,7 +387,11 @@ export const LiveTerminalTable = ({
                                                 <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                                     <span
                                                         className={`tb-trend-pill ${isTrendApproved ? 'approved' : isTrendTrap ? 'trap' : 'influx'}`}
-                                                        title={`Piyasa Bahis Hacmi: ${totalTrendCount} Kupon • ${trendInfo ? `Giriş Skoru: ${trendInfo.entryScore}${trendInfo.entryMinStr ? ` (${trendInfo.entryMinStr})` : ''} • Süre: ${trendInfo.durationLabel} • ` : ''}Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})${isDeadMatch ? (lang === 'tr' ? ' • ⚠️ KOPMUŞ MAÇ (KASA TUZAĞI)' : ' • ⚠️ BLOWOUT / DEAD MATCH (TRAP)') : ''}`}
+                                                        title={lang === 'tr'
+                                                            ? `Piyasa Bahis Hacmi: ${totalTrendCount} Kupon • ${trendInfo ? `Giriş Skoru: ${trendInfo.entryScore}${trendInfo.entryMinStr ? ` (${trendInfo.entryMinStr})` : ''} • Süre: ${trendInfo.durationLabel} • ` : ''}Pazar: ${primaryTrend.market || ''} • Tercih: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})${isDeadMatch ? ' • ⚠️ KOPMUŞ MAÇ (KASA TUZAĞI)' : ''}`
+                                                            : (lang === 'de'
+                                                                ? `Marktwettvolumen: ${totalTrendCount} Wettscheine • ${trendInfo ? `Einstiegsstand: ${trendInfo.entryScore}${trendInfo.entryMinStr ? ` (${trendInfo.entryMinStr})` : ''} • Dauer: ${trendInfo.durationLabel} • ` : ''}Markt: ${primaryTrend.market || ''} • Tipp: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})${isDeadMatch ? ' • ⚠️ ENTSCHIEDENES SPIEL (FALLE)' : ''}`
+                                                                : `Market Volume: ${totalTrendCount} Bets • ${trendInfo ? `Entry Score: ${trendInfo.entryScore}${trendInfo.entryMinStr ? ` (${trendInfo.entryMinStr})` : ''} • Duration: ${trendInfo.durationLabel} • ` : ''}Market: ${primaryTrend.market || ''} • Pick: ${primaryTrend.outcome || ''} (@${primaryTrend.odds || ''})${isDeadMatch ? ' • ⚠️ BLOWOUT / DEAD MATCH (TRAP)' : ''}`)}
                                                     >
                                                         <span>{isTrendApproved ? '🟢' : isTrendTrap ? '🔴' : '📊'}</span>
                                                         <span style={{ fontWeight: 900 }}>
@@ -482,7 +537,7 @@ export const LiveTerminalTable = ({
                                                                 fontWeight: 800,
                                                                 whiteSpace: 'nowrap'
                                                             }}
-                                                            title={riskFilters?.deadMatch?.reason || (lang === 'tr' ? 'Maç koptu, takımlarda rehavet riski yüksek.' : 'Blowout match, high complacency risk.')}
+                                                            title={riskFilters?.deadMatch?.reason || (lang === 'tr' ? 'Maç koptu, takımlarda rehavet riski yüksek.' : (lang === 'de' ? 'Spiel ist entschieden, hohes Risiko taktischer Passivität.' : 'Blowout match, high complacency risk.'))}
                                                         >
                                                             ⚠️ {lang === 'tr' ? 'KOPMUŞ MAÇ' : (lang === 'de' ? 'ENTSCHIEDEN' : 'BLOWOUT')}
                                                         </span>
@@ -598,10 +653,10 @@ export const LiveTerminalTable = ({
                                                                 }}>
                                                                     <span>
                                                                         {isDeadMatch
-                                                                            ? (lang === 'tr' ? `KOPMUŞ MAÇ (${formatScore(m.score)}) — CANLI BAHİS VETOSU` : `BLOWOUT (${formatScore(m.score)}) — BETTING VETO`)
+                                                                            ? (lang === 'tr' ? `KOPMUŞ MAÇ (${formatScore(m.score)}) — CANLI BAHİS VETOSU` : (lang === 'de' ? `ENTSCHIEDENES SPIEL (${formatScore(m.score)}) — LIVE-WETT-VETO` : `BLOWOUT (${formatScore(m.score)}) — BETTING VETO`))
                                                                             : (signal?.verdict === 'BET'
-                                                                                ? (lang === 'tr' ? 'YAPAY ZEKA STRATEJİSİ ONAYLANDI' : 'AI STRATEGY CONFIRMED')
-                                                                                : (lang === 'tr' ? 'CANLI RADAR İZLEMESİ' : 'LIVE RADAR TRACKING'))}
+                                                                                ? (lang === 'tr' ? 'YAPAY ZEKA STRATEJİSİ ONAYLANDI' : (lang === 'de' ? 'KI-STRATEGIE BESTÄTIGT' : 'AI STRATEGY CONFIRMED'))
+                                                                                : (lang === 'tr' ? 'CANLI RADAR İZLEMESİ' : (lang === 'de' ? 'LIVE-RADAR-BEOBACHTUNG' : 'LIVE RADAR TRACKING')))}
                                                                     </span>
                                                                     {isDeadMatch && (
                                                                         <span style={{
@@ -613,7 +668,7 @@ export const LiveTerminalTable = ({
                                                                             borderRadius: '4px',
                                                                             fontWeight: 800
                                                                         }}>
-                                                                            {lang === 'tr' ? 'RÖLANTİ RİSKİ' : 'COMPLACENCY RISK'}
+                                                                            {lang === 'tr' ? 'RÖLANTİ RİSKİ' : (lang === 'de' ? 'PASSIVITÄTS-RISIKO' : 'COMPLACENCY RISK')}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -621,10 +676,12 @@ export const LiveTerminalTable = ({
                                                                     {isDeadMatch
                                                                         ? (lang === 'tr'
                                                                             ? `Skor farkı (${goalDiffVal}) nedeniyle takımların oyunu rölantiye alma ve as oyuncuları koruma riski yüksek. Canlı gol pazarları kilitlenmiştir.`
-                                                                            : `Score differential (${goalDiffVal}) poses complacency risk. In-play goal strategies disabled.`)
+                                                                            : (lang === 'de'
+                                                                                ? `Aufgrund der Tordifferenz (${goalDiffVal}) besteht ein hohes Risiko für Passivität und Schonung von Stammspielern. Live-Tormärkte gesperrt.`
+                                                                                : `Score differential (${goalDiffVal}) poses complacency risk. In-play goal strategies disabled.`))
                                                                         : (signal?.verdict === 'BET'
-                                                                            ? (lang === 'tr' ? `${predText || 'Sıradaki Gol'} yönünde istatistiksel üstünlük ve değer fırsatı tespit edildi.` : `Statistical value edge confirmed.`)
-                                                                            : (signal?.reason || signal?.mainReason || (lang === 'tr' ? 'Karşılaşma radar altında izleniyor; istatistiksel ve algoritmik şartlar bekleniyor.' : 'Tracking match.')))}
+                                                                            ? (lang === 'tr' ? `${predText || 'Sıradaki Gol'} yönünde istatistiksel üstünlük ve değer fırsatı tespit edildi.` : (lang === 'de' ? `Statistischer Value-Vorteil für ${predText || 'Nächstes Tor'} bestätigt.` : `Statistical value edge confirmed.`))
+                                                                            : (signal?.reason || signal?.mainReason || (lang === 'tr' ? 'Karşılaşma radar altında izleniyor; istatistiksel ve algoritmik şartlar bekleniyor.' : (lang === 'de' ? 'Spiel wird im Radar beobachtet; statistische und algorithmische Kriterien werden abgewartet.' : 'Tracking match.'))))}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -746,10 +803,10 @@ export const LiveTerminalTable = ({
                                                                         type="button"
                                                                         className={`tb-action-ignore tb-detail-fav-btn ${isPinned ? 'pinned' : ''}`}
                                                                         onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
-                                                                        title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : 'Remove from Favorites') : (lang === 'tr' ? 'Favoriye Ekle' : 'Add to Favorites')}
+                                                                        title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
                                                                     >
                                                                         <StarIcon filled={isPinned} size={12} />
-                                                                        <span>{isPinned ? (lang === 'tr' ? 'Favorilerde ★' : 'Pinned ★') : (lang === 'tr' ? '☆ Favoriye Ekle' : '☆ Pin')}</span>
+                                                                        <span>{isPinned ? (lang === 'tr' ? 'Favorilerde ★' : (lang === 'de' ? 'Favorisiert ★' : 'Pinned ★')) : (lang === 'tr' ? '☆ Favoriye Ekle' : (lang === 'de' ? '☆ Favorisieren' : '☆ Pin'))}</span>
                                                                     </button>
                                                                     <span style={{
                                                                         background: 'rgba(56, 189, 248, 0.15)',
@@ -854,7 +911,7 @@ export const LiveTerminalTable = ({
                                                                     </span>
                                                                 </div>
                                                                 <div style={{ opacity: 0.65, fontSize: '0.62rem', color: isDeadMatch ? '#f87171' : 'var(--tb-text-muted)' }}>
-                                                                    {isDeadMatch ? (lang === 'tr' ? '⚠️ Taktiksel Rehavet Riski' : '⚠️ Complacency Risk') : (lang === 'tr' ? 'Model: Bayesian v2.2' : 'Model: Bayesian v2.2')}
+                                                                    {isDeadMatch ? (lang === 'tr' ? '⚠️ Taktiksel Rehavet Riski' : (lang === 'de' ? '⚠️ Taktisches Passivitäts-Risiko' : '⚠️ Complacency Risk')) : 'Model: Bayesian v2.2'}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1027,18 +1084,26 @@ export const LiveTerminalTable = ({
                                                                     {isTrendApproved
                                                                         ? (lang === 'tr' 
                                                                             ? `Yüksek DQS (%${(dqsVal * 100).toFixed(0)}) & saha verisi piyasadaki kalabalığın bahsini (${marketPrediction}) doğruluyor.` 
-                                                                            : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats confirm the public bet (${marketPrediction}).`)
+                                                                            : (lang === 'de'
+                                                                                ? `Hoher DQS (${(dqsVal * 100).toFixed(0)}%) & Spieldaten bestätigen den Markttipp (${marketPrediction}).`
+                                                                                : `High DQS (${(dqsVal * 100).toFixed(0)}%) and match stats confirm the public bet (${marketPrediction}).`))
                                                                         : isTrendTrap
                                                                         ? (lang === 'tr'
                                                                             ? (isDeadMatch 
                                                                                 ? `Maç skoru koptu ve takımlar rölantiye geçti. Kalabalık (${totalTrendCount} Kupon) rehavet riskine rağmen ezbere ${marketPrediction} oynuyor; bu klasik bir KASA TUZAĞIDIR.`
                                                                                 : `Düşük DQS (%${(dqsVal * 100).toFixed(0)}) & yetersiz saha temposu. Kalabalık piyasada (${marketPrediction}) tercihine tuzağa çekiliyor olabilir!`)
-                                                                            : (isDeadMatch
-                                                                                ? `Game is blown out and teams are coasting. The crowd (${totalTrendCount} Bets) is blindly betting ${marketPrediction}; this is a classic BOOKIE TRAP.`
-                                                                                : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The crowd betting on (${marketPrediction}) may be in a trap!`))
+                                                                            : (lang === 'de'
+                                                                                ? (isDeadMatch
+                                                                                    ? `Spiel ist entschieden und Teams schalten herunter. Die Masse (${totalTrendCount} Wettscheine) wettet trotz Passivitäts-Risiko blind auf ${marketPrediction}; eine klassische BUCHMACHER-FALLE.`
+                                                                                    : `Niedriger DQS (${(dqsVal * 100).toFixed(0)}%) & geringe Intensität. Der Markttipp (${marketPrediction}) könnte eine Falle sein!`)
+                                                                                : (isDeadMatch
+                                                                                    ? `Game is blown out and teams are coasting. The crowd (${totalTrendCount} Bets) is blindly betting ${marketPrediction}; this is a classic BOOKIE TRAP.`
+                                                                                    : `Low DQS (${(dqsVal * 100).toFixed(0)}%) and low intensity. The crowd betting on (${marketPrediction}) may be in a trap!`)))
                                                                         : (lang === 'tr'
                                                                             ? `Orta seviye DQS (%${(dqsVal * 100).toFixed(0)}%). Saha aksiyonunu yakından gözlemleyin.`
-                                                                            : `Moderate DQS (${(dqsVal * 100).toFixed(0)}%). Monitor ongoing pitch dynamics.`)}
+                                                                            : (lang === 'de'
+                                                                                ? `Mittlerer DQS (${(dqsVal * 100).toFixed(0)}%). Spielverlauf aufmerksam beobachten.`
+                                                                                : `Moderate DQS (${(dqsVal * 100).toFixed(0)}%). Monitor ongoing pitch dynamics.`))}
                                                                 </div>
                                                             </div>
                                                         )}

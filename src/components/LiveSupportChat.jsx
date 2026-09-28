@@ -28,7 +28,7 @@ const defaultApiBase = (typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' || 
     window.location.hostname === '127.0.0.1' ||
     window.location.hostname.startsWith('192.168.')
-)) ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+)) ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
 export const LiveSupportChat = ({
     isOpen = false,
@@ -358,7 +358,7 @@ export const LiveSupportChat = ({
                             <button
                                 className="support-tool-btn"
                                 onClick={() => setSoundEnabled(!soundEnabled)}
-                                title={soundEnabled ? (lang === 'tr' ? 'Ses Açık' : 'Sound On') : (lang === 'tr' ? 'Ses Kapalı' : 'Sound Off')}
+                                title={soundEnabled ? (lang === 'tr' ? 'Ses Açık' : (lang === 'de' ? 'Ton an' : 'Sound On')) : (lang === 'tr' ? 'Ses Kapalı' : (lang === 'de' ? 'Stumm' : 'Sound Off'))}
                             >
                                 {soundEnabled ? '🔔' : '🔕'}
                             </button>
@@ -372,7 +372,7 @@ export const LiveSupportChat = ({
                             <button
                                 className="support-tool-btn close-btn"
                                 onClick={onClose}
-                                title={lang === 'tr' ? 'Kapat' : 'Close'}
+                                title={lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Schließen' : 'Close')}
                             >
                                 ✕
                             </button>
@@ -406,9 +406,9 @@ export const LiveSupportChat = ({
                                             : 'Hello! How can we assist you? Type your question below or pick a topic.')}
                                 </div>
                                 <div className="support-welcome-badges">
-                                    <span>🛡️ %100 Gizlilik</span>
-                                    <span>⚡ Anında Yanıt</span>
-                                    <span>💳 VIP & Kripto</span>
+                                    <span>🛡️ {lang === 'tr' ? '%100 Gizlilik' : (lang === 'de' ? '100% Datenschutz' : '100% Privacy')}</span>
+                                    <span>⚡ {lang === 'tr' ? 'Anında Yanıt' : (lang === 'de' ? 'Sofortige Antwort' : 'Instant Reply')}</span>
+                                    <span>💳 {lang === 'tr' ? 'VIP & Kripto' : (lang === 'de' ? 'VIP & Krypto' : 'VIP & Crypto')}</span>
                                 </div>
                             </div>
                         )}
@@ -490,7 +490,7 @@ export const LiveSupportChat = ({
                             className="support-send-btn"
                             onClick={() => handleSendMessage()}
                             disabled={!inputText.trim() || isSending}
-                            title={lang === 'tr' ? 'Gönder' : 'Send'}
+                            title={lang === 'tr' ? 'Gönder' : (lang === 'de' ? 'Senden' : 'Send')}
                         >
                             <span>✈️</span>
                         </button>

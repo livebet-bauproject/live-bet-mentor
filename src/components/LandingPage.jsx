@@ -14,7 +14,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
         window.location.hostname === '127.0.0.1' ||
         window.location.hostname.startsWith('192.168.')
     );
-    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
     const [view, setView] = useState('login'); // 'login' or 'register'
     const [email, setEmail] = useState('');
@@ -68,7 +68,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
         const checkStatus = async () => {
             const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
             try {
                 const res = await fetch(`${proxyBase}/api/members/trial-status?code=${encodeURIComponent(pendingVerification.trialCode)}`);
@@ -122,7 +122,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
 
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
         try {
             if (view === 'login') {
@@ -598,7 +598,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                                                 setError(null);
                                                 const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                                                     ? 'http://localhost:3001'
-                                                    : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                                                    : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
                                                 try {
                                                     const res = await fetch(`${proxyBase}/api/members/trial-status?code=${encodeURIComponent(pendingVerification.trialCode)}`);
                                                     const data = await res.json();
@@ -945,8 +945,8 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                                     fontWeight: 700
                                 }}>
                                     <span>🔒 256-Bit SSL</span>
-                                    <span>⚡ Anında Erişim</span>
-                                    <span>🛡️ No Spams</span>
+                                    <span>⚡ {lang === 'tr' ? 'Anında Erişim' : (lang === 'de' ? 'Sofortiger Zugang' : 'Instant Access')}</span>
+                                    <span>🛡️ {lang === 'tr' ? 'Sıfır Spam' : (lang === 'de' ? 'Kein Spam' : 'No Spam')}</span>
                                 </div>
 
                                 {/* Toggle between Login and Register */}

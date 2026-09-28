@@ -6,6 +6,23 @@
  * CONFIGURATION - [FROZEN FOR OBSERVATION PHASE: DEC 26 - JAN 05]
  * DO NOT MODIFY LIMITS, RISK, OR LEAGUES DURING THIS PERIOD.
  */
+export function getApiBaseUrl() {
+  if (typeof window !== 'undefined') {
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname.startsWith('192.168.') ||
+                    window.location.hostname.startsWith('10.') ||
+                    window.location.hostname.startsWith('172.');
+    if (isLocal) return 'http://localhost:3001';
+
+    const dynamicBackend = localStorage.getItem('lbm_backend_api_url');
+    if (dynamicBackend && dynamicBackend.startsWith('http')) {
+      return dynamicBackend.replace(/\/$/, '');
+    }
+  }
+  return ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com').replace(/\/$/, '');
+}
+
 export const CONFIG = {
   // Decision Engine Thresholds
   DECISION: {
@@ -52,7 +69,7 @@ export const CONFIG = {
       SOFASCORE: 'SOFASCORE',
       REDSCORES: 'REDSCORES'
     },
-    SOFASCORE_LOCAL_PROXY_URL: (import.meta?.env?.VITE_API_BASE_URL || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com')) + '/api/sofascore/live'
+    SOFASCORE_LOCAL_PROXY_URL: getApiBaseUrl() + '/api/sofascore/live'
   },
 
   // Bankroll Management

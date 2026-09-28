@@ -12,7 +12,7 @@ export class BetBuilderEngine {
      * @param {Array} matches - Array of match objects
      * @returns {Object|null} - Combined bet slip object
      */
-    generateGoldenCombo(opportunities, matches) {
+    generateGoldenCombo(opportunities, matches, lang = 'tr') {
         if (!opportunities || !matches || opportunities.length < 2) {
             return null;
         }
@@ -116,6 +116,22 @@ export class BetBuilderEngine {
         const formatMarketLabel = (pick) => {
             const key = pick.market.marketKey;
             const team = pick.market.team || '';
+            if (lang === 'de') {
+                if (key === 'HOME_NEXT_GOAL') return `Nächstes Tor: ${pick.homeTeam}`;
+                if (key === 'AWAY_NEXT_GOAL') return `Nächstes Tor: ${pick.awayTeam}`;
+                if (key === 'HOME_WIN_NEXT') return `Heimsieg (1): ${pick.homeTeam}`;
+                if (key === 'AWAY_WIN_NEXT') return `Auswärtssieg (2): ${pick.awayTeam}`;
+                if (key === 'OVER_GOALS') return `Live Über-Tore`;
+                return `${team || 'Heim'} Tor / Druck`;
+            }
+            if (lang === 'en') {
+                if (key === 'HOME_NEXT_GOAL') return `Next Goal: ${pick.homeTeam}`;
+                if (key === 'AWAY_NEXT_GOAL') return `Next Goal: ${pick.awayTeam}`;
+                if (key === 'HOME_WIN_NEXT') return `Full-Time Win (1): ${pick.homeTeam}`;
+                if (key === 'AWAY_WIN_NEXT') return `Full-Time Win (2): ${pick.awayTeam}`;
+                if (key === 'OVER_GOALS') return `Live Over Goals`;
+                return `${team || 'Home'} Goal / Pressure`;
+            }
             if (key === 'HOME_NEXT_GOAL') return `Sıradaki Gol: ${pick.homeTeam}`;
             if (key === 'AWAY_NEXT_GOAL') return `Sıradaki Gol: ${pick.awayTeam}`;
             if (key === 'HOME_WIN_NEXT') return `Maç Sonu (MS 1): ${pick.homeTeam}`;
@@ -124,9 +140,13 @@ export class BetBuilderEngine {
             return `${team || 'Ev'} Gol / Baskı`;
         };
 
+        const title = lang === 'tr' 
+            ? 'Günün Canlı Altın İkilisi' 
+            : (lang === 'de' ? 'Live-Gold-Doppel des Tages' : 'Live Golden Double of the Day');
+
         return {
             id: `combo_${pick1.matchId}_${pick2.matchId}`,
-            title: 'Günün Canlı Altın İkilisi',
+            title,
             totalOdds,
             averageConfidence: avgConfidence,
             picks: [

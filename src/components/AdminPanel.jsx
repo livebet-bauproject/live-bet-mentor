@@ -91,7 +91,7 @@ const SupportStaffDesk = ({
             try {
                 const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
                     ? 'http://localhost:3001'
-                    : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                    : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
                 const res = await fetch(`${proxyBase}/api/support/translate?text=${encodeURIComponent(adminSupportReply.trim())}&source=tr&target=${targetLang}`);
                 if (res.ok) {
@@ -114,7 +114,7 @@ const SupportStaffDesk = ({
         try {
             const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
             const res = await fetch(`${proxyBase}/api/support/translate?text=${encodeURIComponent(text)}&source=${sourceLang || 'auto'}&target=tr`);
             if (res.ok) {
@@ -307,7 +307,7 @@ const SupportStaffDesk = ({
                             border: `1px solid ${supportSubTab === 'chats' ? '#10b981' : 'rgba(255,255,255,0.1)'}`
                         }}
                     >
-                        💬 {isTr ? 'Canlı Sohbetler' : 'Live Chats'} ({supportSessions.length})
+                        💬 {isTr ? 'Canlı Sohbetler' : (isDe ? 'Live-Chats' : 'Live Chats')} ({supportSessions.length})
                     </button>
                     <button
                         onClick={() => setSupportSubTab('operators')}
@@ -322,7 +322,7 @@ const SupportStaffDesk = ({
                             border: `1px solid ${supportSubTab === 'operators' ? '#38bdf8' : 'rgba(255,255,255,0.1)'}`
                         }}
                     >
-                        👥 {isTr ? 'Destek Personeli' : 'Support Staff'} ({supportOperators.length})
+                        👥 {isTr ? 'Destek Personeli' : (isDe ? 'Support-Personal' : 'Support Staff')} ({supportOperators.length})
                     </button>
                     <button
                         onClick={fetchSupportData}
@@ -350,11 +350,11 @@ const SupportStaffDesk = ({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: '0.6rem' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             {[
-                                { key: 'all', label: isTr ? `Tümü (${supportSessions.length})` : `All (${supportSessions.length})` },
-                                { key: 'waiting', label: `🟡 ${isTr ? 'Yanıt Bekleyenler' : 'Waiting'} (${waitingSessions.length})` },
-                                { key: 'active', label: `🟢 ${isTr ? 'Aktif' : 'Active'} (${activeSessions.length})` },
-                                { key: 'closed', label: `⚪ ${isTr ? 'Çözüldü' : 'Closed'} (${closedSessions.length})` },
-                                { key: 'archived', label: `📁 ${isTr ? 'Arşiv' : 'Archived'} (${archivedSessions.length})` }
+                                { key: 'all', label: isTr ? `Tümü (${supportSessions.length})` : (isDe ? `Alle (${supportSessions.length})` : `All (${supportSessions.length})`) },
+                                { key: 'waiting', label: `🟡 ${isTr ? 'Yanıt Bekleyenler' : (isDe ? 'Wartend' : 'Waiting')} (${waitingSessions.length})` },
+                                { key: 'active', label: `🟢 ${isTr ? 'Aktif' : (isDe ? 'Aktiv' : 'Active')} (${activeSessions.length})` },
+                                { key: 'closed', label: `⚪ ${isTr ? 'Çözüldü' : (isDe ? 'Gelöst' : 'Closed')} (${closedSessions.length})` },
+                                { key: 'archived', label: `📁 ${isTr ? 'Arşiv' : (isDe ? 'Archiv' : 'Archived')} (${archivedSessions.length})` }
                             ].map(f => (
                                 <button
                                     key={f.key}
@@ -388,9 +388,9 @@ const SupportStaffDesk = ({
                                     color: '#ef4444',
                                     border: '1px solid rgba(239, 68, 68, 0.3)'
                                 }}
-                                title={isTr ? 'Çözülmüş ve arşivlenmiş tüm sohbetleri kalıcı olarak siler' : 'Permanently remove closed and archived sessions'}
+                                title={isTr ? 'Çözülmüş ve arşivlenmiş tüm sohbetleri kalıcı olarak siler' : (isDe ? 'Gelöste und archivierte Chats dauerhaft löschen' : 'Permanently remove closed and archived sessions')}
                             >
-                                🧹 {isTr ? 'Eskileri Temizle' : 'Clear Old'}
+                                🧹 {isTr ? 'Eskileri Temizle' : (isDe ? 'Alte löschen' : 'Clear Old')}
                             </button>
                         )}
                     </div>
@@ -413,14 +413,14 @@ const SupportStaffDesk = ({
                             display: (isMobileScreen && mobileShowChat && activeSupportSession) ? 'none' : 'block'
                         }}>
                             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.8rem', textTransform: 'uppercase' }}>
-                                {isTr ? 'Sohbet Oturumları' : 'Chat Sessions'} ({filteredSessions.length})
+                                {isTr ? 'Sohbet Oturumları' : (isDe ? 'Chat-Sitzungen' : 'Chat Sessions')} ({filteredSessions.length})
                             </div>
 
                             {/* Live Search Box for Audit & Past History */}
                             <div style={{ marginBottom: '0.6rem' }}>
                                 <input
                                     type="text"
-                                    placeholder={isTr ? "🔍 Kullanıcı, e-posta veya mesaj ara..." : "🔍 Search user, email or message..."}
+                                    placeholder={isTr ? "🔍 Kullanıcı, e-posta veya mesaj ara..." : (isDe ? "🔍 Benutzer, E-Mail oder Nachricht suchen..." : "🔍 Search user, email or message...")}
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     style={{
@@ -448,14 +448,14 @@ const SupportStaffDesk = ({
                                 {/* Quick Date Pills */}
                                 <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.45rem' }}>
                                     <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginRight: '0.2rem' }}>
-                                        📅 {isTr ? 'Tarih:' : 'Date:'}
+                                        📅 {isTr ? 'Tarih:' : (isDe ? 'Datum:' : 'Date:')}
                                     </span>
                                     {[
-                                        { key: 'all', label: isTr ? 'Tümü' : 'All' },
-                                        { key: 'today', label: isTr ? 'Bugün' : 'Today' },
-                                        { key: 'yesterday', label: isTr ? 'Dün' : 'Yesterday' },
-                                        { key: 'week', label: isTr ? 'Son 7G' : '7 Days' },
-                                        { key: 'custom', label: isTr ? 'Özel 🗓️' : 'Custom 🗓️' }
+                                        { key: 'all', label: isTr ? 'Tümü' : (isDe ? 'Alle' : 'All') },
+                                        { key: 'today', label: isTr ? 'Bugün' : (isDe ? 'Heute' : 'Today') },
+                                        { key: 'yesterday', label: isTr ? 'Dün' : (isDe ? 'Gestern' : 'Yesterday') },
+                                        { key: 'week', label: isTr ? 'Son 7G' : (isDe ? 'Letzte 7 Tage' : '7 Days') },
+                                        { key: 'custom', label: isTr ? 'Özel 🗓️' : (isDe ? 'Benutzerdefiniert 🗓️' : 'Custom 🗓️') }
                                     ].map(d => (
                                         <button
                                             key={d.key}
@@ -509,9 +509,9 @@ const SupportStaffDesk = ({
                                                     cursor: 'pointer',
                                                     padding: '0.2rem 0.4rem'
                                                 }}
-                                                title={isTr ? 'Tarih filtresini temizle' : 'Clear date filter'}
+                                                title={isTr ? 'Tarih filtresini temizle' : (isDe ? 'Datumsfilter zurücksetzen' : 'Clear date filter')}
                                             >
-                                                ✕ {isTr ? 'Temizle' : 'Clear'}
+                                                ✕ {isTr ? 'Temizle' : (isDe ? 'Löschen' : 'Clear')}
                                             </button>
                                         )}
                                     </div>
@@ -520,10 +520,10 @@ const SupportStaffDesk = ({
                                 {/* Sort Order Bar */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.65rem', color: '#94a3b8', paddingTop: '0.35rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                                     <span>
-                                        {dateFilter === 'today' ? (isTr ? 'Bugünküler' : 'Today') : dateFilter === 'yesterday' ? (isTr ? 'Dünküler' : 'Yesterday') : dateFilter === 'custom' && customDate ? customDate : ''} ({filteredSessions.length} {isTr ? 'oturum' : 'sessions'})
+                                        {dateFilter === 'today' ? (isTr ? 'Bugünküler' : (isDe ? 'Heute' : 'Today')) : dateFilter === 'yesterday' ? (isTr ? 'Dünküler' : (isDe ? 'Gestern' : 'Yesterday')) : dateFilter === 'custom' && customDate ? customDate : ''} ({filteredSessions.length} {isTr ? 'oturum' : (isDe ? 'Sitzungen' : 'sessions')})
                                     </span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                        <span>{isTr ? 'Sıra:' : 'Sort:'}</span>
+                                        <span>{isTr ? 'Sıra:' : (isDe ? 'Sortierung:' : 'Sort:')}</span>
                                         <button
                                             onClick={() => setSortOrder(prev => prev === 'newest' ? 'oldest' : 'newest')}
                                             style={{
@@ -537,7 +537,7 @@ const SupportStaffDesk = ({
                                                 cursor: 'pointer'
                                             }}
                                         >
-                                            {sortOrder === 'newest' ? `⬇️ ${isTr ? 'En Yeni' : 'Newest'}` : `⬆️ ${isTr ? 'En Eski' : 'Oldest'}`}
+                                            {sortOrder === 'newest' ? `⬇️ ${isTr ? 'En Yeni' : (isDe ? 'Neueste' : 'Newest')}` : `⬆️ ${isTr ? 'En Eski' : (isDe ? 'Älteste' : 'Oldest')}`}
                                         </button>
                                     </div>
                                 </div>
@@ -545,7 +545,7 @@ const SupportStaffDesk = ({
 
                             {filteredSessions.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#64748b', fontSize: '0.8rem' }}>
-                                    {isTr ? 'Bu filtreye veya seçilen tarihe uygun sohbet oturumu bulunamadı.' : 'No chat sessions match this filter or selected date.'}
+                                    {isTr ? 'Bu filtreye veya seçilen tarihe uygun sohbet oturumu bulunamadı.' : (isDe ? 'Keine Chat-Sitzungen gefunden, die diesem Filter oder Datum entsprechen.' : 'No chat sessions match this filter or selected date.')}
                                 </div>
                             ) : (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
@@ -594,7 +594,7 @@ const SupportStaffDesk = ({
                                                             color: isMember ? '#fbbf24' : '#94a3b8',
                                                             border: `1px solid ${isMember ? 'rgba(245, 158, 11, 0.4)' : 'rgba(148, 163, 184, 0.25)'}`
                                                         }}>
-                                                            {isMember ? (isTr ? 'KAYITLI ÜYE' : 'MEMBER') : (isTr ? 'MİSAFİR' : 'GUEST')}
+                                                            {isMember ? (isTr ? 'KAYITLI ÜYE' : (isDe ? 'MITGLIED' : 'MEMBER')) : (isTr ? 'MİSAFİR' : (isDe ? 'GAST' : 'GUEST'))}
                                                         </span>
                                                         {isTargetFromTelegram && (
                                                             <span style={{
@@ -679,19 +679,19 @@ const SupportStaffDesk = ({
                                                             }`
                                                         }}>
                                                             {isWaiting
-                                                                ? (isTr ? 'YANIT BEKLİYOR' : 'WAITING')
+                                                                ? (isTr ? 'YANIT BEKLİYOR' : (isDe ? 'WARTEND' : 'WAITING'))
                                                                 : sess.status === 'closed'
-                                                                ? (isTr ? 'ÇÖZÜLDÜ' : 'CLOSED')
+                                                                ? (isTr ? 'ÇÖZÜLDÜ' : (isDe ? 'GELÖST' : 'CLOSED'))
                                                                 : sess.status === 'archived'
-                                                                ? (isTr ? 'ARŞİV' : 'ARCHIVED')
-                                                                : (isTr ? 'AKTİF' : 'ACTIVE')}
+                                                                ? (isTr ? 'ARŞİV' : (isDe ? 'ARCHIVIERT' : 'ARCHIVED'))
+                                                                : (isTr ? 'AKTİF' : (isDe ? 'AKTIV' : 'ACTIVE'))}
                                                         </span>
                                                     </div>
                                                 </div>
 
                                                 {/* Customer identifier */}
                                                 <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#fff', marginBottom: '0.3rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                    {sess.userInfo?.email || sess.userInfo?.name || (isTr ? `Ziyaretçi #${sess.sessionId.substring(sess.sessionId.length - 6)}` : `Guest #${sess.sessionId.substring(sess.sessionId.length - 6)}`)}
+                                                    {sess.userInfo?.email || sess.userInfo?.name || (isTr ? `Ziyaretçi #${sess.sessionId.substring(sess.sessionId.length - 6)}` : (isDe ? `Gast #${sess.sessionId.substring(sess.sessionId.length - 6)}` : `Guest #${sess.sessionId.substring(sess.sessionId.length - 6)}`))}
                                                 </div>
 
                                                 {/* Meta badges: Language, Plan, Device */}
@@ -700,10 +700,10 @@ const SupportStaffDesk = ({
                                                         {(sess.lang || 'tr').toUpperCase()}
                                                     </span>
                                                     <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px', color: isMember ? '#fbbf24' : '#94a3b8' }}>
-                                                        {sess.userInfo?.plan || (isMember ? 'PRO' : 'Misafir')}
+                                                        {sess.userInfo?.plan || (isMember ? 'PRO' : (isTr ? 'Misafir' : (isDe ? 'Gast' : 'Guest')))}
                                                     </span>
                                                     <span style={{ background: 'rgba(255,255,255,0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                                                        {isMobile ? '📱 Mobil' : '💻 Masaüstü'}
+                                                        {isMobile ? (isTr ? '📱 Mobil' : (isDe ? '📱 Mobil' : '📱 Mobile')) : (isTr ? '💻 Masaüstü' : '💻 Desktop')}
                                                     </span>
                                                     <span style={{ opacity: 0.6, marginLeft: 'auto' }}>
                                                         #{sess.sessionId.substring(sess.sessionId.length - 6)}
@@ -779,7 +779,7 @@ const SupportStaffDesk = ({
                                     }}
                                 >
                                     <span>←</span>
-                                    <span>{isTr ? 'Tüm Sohbetler Listesine Dön' : 'Back to Sessions List'}</span>
+                                    <span>{isTr ? 'Tüm Sohbetler Listesine Dön' : (isDe ? 'Zurück zur Sitzungsliste' : 'Back to Sessions List')}</span>
                                     <span style={{ opacity: 0.6, fontSize: '0.68rem' }}>({filteredSessions.length})</span>
                                 </button>
                             )}
@@ -798,12 +798,14 @@ const SupportStaffDesk = ({
                                 }}>
                                     <span style={{ fontSize: '2.5rem' }}>💬</span>
                                     <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#94a3b8' }}>
-                                        {isTr ? 'Sohbet Ayrıntıları' : 'Chat Details'}
+                                        {isTr ? 'Sohbet Ayrıntıları' : (isDe ? 'Chat-Details' : 'Chat Details')}
                                     </div>
                                     <div style={{ fontSize: '0.78rem', maxWidth: '320px' }}>
                                         {isTr
                                             ? 'Müşteriyle canlı yazışmaları görmek veya yanıt vermek için sol listeden bir oturum seçin.'
-                                            : 'Select a chat session from the list on the left to read messages and reply.'}
+                                            : (isDe
+                                                ? 'Wählen Sie links eine Sitzung aus, um Nachrichten anzuzeigen oder zu antworten.'
+                                                : 'Select a chat session from the list on the left to read messages and reply.')}
                                     </div>
                                 </div>
                             ) : (
@@ -826,15 +828,15 @@ const SupportStaffDesk = ({
                                                 <span style={{ fontSize: '1.4rem' }}>🎯</span>
                                                 <div>
                                                     <div style={{ fontWeight: 900, fontSize: '0.82rem', color: '#fef08a' }}>
-                                                        {isTr ? 'TELEGRAM BİLDİRİMİNDEN BAĞLANILDI' : 'CONNECTED VIA TELEGRAM NOTIFICATION'}
+                                                        {isTr ? 'TELEGRAM BİLDİRİMİNDEN BAĞLANILDI' : (isDe ? 'ÜBER TELEGRAM-BENACHRICHTIGUNG VERBUNDEN' : 'CONNECTED VIA TELEGRAM NOTIFICATION')}
                                                     </div>
                                                     <div style={{ fontSize: '0.72rem', color: '#fde047', opacity: 0.9 }}>
-                                                        {isTr ? 'Telegram botunuza mesaj atan müşteri bu kişidir. Doğrudan bu ekrandan yazışabilirsiniz.' : 'Directly replying to the user who triggered the Telegram bot notification.'}
+                                                        {isTr ? 'Telegram botunuza mesaj atan müşteri bu kişidir. Doğrudan bu ekrandan yazışabilirsiniz.' : (isDe ? 'Dieser Kunde hat Ihren Telegram-Bot kontaktiert. Sie können direkt hier antworten.' : 'Directly replying to the user who triggered the Telegram bot notification.')}
                                                     </div>
                                                 </div>
                                             </div>
                                             <span style={{ fontSize: '0.65rem', background: '#f59e0b', color: '#000', fontWeight: 900, padding: '0.2rem 0.5rem', borderRadius: '4px', whiteSpace: 'nowrap' }}>
-                                                {isTr ? 'DOĞRU KİŞİ SEÇİLDİ ✓' : 'TARGET MATCHED ✓'}
+                                                {isTr ? 'DOĞRU KİŞİ SEÇİLDİ ✓' : (isDe ? 'ZIEL ZUGEORDNET ✓' : 'TARGET MATCHED ✓')}
                                             </span>
                                         </div>
                                     )}
@@ -862,7 +864,7 @@ const SupportStaffDesk = ({
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                                         <span style={{ fontSize: '1.1rem' }}>{isMember ? '👑' : '🌐'}</span>
                                                         <span style={{ fontWeight: 900, fontSize: '1rem', color: '#fff' }}>
-                                                            {activeSupportSession.userInfo?.email || activeSupportSession.userInfo?.name || (isTr ? 'Misafir Müşteri' : 'Guest Visitor')}
+                                                            {activeSupportSession.userInfo?.email || activeSupportSession.userInfo?.name || (isTr ? 'Misafir Müşteri' : (isDe ? 'Gast-Besucher' : 'Guest Visitor'))}
                                                         </span>
                                                         <span style={{
                                                             fontSize: '0.65rem',
@@ -873,7 +875,7 @@ const SupportStaffDesk = ({
                                                             color: isMember ? '#fbbf24' : '#94a3b8',
                                                             border: `1px solid ${isMember ? 'rgba(245, 158, 11, 0.4)' : 'rgba(148, 163, 184, 0.3)'}`
                                                         }}>
-                                                            {isMember ? (isTr ? 'KAYITLI ÜYE' : 'MEMBER') : (isTr ? 'MİSAFİR (Üye Girişi Yok)' : 'GUEST')}
+                                                            {isMember ? (isTr ? 'KAYITLI ÜYE' : (isDe ? 'REGISTRIERTES MITGLIED' : 'MEMBER')) : (isTr ? 'MİSAFİR (Üye Girişi Yok)' : (isDe ? 'GAST (Nicht angemeldet)' : 'GUEST'))}
                                                         </span>
                                                         <span style={{
                                                             fontSize: '0.65rem',
@@ -912,7 +914,7 @@ const SupportStaffDesk = ({
                                                     {/* Quick VIP Buttons */}
                                                     <button
                                                         onClick={() => handleGrantVipFromChat(activeSupportSession.sessionId, 30, 'pro')}
-                                                        title={isTr ? 'Bu müşteriye anında 30 Gün VIP tanımlar ve sohbete kutlama mesajı geçer' : 'Grant 30 Days VIP'}
+                                                        title={isTr ? 'Bu müşteriye anında 30 Gün VIP tanımlar ve sohbete kutlama mesajı geçer' : (isDe ? 'Schaltet sofort 30 Tage VIP frei und sendet eine Willkommensnachricht' : 'Grant 30 Days VIP and send celebratory message')}
                                                         style={{
                                                             padding: '0.35rem 0.65rem',
                                                             borderRadius: '6px',
@@ -924,11 +926,11 @@ const SupportStaffDesk = ({
                                                             border: '1px solid #10b981'
                                                         }}
                                                     >
-                                                        💎 +30G VIP
+                                                        💎 {isTr ? '+30G VIP' : (isDe ? '+30T VIP' : '+30D VIP')}
                                                     </button>
                                                     <button
                                                         onClick={() => handleGrantVipFromChat(activeSupportSession.sessionId, 3, 'trial')}
-                                                        title={isTr ? '3 Günlük Deneme Paketi tanımlar' : 'Grant 3 Days Trial'}
+                                                        title={isTr ? '3 Günlük Deneme Paketi tanımlar' : (isDe ? 'Schaltet 3-Tage-Testpaket frei' : 'Grant 3 Days Trial')}
                                                         style={{
                                                             padding: '0.35rem 0.65rem',
                                                             borderRadius: '6px',
@@ -940,7 +942,7 @@ const SupportStaffDesk = ({
                                                             border: '1px solid #38bdf8'
                                                         }}
                                                     >
-                                                        🚀 +3G Deneme
+                                                        🚀 {isTr ? '+3G Deneme' : (isDe ? '+3T Test' : '+3D Trial')}
                                                     </button>
 
                                                     {/* Archive / Unarchive */}
@@ -957,9 +959,9 @@ const SupportStaffDesk = ({
                                                                 color: '#a78bfa',
                                                                 border: '1px solid #a78bfa'
                                                             }}
-                                                            title={isTr ? 'Arşivden çıkar ve aktife al' : 'Unarchive session'}
+                                                            title={isTr ? 'Arşivden çıkar ve aktife al' : (isDe ? 'Aus Archiv wiederherstellen und aktivieren' : 'Unarchive session')}
                                                         >
-                                                            🔄 Arşivden Çıkar
+                                                            🔄 {isTr ? 'Arşivden Çıkar' : (isDe ? 'Dearchivieren' : 'Unarchive')}
                                                         </button>
                                                     ) : (
                                                         <button
@@ -974,9 +976,9 @@ const SupportStaffDesk = ({
                                                                 color: '#cbd5e1',
                                                                 border: '1px solid rgba(255, 255, 255, 0.2)'
                                                             }}
-                                                            title={isTr ? 'Sohbeti arşive kaldır' : 'Archive session'}
+                                                            title={isTr ? 'Sohbeti arşive kaldır' : (isDe ? 'Chat ins Archiv verschieben' : 'Archive session')}
                                                         >
-                                                            📁 Arşivle
+                                                            📁 {isTr ? 'Arşivle' : (isDe ? 'Archivieren' : 'Archive')}
                                                         </button>
                                                     )}
 
@@ -993,9 +995,9 @@ const SupportStaffDesk = ({
                                                             color: activeSupportSession.status === 'closed' ? '#94a3b8' : '#ef4444',
                                                             border: '1px solid currentColor'
                                                         }}
-                                                        title={activeSupportSession.status === 'closed' ? 'Zaten Çözüldü' : 'Oturumu Kapat / Çözüldü'}
+                                                        title={activeSupportSession.status === 'closed' ? (isTr ? 'Zaten Çözüldü' : (isDe ? 'Bereits gelöst' : 'Already Closed')) : (isTr ? 'Oturumu Kapat / Çözüldü' : (isDe ? 'Sitzung schließen / Gelöst' : 'Close Session / Resolved'))}
                                                     >
-                                                        {activeSupportSession.status === 'closed' ? '✓ Çözüldü' : '🔒 Kapat'}
+                                                        {activeSupportSession.status === 'closed' ? (isTr ? '✓ Çözüldü' : (isDe ? '✓ Gelöst' : '✓ Resolved')) : (isTr ? '🔒 Kapat' : (isDe ? '🔒 Schließen' : '🔒 Close'))}
                                                     </button>
 
                                                     {/* Delete session */}
@@ -1011,9 +1013,9 @@ const SupportStaffDesk = ({
                                                             color: '#ef4444',
                                                             border: '1px solid rgba(239, 68, 68, 0.3)'
                                                         }}
-                                                        title={isTr ? 'Bu sohbeti tamamen sil' : 'Delete chat session'}
+                                                        title={isTr ? 'Bu sohbeti tamamen sil' : (isDe ? 'Diesen Chat endgültig löschen' : 'Delete chat session')}
                                                     >
-                                                        🗑️ Sil
+                                                        🗑️ {isTr ? 'Sil' : (isDe ? 'Löschen' : 'Delete')}
                                                     </button>
 
                                                     {/* Refresh */}
@@ -1030,7 +1032,7 @@ const SupportStaffDesk = ({
                                                             color: '#38bdf8',
                                                             border: '1px solid #38bdf8'
                                                         }}
-                                                        title="Yenile"
+                                                        title={isTr ? 'Yenile' : (isDe ? 'Aktualisieren' : 'Refresh')}
                                                     >
                                                         {sessionChatLoading ? '...' : '🔄'}
                                                     </button>
@@ -1208,11 +1210,11 @@ const SupportStaffDesk = ({
                                                 value={adminSupportReply}
                                                 onChange={(e) => setAdminSupportReply(e.target.value)}
                                                 placeholder={
-                                                    activeSupportSession?.lang === 'de'
-                                                        ? "Türkçe yazın, otomatik Almancaya çevrilecektir..."
-                                                        : (activeSupportSession?.lang === 'en'
-                                                            ? "Türkçe yazın, otomatik İngilizceye çevrilecektir..."
-                                                            : (isTr ? "Müşteriye yanıt yazın..." : "Type reply to customer..."))
+                                                    isDe
+                                                        ? (activeSupportSession?.lang === 'tr' ? "Auf Deutsch schreiben, wird automatisch ins Türkische übersetzt..." : (activeSupportSession?.lang === 'en' ? "Auf Deutsch schreiben, wird automatisch ins Englische übersetzt..." : "Antwort an den Kunden eingeben..."))
+                                                        : (isTr
+                                                            ? (activeSupportSession?.lang === 'de' ? "Türkçe yazın, otomatik Almancaya çevrilecektir..." : (activeSupportSession?.lang === 'en' ? "Türkçe yazın, otomatik İngilizceye çevrilecektir..." : "Müşteriye yanıt yazın..."))
+                                                            : (activeSupportSession?.lang === 'tr' ? "Type in English, automatically translated to Turkish..." : (activeSupportSession?.lang === 'de' ? "Type in English, automatically translated to German..." : "Type reply to customer...")))
                                                 }
                                                 style={{
                                                     flex: 1,
@@ -1242,8 +1244,12 @@ const SupportStaffDesk = ({
                                             >
                                                 {replySending ? '...' : (
                                                     activeSupportSession?.lang === 'de'
-                                                        ? '🇩🇪 Çevir & Gönder'
-                                                        : (activeSupportSession?.lang === 'en' ? '🇬🇧 Çevir & Gönder' : (isTr ? 'Gönder' : 'Send'))
+                                                        ? (isDe ? 'Senden' : (isTr ? '🇩🇪 Çevir & Gönder' : '🇩🇪 Translate & Send'))
+                                                        : (activeSupportSession?.lang === 'en'
+                                                            ? (isDe ? '🇬🇧 Übersetzen & Senden' : (isTr ? '🇬🇧 Çevir & Gönder' : 'Send'))
+                                                            : (activeSupportSession?.lang === 'tr'
+                                                                ? (isDe ? '🇹🇷 Übersetzen & Senden' : (isTr ? 'Gönder' : '🇹🇷 Translate & Send'))
+                                                                : (isTr ? 'Gönder' : (isDe ? 'Senden' : 'Send'))))
                                                 )}
                                             </button>
                                         </div>
@@ -1266,10 +1272,10 @@ const SupportStaffDesk = ({
                                                     </span>
                                                     <div style={{ minWidth: 0, flex: 1 }}>
                                                         <div style={{ fontSize: '0.66rem', fontWeight: 800, color: '#34d399', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                                                            {isTranslating ? '⏳ ÇEVRİLİYOR...' : (activeSupportSession.lang === 'de' ? 'Almanca Çeviri Önizlemesi (Müşteriye Gidecek Olan)' : 'İngilizce Çeviri Önizlemesi (Müşteriye Gidecek Olan)')}
+                                                            {isTranslating ? (isTr ? '⏳ ÇEVRİLİYOR...' : (isDe ? '⏳ WIRD ÜBERSETZT...' : '⏳ TRANSLATING...')) : (activeSupportSession.lang === 'de' ? (isTr ? 'Almanca Çeviri Önizlemesi (Müşteriye Gidecek Olan)' : (isDe ? 'Deutsche Übersetzungsvorschau (für den Kunden)' : 'German Translation Preview (sent to customer)')) : (isTr ? 'İngilizce Çeviri Önizlemesi (Müşteriye Gidecek Olan)' : (isDe ? 'Englische Übersetzungsvorschau (für den Kunden)' : 'English Translation Preview (sent to customer)')))}
                                                         </div>
                                                         <div style={{ fontSize: '0.82rem', color: '#fff', fontStyle: 'italic', wordBreak: 'break-word', marginTop: '2px' }}>
-                                                            {isTranslating ? 'Metin çevriliyor...' : (liveTranslatedText || '...')}
+                                                            {isTranslating ? (isTr ? 'Metin çevriliyor...' : (isDe ? 'Text wird übersetzt...' : 'Translating text...')) : (liveTranslatedText || '...')}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -1309,16 +1315,16 @@ const SupportStaffDesk = ({
                         color: '#cbd5e1'
                     }}>
                         <div style={{ fontWeight: 800, color: '#38bdf8', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>
-                            🛡️ {isTr ? 'GÜVENLİ DESTEK PERSONELİ (ROLE-BASED SUPPORT STAFF)' : 'ROLE-BASED SUPPORT STAFF SECURITY'}
+                            🛡️ {isTr ? 'GÜVENLİ DESTEK PERSONELİ (ROLE-BASED SUPPORT STAFF)' : (isDe ? 'SICHERES SUPPORT-PERSONAL (ROLLENBASIERT)' : 'ROLE-BASED SUPPORT STAFF SECURITY')}
                         </div>
                         <div>
-                            • <strong>{isTr ? 'Sıfır Risk & Tam İzolasyon:' : 'Zero Risk & Isolation:'}</strong> {isTr ? 'Burada yetkilendirdiğiniz operatörler sadece canlı sohbet mesajlarını okuyabilir ve cevaplayabilir. VIP verme, bakiye, kullanıcı silme veya finansal ayarlara ASLA erişemezler.' : 'Assigned operators can only view and answer live chat inquiries. They have ZERO access to billing, VIP grants, or admin controls.'}
+                            • <strong>{isTr ? 'Sıfır Risk & Tam İzolasyon:' : (isDe ? 'Null Risiko & Vollständige Isolation:' : 'Zero Risk & Isolation:')}</strong> {isTr ? 'Burada yetkilendirdiğiniz operatörler sadece canlı sohbet mesajlarını okuyabilir ve cevaplayabilir. VIP verme, bakiye, kullanıcı silme veya finansal ayarlara ASLA erişemezler.' : (isDe ? 'Autorisierte Operatoren können nur Live-Chat-Nachrichten lesen und beantworten. Sie haben KEINEN Zugriff auf VIP-Vergabe, Guthaben, Löschung oder Finanzeinstellungen.' : 'Assigned operators can only view and answer live chat inquiries. They have ZERO access to billing, VIP grants, or admin controls.')}
                         </div>
                         <div>
-                            • <strong>{isTr ? '100% Gizlilik Garantisi:' : '100% Privacy:'}</strong> {isTr ? 'Personelin kişisel Telegram hesabı veya telefon numarası müşteriye ASLA gösterilmez. Müşteri ekranda daima "LiveBet Mentor Destek Masası" görür.' : 'Personal Telegram handles and phone numbers are completely concealed. Customers only see LiveBet Mentor Support.'}
+                            • <strong>{isTr ? '100% Gizlilik Garantisi:' : (isDe ? '100% Datenschutzgarantie:' : '100% Privacy:')}</strong> {isTr ? 'Personelin kişisel Telegram hesabı veya telefon numarası müşteriye ASLA gösterilmez. Müşteri ekranda daima "LiveBet Mentor Destek Masası" görür.' : (isDe ? 'Persönliche Telegram-Accounts oder Telefonnummern des Personals werden Kunden NIEMALS angezeigt. Kunden sehen immer nur „LiveBet Mentor Support“.' : 'Personal Telegram handles and phone numbers are completely concealed. Customers only see LiveBet Mentor Support.')}
                         </div>
                         <div>
-                            • <strong>{isTr ? 'Anlık Telegram Köprüsü:' : 'Instant Telegram Bridge:'}</strong> {isTr ? 'Müşteri destek kutusuna yazdığında, görevlendirdiğiniz personelin Telegram\'ına anında bildirim düşer. Personel telefonundan Telegram\'daki bildirime "Yanıtla" yaparak veya bu web panelinden doğrudan cevap verebilir.' : 'When a customer needs help, operators receive instant notifications in Telegram and can reply directly by quoting the message or using this dashboard.'}
+                            • <strong>{isTr ? 'Anlık Telegram Köprüsü:' : (isDe ? 'Echtzeit-Telegram-Brücke:' : 'Instant Telegram Bridge:')}</strong> {isTr ? 'Müşteri destek kutusuna yazdığında, görevlendirdiğiniz personelin Telegram\'ına anında bildirim düşer. Personel telefonundan Telegram\'daki bildirime "Yanıtla" yaparak veya bu web panelinden doğrudan cevap verebilir.' : (isDe ? 'Sobald ein Kunde im Chat schreibt, erhält das zugewiesene Personal sofort eine Telegram-Benachrichtigung und kann direkt antworten.' : 'When a customer needs help, operators receive instant notifications in Telegram and can reply directly by quoting the message or using this dashboard.')}
                         </div>
                     </div>
 
@@ -1330,14 +1336,14 @@ const SupportStaffDesk = ({
                         marginBottom: '2rem'
                     }}>
                         <h4 style={{ color: '#38bdf8', fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            ➕ {isTr ? 'YENİ DESTEK OPERATÖRÜ / PERSONEL ATAMA' : 'ASSIGN NEW SUPPORT OPERATOR'}
+                            ➕ {isTr ? 'YENİ DESTEK OPERATÖRÜ / PERSONEL ATAMA' : (isDe ? 'NEUEN SUPPORT-OPERATOR ZUWEISEN' : 'ASSIGN NEW SUPPORT OPERATOR')}
                         </h4>
 
                         {/* Quick Picker from Registered Members */}
                         {profiles && profiles.length > 0 && (
                             <div style={{ marginBottom: '1.2rem', padding: '0.8rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
                                 <label style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, marginBottom: '0.4rem' }}>
-                                    ⚡ {isTr ? 'Hızlı Seçim: Sitede Kayıtlı Üyelerden Personel Olarak Ata' : 'Fast Select from Registered Members'}
+                                    ⚡ {isTr ? 'Hızlı Seçim: Sitede Kayıtlı Üyelerden Personel Olarak Ata' : (isDe ? 'Schnellauswahl: Registriertes Mitglied als Support zuweisen' : 'Fast Select from Registered Members')}
                                 </label>
                                 <select
                                     value={selectedMemberForOp}
@@ -1352,7 +1358,7 @@ const SupportStaffDesk = ({
                                     }}
                                     style={{ width: '100%', padding: '0.6rem', background: '#0f172a', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff', fontSize: '0.78rem' }}
                                 >
-                                    <option value="">-- {isTr ? 'Kayıtlı bir üyeyi seçin (İsteğe bağlı)' : 'Select member (optional)'} --</option>
+                                    <option value="">-- {isTr ? 'Kayıtlı bir üyeyi seçin (İsteğe bağlı)' : (isDe ? 'Registriertes Mitglied wählen (Optional)' : 'Select member (optional)')} --</option>
                                     {profiles.map(p => (
                                         <option key={p.id} value={p.email}>
                                             {p.email} {p.full_name ? `(${p.full_name})` : ''} - {p.plan || 'Trial'}
@@ -1365,13 +1371,13 @@ const SupportStaffDesk = ({
                         <form onSubmit={handleAddOperator} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr)) 140px', gap: '0.8rem', alignItems: 'end' }}>
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.7, marginBottom: '0.4rem' }}>
-                                    {isTr ? 'Personel Adı / Unvanı *' : 'Staff Name *'}
+                                    {isTr ? 'Personel Adı / Unvanı *' : (isDe ? 'Mitarbeiter Name / Rolle *' : 'Staff Name *')}
                                 </label>
                                 <input
                                     type="text"
                                     value={newOpName}
                                     onChange={(e) => setNewOpName(e.target.value)}
-                                    placeholder={isTr ? "Örn: Ahmet - Canlı Destek" : "Staff Name"}
+                                    placeholder={isTr ? "Örn: Ahmet - Canlı Destek" : (isDe ? "Z.B. Alex - Live Support" : "e.g. Alex - Live Support")}
                                     style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: '#fff', fontSize: '0.8rem' }}
                                     required
                                 />
@@ -1379,7 +1385,7 @@ const SupportStaffDesk = ({
 
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.7rem', color: '#fbbf24', fontWeight: 800, marginBottom: '0.4rem' }}>
-                                    {isTr ? 'Telegram Chat ID * (Zorunlu)' : 'Telegram Chat ID * (Required)'}
+                                    {isTr ? 'Telegram Chat ID * (Zorunlu)' : (isDe ? 'Telegram Chat-ID * (Erforderlich)' : 'Telegram Chat ID * (Required)')}
                                 </label>
                                 <input
                                     type="text"
@@ -1393,7 +1399,7 @@ const SupportStaffDesk = ({
 
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.7, marginBottom: '0.4rem' }}>
-                                    {isTr ? 'Telegram Kullanıcı Adı (İsteğe Bağlı)' : 'Telegram Username (Optional)'}
+                                    {isTr ? 'Telegram Kullanıcı Adı (İsteğe Bağlı)' : (isDe ? 'Telegram-Benutzername (Optional)' : 'Telegram Username (Optional)')}
                                 </label>
                                 <input
                                     type="text"
@@ -1406,7 +1412,7 @@ const SupportStaffDesk = ({
 
                             <div>
                                 <label style={{ display: 'block', fontSize: '0.7rem', opacity: 0.7, marginBottom: '0.4rem' }}>
-                                    {isTr ? 'Site E-posta (Hesap Eşleme)' : 'Site Account Email'}
+                                    {isTr ? 'Site E-posta (Hesap Eşleme)' : (isDe ? 'Konto-E-Mail (Zuordnung)' : 'Site Account Email')}
                                 </label>
                                 <input
                                     type="email"
@@ -1430,39 +1436,41 @@ const SupportStaffDesk = ({
                                     fontSize: '0.8rem'
                                 }}
                             >
-                                {isTr ? '➕ Yetkilendir' : '➕ Authorize'}
+                                {isTr ? '➕ Yetkilendir' : (isDe ? '➕ Autorisieren' : '➕ Authorize')}
                             </button>
                         </form>
 
                         {/* Helper tip on finding Telegram Chat ID */}
                         <div style={{ marginTop: '0.8rem', fontSize: '0.72rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                            💡 <strong>{isTr ? 'Personelin Telegram Chat ID\'si Nasıl Bulunur?' : 'How to find Telegram Chat ID?'}</strong> {isTr ? 'Personeliniz Telegram\'da botumuza (@Livebetmentorbot) /start yazabilir veya Telegram\'da @userinfobot botunu başlatıp ID\'sini anında alabilir.' : 'Your staff can message @Livebetmentorbot or @userinfobot on Telegram to immediately get their numeric ID.'}
+                            💡 <strong>{isTr ? 'Personelin Telegram Chat ID\'si Nasıl Bulunur?' : (isDe ? 'Wie finde ich die Telegram Chat-ID des Mitarbeiters?' : 'How to find Telegram Chat ID?')}</strong> {isTr ? 'Personeliniz Telegram\'da botumuza (@Livebetmentorbot) /start yazabilir veya Telegram\'da @userinfobot botunu başlatıp ID\'sini anında alabilir.' : (isDe ? 'Mitarbeiter können dem Bot (@Livebetmentorbot) /start senden oder @userinfobot auf Telegram starten, um ihre ID sofort zu erhalten.' : 'Your staff can message @Livebetmentorbot or @userinfobot on Telegram to immediately get their numeric ID.')}
                         </div>
                     </div>
 
                     {/* Active Operators List */}
                     <div>
                         <h4 style={{ fontSize: '0.95rem', fontWeight: 800, marginBottom: '1rem', color: '#fff' }}>
-                            👥 {isTr ? 'YETKİLİ DESTEK PERSONELİ LİSTESİ' : 'AUTHORIZED SUPPORT STAFF'} ({supportOperators.length})
+                            👥 {isTr ? 'YETKİLİ DESTEK PERSONELİ LİSTESİ' : (isDe ? 'AUTORISIERTES SUPPORT-PERSONAL' : 'AUTHORIZED SUPPORT STAFF')} ({supportOperators.length})
                         </h4>
 
                         {supportOperators.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '2.5rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', color: '#64748b' }}>
                                 {isTr
                                     ? 'Henüz atanmış bir destek operatörü yok. Yukarıdaki formdan ekleyebilirsiniz.'
-                                    : 'No support operators assigned yet. Add one using the form above.'}
+                                    : (isDe
+                                        ? 'Noch kein Support-Mitarbeiter zugewiesen. Sie können oben einen hinzufügen.'
+                                        : 'No support operators assigned yet. Add one using the form above.')}
                             </div>
                         ) : (
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8' }}>
-                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'PERSONEL / UNVAN' : 'STAFF NAME'}</th>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'PERSONEL / UNVAN' : (isDe ? 'MITARBEITER / ROLLE' : 'STAFF NAME')}</th>
                                             <th style={{ padding: '0.8rem' }}>TELEGRAM CHAT ID</th>
                                             <th style={{ padding: '0.8rem' }}>TELEGRAM USER</th>
-                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'SİTE HESABI' : 'SITE ACCOUNT'}</th>
-                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'DURUM' : 'STATUS'}</th>
-                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'İŞLEM' : 'ACTION'}</th>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'SİTE HESABI' : (isDe ? 'KONTO' : 'SITE ACCOUNT')}</th>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'DURUM' : (isDe ? 'STATUS' : 'STATUS')}</th>
+                                            <th style={{ padding: '0.8rem' }}>{isTr ? 'İŞLEM' : (isDe ? 'AKTION' : 'ACTION')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -1494,7 +1502,7 @@ const SupportStaffDesk = ({
                                                             border: `1px solid ${op.active ? '#10b981' : '#ef4444'}`
                                                         }}
                                                     >
-                                                        {op.active ? (isTr ? '● AKTİF' : 'ACTIVE') : (isTr ? '○ PASİF' : 'INACTIVE')}
+                                                        {op.active ? (isTr ? '● AKTİF' : (isDe ? '● AKTIV' : 'ACTIVE')) : (isTr ? '○ PASİF' : (isDe ? '○ INAKTIV' : 'INACTIVE'))}
                                                     </button>
                                                 </td>
                                                 <td style={{ padding: '0.8rem' }}>
@@ -1511,7 +1519,7 @@ const SupportStaffDesk = ({
                                                             fontWeight: 700
                                                         }}
                                                     >
-                                                        🗑️ {isTr ? 'Sil' : 'Delete'}
+                                                        🗑️ {isTr ? 'Sil' : (isDe ? 'Löschen' : 'Delete')}
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1882,7 +1890,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         try {
             const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
             const res = await fetch(`${proxyBase}/api/analytics/strategy-performance`);
             if (res.ok) {
                 const data = await res.json();
@@ -1978,7 +1986,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
 
     const getProxyBase = () => (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'http://localhost:3001'
-        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+        : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
     const getAdminHeaders = () => {
         let token = '';
@@ -2506,7 +2514,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
             fetchUpgradeRequests();
         } catch (err) {
             console.error(err);
-            setStatus({ type: 'error', message: 'Hata oluştu' });
+            setStatus({ type: 'error', message: lang === 'tr' ? 'Hata oluştu' : (lang === 'de' ? 'Ein Fehler ist aufgetreten' : 'An error occurred') });
         }
     };
 
@@ -2539,7 +2547,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
             fetchUpgradeRequests();
         } catch (err) {
             console.error(err);
-            setStatus({ type: 'error', message: 'Hata oluştu' });
+            setStatus({ type: 'error', message: lang === 'tr' ? 'Hata oluştu' : (lang === 'de' ? 'Ein Fehler ist aufgetreten' : 'An error occurred') });
         }
     };
 
@@ -2879,8 +2887,10 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         return `${diffDays} ${t.days}`;
     };
 
+    const isPendingProfile = (p) => (p.status === 'pending' || p.status === 'pending_telegram' || !p.status) && !p.is_banned;
+
     const filteredProfiles = profiles.filter(p => {
-        if (activeTab === 'pending') return p.status === 'pending' || (!p.status && !p.is_banned);
+        if (activeTab === 'pending') return isPendingProfile(p);
         if (activeTab === 'active') {
             const statusInfo = getStatusInfo(p);
             return statusInfo.label === t.statusApproved;
@@ -2888,7 +2898,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
         return true;
     });
 
-    const pendingCount = profiles.filter(p => p.status === 'pending' || (!p.status && !p.is_banned)).length;
+    const pendingCount = profiles.filter(isPendingProfile).length;
 
     return (
         <div className="admin-container" style={{ color: '#fff' }}>
@@ -3269,7 +3279,9 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         <span>
                             {lang === 'tr'
                                 ? 'Bulut veritabanı beklemede. Sistem yerel/backend depolama modunda sorunsuz çalışmaktadır.'
-                                : 'Cloud database is in standby. System running in backend storage mode.'}
+                                : (lang === 'de'
+                                    ? 'Cloud-Datenbank im Standby. Das System läuft stabil im Backend-Speichermodus.'
+                                    : 'Cloud database is in standby. System running in backend storage mode.')}
                         </span>
                     </div>
                 )}
@@ -3367,7 +3379,9 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                                 <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.3rem' }}>
                                     {lang === 'tr'
                                         ? '3 Görevli (Nöbetçi, Tahsildar, Pazarlamacı) arka planda 60 saniyede bir otonom döngü yürütür.'
-                                        : '3 Agents (Sentinel, Cashier, Marketing) run background autonomous cycle every 60s.'}
+                                        : (lang === 'de'
+                                            ? '3 Agenten (Wächter, Kassierer, Marketing) führen alle 60 Sek. autonome Hintergrundzyklen aus.'
+                                            : '3 Agents (Sentinel, Cashier, Marketing) run background autonomous cycle every 60s.')}
                                 </div>
                             </div>
                             <div style={{ display: 'flex', gap: '0.6rem' }}>
@@ -4260,14 +4274,14 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                                                         gap: '4px',
                                                         transition: 'all 0.2s'
                                                     }}
-                                                    title={lang === 'tr' ? 'Paketi değiştirmek için tıkla' : 'Click to change plan'}
+                                                    title={lang === 'tr' ? 'Paketi değiştirmek için tıkla' : (lang === 'de' ? 'Klicken, um Tarif zu ändern' : 'Click to change plan')}
                                                 >
                                                     <span>{planInfo.label}</span>
                                                     <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>✏️</span>
                                                 </button>
                                             </td>
                                             <td style={{ padding: '1rem', fontSize: '0.85rem' }}>
-                                                {profile.subscription_end ? new Date(profile.subscription_end).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                                                {profile.subscription_end ? new Date(profile.subscription_end).toLocaleString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                                             </td>
                                             <td style={{ padding: '1rem', fontSize: '0.85rem', fontWeight: 700 }}>
                                                 {getRemainingDays(profile.subscription_end)}
@@ -4296,7 +4310,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                                                         <button
                                                             onClick={() => setEditingUser(profile.id)}
                                                             style={{ background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.35)', padding: '0.4rem 0.8rem', borderRadius: '6px', color: '#38bdf8', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                            title={lang === 'tr' ? 'Üyelik paketini ve süresini düzenle' : 'Manage subscription and plan'}
+                                                            title={lang === 'tr' ? 'Üyelik paketini ve süresini düzenle' : (lang === 'de' ? 'Abonnement und Laufzeit anpassen' : 'Manage subscription and plan')}
                                                         >
                                                             <span>✏️</span>
                                                             <span>{t.extend} / {t.plan}</span>

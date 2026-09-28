@@ -163,90 +163,224 @@ const DE_TO_TR_MARKETS = {
     'Karten Gesamt': 'Toplam Kart'
 };
 
-function formatSingleTeam(name, isTr = true) {
-    if (!name || !isTr) return name || '';
+const DE_TO_EN_TEAMS = {
+    'Türkei': 'Turkey',
+    'Frankreich': 'France',
+    'Italien': 'Italy',
+    'Belgien': 'Belgium',
+    'Montenegro': 'Montenegro',
+    'Zypern': 'Cyprus',
+    'Ungarn': 'Hungary',
+    'Ukraine': 'Ukraine',
+    'Marokko': 'Morocco',
+    'Ägypten': 'Egypt',
+    'Slowenien': 'Slovenia',
+    'Schottland': 'Scotland',
+    'Algerien': 'Algeria',
+    'Sambia': 'Zambia',
+    'England': 'England',
+    'Kasachstan': 'Kazakhstan',
+    'Deutschland': 'Germany',
+    'Spanien': 'Spain',
+    'Niederlande': 'Netherlands',
+    'Portugal': 'Portugal',
+    'Kroatien': 'Croatia',
+    'Dänemark': 'Denmark',
+    'Schweden': 'Sweden',
+    'Schweiz': 'Switzerland',
+    'Polen': 'Poland',
+    'Serbien': 'Serbia',
+    'Bosnien': 'Bosnia and Herzegovina',
+    'Bosnien und Herzegowina': 'Bosnia and Herzegovina',
+    'Albanien': 'Albania',
+    'Griechenland': 'Greece',
+    'Tschechien': 'Czech Republic',
+    'Slowakei': 'Slovakia',
+    'Rumänien': 'Romania',
+    'Bulgarien': 'Bulgaria',
+    'Österreich': 'Austria',
+    'Norwegen': 'Norway',
+    'Finnland': 'Finland',
+    'Island': 'Iceland',
+    'Irland': 'Ireland',
+    'Nordirland': 'Northern Ireland',
+    'Wales': 'Wales',
+    'Georgien': 'Georgia',
+    'Armenien': 'Armenia',
+    'Aserbaidschan': 'Azerbaijan',
+    'Saudi-Arabien': 'Saudi Arabia',
+    'Katar': 'Qatar',
+    'Vereinigte Arabische Emirate': 'UAE',
+    'Südkorea': 'South Korea',
+    'Australien': 'Australia',
+    'Mexiko': 'Mexico',
+    'Kanada': 'Canada',
+    'Brasilien': 'Brazil',
+    'Argentinien': 'Argentina',
+    'Kolombien': 'Colombia',
+    'Südafrika': 'South Africa',
+    'Kamerun': 'Cameroon',
+    'Elfenbeinküste': 'Ivory Coast',
+    'Tunesien': 'Tunisia',
+    'DR Kongo': 'DR Congo',
+    'Kap Verde': 'Cape Verde',
+    'Nordmazedonien': 'North Macedonia',
+    'Weißrussland': 'Belarus',
+    'Litauen': 'Lithuania',
+    'Lettland': 'Latvia',
+    'Estland': 'Estonia',
+    'Luxemburg': 'Luxembourg',
+    'Färöer': 'Faroe Islands',
+    'Usbekistan': 'Uzbekistan',
+    'Jordanien': 'Jordan',
+    'Bayern München': 'Bayern Munich',
+    'Roter Stern Belgrad': 'Red Star Belgrade',
+    'Sporting Lissabon': 'Sporting CP',
+    'Inter Mailand': 'Inter Milan',
+    'AC Mailand': 'AC Milan',
+    'Juventus Turin': 'Juventus'
+};
+
+const DE_TO_EN_MARKETS = {
+    'Endergebnis SuperQuoten': 'Full Time Result (SuperOdds)',
+    'Endergebnis Super Quoten': 'Full Time Result (SuperOdds)',
+    'Endergebnis': 'Full Time Result',
+    'Sieger': 'Match Winner',
+    'Über/Unter Tore Gesamt': 'Total Goals Over/Under',
+    'Über / Unter Tore Gesamt': 'Total Goals Over/Under',
+    'Tore Gesamt': 'Total Goals',
+    'Beide Teams treffen': 'Both Teams to Score',
+    'Beide Teams treffen?': 'Both Teams to Score',
+    'Doppelte Chance': 'Double Chance',
+    'Halbzeit/Endstand': 'Half Time / Full Time',
+    'Erste Halbzeit - Endergebnis': '1st Half Result',
+    'Zweite Halbzeit - Endergebnis': '2nd Half Result',
+    'Eckbälle Gesamt': 'Total Corners',
+    'Karten Gesamt': 'Total Cards'
+};
+
+function formatSingleTeam(name, lang = 'tr') {
+    if (!name) return '';
     let clean = name.trim();
     let suffix = '';
     for (const s of [' U21', ' U19', ' U20', ' U23', ' Frauen', ' (F)']) {
         if (clean.endsWith(s)) {
-            suffix = s === ' Frauen' || s === ' (F)' ? ' Kadınlar' : s;
+            if (lang === 'tr') suffix = s === ' Frauen' || s === ' (F)' ? ' Kadınlar' : s;
+            else if (lang === 'en') suffix = s === ' Frauen' || s === ' (F)' ? ' (W)' : s;
+            else suffix = s;
             clean = clean.slice(0, -s.length).trim();
             break;
         }
     }
-    return (DE_TO_TR_TEAMS[clean] || clean) + suffix;
+    if (lang === 'tr') return (DE_TO_TR_TEAMS[clean] || clean) + suffix;
+    if (lang === 'en') return (DE_TO_EN_TEAMS[clean] || clean) + suffix;
+    return clean + suffix;
 }
 
-function formatTeamName(name, isTr = true) {
+function formatTeamName(name, lang = 'tr') {
     if (!name) return '';
-    if (!isTr) return name;
     if (name.includes(' - ')) {
         const [t1, t2] = name.split(' - ');
-        return `${formatSingleTeam(t1, isTr)} - ${formatSingleTeam(t2, isTr)}`;
+        return `${formatSingleTeam(t1, lang)} - ${formatSingleTeam(t2, lang)}`;
     }
-    return formatSingleTeam(name, isTr);
+    return formatSingleTeam(name, lang);
 }
 
-function formatLeagueName(league, isTr = true) {
-    if (!league || !isTr) return league || '';
+function formatLeagueName(league, lang = 'tr') {
+    if (!league) return '';
     const clean = league.trim();
-    if (DE_TO_TR_LEAGUES[clean]) return DE_TO_TR_LEAGUES[clean];
-    let res = clean;
-    res = res.replace(/Nations League/g, 'UEFA Uluslar Ligi')
-             .replace(/Afrika Cup Der Nationen/g, 'Afrika Uluslar Kupası')
-             .replace(/Afrika Cup der Nationen/g, 'Afrika Uluslar Kupası')
-             .replace(/Europäische Meisterschaft/g, 'Avrupa Şampiyonası')
-             .replace(/Europameisterschaft/g, 'Avrupa Şampiyonası')
-             .replace(/Weltmeisterschaft/g, 'Dünya Kupası')
-             .replace(/Qualifikationsspiele/g, 'Elemeleri')
-             .replace(/Qualifikation/g, 'Elemeleri')
-             .replace(/Freundschaftsspiele/g, 'Hazırlık Maçları');
-    return res;
+    if (lang === 'tr') {
+        if (DE_TO_TR_LEAGUES[clean]) return DE_TO_TR_LEAGUES[clean];
+        return clean.replace(/Nations League/g, 'UEFA Uluslar Ligi')
+                    .replace(/Afrika Cup Der Nationen/g, 'Afrika Uluslar Kupası')
+                    .replace(/Afrika Cup der Nationen/g, 'Afrika Uluslar Kupası')
+                    .replace(/Europäische Meisterschaft/g, 'Avrupa Şampiyonası')
+                    .replace(/Europameisterschaft/g, 'Avrupa Şampiyonası')
+                    .replace(/Weltmeisterschaft/g, 'Dünya Kupası')
+                    .replace(/Qualifikationsspiele/g, 'Elemeleri')
+                    .replace(/Qualifikation/g, 'Elemeleri')
+                    .replace(/Freundschaftsspiele/g, 'Hazırlık Maçları');
+    }
+    if (lang === 'en') {
+        return clean.replace(/Nations League/g, 'UEFA Nations League')
+                    .replace(/Afrika Cup Der Nationen - Qualifikationsspiele/g, 'Africa Cup of Nations Qualifiers')
+                    .replace(/Afrika Cup der Nationen - Qualifikation/g, 'Africa Cup of Nations Qualifiers')
+                    .replace(/Afrika Cup/g, 'Africa Cup of Nations')
+                    .replace(/Europäische Meisterschaft - Qualifikationsspiele U21/g, 'UEFA Euro U21 Qualifiers')
+                    .replace(/Europäische Meisterschaft - Qualifikationsspiele/g, 'UEFA Euro Qualifiers')
+                    .replace(/Europameisterschaft - Qualifikation/g, 'UEFA Euro Qualifiers')
+                    .replace(/Weltmeisterschaft - Qualifikation/g, 'World Cup Qualifiers')
+                    .replace(/Freundschaftsspiele/g, 'Friendlies')
+                    .replace(/Internationale Freundschaftsspiele/g, 'International Friendlies')
+                    .replace(/Qualifikationsspiele/g, 'Qualifiers')
+                    .replace(/Qualifikation/g, 'Qualifiers');
+    }
+    return clean;
 }
 
-function formatMarketName(market, isTr = true) {
-    if (!market || !isTr) return market || '';
+function formatMarketName(market, lang = 'tr') {
+    if (!market) return '';
     const clean = market.trim();
-    if (DE_TO_TR_MARKETS[clean]) return DE_TO_TR_MARKETS[clean];
-    let res = clean;
-    res = res.replace(/Endergebnis SuperQuoten/g, 'Maç Sonucu (Süper Oran)')
-             .replace(/Endergebnis/g, 'Maç Sonucu')
-             .replace(/Über\/Unter Tore Gesamt/g, 'Toplam Gol Alt/Üst')
-             .replace(/Über \/ Unter Tore Gesamt/g, 'Toplam Gol Alt/Üst')
-             .replace(/Tore Gesamt/g, 'Toplam Gol')
-             .replace(/Beide Teams treffen/g, 'Karşılıklı Gol');
-    return res;
+    if (lang === 'tr') {
+        if (DE_TO_TR_MARKETS[clean]) return DE_TO_TR_MARKETS[clean];
+        return clean.replace(/Endergebnis SuperQuoten/g, 'Maç Sonucu (Süper Oran)')
+                    .replace(/Endergebnis/g, 'Maç Sonucu')
+                    .replace(/Über\/Unter Tore Gesamt/g, 'Toplam Gol Alt/Üst')
+                    .replace(/Über \/ Unter Tore Gesamt/g, 'Toplam Gol Alt/Üst')
+                    .replace(/Tore Gesamt/g, 'Toplam Gol')
+                    .replace(/Beide Teams treffen/g, 'Karşılıklı Gol');
+    }
+    if (lang === 'en') {
+        if (DE_TO_EN_MARKETS[clean]) return DE_TO_EN_MARKETS[clean];
+        return clean.replace(/Über\/Unter Tore Gesamt/g, 'Total Goals Over/Under')
+                    .replace(/Über \/ Unter Tore Gesamt/g, 'Total Goals Over/Under')
+                    .replace(/Tore Gesamt/g, 'Total Goals')
+                    .replace(/Beide Teams treffen/g, 'Both Teams to Score');
+    }
+    return clean;
 }
 
-function formatSelectionName(sel, leg = {}, isTr = true) {
-    if (!sel || !isTr) return sel || '';
+function formatSelectionName(sel, leg = {}, lang = 'tr') {
+    if (!sel) return '';
     const clean = sel.trim();
-    if (clean === 'Über 0.5') return '0.5 Gol Üst';
-    if (clean === 'Über 1.5') return '1.5 Gol Üst';
-    if (clean === 'Über 2.5') return '2.5 Gol Üst';
-    if (clean === 'Über 3.5') return '3.5 Gol Üst';
-    if (clean === 'Unter 0.5') return '0.5 Gol Alt';
-    if (clean === 'Unter 1.5') return '1.5 Gol Alt';
-    if (clean === 'Unter 2.5') return '2.5 Gol Alt';
-    if (clean === 'Unter 3.5') return '3.5 Gol Alt';
-    if (clean.startsWith('Über ')) return clean.replace('Über ', '') + ' Gol Üst';
-    if (clean.startsWith('Unter ')) return clean.replace('Unter ', '') + ' Gol Alt';
-    if (clean.toLowerCase().includes('unentschieden')) return 'Beraberlik (X)';
-    if (clean === 'Ja') return 'Evet (KG Var)';
-    if (clean === 'Nein') return 'Hayır (KG Yok)';
+    if (lang === 'tr') {
+        if (clean === 'Über 0.5') return '0.5 Gol Üst';
+        if (clean === 'Über 1.5') return '1.5 Gol Üst';
+        if (clean === 'Über 2.5') return '2.5 Gol Üst';
+        if (clean === 'Über 3.5') return '3.5 Gol Üst';
+        if (clean === 'Unter 0.5') return '0.5 Gol Alt';
+        if (clean === 'Unter 1.5') return '1.5 Gol Alt';
+        if (clean === 'Unter 2.5') return '2.5 Gol Alt';
+        if (clean === 'Unter 3.5') return '3.5 Gol Alt';
+        if (clean.startsWith('Über ')) return clean.replace('Über ', '') + ' Gol Üst';
+        if (clean.startsWith('Unter ')) return clean.replace('Unter ', '') + ' Gol Alt';
+        if (clean.toLowerCase().includes('unentschieden')) return 'Beraberlik (X)';
+        if (clean === 'Ja') return 'Evet (KG Var)';
+        if (clean === 'Nein') return 'Hayır (KG Yok)';
+    } else if (lang === 'en') {
+        if (clean.startsWith('Über ')) return clean.replace('Über ', 'Over ');
+        if (clean.startsWith('Unter ')) return clean.replace('Unter ', 'Under ');
+        if (clean.toLowerCase().includes('unentschieden')) return 'Draw (X)';
+        if (clean === 'Ja') return 'Yes (BTTS)';
+        if (clean === 'Nein') return 'No (BTTS)';
+    } else {
+        if (clean.toLowerCase().includes('unentschieden')) return 'Unentschieden (X)';
+        if (clean === 'Ja') return 'Ja (BTTS)';
+        if (clean === 'Nein') return 'Nein (BTTS)';
+    }
 
     const home = leg.home || (leg.event_name ? leg.event_name.split(' - ')[0] : '');
     const away = leg.away || (leg.event_name ? leg.event_name.split(' - ')[1] : '');
     if (home && (clean.toLowerCase() === home.toLowerCase() || DE_TO_TR_TEAMS[clean] === home)) {
-        return `${formatSingleTeam(clean, isTr)} (MS 1)`;
+        return `${formatSingleTeam(clean, lang)} (${lang === 'tr' ? 'MS 1' : '1'})`;
     }
     if (away && (clean.toLowerCase() === away.toLowerCase() || DE_TO_TR_TEAMS[clean] === away)) {
-        return `${formatSingleTeam(clean, isTr)} (MS 2)`;
+        return `${formatSingleTeam(clean, lang)} (${lang === 'tr' ? 'MS 2' : '2'})`;
     }
-    return formatSingleTeam(clean, isTr);
+    return formatSingleTeam(clean, lang);
 }
 
-function formatTimeAgo(timestamp, isTr) {
+function formatTimeAgo(timestamp, lang = 'tr') {
     if (!timestamp) return '';
     try {
         const date = new Date(timestamp);
@@ -260,13 +394,13 @@ function formatTimeAgo(timestamp, isTr) {
         const timeStr = `${hours}:${minutes}`;
 
         if (diffMins < 2) {
-            return `${timeStr} (${isTr ? 'Az önce' : 'Gerade'})`;
+            return `${timeStr} (${lang === 'tr' ? 'Az önce' : lang === 'de' ? 'Gerade' : 'Just now'})`;
         }
         if (diffMins < 60) {
-            return `${timeStr} (${diffMins} ${isTr ? 'dk önce' : 'Min'})`;
+            return `${timeStr} (${diffMins} ${lang === 'tr' ? 'dk önce' : lang === 'de' ? 'Min' : 'min ago'})`;
         }
         const diffHours = Math.floor(diffMins / 60);
-        return `${timeStr} (${diffHours} ${isTr ? 'sa önce' : 'Std'})`;
+        return `${timeStr} (${diffHours} ${lang === 'tr' ? 'sa önce' : lang === 'de' ? 'Std' : 'hrs ago'})`;
     } catch {
         return '';
     }
@@ -291,7 +425,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
         try {
             if (forceRefresh) setRefreshing(true);
             const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-            const proxyBase = import.meta.env?.VITE_API_BASE_URL || (isLocal ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
+            const proxyBase = import.meta.env?.VITE_API_BASE_URL || (isLocal ? 'http://localhost:3001' : 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
             const url = `${proxyBase}/api/betano/cards${forceRefresh ? '?refresh=1&t=' + Date.now() : ''}`;
             const res = await fetch(url);
             if (res.ok) {
@@ -407,8 +541,8 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                     alignItems: 'center',
                                     gap: '3px',
                                     letterSpacing: '0.2px'
-                                }} title={`Son Tarama: ${lastScrapedTime}`}>
-                                    ⏱️ {formatTimeAgo(lastScrapedTime, isTr)}
+                                }} title={isTr ? `Son Tarama: ${lastScrapedTime}` : isDe ? `Letzter Scan: ${lastScrapedTime}` : `Last Scraped: ${lastScrapedTime}`}>
+                                    ⏱️ {formatTimeAgo(lastScrapedTime, lang)}
                                 </span>
                             )}
                         </div>
@@ -428,7 +562,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                     <button
                         onClick={() => fetchBetanoCards(true)}
                         disabled={refreshing}
-                        title={isTr ? 'Verileri Betano API üzerinden anlık güncelle' : 'Daten jetzt aktualisieren'}
+                        title={isTr ? 'Verileri Betano API üzerinden anlık güncelle' : isDe ? 'Daten jetzt über Betano API aktualisieren' : 'Refresh live data via Betano API'}
                         style={{
                             padding: isMobile ? '0.45rem 0.65rem' : '0.55rem 1rem',
                             borderRadius: '10px',
@@ -447,7 +581,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                         <span className={refreshing ? 'spin-anim' : ''} style={{ display: 'inline-block', lineHeight: 1 }}>
                             🔄
                         </span>
-                        {!isMobile && (refreshing ? (isTr ? 'Taranıyor...' : 'Laden...') : (isTr ? 'Yenile' : 'Aktualisieren'))}
+                        {!isMobile && (refreshing ? (isTr ? 'Taranıyor...' : isDe ? 'Laden...' : 'Scanning...') : (isTr ? 'Yenile' : isDe ? 'Aktualisieren' : 'Refresh'))}
                     </button>
 
                     {onClose && (
@@ -524,7 +658,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis'
                                 }}>
-                                    🔥 {isMobile ? `${idx + 1}. Kupon` : (isTr ? `Günün Kuponu #${idx + 1}` : `Trend #${idx + 1}`)}
+                                    🔥 {isMobile ? `${idx + 1}. ${isTr ? 'Kupon' : isDe ? 'Schein' : 'Slip'}` : (isTr ? `Günün Kuponu #${idx + 1}` : isDe ? `Trend-Kombi #${idx + 1}` : `Trend Acca #${idx + 1}`)}
                                 </span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
                                     <span style={{
@@ -559,11 +693,11 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                 {loading ? (
                     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#94a3b8' }}>
                         <div style={{ fontSize: '2rem', marginBottom: '0.8rem' }}>🔥</div>
-                        <p>{isTr ? 'Global trend piyasalarından günün sıcak seçimleri taranıyor...' : 'Lade Trend-Picks...'}</p>
+                        <p>{isTr ? 'Global trend piyasalarından günün sıcak seçimleri taranıyor...' : isDe ? 'Lade globale Trend-Picks...' : 'Scanning global trend markets for hot picks...'}</p>
                     </div>
                 ) : !activeCard ? (
                     <div style={{ padding: '3rem 0', textAlign: 'center', color: '#94a3b8' }}>
-                        <p>{isTr ? 'Şu anda taranan sıcak seçim bulunamadı.' : 'Keine Daten gefunden.'}</p>
+                        <p>{isTr ? 'Şu anda taranan sıcak seçim bulunamadı.' : isDe ? 'Keine aktuellen Trend-Picks gefunden.' : 'No active hot picks found at the moment.'}</p>
                     </div>
                 ) : (
                     <div>
@@ -582,13 +716,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
                                 <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Kupon Oranı' : 'Kombi-Quote'}
+                                    {isTr ? 'Kupon Oranı' : isDe ? 'Kombi-Quote' : 'Acca Odds'}
                                 </div>
                                 <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: '#f97316', marginTop: '0.2rem' }}>
                                     @{activeCard.total_odds}
                                 </div>
                                 <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>
-                                    {activeCard.events_count} {isTr ? 'Maç Kombine' : 'Spiele'}
+                                    {activeCard.events_count} {isTr ? 'Maç Kombine' : isDe ? 'Spiele' : 'Legs'}
                                 </div>
                             </div>
 
@@ -600,13 +734,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
                                 <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Gerçek Şans' : 'Echte Gewinnchance'}
+                                    {isTr ? 'Gerçek Şans' : isDe ? 'Echte Gewinnchance' : 'True Probability'}
                                 </div>
                                 <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: metrics.true_win_prob_pct < 8 ? '#ef4444' : '#10b981', marginTop: '0.2rem' }}>
                                     %{metrics.true_win_prob_pct}
                                 </div>
                                 <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>
-                                    {isTr ? 'Kümülatif ihtimal' : 'Wahrscheinlichkeit'}
+                                    {isTr ? 'Kümülatif ihtimal' : isDe ? 'Wahrscheinlichkeit' : 'Compounded probability'}
                                 </div>
                             </div>
 
@@ -618,13 +752,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
                                 <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Kasa Marjı (Vig)' : 'Marge (Vig)'}
+                                    {isTr ? 'Kasa Marjı (Vig)' : isDe ? 'Marge (Vig)' : 'Bookmaker Margin (Vig)'}
                                 </div>
                                 <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: '#f59e0b', marginTop: '0.2rem' }}>
                                     %{metrics.compounded_vig_pct}
                                 </div>
                                 <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem' }}>
-                                    {isTr ? 'Katlanan büro kârı' : 'Kumulierte Marge'}
+                                    {isTr ? 'Katlanan büro kârı' : isDe ? 'Kumulierte Marge' : 'Compounded profit'}
                                 </div>
                             </div>
 
@@ -636,13 +770,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 padding: isMobile ? '0.7rem 0.85rem' : '1rem 1.2rem'
                             }}>
                                 <div style={{ fontSize: isMobile ? '0.62rem' : '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>
-                                    {isTr ? 'Tuzak Riski' : 'Fallen-Risiko'}
+                                    {isTr ? 'Tuzak Riski' : isDe ? 'Fallen-Risiko' : 'Trap Risk'}
                                 </div>
                                 <div style={{ fontSize: isMobile ? '1.35rem' : '1.6rem', fontWeight: 900, color: metrics.trap_score >= 65 ? '#ef4444' : '#10b981', marginTop: '0.2rem' }}>
                                     {metrics.trap_score} <span style={{ fontSize: '0.75rem', color: '#64748b' }}>/ 100</span>
                                 </div>
                                 <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: '0.1rem', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {metrics.verdict_code === 'HIGH_TRAP' ? (isTr ? '⚠️ Yüksek Risk' : 'Hohes Risiko') : metrics.verdict_code === 'LOW_RISK' ? (isTr ? '✅ Düşük Risk' : 'Niedrig') : (isTr ? '⚡ Seçici Değer' : 'Selektiv')}
+                                    {metrics.verdict_code === 'HIGH_TRAP' ? (isTr ? '⚠️ Yüksek Risk' : isDe ? '⚠️ Hohes Risiko' : '⚠️ High Risk') : metrics.verdict_code === 'LOW_RISK' ? (isTr ? '✅ Düşük Risk' : isDe ? '✅ Geringes Risiko' : '✅ Low Risk') : (isTr ? '⚡ Seçici Değer' : isDe ? '⚡ Selektiver Value' : '⚡ Selective Value')}
                                 </div>
                             </div>
                         </div>
@@ -679,13 +813,13 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                     </div>
                                     <div style={{ minWidth: 0 }}>
                                         <div style={{ fontSize: isMobile ? '0.62rem' : '0.68rem', fontWeight: 900, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
-                                            {isTr ? 'KOMBİDEN AYIKLANAN DEĞERLİ TEKLİ SEÇİM' : 'SELEKTIERTER VALUE-TIPP'}
+                                            {isTr ? 'KOMBİDEN AYIKLANAN DEĞERLİ TEKLİ SEÇİM' : isDe ? 'SELEKTIERTER VALUE-EINZELTIPP' : 'EXTRACTED VALUE SINGLE PICK'}
                                         </div>
                                         <div style={{ fontSize: isMobile ? '0.95rem' : '1.1rem', fontWeight: 900, color: '#fff', marginTop: '0.15rem' }}>
-                                            {formatTeamName(diamondPick.event_name, isTr)}
+                                            {formatTeamName(diamondPick.event_name, lang)}
                                         </div>
                                         <div style={{ fontSize: isMobile ? '0.72rem' : '0.8rem', color: '#94a3b8', marginTop: '0.15rem' }}>
-                                            <span style={{ color: '#cbd5e1' }}>[{formatLeagueName(diamondPick.league, isTr)}]</span> &bull; {formatMarketName(diamondPick.market, isTr)}: <strong style={{ color: '#10b981' }}>{formatSelectionName(diamondPick.selection, diamondPick, isTr)}</strong>
+                                            <span style={{ color: '#cbd5e1' }}>[{formatLeagueName(diamondPick.league, lang)}]</span> &bull; {formatMarketName(diamondPick.market, lang)}: <strong style={{ color: '#10b981' }}>{formatSelectionName(diamondPick.selection, diamondPick, lang)}</strong>
                                         </div>
                                     </div>
                                 </div>
@@ -693,10 +827,10 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.8rem', width: isMobile ? '100%' : 'auto', paddingTop: isMobile ? '0.3rem' : 0, borderTop: isMobile ? '1px solid rgba(16, 185, 129, 0.15)' : 'none' }}>
                                     <div>
                                         <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 700 }}>
-                                            {isTr ? 'Oynanma / Popülerlik' : 'Gespielt'}
+                                            {isTr ? 'Oynanma / Popülerlik' : isDe ? 'Beliebtheit / Tipps' : 'Popularity / Volume'}
                                         </div>
                                         <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#cbd5e1' }}>
-                                            🔥 {diamondPick.selection_count}+ {isTr ? 'Kişi Oynadı' : 'Tipps'}
+                                            🔥 {diamondPick.selection_count}+ {isTr ? 'Kişi Oynadı' : isDe ? 'Tipps' : 'Picks'}
                                         </div>
                                     </div>
                                     <div style={{
@@ -717,7 +851,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                         {/* All Legs Table */}
                         <div style={{ marginBottom: isMobile ? '1rem' : '1.5rem' }}>
                             <div style={{ fontSize: isMobile ? '0.8rem' : '0.85rem', fontWeight: 900, color: '#cbd5e1', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span>📋</span> {isTr ? 'Kuponun Tüm Maçları & Risk Süzgeci' : 'Alle Kombi-Auswahlen & Risiko-Filter'}
+                                <span>📋</span> {isTr ? 'Kuponun Tüm Maçları & Risk Süzgeci' : isDe ? 'Alle Kombi-Auswahlen & Risiko-Audit' : 'All Acca Legs & Risk Filter'}
                             </div>
 
                             <div style={{
@@ -769,10 +903,10 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                                 </div>
                                                 <div style={{ minWidth: 0 }}>
                                                     <div style={{ fontSize: isMobile ? '0.82rem' : '0.9rem', fontWeight: 800, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                        {formatTeamName(leg.event_name, isTr)}
+                                                        {formatTeamName(leg.event_name, lang)}
                                                     </div>
                                                     <div style={{ fontSize: isMobile ? '0.68rem' : '0.72rem', color: '#94a3b8', marginTop: '0.1rem' }}>
-                                                        <span style={{ color: '#64748b' }}>[{formatLeagueName(leg.league, isTr)}]</span> &bull; {formatMarketName(leg.market, isTr)}: <strong style={{ color: isDiamond ? '#10b981' : isTrap ? '#f87171' : '#e2e8f0' }}>{formatSelectionName(leg.selection, leg, isTr)}</strong>
+                                                        <span style={{ color: '#64748b' }}>[{formatLeagueName(leg.league, lang)}]</span> &bull; {formatMarketName(leg.market, lang)}: <strong style={{ color: isDiamond ? '#10b981' : isTrap ? '#f87171' : '#e2e8f0' }}>{formatSelectionName(leg.selection, leg, lang)}</strong>
                                                     </div>
                                                 </div>
                                             </div>
@@ -789,11 +923,11 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                                                         border: isDiamond ? '1px solid rgba(16, 185, 129, 0.4)' : isTrap ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid rgba(245, 158, 11, 0.3)',
                                                         whiteSpace: 'nowrap'
                                                     }}>
-                                                        {isDiamond ? (isTr ? '💎 CEVHER' : '💎 VALUE') : isTrap ? (isTr ? '⚠️ TUZAK' : '⚠️ FALLE') : (isTr ? 'ORTA' : 'MITTEL')}
+                                                        {isDiamond ? (isTr ? '💎 CEVHER' : isDe ? '💎 VALUE' : '💎 VALUE') : isTrap ? (isTr ? '⚠️ TUZAK' : isDe ? '⚠️ FALLE' : '⚠️ TRAP') : (isTr ? 'ORTA' : isDe ? 'MITTEL' : 'NEUTRAL')}
                                                     </span>
                                                     {leg.selection_count > 0 && !isMobile && (
                                                         <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                                            {leg.selection_count} Oynanma
+                                                            {leg.selection_count} {isTr ? 'Oynanma' : isDe ? 'Tipps' : 'Picks'}
                                                         </div>
                                                     )}
                                                 </div>
@@ -825,10 +959,12 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                             color: '#cbd5e1',
                             lineHeight: 1.45
                         }}>
-                            💡 <strong style={{ color: '#f97316' }}>{isTr ? 'Quant Kasa Yönetimi Kuralı:' : 'Quant-Regel:'}</strong>{' '}
+                            💡 <strong style={{ color: '#f97316' }}>{isTr ? 'Quant Kasa Yönetimi Kuralı:' : isDe ? 'Quant Bankroll-Regel:' : 'Quant Bankroll Rule:'}</strong>{' '}
                             {isTr
                                 ? 'Bahis büroları 5 maçlık kuponları kasanın matematiksel kar marjını %24\'e katlamak için vitrine koyar. Kuponu olduğu gibi 5 maç oynamak tek maçtan yatma riskini %96\'ya çıkarır. Yalnızca yukarıda 💎 Cevher olarak ayıklanan seçimi tekli veya maksimum ikili olarak kasanıza ekleyin.'
-                                : 'Buchmacher nutzen 5er-Kombis, um ihre Marge auf 24% zu vervierfachen. Spielen Sie den Wettschein niemals als Ganzes nach. Nutzen Sie ausschließlich den selektierten 💎 Value-Tipp.'}
+                                : isDe
+                                ? 'Buchmacher nutzen 5er-Kombis, um ihre Marge auf 24% zu vervierfachen. Spielen Sie den Wettschein niemals als Ganzes nach. Nutzen Sie ausschließlich den selektierten 💎 Value-Tipp.'
+                                : 'Bookmakers showcase 5-leg accumulators to compound their mathematical profit margin to 24%+. Betting the full slip increases the chance of losing by a single leg to 96%. Only bet the highlighted 💎 Value Pick as a single or maximum double in your bankroll.'}
                         </div>
                     </div>
                 )}

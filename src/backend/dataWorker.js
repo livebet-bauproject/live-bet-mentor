@@ -110,7 +110,7 @@ class DataWorker {
         return isNaN(num) ? 0 : num;
     }
 
-    async generateGlobalIntelligence(type = 'LIVE') {
+    async generateGlobalIntelligence(type = 'LIVE', lang = 'tr') {
         let candidates = [];
         if (type === 'LIVE') {
             const allLive = (this.fixtures || []).map(f => ({
@@ -145,12 +145,20 @@ class DataWorker {
 
         if (candidates.length === 0 && type === 'LIVE') {
             return JSON.stringify({
-                report_summary: "Nexus Quant Core™ küresel canlı fikstürü taradı. Şu an sahada incelenebilecek aktif canlı veri akışı bulunmamaktadır.",
+                report_summary: lang === 'tr'
+                    ? "Nexus Quant Core™ küresel canlı fikstürü taradı. Şu an sahada incelenebilecek aktif canlı veri akışı bulunmamaktadır."
+                    : (lang === 'de'
+                        ? "Nexus Quant Core™ hat den globalen Live-Spielplan gescannt. Derzeit ist kein aktiver Live-Datenstrom zur Analyse verfügbar."
+                        : "Nexus Quant Core™ scanned the global live fixture list. No active on-pitch telemetry stream is currently available."),
                 golden_picks: [],
                 strategic_combo: null,
-                avoid_list: ["Şu an taranan karşılaşma yok veya lig devreleri kapalı."],
+                avoid_list: [lang === 'tr' ? "Şu an taranan karşılaşma yok veya lig devreleri kapalı." : (lang === 'de' ? "Derzeit keine Spiele im Scan oder Spielpausen aktiv." : "No active matches scanned or league intervals underway.")],
                 value_picks: [],
-                discipline_note: "Canlı piyasada aktif veri olmadığında sermayenizi koruyun; körleme bahis almayın."
+                discipline_note: lang === 'tr'
+                    ? "Canlı piyasada aktif veri olmadığında sermayenizi koruyun; körleme bahis almayın."
+                    : (lang === 'de'
+                        ? "Schützen Sie Ihr Kapital bei fehlenden Live-Daten; platzieren Sie keine Blindwetten."
+                        : "Preserve capital when live data is unavailable; never take blind positions.")
             });
         }
 
@@ -161,7 +169,7 @@ class DataWorker {
             consensusReport: c.consensusReport || consensusAdapter.getConsensusSummary(this.consensusData, c)
         }));
 
-        return await aiAnalystService.getGlobalIntelligenceReport(enhancedCandidates, type);
+        return await aiAnalystService.getGlobalIntelligenceReport(enhancedCandidates, type, lang);
     }
 
     setApiKey(key) {

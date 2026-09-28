@@ -1995,24 +1995,45 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
         const members = loadMembers();
         let member = members.find(m => m.email === cleanEmail);
 
+        const now = new Date();
+        const trialDays = 3;
+        const trialEnd = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+
         if (member) {
             if (member.status === 'approved') {
                 return res.status(400).json({
                     error: 'Bu e-posta adresi zaten kayıtlıdır. Lütfen giriş yapınız.'
                 });
             }
-            if (member.status === 'pending_telegram') {
+            if (member.status === 'pending_telegram' || member.status === 'pending') {
+                member.status = 'approved';
+                member.subscription_start = now.toISOString();
+                member.subscription_end = trialEnd.toISOString();
+                member.approved_at = now.toISOString();
+                if (password && !member.password) {
+                    const hashed = hashPassword(password);
+                    member.password = hashed.hash;
+                    member.salt = hashed.salt;
+                }
+                saveMembers(members);
+
+                const sessionToken = generateSecureToken({
+                    id: member.id,
+                    email: member.email,
+                    role: 'member',
+                    plan: member.plan || 'trial'
+                }, JWT_SECRET);
+
                 return res.json({
                     success: true,
-                    pendingVerification: true,
-                    trialCode: member.trial_code,
-                    botUsername: telegramBot.botUsername || process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot',
-                    email: cleanEmail
+                    user: sanitizeMember(member),
+                    token: sessionToken,
+                    access_token: sessionToken,
+                    message: 'Hesabınız onaylandı ve 3 günlük denemeniz başlatıldı!'
                 });
             }
         }
 
-        const now = new Date();
         let hashedPassword = '';
         let userSalt = '';
         if (password) {
@@ -2029,12 +2050,15 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
             email: cleanEmail,
             password: hashedPassword,
             salt: userSalt,
-            full_name: fullName || '',
+            full_name: fullName || cleanEmail.split('@')[0],
             phone: phone || '',
-            status: 'pending_telegram',
+            status: 'approved',
             plan: plan || 'trial',
             trial_code: trialCode,
             trial_code_created: now.toISOString(),
+            subscription_start: now.toISOString(),
+            subscription_end: trialEnd.toISOString(),
+            approved_at: now.toISOString(),
             deviceId: deviceId || null,
             ip: clientIp,
             created_at: now.toISOString()
@@ -2047,20 +2071,32 @@ app.post('/api/members/register', authRateLimiter, async (req, res) => {
             deviceTrials[deviceId] = {
                 email: cleanEmail,
                 registeredAt: now.toISOString(),
-                status: 'pending_telegram'
+                trialEnd: trialEnd.toISOString(),
+                status: 'approved'
             };
             saveDeviceTrials(deviceTrials);
         }
 
-        console.log(`[MEMBERS] New registration pending Telegram activation: ${cleanEmail} -> Code: ${trialCode}`);
+        const sessionToken = generateSecureToken({
+            id: member.id,
+            email: member.email,
+            role: 'member',
+            plan: member.plan || 'trial'
+        }, JWT_SECRET);
+
+        const safeUser = sanitizeMember(member);
+
+        console.log(`[MEMBERS] New member registered with instant 3-day trial: ${cleanEmail}`);
 
         res.json({
             success: true,
-            pendingVerification: true,
+            user: safeUser,
+            token: sessionToken,
+            access_token: sessionToken,
             trialCode,
             botUsername: telegramBot.botUsername || process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot',
             email: cleanEmail,
-            message: 'Hesabınız oluşturuldu. 3 günlük denemeyi başlatmak için lütfen Telegram botunu onaylayın.'
+            message: '3 günlük ücretsiz VIP deneme süreniz başarıyla başlatıldı!'
         });
     } catch (e) {
         console.error('[MEMBERS] Register error:', e.message);
@@ -2201,15 +2237,17 @@ app.post('/api/members/login', authRateLimiter, (req, res) => {
         }, JWT_SECRET);
 
         if (member.status === 'pending_telegram') {
-            return res.json({
-                success: true,
-                status: 'pending_telegram',
-                pendingVerification: true,
-                trialCode: member.trial_code,
-                botUsername: telegramBot.botUsername || process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot',
-                email: member.email,
-                user: safeUser
-            });
+            // Auto-upgrade pending trial to approved 3-day trial so user is never locked out
+            const now = new Date();
+            const trialEnd = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+            member.status = 'approved';
+            member.subscription_start = member.subscription_start || now.toISOString();
+            member.subscription_end = member.subscription_end || trialEnd.toISOString();
+            member.approved_at = member.approved_at || now.toISOString();
+            saveMembers(members);
+            safeUser.status = 'approved';
+            safeUser.subscription_start = member.subscription_start;
+            safeUser.subscription_end = member.subscription_end;
         }
 
         if (member.status === 'pending') {
@@ -2957,7 +2995,7 @@ app.post('/api/members/delete', (req, res) => {
 
         // 2. Remove member from web_members.json
         members = members.filter(m => !((id && m.id === id) || (cleanEmail && m.email && m.email.trim().toLowerCase() === cleanEmail)));
-        saveMembers(members);
+        saveMembers(members, true, true);
 
         console.log(`[MEMBERS] Member deleted & all trial/device locks purged: id=${id}, email=${cleanEmail}`);
 
@@ -4555,6 +4593,73 @@ function startBetanoScraper() {
     setInterval(runBetano, 15 * 60 * 1000); // Autonomous scrape every 15 minutes
 }
 
+// --- CLOUDFLARE TUNNEL (Expose local proxy to public internet for Vercel) ---
+let tunnelProcess = null;
+let currentTunnelUrl = 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
+
+function startCloudflareTunnel() {
+    const isWindows = process.platform === 'win32';
+    const cfBinary = path.join(__dirname, 'bin', isWindows ? 'cloudflared.exe' : 'cloudflared');
+
+    if (!fs.existsSync(cfBinary)) {
+        console.log('[TUNNEL] Cloudflare binary not found in server/bin/, skipping tunnel start.');
+        return;
+    }
+
+    console.log(`[TUNNEL] 🚀 Launching Cloudflare Tunnel on port ${PORT}...`);
+    try {
+        tunnelProcess = spawn(cfBinary, ['tunnel', '--url', `http://localhost:${PORT}`], {
+            stdio: ['ignore', 'pipe', 'pipe']
+        });
+
+        const handleTunnelOutput = async (data) => {
+            const text = data.toString();
+            const match = text.match(/https:\/\/[a-zA-Z0-9-]+\.trycloudflare\.com/);
+            if (match && match[0]) {
+                const tunnelUrl = match[0];
+                if (tunnelUrl !== currentTunnelUrl) {
+                    currentTunnelUrl = tunnelUrl;
+                    console.log(`[TUNNEL] 🌐 Cloudflare Tunnel is LIVE: ${tunnelUrl}`);
+                    try {
+                        fs.writeFileSync(path.join(__dirname, 'tunnel_url.txt'), tunnelUrl, 'utf8');
+                    } catch(e) {}
+
+                    // Publish to Supabase system_settings so Vercel frontend automatically connects
+                    try {
+                        const { createClient } = await import('@supabase/supabase-js');
+                        const supUrl = process.env.VITE_SUPABASE_URL || 'https://benbfhpxgjiqmgcruwqv.supabase.co';
+                        const supKey = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_IQJcRKgo5VaTX5QqOQx-Nw_rvlP0YLk';
+                        const supabase = createClient(supUrl, supKey);
+                        await supabase.from('system_settings').upsert({
+                            key: 'backend_api_url',
+                            value: tunnelUrl,
+                            updated_at: new Date().toISOString()
+                        });
+                        console.log(`[TUNNEL] ✅ Published active tunnel URL to Supabase system_settings!`);
+                    } catch(err) {
+                        console.warn('[TUNNEL] Notice: could not publish to Supabase:', err.message);
+                    }
+                }
+            }
+        };
+
+        tunnelProcess.stdout.on('data', handleTunnelOutput);
+        tunnelProcess.stderr.on('data', handleTunnelOutput);
+
+        tunnelProcess.on('close', (code) => {
+            console.log(`[TUNNEL] Process exited with code ${code}. Restarting in 10s...`);
+            tunnelProcess = null;
+            setTimeout(startCloudflareTunnel, 10000);
+        });
+
+        tunnelProcess.on('error', (err) => {
+            console.error('[TUNNEL] Spawn error:', err.message);
+        });
+    } catch(e) {
+        console.error('[TUNNEL] Failed to start tunnel:', e.message);
+    }
+}
+
 // --- START SERVER ---
 app.listen(PORT, '0.0.0.0', async () => {
     console.log(`[PROXY SERVER] Running on http://0.0.0.0:${PORT} (accessible from network)`);
@@ -4581,6 +4686,9 @@ app.listen(PORT, '0.0.0.0', async () => {
     autonomousOffice.start(60000);
 
     startScraper();
+    if (!IS_CLOUD) {
+        startCloudflareTunnel();
+    }
     setTimeout(() => {
         startConsensusScraper();
         startSharpPicksEngine();

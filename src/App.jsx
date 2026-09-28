@@ -4,7 +4,7 @@ import { LandingPage } from './components/LandingPage'
 import { LiveSupportChat } from './components/LiveSupportChat'
 import { supabase } from './backend/supabaseClient'
 import { translations } from './locales/translations'
-import { CONFIG } from './config'
+import { CONFIG, getApiBaseUrl } from './config'
 import { initAnalytics, trackPageView, updateAnalyticsUser, trackAnalyticsEvent } from './utils/analyticsTracker'
 import './styles/global.css'
 
@@ -16,7 +16,7 @@ const isLocal = typeof window !== 'undefined' && (
   window.location.hostname.startsWith('172.')
 );
 
-const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+const proxyBase = getApiBaseUrl();
 
 
 const resolveTelegramAdminQuickAuth = () => {
@@ -552,6 +552,11 @@ function App() {
             settingsObj[item.key] = item.value;
           });
           setSystemSettings(settingsObj);
+          if (settingsObj.backend_api_url && typeof window !== 'undefined') {
+            try {
+              localStorage.setItem('lbm_backend_api_url', settingsObj.backend_api_url);
+            } catch(e) {}
+          }
         }
       } catch (err) {
         console.warn('Could not fetch system settings:', err);

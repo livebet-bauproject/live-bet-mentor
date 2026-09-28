@@ -20,6 +20,8 @@ server/engine_signal_locks.json
 server/stats/
 server/*_stats.json
 server/stats_request.json
+server/tunnel_url.txt
+server/bin/cloudflared.exe
 src/data/mock_matches.json
 
 # Sensitive User Credentials & Local Data (Do NOT commit to git)

@@ -106,7 +106,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         window.location.hostname === '127.0.0.1' ||
         window.location.hostname.startsWith('192.168.')
     );
-    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com');
+    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
@@ -174,7 +174,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     // Bankroll portfolio remote sync and manual settlement handlers
     const handleSyncRemoteResults = async () => {
         setIsSyncingResults(true);
-        setSettlementMessage(lang === 'tr' ? '⏳ SofaScore API üzerinden biten maçlar taranıyor...' : '⏳ Scanning concluded matches via SofaScore API...');
+        setSettlementMessage(lang === 'tr' ? '⏳ SofaScore API üzerinden biten maçlar taranıyor...' : (lang === 'de' ? '⏳ Beendete Spiele werden über SofaScore API gescannt...' : '⏳ Scanning concluded matches via SofaScore API...'));
         try {
             const res = await autoSettlementEngine.settleAllOpenBetsWithRemote(matches);
             setBankState(bankrollManager.getState());
@@ -182,17 +182,21 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 setSettlementMessage(
                     lang === 'tr' 
                         ? `✅ ${res.settledCount} biten maç tespit edildi ve sonuçlandırıldı.` 
-                        : `✅ ${res.settledCount} finished match(es) detected and settled.`
+                        : (lang === 'de'
+                            ? `✅ ${res.settledCount} beendete(s) Spiel(e) ausgewertet.`
+                            : `✅ ${res.settledCount} finished match(es) detected and settled.`)
                 );
             } else {
                 setSettlementMessage(
                     lang === 'tr' 
                         ? 'ℹ️ Bekleyen maçlar henüz tamamlanmadı veya canlı listeden silinmiş. Aşağıdaki butonlarla manuel sonuçlandırabilirsiniz.' 
-                        : 'ℹ️ Pending matches are not finished yet. You can manually settle them below.'
+                        : (lang === 'de'
+                            ? 'ℹ️ Ausstehende Spiele sind noch nicht beendet. Sie können unten manuell abrechnen.'
+                            : 'ℹ️ Pending matches are not finished yet. You can manually settle them below.')
                 );
             }
         } catch (e) {
-            setSettlementMessage(lang === 'tr' ? '⚠️ Sonuç sorgulama sırasında hata oluştu.' : '⚠️ Error querying match results.');
+            setSettlementMessage(lang === 'tr' ? '⚠️ Sonuç sorgulama sırasında hata oluştu.' : (lang === 'de' ? '⚠️ Fehler beim Abfragen der Spielergebnisse.' : '⚠️ Error querying match results.'));
         } finally {
             setIsSyncingResults(false);
             setTimeout(() => setSettlementMessage(''), 8000);
@@ -203,12 +207,14 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         const curStart = bankState.starting_balance || 2000;
         const confirmText = lang === 'tr' 
             ? `Sanal portföyü sıfırlamak ve ${curStart.toLocaleString()} ₺ başlangıç bakiyesine dönmek istiyor musunuz? Eski takılı kalmış tüm test işlemleri temizlenecektir.` 
-            : `Do you want to reset bankroll to ${curStart} ₺? All pending bets will be cleared.`;
+            : (lang === 'de'
+                ? `Möchten Sie das Portfolio auf ${curStart.toLocaleString()} ₺ zurücksetzen? Alle alten Testwetten werden gelöscht.`
+                : `Do you want to reset bankroll to ${curStart} ₺? All pending bets will be cleared.`);
         if (window.confirm(confirmText)) {
             bankrollManager.reset(curStart);
             autoSettlementEngine.settledCache.clear();
             setBankState(bankrollManager.getState());
-            setSettlementMessage(lang === 'tr' ? `✅ Portföy ${curStart.toLocaleString()} ₺ olarak sıfırlandı.` : `✅ Bankroll reset to ${curStart} ₺.`);
+            setSettlementMessage(lang === 'tr' ? `✅ Portföy ${curStart.toLocaleString()} ₺ olarak sıfırlandı.` : (lang === 'de' ? `✅ Portfolio auf ${curStart.toLocaleString()} ₺ zurückgesetzt.` : `✅ Bankroll reset to ${curStart} ₺.`));
             setTimeout(() => setSettlementMessage(''), 5000);
         }
     };
@@ -216,7 +222,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const handleSaveCapital = (amount, profile) => {
         bankrollManager.setInitialCapital(amount, profile);
         setBankState(bankrollManager.getState());
-        setSettlementMessage(lang === 'tr' ? `✅ Sanal portföy ${Number(amount).toLocaleString()} ₺ olarak güncellendi.` : `✅ Portfolio updated to ${amount} ₺.`);
+        setSettlementMessage(lang === 'tr' ? `✅ Sanal portföy ${Number(amount).toLocaleString()} ₺ olarak güncellendi.` : (lang === 'de' ? `✅ Virtuelles Portfolio auf ${Number(amount).toLocaleString()} ₺ aktualisiert.` : `✅ Portfolio updated to ${amount} ₺.`));
         setTimeout(() => setSettlementMessage(''), 4000);
     };
 
@@ -229,14 +235,14 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         bankrollManager.manualSettle(idOrMatchId, outcome);
         setBankState(bankrollManager.getState());
         const outcomeLabel = outcome === 'WIN' 
-            ? (lang === 'tr' ? '✅ KAZANDI' : '✅ WON') 
+            ? (lang === 'tr' ? '✅ KAZANDI' : (lang === 'de' ? '✅ GEWONNEN' : '✅ WON')) 
             : outcome === 'LOSS' 
-                ? (lang === 'tr' ? '❌ KAYBETTİ' : '❌ LOST') 
-                : (lang === 'tr' ? '↩️ İPTAL / İADE' : '↩️ VOID');
+                ? (lang === 'tr' ? '❌ KAYBETTİ' : (lang === 'de' ? '❌ VERLOREN' : '❌ LOST')) 
+                : (lang === 'tr' ? '↩️ İPTAL / İADE' : (lang === 'de' ? '↩️ STORNO / ERSTATTUNG' : '↩️ VOID'));
         setSettlementMessage(
             lang === 'tr' 
                 ? `İşlem güncellendi: ${outcomeLabel}` 
-                : `Bet updated: ${outcomeLabel}`
+                : (lang === 'de' ? `Wette aktualisiert: ${outcomeLabel}` : `Bet updated: ${outcomeLabel}`)
         );
         setTimeout(() => setSettlementMessage(''), 5000);
     };
@@ -394,7 +400,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 try {
                     const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                         ? 'http://localhost:3001'
-                        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                        : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
                     // 1. Check Backend API upgrade requests (Scoped to current user)
                     try {
@@ -660,8 +666,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         setTrendingLoading(true);
         try {
             const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const primaryBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
-            const fallbackBase = 'https://live-bet-mentor.onrender.com';
+            const primaryBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const fallbackBase = 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
 
             let res = null;
             try {
@@ -825,7 +831,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         try {
             const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
             const payload = {
                 userId: user.id,
@@ -926,7 +932,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-signal`, {
@@ -978,7 +984,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-radar`, {
@@ -1029,7 +1035,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
         setIsSendingGoldenCombo(true);
         try {
@@ -1816,7 +1822,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                                     {(currentMatch.homeTeamLogo || currentMatch.homeTeamId) && (
                                         <img
-                                            src={currentMatch.homeTeamLogo || `https://live-bet-mentor.onrender.com/api/team/${currentMatch.homeTeamId}/image`}
+                                            src={currentMatch.homeTeamLogo || `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.homeTeamId}/image`}
                                             alt=""
                                             style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(34, 197, 94, 0.4)' }}
                                             onError={e => e.target.style.display = 'none'}
@@ -1831,7 +1837,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     <span style={{ opacity: 0.35, margin: '0 4px' }}>vs</span>
                                     {(currentMatch.awayTeamLogo || currentMatch.awayTeamId) && (
                                         <img
-                                            src={currentMatch.awayTeamLogo || `https://live-bet-mentor.onrender.com/api/team/${currentMatch.awayTeamId}/image`}
+                                            src={currentMatch.awayTeamLogo || `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.awayTeamId}/image`}
                                             alt=""
                                             style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(59, 130, 246, 0.4)' }}
                                             onError={e => e.target.style.display = 'none'}
@@ -1885,8 +1891,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 points={matchGraphPoints}
                                 homeTeam={currentMatch.homeTeam}
                                 awayTeam={currentMatch.awayTeam}
-                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.homeTeamId}/image` : null)}
-                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.awayTeamId}/image` : null)}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.awayTeamId}/image` : null)}
                                 homeTeamId={currentMatch.homeTeamId}
                                 awayTeamId={currentMatch.awayTeamId}
                                 currentMinute={parseInt(currentMatch.minute) || 90}
@@ -1903,8 +1909,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 incidents={matchIncidents}
                                 homeTeam={currentMatch.homeTeam}
                                 awayTeam={currentMatch.awayTeam}
-                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.homeTeamId}/image` : null)}
-                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://live-bet-mentor.onrender.com/api/team/${currentMatch.awayTeamId}/image` : null)}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.awayTeamId}/image` : null)}
                                 currentScore={currentMatch.score}
                                 lang={lang}
                                 loading={incidentsLoading}
@@ -2105,7 +2111,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             try {
                 // 1. Try local proxy or production Render
                 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
+                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
                 try {
                     const res = await fetch(`${proxyBase}/api/odds/live`, { signal: AbortSignal.timeout(3500) });
                     if (res.ok) {
@@ -2121,7 +2127,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 // 2. If localhost was tried and failed, try Render cloud
                 if (isLocalHost) {
                     try {
-                        const cloudRes = await fetch('https://live-bet-mentor.onrender.com/api/odds/live', { signal: AbortSignal.timeout(5000) });
+                        const cloudRes = await fetch('https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/odds/live', { signal: AbortSignal.timeout(5000) });
                         if (cloudRes.ok) {
                             const data = await cloudRes.json();
                             if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
@@ -2157,7 +2163,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         const fetchAiWeights = async () => {
             try {
                 const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
+                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
                 const res = await fetch(`${proxyBase}/api/learning/weights`);
                 if (res.ok) {
                     const data = await res.json();
@@ -2328,7 +2334,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     setSettlementMessage(
                         lang === 'tr' 
                             ? `✅ ${res.settledCount} biten maç otomatik sonuçlandırıldı.` 
-                            : `✅ ${res.settledCount} concluded match(es) auto-settled.`
+                            : (lang === 'de'
+                                ? `✅ ${res.settledCount} beendete(s) Spiel(e) automatisch abgerechnet.`
+                                : `✅ ${res.settledCount} concluded match(es) auto-settled.`)
                     );
                     setTimeout(() => setSettlementMessage(''), 5000);
                 }
@@ -2546,7 +2554,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         try {
             let report = "";
             if (type === 'LIVE') {
-                report = await dataWorker.generateGlobalIntelligence('LIVE');
+                report = await dataWorker.generateGlobalIntelligence('LIVE', lang);
             } else {
                 // Pre-match logic: Selective mix for the AI "Judge"
                 const highConsensus = filteredRadarMatches.filter(m =>
@@ -2564,15 +2572,23 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
                 if (candidates.length === 0) {
                     report = JSON.stringify({
-                        report_summary: "Nexus Quant Core™: Radar bülteninde incelenebilecek maç bulunamadı. Fikstür bekleniyor.",
+                        report_summary: lang === 'tr'
+                            ? "Nexus Quant Core™: Radar bülteninde incelenebilecek maç bulunamadı. Fikstür bekleniyor."
+                            : (lang === 'de'
+                                ? "Nexus Quant Core™: Keine Spiele im Radar-Bulletin gefunden. Warte auf Spielplan."
+                                : "Nexus Quant Core™: No matches found in radar bulletin. Awaiting fixture."),
                         golden_picks: [],
                         strategic_combo: null,
-                        avoid_list: ["Şu an bültende taranan maç bulunmamaktadır."],
+                        avoid_list: [lang === 'tr' ? "Şu an bültende taranan maç bulunmamaktadır." : (lang === 'de' ? "Derzeit keine Spiele im Bulletin gescannt." : "No matches currently scanned in bulletin.")],
                         value_picks: [],
-                        discipline_note: "Kasa Disiplini: Veri akışı teyit edilmemiş karşılaşmalarda işlem açmayınız."
+                        discipline_note: lang === 'tr'
+                            ? "Kasa Disiplini: Veri akışı teyit edilmemiş karşılaşmalarda işlem açmayınız."
+                            : (lang === 'de'
+                                ? "Bankroll-Disziplin: Eröffnen Sie keine Positionen bei unbestätigten Datenströmen."
+                                : "Bankroll Discipline: Do not open positions on unverified data streams.")
                     });
                 } else {
-                    report = await aiAnalystService.getGlobalIntelligenceReport(candidates, 'PRE-MATCH');
+                    report = await aiAnalystService.getGlobalIntelligenceReport(candidates, 'PRE-MATCH', lang);
                 }
             }
 
@@ -2583,7 +2599,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         } catch (error) {
             console.error('[AI_REPORT] Generation Error:', error);
             setGlobalReport({
-                content: "Bu rapor şu an teknik bir sorun nedeniyle hazırlanamıyor. Lütfen tekrar deneyin.",
+                content: lang === 'tr'
+                    ? "Bu rapor şu an teknik bir sorun nedeniyle hazırlanamıyor. Lütfen tekrar deneyin."
+                    : (lang === 'de'
+                        ? "Dieser Bericht kann derzeit aufgrund eines technischen Problems nicht erstellt werden. Bitte versuchen Sie es erneut."
+                        : "This report cannot be generated right now due to a technical issue. Please try again."),
                 type,
                 loading: false
             });
@@ -2726,7 +2746,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                 <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
                                                     {pick.probability && (
                                                         <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>
-                                                            <span style={{ opacity: 0.6 }}>Olasılık:</span> <b style={{ color: 'var(--accent-color)' }}>%{pick.probability}</b>
+                                                            <span style={{ opacity: 0.6 }}>{lang === 'tr' ? 'Olasılık:' : (lang === 'de' ? 'Wahrsch.:' : 'Probability:')}</span> <b style={{ color: 'var(--accent-color)' }}>%{pick.probability}</b>
                                                         </div>
                                                     )}
                                                     {pick.edge && (
@@ -2735,15 +2755,15 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         </div>
                                                     )}
                                                     {pick.risk && (
-                                                        <div style={{ background: pick.risk === 'DÜŞÜK' ? 'rgba(16, 185, 129, 0.1)' : pick.risk === 'YÜKSEK' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(250, 204, 21, 0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>
-                                                            <span style={{ opacity: 0.6 }}>Risk:</span> <b style={{ color: pick.risk === 'DÜŞÜK' ? 'var(--success-color)' : pick.risk === 'YÜKSEK' ? 'var(--danger-color)' : '#facc15' }}>{pick.risk}</b>
+                                                        <div style={{ background: (pick.risk === 'DÜŞÜK' || pick.risk === 'NIEDRIG' || pick.risk === 'LOW') ? 'rgba(16, 185, 129, 0.1)' : (pick.risk === 'YÜKSEK' || pick.risk === 'HOCH' || pick.risk === 'HIGH') ? 'rgba(239, 68, 68, 0.1)' : 'rgba(250, 204, 21, 0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem' }}>
+                                                            <span style={{ opacity: 0.6 }}>{lang === 'tr' ? 'Risk:' : (lang === 'de' ? 'Risiko:' : 'Risk:')}</span> <b style={{ color: (pick.risk === 'DÜŞÜK' || pick.risk === 'NIEDRIG' || pick.risk === 'LOW') ? 'var(--success-color)' : (pick.risk === 'YÜKSEK' || pick.risk === 'HOCH' || pick.risk === 'HIGH') ? 'var(--danger-color)' : '#facc15' }}>{pick.risk}</b>
                                                         </div>
                                                     )}
                                                 </div>
 
                                                 {pick.reason && (
                                                     <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.5' }}>
-                                                        <b>Neden:</b> {pick.reason}
+                                                        <b>{lang === 'tr' ? 'Neden:' : (lang === 'de' ? 'Grund:' : 'Reason:')}</b> {pick.reason}
                                                     </div>
                                                 )}
 
@@ -2770,7 +2790,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             borderRadius: '12px',
                                             border: '1px solid rgba(167, 139, 250, 0.2)'
                                         }}>
-                                            <h6 style={{ margin: '0 0 0.5rem 0', color: '#a78bfa', fontSize: '0.8rem', fontWeight: 900 }}>🎯 STRATEJİK KOMBİNASYON</h6>
+                                            <h6 style={{ margin: '0 0 0.5rem 0', color: '#a78bfa', fontSize: '0.8rem', fontWeight: 900 }}>🎯 {lang === 'tr' ? 'STRATEJİK KOMBİNASYON' : (lang === 'de' ? 'STRATEGISCHE KOMBI' : 'STRATEGIC COMBO')}</h6>
                                             {typeof data.strategic_combo === 'string' ? (
                                                 <p style={{ margin: 0, fontSize: '0.8rem', color: '#e2e8f0' }}>{data.strategic_combo}</p>
                                             ) : (
@@ -2782,7 +2802,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         </ul>
                                                     )}
                                                     {data.strategic_combo.combined_probability && (
-                                                        <p style={{ margin: '0.3rem 0 0 0', opacity: 0.7 }}>Kombine Olasılık: %{data.strategic_combo.combined_probability}</p>
+                                                        <p style={{ margin: '0.3rem 0 0 0', opacity: 0.7 }}>{lang === 'tr' ? 'Kombine Olasılık:' : (lang === 'de' ? 'Kombi-Wahrscheinlichkeit:' : 'Combined Probability:')} %{data.strategic_combo.combined_probability}</p>
                                                     )}
                                                 </div>
                                             )}
@@ -2798,7 +2818,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             borderRadius: '12px',
                                             border: '1px solid rgba(239, 68, 68, 0.2)'
                                         }}>
-                                            <h6 style={{ margin: '0 0 0.5rem 0', color: 'var(--danger-color)', fontSize: '0.75rem', fontWeight: 900 }}>⚠️ KAÇINILMASI GEREKENLER</h6>
+                                            <h6 style={{ margin: '0 0 0.5rem 0', color: 'var(--danger-color)', fontSize: '0.75rem', fontWeight: 900 }}>⚠️ {lang === 'tr' ? 'KAÇINILMASI GEREKENLER' : (lang === 'de' ? 'ZU VERMEIDENDE SPIELE' : 'MATCHES TO AVOID')}</h6>
                                             <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.75rem', color: '#e2e8f0' }}>
                                                 {data.avoid_list.map((item, idx) => <li key={idx} style={{ marginBottom: '0.3rem' }}>{item}</li>)}
                                             </ul>
@@ -2814,7 +2834,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             borderRadius: '12px',
                                             border: '1px solid rgba(16, 185, 129, 0.2)'
                                         }}>
-                                            <h6 style={{ margin: '0 0 0.5rem 0', color: 'var(--success-color)', fontSize: '0.75rem', fontWeight: 900 }}>💎 DEĞER MAÇLARI</h6>
+                                            <h6 style={{ margin: '0 0 0.5rem 0', color: 'var(--success-color)', fontSize: '0.75rem', fontWeight: 900 }}>💎 {lang === 'tr' ? 'DEĞER MAÇLARI' : (lang === 'de' ? 'VALUE-SPIELE' : 'VALUE PICKS')}</h6>
                                             {data.value_picks.map((pick, idx) => (
                                                 <div key={idx} style={{ marginBottom: '0.5rem', fontSize: '0.75rem', color: '#e2e8f0' }}>
                                                     <b>{pick.match}</b>
@@ -3338,9 +3358,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     : isLoss 
                                                         ? `${Number(l.profit || 0).toFixed(2)} ₺` 
                                                         : isVoid 
-                                                            ? `0.00 ₺ (${lang === 'tr' ? 'İade' : 'Refund'})`
+                                                            ? `0.00 ₺ (${lang === 'tr' ? 'İade' : (lang === 'de' ? 'Storno' : 'Refund')})`
                                                             : isOpen 
-                                                                ? (lang === 'tr' ? '⏳ Bekleniyor' : '⏳ In Play') 
+                                                                ? (lang === 'tr' ? '⏳ Bekleniyor' : (lang === 'de' ? '⏳ Offen' : '⏳ In Play')) 
                                                                 : '+0.00 ₺'}
                                             </span>
                                             <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>
@@ -4314,7 +4334,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                             ? '#34d399' 
                                                             : (m.primaryBet.durationMinutes <= 15 ? '#fbbf24' : '#94a3b8'),
                                                         whiteSpace: 'nowrap'
-                                                    }} title={lang === 'tr' ? 'Bu trendin sisteme ilk girdiği andan itibaren geçen süre' : 'Time since this trend was first detected'}>
+                                                    }} title={lang === 'tr' ? 'Bu trendin sisteme ilk girdiği andan itibaren geçen süre' : (lang === 'de' ? 'Zeit seit der ersten Erkennung dieses Trends' : 'Time since this trend was first detected')}>
                                                         {m.primaryBet.durationMinutes <= 2 
                                                             ? (lang === 'tr' ? '🟢 Yeni (<2 dk)' : (lang === 'de' ? '🟢 Neu (<2 Min)' : '🟢 New (<2m)'))
                                                             : (lang === 'tr' ? `⏱️ ${m.primaryBet.durationMinutes} dk'dır trendde` : (lang === 'de' ? `⏱️ seit ${m.primaryBet.durationMinutes} Min` : `⏱️ ${m.primaryBet.durationMinutes}m active`))}
@@ -4551,7 +4571,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     paddingBottom: '2px'
                                                 }}>
                                                     <span style={{ fontSize: '0.64rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>
-                                                        🎯 {lang === 'tr' ? 'Tahmin:' : 'Pick:'}
+                                                        🎯 {lang === 'tr' ? 'Tahmin:' : (lang === 'de' ? 'Tipp:' : 'Pick:')}
                                                     </span>
                                                     {m.allBets.map((b, bIdx) => {
                                                         const isSelected = (b.outcomeId || b.marketId) === (m.primaryBet.outcomeId || m.primaryBet.marketId);
@@ -4638,7 +4658,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span 
                                                             title={lang === 'tr' 
                                                                 ? `Piyasa Akış Hızı: Son 45 saniyede bu tercihe tam ${m.primaryBet.velocity} yeni kupon daha oynandı.` 
-                                                                : `Market Flow: +${m.primaryBet.velocity} new bets placed in the last 45 seconds.`}
+                                                                : (lang === 'de'
+                                                                    ? `Marktgeschwindigkeit: +${m.primaryBet.velocity} neue Wetten auf diese Auswahl in den letzten 45 Sekunden.`
+                                                                    : `Market Flow: +${m.primaryBet.velocity} new bets placed in the last 45 seconds.`)}
                                                             style={{
                                                                 fontSize: '0.68rem',
                                                                 fontWeight: 800,
@@ -4726,7 +4748,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                     [m.key]: ob.outcomeId || ob.marketId
                                                                 }));
                                                             }}
-                                                            title={lang === 'tr' ? 'Bu tahmini ana görünümde detaylı incelemek için tıklayın' : 'Click to inspect this bet in main view'}
+                                                            title={lang === 'tr' ? 'Bu tahmini ana görünümde detaylı incelemek için tıklayın' : (lang === 'de' ? 'Klicken, um diesen Tipp in der Hauptansicht zu analysieren' : 'Click to inspect this bet in main view')}
                                                             style={{
                                                                 display: 'flex',
                                                                 flexDirection: 'column',
@@ -4815,7 +4837,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                             alignItems: 'center',
                                                                             gap: '2px'
                                                                         }}>
-                                                                            ⚡ +{ob.velocity} {lang === 'tr' ? 'yeni' : 'new'}
+                                                                            ⚡ +{ob.velocity} {lang === 'tr' ? 'yeni' : (lang === 'de' ? 'neu' : 'new')}
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -4831,7 +4853,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                             borderRadius: '4px',
                                                                             fontSize: '0.64rem'
                                                                         }}>
-                                                                            ✅ {lang === 'tr' ? 'HEDEF TUTTU' : 'TARGET HIT'}
+                                                                            ✅ {lang === 'tr' ? 'HEDEF TUTTU' : (lang === 'de' ? 'ZIEL ERREICHT' : 'TARGET HIT')}
                                                                             {ob.evaluation?.goalsScoredSince > 0 && ` (+${ob.evaluation.goalsScoredSince})`}
                                                                         </span>
                                                                     ) : isObFresh ? (
@@ -4843,7 +4865,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                             fontWeight: 800,
                                                                             fontSize: '0.64rem'
                                                                         }}>
-                                                                            🟢 {lang === 'tr' ? 'TAZE' : 'FRESH'}
+                                                                            🟢 {lang === 'tr' ? 'TAZE' : (lang === 'de' ? 'NEU' : 'FRESH')}
                                                                         </span>
                                                                     ) : null}
 
@@ -4853,7 +4875,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                         fontWeight: 700,
                                                                         textDecoration: 'underline'
                                                                     }}>
-                                                                        {lang === 'tr' ? 'İncele ➔' : 'Inspect ➔'}
+                                                                        {lang === 'tr' ? 'İncele ➔' : (lang === 'de' ? 'Ansehen ➔' : 'Inspect ➔')}
                                                                     </span>
                                                                 </div>
                                                             </div>
@@ -4999,10 +5021,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     setAlertNotifyMode(nextMode);
                                     try { localStorage.setItem('alert_notify_mode', nextMode); } catch (e) {}
                                 }}
-                                title={alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim: Açık (Toast)' : 'Notifications: On') : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Bildirim: Sessiz' : 'Notifications: Silent') : (lang === 'tr' ? 'Bildirim: Kapalı' : 'Notifications: Off')}
+                                title={alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim: Açık (Toast)' : (lang === 'de' ? 'Benachrichtigung: Ein (Toast)' : 'Notifications: On (Toast)')) : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Bildirim: Sessiz' : (lang === 'de' ? 'Benachrichtigung: Lautlos' : 'Notifications: Silent')) : (lang === 'tr' ? 'Bildirim: Kapalı' : (lang === 'de' ? 'Benachrichtigung: Aus' : 'Notifications: Off'))}
                             >
                                 <span className="ctrl-icon">{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
-                                <span className="ctrl-label">{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim' : (lang === 'de' ? 'Meldung' : 'Alerts')) : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
+                                <span className="ctrl-label">{alertNotifyMode === 'TOAST' ? (lang === 'tr' ? 'Bildirim' : (lang === 'de' ? 'Meldung' : 'Alerts')) : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : (lang === 'de' ? 'Lautlos' : 'Silent')) : (lang === 'tr' ? 'Kapalı' : (lang === 'de' ? 'Aus' : 'Off'))}</span>
                             </button>
 
                             {/* Audio Alert Toggle */}
@@ -5012,10 +5034,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     const newMuted = audioAlert.toggle();
                                     setAudioMuted(newMuted);
                                 }}
-                                title={!audioMuted ? (lang === 'tr' ? 'Sesli Uyarı: Açık' : 'Audio: On') : (lang === 'tr' ? 'Sesli Uyarı: Kapalı' : 'Audio: Muted')}
+                                title={!audioMuted ? (lang === 'tr' ? 'Sesli Uyarı: Açık' : (lang === 'de' ? 'Audio-Alarm: Ein' : 'Audio: On')) : (lang === 'tr' ? 'Sesli Uyarı: Kapalı' : (lang === 'de' ? 'Audio-Alarm: Stumm' : 'Audio: Muted'))}
                             >
                                 <span className="ctrl-icon">{!audioMuted ? '🔊' : '🔇'}</span>
-                                <span className="ctrl-label">{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : (lang === 'de' ? 'Ton an' : 'Sound On')) : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
+                                <span className="ctrl-label">{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : (lang === 'de' ? 'Ton an' : 'Sound On')) : (lang === 'tr' ? 'Sessiz' : (lang === 'de' ? 'Stumm' : 'Muted'))}</span>
                             </button>
 
                             {/* Signal History & Bets Button */}
@@ -5028,7 +5050,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     setTrackingActiveTab('ALERTS');
                                     setShowTrackingPanel(true);
                                 }}
-                                title={lang === 'tr' ? 'Sinyal Geçmişi & Tahmin Karnesi' : 'Signal History & Bets'}
+                                title={lang === 'tr' ? 'Sinyal Geçmişi & Tahmin Karnesi' : (lang === 'de' ? 'Signalverlauf & Wett-Historie' : 'Signal History & Bets')}
                             >
                                 <span className="ctrl-icon">📊</span>
                                 <span className="ctrl-label">{lang === 'tr' ? 'Sinyaller' : (lang === 'de' ? 'Signale' : 'Signals')}</span>
@@ -6883,7 +6905,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             return !isPen;
                         });
                         const allOpportunities = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
-                        const goldenCombo = betBuilderEngine.generateGoldenCombo(allOpportunities, oppMatches);
+                        const goldenCombo = betBuilderEngine.generateGoldenCombo(allOpportunities, oppMatches, lang);
 
                         // Apply limit to TOTAL opportunities first
                         const limitedOpportunities = liveOpportunitiesLimit === 'ALL'
@@ -7135,7 +7157,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                 background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
                                                 color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
                                             }}>
-                                                {isHot ? (lang === 'tr' ? '🔥 RİTİM YÜKSEK' : (lang === 'de' ? '🔥 HOHE INTENSITÄT' : '🔥 HIGH TEMPO')) : (isHomeHeavy ? (lang === 'tr' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Home'} Pressing`) : isAwayHeavy ? (lang === 'tr' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Away'} Pressing`) : (lang === 'tr' ? '⚪ DENGELİ TEMPO' : '⚪ BALANCED TEMPO'))}
+                                                {isHot ? (lang === 'tr' ? '🔥 RİTİM YÜKSEK' : (lang === 'de' ? '🔥 HOHE INTENSITÄT' : '🔥 HIGH TEMPO')) : (isHomeHeavy ? (lang === 'tr' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : (lang === 'de' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Heim'} drückt` : `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Home'} Pressing`)) : isAwayHeavy ? (lang === 'tr' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : (lang === 'de' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Gast'} drückt` : `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Away'} Pressing`)) : (lang === 'tr' ? '⚪ DENGELİ TEMPO' : (lang === 'de' ? '⚪ AUSGEGLICHENES TEMPO' : '⚪ BALANCED TEMPO')))}
                                             </div>
 
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8' }}>
@@ -7173,7 +7195,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     setSelectedMatch(match);
                                                 }}
                                                 className="opp-wave-btn"
-                                                title="Detaylı Baskı Grafiği"
+                                                title={lang === 'tr' ? 'Detaylı Baskı Grafiği' : (lang === 'de' ? 'Detaillierter Druckwellen-Graph' : 'Detailed Momentum Pressure Wave')}
                                             >
                                                 <span>📈</span>
                                                 <span>{lang === 'tr' ? 'Baskı Grafiği' : (lang === 'de' ? 'Druckwelle' : 'Wave')}</span>
@@ -7188,11 +7210,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             <div className="opp-pred-header">
                                                 <span className="opp-pred-tag">
                                                     <span>💡</span>
-                                                    <span>{opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : (lang === 'de' ? '2. HZ PROGNOSE' : '2ND HALF PREDICTION')) : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : 'SYSTEM PREDICTION')}</span>
+                                                    <span>{opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : (lang === 'de' ? '2. HZ PROGNOSE' : '2ND HALF PREDICTION')) : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : (lang === 'de' ? 'SYSTEM-PROGNOSE' : 'SYSTEM PREDICTION'))}</span>
                                                 </span>
                                                 {opp.suggestedMarket.confidence && (
                                                     <span className="opp-pred-confidence">
-                                                        %{opp.suggestedMarket.confidence} Güven
+                                                        {lang === 'tr' ? `%${opp.suggestedMarket.confidence} Güven` : (lang === 'de' ? `${opp.suggestedMarket.confidence}% Konfidenz` : `${opp.suggestedMarket.confidence}% Confidence`)}
                                                     </span>
                                                 )}
                                             </div>
@@ -7206,15 +7228,15 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             {odds && odds.home && (
                                                 <div className="opp-odds-row" style={{ marginTop: '0.25rem' }}>
                                                     <div className="opp-odd-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                                                        <span className="opp-odd-label">1 (MS 1)</span>
+                                                        <span className="opp-odd-label">1 ({lang === 'tr' ? 'MS 1' : '1'})</span>
                                                         <span className="opp-odd-val" style={{ color: '#10b981' }}>{odds.home}</span>
                                                     </div>
                                                     <div className="opp-odd-pill">
-                                                        <span className="opp-odd-label">X (Beraberlik)</span>
+                                                        <span className="opp-odd-label">{lang === 'tr' ? 'X (Beraberlik)' : (lang === 'de' ? 'X (Unentschieden)' : 'X (Draw)')}</span>
                                                         <span className="opp-odd-val" style={{ color: '#94a3b8' }}>{odds.draw || '-'}</span>
                                                     </div>
                                                     <div className="opp-odd-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.25)' }}>
-                                                        <span className="opp-odd-label">2 (MS 2)</span>
+                                                        <span className="opp-odd-label">2 ({lang === 'tr' ? 'MS 2' : '2'})</span>
                                                         <span className="opp-odd-val" style={{ color: '#ef4444' }}>{odds.away}</span>
                                                     </div>
                                                 </div>
@@ -7226,15 +7248,15 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     {!opp.suggestedMarket?.marketKey && odds && odds.home && (
                                         <div className="opp-odds-row">
                                             <div className="opp-odd-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                                                <span className="opp-odd-label">1 (MS 1)</span>
+                                                <span className="opp-odd-label">1 ({lang === 'tr' ? 'MS 1' : '1'})</span>
                                                 <span className="opp-odd-val" style={{ color: '#10b981' }}>{odds.home}</span>
                                             </div>
                                             <div className="opp-odd-pill">
-                                                <span className="opp-odd-label">X (Beraberlik)</span>
+                                                <span className="opp-odd-label">{lang === 'tr' ? 'X (Beraberlik)' : (lang === 'de' ? 'X (Unentschieden)' : 'X (Draw)')}</span>
                                                 <span className="opp-odd-val" style={{ color: '#94a3b8' }}>{odds.draw || '-'}</span>
                                             </div>
                                             <div className="opp-odd-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.25)' }}>
-                                                <span className="opp-odd-label">2 (MS 2)</span>
+                                                <span className="opp-odd-label">2 ({lang === 'tr' ? 'MS 2' : '2'})</span>
                                                 <span className="opp-odd-val" style={{ color: '#ef4444' }}>{odds.away}</span>
                                             </div>
                                         </div>
@@ -8825,7 +8847,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                         }}>
                                                                             <span>⏱️ {initialMinute}'</span>
                                                                             <span style={{ opacity: 0.4 }}>|</span>
-                                                                            <span>{lang === 'tr' ? 'Skor:' : (lang === 'de' ? 'Stand:' : 'Score:')} <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : 'at signal'}</span>
+                                                                            <span>{lang === 'tr' ? 'Skor:' : (lang === 'de' ? 'Stand:' : 'Score:')} <strong style={{ color: '#fff' }}>{initialScoreStr}</strong> {lang === 'tr' ? 'anında' : (lang === 'de' ? 'beim Signal' : 'at signal')}</span>
                                                                         </span>
 
                                                                         <span style={{ color: 'var(--accent-color)', fontWeight: 900, fontSize: '0.75rem' }}>➔</span>
@@ -8842,7 +8864,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                                 alignItems: 'center',
                                                                                 gap: '5px'
                                                                             }}>
-                                                                                <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Bitiş:' : (lang === 'de' ? '🏁 Endstand:' : '🏁 Final:')) : (lang === 'tr' ? '🔴 Canlı Skor:' : '🔴 Live:')}</span>
+                                                                                <span style={{ fontSize: '0.65rem' }}>{isFinished ? (lang === 'tr' ? '🏁 Bitiş:' : (lang === 'de' ? '🏁 Endstand:' : '🏁 Final:')) : (lang === 'tr' ? '🔴 Canlı Skor:' : (lang === 'de' ? '🔴 Live-Stand:' : '🔴 Live Score:'))}</span>
                                                                                 <strong style={{ fontSize: '0.85rem', color: '#fff' }}>{currentScoreStr}</strong>
                                                                                 {!isFinished && currentMinuteStr && (
                                                                                     <span style={{ fontSize: '0.7rem', color: '#38bdf8', opacity: 0.9 }}>({currentMinuteStr})</span>
@@ -8902,7 +8924,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                         )}
                                                                     </div>
                                                                     <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--accent-color)' }}>
-                                                                        🎯 {betTitle}
+                                                                        🎯 {t[rec.marketKey] || betTitle}
                                                                     </div>
                                                                 </div>
                                                                 <div style={{ textAlign: 'right' }}>
@@ -8910,7 +8932,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                         {rec.odds ? `${lang === 'tr' ? 'Oran:' : (lang === 'de' ? 'Quote:' : 'Odds:')} ${Number(rec.odds).toFixed(2)}` : ''}
                                                                     </div>
                                                                     <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
-                                                                        %{rec.confidence || 75} {lang === 'tr' ? 'Güven' : (lang === 'de' ? 'Konfidenz' : 'Confidence')}
+                                                                        {lang === 'tr' ? `%${rec.confidence || 75} Güven` : (lang === 'de' ? `${rec.confidence || 75}% Konfidenz` : `${rec.confidence || 75}% Confidence`)}
                                                                     </div>
                                                                 </div>
                                                             </div>

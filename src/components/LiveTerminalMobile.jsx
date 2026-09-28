@@ -90,8 +90,21 @@ export const LiveTerminalMobile = ({
         const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
         if (isLateOrFinished) return null;
 
+        const sm = m.opportunityData?.suggestedMarket;
+        if (sm?.marketKey && t?.[sm.marketKey]) {
+            let trMarket = t[sm.marketKey]
+                .replace('{team}', sm.team || '')
+                .replace('{goals}', sm.target || '');
+            if (trMarket) return trMarket;
+        }
+
         const strat = signal.activeStrategies?.[0];
-        let label = strat?.label || signal.prediction || m.opportunityData?.suggestedMarket?.label;
+        if (strat?.id && t?.[strat.id]) {
+            let trStrat = t[strat.id].replace('{team}', strat.team || '');
+            if (trStrat) return trStrat;
+        }
+
+        let label = strat?.label || signal.prediction || sm?.label;
         if (!label && signal.reason && !signal.reason.includes('Kriterlere') && !signal.reason.includes('Strateji')) {
             label = signal.reason;
         }
@@ -101,11 +114,26 @@ export const LiveTerminalMobile = ({
             return label
                 .replace(/^Sıradaki Gol:/i, 'Nächstes Tor:')
                 .replace(/^İY 0\.5 ÜST/i, 'HZ Über 0.5')
+                .replace(/^İlk Yarı 0\.5 Üst/i, '1. HZ Über 0.5')
                 .replace(/^İY 1\.5 ÜST/i, 'HZ Über 1.5')
                 .replace(/^SON 15DK PATLAMASI/i, '15m MOMENTUM-SCHWUNG')
                 .replace(/^GERİ DÖNÜŞ/i, 'COMEBACK')
+                .replace(/^FAVORİ GERİ DÖNÜŞ/i, 'FAVORITEN-COMEBACK')
                 .replace(/^BASKI LİDERİ/i, 'DRUCK-LEADER')
                 .replace(/^İSTATİSTİKSEL BASKI/i, 'STATISTISCHE DOMINANZ')
+                .replace(/^KORNER BASKISI/i, 'ECKENDIFFERENZ')
+                .replace(/^KG VAR/i, 'BEIDE TREFFEN (BTTS)')
+                .replace(/^SAYISAL ÜSTÜNLÜK/i, 'ÜBERZAHL-VORTEIL')
+                .replace(/^SKOR MARUZİYETİ/i, 'TORREICHES SPIEL')
+                .replace(/^Maç Sonu \/ Kilitli/i, 'Spielende / Gesperrt')
+                .replace(/^Kopmuş Maç \(Rehavet \/ Riskli\)/i, 'Entschiedenes Spiel (Riskant)')
+                .replace(/^Düşük Tempo \(Ölü Maç\)/i, 'Niedriges Tempo (Totes Spiel)')
+                .replace(/^Oran Değersiz \(Pas\)/i, 'Quote ohne Wert (Pass)')
+                .replace(/^Geç Dakika \/ Riskli \(Pas\)/i, 'Späte Phase / Riskant (Pass)')
+                .replace(/^Maç Kopmuş \/ Oran Düşük/i, 'Spiel entschieden / Quote niedrig')
+                .replace(/Maç Sonu Galibiyeti \(MS 1\)/g, 'Heimsieg (1)')
+                .replace(/Maç Sonu Galibiyeti \(MS 2\)/g, 'Auswärtssieg (2)')
+                .replace(/Üst Bekleniyor/g, 'Tore erwartet')
                 .replace(/^GOL ALARMI/i, 'TOR-ALARM')
                 .replace(/ÜST/g, 'ÜBER')
                 .replace(/ALT/g, 'UNTER');
@@ -115,11 +143,26 @@ export const LiveTerminalMobile = ({
             return label
                 .replace(/^Sıradaki Gol:/i, 'Next Goal:')
                 .replace(/^İY 0\.5 ÜST/i, 'HT Over 0.5')
+                .replace(/^İlk Yarı 0\.5 Üst/i, '1st Half Over 0.5')
                 .replace(/^İY 1\.5 ÜST/i, 'HT Over 1.5')
                 .replace(/^SON 15DK PATLAMASI/i, '15m MOMENTUM BURST')
                 .replace(/^GERİ DÖNÜŞ/i, 'COMEBACK')
+                .replace(/^FAVORİ GERİ DÖNÜŞ/i, 'FAVORITE COMEBACK')
                 .replace(/^BASKI LİDERİ/i, 'PRESSURE LEADER')
                 .replace(/^İSTATİSTİKSEL BASKI/i, 'STATISTICAL DOMINANCE')
+                .replace(/^KORNER BASKISI/i, 'CORNER PRESSURE')
+                .replace(/^KG VAR/i, 'BTTS')
+                .replace(/^SAYISAL ÜSTÜNLÜK/i, 'NUMERICAL ADVANTAGE')
+                .replace(/^SKOR MARUZİYETİ/i, 'HIGH SCORE EXPOSURE')
+                .replace(/^Maç Sonu \/ Kilitli/i, 'Match Ended / Locked')
+                .replace(/^Kopmuş Maç \(Rehavet \/ Riskli\)/i, 'Blowout Match (High Risk)')
+                .replace(/^Düşük Tempo \(Ölü Maç\)/i, 'Low Tempo (Dead Match)')
+                .replace(/^Oran Değersiz \(Pas\)/i, 'No Value in Odds (Pass)')
+                .replace(/^Geç Dakika \/ Riskli \(Pas\)/i, 'Late Minute / Risky (Pass)')
+                .replace(/^Maç Kopmuş \/ Oran Düşük/i, 'Blowout / Low Odds')
+                .replace(/Maç Sonu Galibiyeti \(MS 1\)/g, 'Full-Time Win (1)')
+                .replace(/Maç Sonu Galibiyeti \(MS 2\)/g, 'Full-Time Win (2)')
+                .replace(/Üst Bekleniyor/g, 'Goals Expected')
                 .replace(/^GOL ALARMI/i, 'GOAL ALERT')
                 .replace(/ÜST/g, 'OVER')
                 .replace(/ALT/g, 'UNDER');
@@ -267,7 +310,7 @@ export const LiveTerminalMobile = ({
                                         className={`tb-action-ignore tb-fav-btn ${isPinned ? 'pinned' : ''}`}
                                         onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
                                         title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle (Sabitle)' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
-                                        aria-label={isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
+                                        aria-label={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
                                     >
                                         <StarIcon filled={isPinned} size={14} />
                                     </button>

@@ -36,7 +36,7 @@ export function TradingDesk({ lang = 'tr' }) {
 
     const getProxyBase = () => (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
         ? 'http://localhost:3001'
-        : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+        : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
     const getAdminHeaders = () => {
         let token = '';
@@ -107,16 +107,16 @@ export function TradingDesk({ lang = 'tr' }) {
                 setOpportunities(data.filteredOpportunities || []);
                 setQuarantined(data.quarantinedMatches || []);
                 if (data.deskSummary) setDeskSummary(data.deskSummary);
-                setLastUpdated(new Date().toLocaleTimeString('tr-TR'));
+                setLastUpdated(new Date().toLocaleTimeString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US')));
             } else {
-                setError(data.error || 'Veri yüklenemedi.');
+                setError(data.error || (lang === 'tr' ? 'Veri yüklenemedi.' : (lang === 'de' ? 'Daten konnten nicht geladen werden.' : 'Failed to load data.')));
             }
         } catch (err) {
-            setError(`Sunucu bağlantı hatası: ${err.message}`);
+            setError(lang === 'tr' ? `Sunucu bağlantı hatası: ${err.message}` : (lang === 'de' ? `Serververbindungsfehler: ${err.message}` : `Server connection error: ${err.message}`));
         } finally {
             setLoading(false);
         }
-    }, [minEV, minConfidence, minMinute, maxMinute, deadMatchShield]);
+    }, [minEV, minConfidence, minMinute, maxMinute, deadMatchShield, lang]);
 
     useEffect(() => {
         fetchDeskConfig();
@@ -176,10 +176,10 @@ export function TradingDesk({ lang = 'tr' }) {
             if (data.success && data.briefing) {
                 setBriefingData(data.briefing);
             } else {
-                alert(`Brifing hatası: ${data.error || 'Bilinmeyen hata'}`);
+                alert(lang === 'tr' ? `Brifing hatası: ${data.error || 'Bilinmeyen hata'}` : (lang === 'de' ? `Briefing-Fehler: ${data.error || 'Unbekannter Fehler'}` : `Briefing error: ${data.error || 'Unknown error'}`));
             }
         } catch (e) {
-            alert(`Bağlantı hatası: ${e.message}`);
+            alert(lang === 'tr' ? `Bağlantı hatası: ${e.message}` : (lang === 'de' ? `Verbindungsfehler: ${e.message}` : `Connection error: ${e.message}`));
         } finally {
             setBriefingLoading(false);
         }
@@ -254,7 +254,7 @@ export function TradingDesk({ lang = 'tr' }) {
                             }}
                         >
                             <span>💎</span>
-                            <span>Nexus Quant Core™: Aktif (%100 Yerel)</span>
+                            <span>Nexus Quant Core™: {lang === 'tr' ? 'Aktif (%100 Yerel)' : (lang === 'de' ? 'Aktiv (100% Lokal)' : 'Active (100% Local)')}</span>
                         </div>
 
                         {/* Nexus Strategic Briefing Button */}
@@ -305,7 +305,7 @@ export function TradingDesk({ lang = 'tr' }) {
                                 cursor: 'pointer'
                             }}
                         >
-                            🔄 {lastUpdated ? `${lastUpdated}` : 'Yenile'}
+                            🔄 {lastUpdated ? `${lastUpdated}` : (lang === 'tr' ? 'Yenile' : (lang === 'de' ? 'Aktualisieren' : 'Refresh'))}
                         </button>
                     </div>
                 </div>
@@ -320,44 +320,44 @@ export function TradingDesk({ lang = 'tr' }) {
                     borderTop: '1px solid rgba(255,255,255,0.08)'
                 }}>
                     <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 800 }}>TÜM CANLI MAÇLAR</div>
+                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 800 }}>{lang === 'tr' ? 'TÜM CANLI MAÇLAR' : (lang === 'de' ? 'ALLE LIVE-SPIELE' : 'ALL LIVE MATCHES')}</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#f8fafc', marginTop: '0.2rem' }}>
-                            {deskSummary.totalScanned} <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Maç</span>
+                            {deskSummary.totalScanned} <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{lang === 'tr' ? 'Maç' : (lang === 'de' ? 'Spiele' : 'Matches')}</span>
                         </div>
                     </div>
 
                     <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 800 }}>FİLTREYİ GEÇEN (+EV)</div>
+                        <div style={{ fontSize: '0.7rem', color: '#38bdf8', fontWeight: 800 }}>{lang === 'tr' ? 'FİLTREYİ GEÇEN (+EV)' : (lang === 'de' ? 'FILTER BESTANDEN (+EV)' : 'QUALIFIED (+EV)')}</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#38bdf8', marginTop: '0.2rem' }}>
-                            {opportunities.length} <span style={{ fontSize: '0.75rem' }}>Pozisyon</span>
+                            {opportunities.length} <span style={{ fontSize: '0.75rem' }}>{lang === 'tr' ? 'Pozisyon' : (lang === 'de' ? 'Positionen' : 'Positions')}</span>
                         </div>
                     </div>
 
                     <div style={{ background: 'rgba(168, 85, 247, 0.08)', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid rgba(168, 85, 247, 0.25)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#c084fc', fontWeight: 800 }}>💎 ALPHA SİNYALLER</div>
+                        <div style={{ fontSize: '0.7rem', color: '#c084fc', fontWeight: 800 }}>{lang === 'tr' ? '💎 ALPHA SİNYALLER' : (lang === 'de' ? '💎 ALPHA-SIGNALE' : '💎 ALPHA SIGNALS')}</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#c084fc', marginTop: '0.2rem' }}>
-                            {deskSummary.alphaCount} <span style={{ fontSize: '0.75rem' }}>Elit Kurumsal</span>
+                            {deskSummary.alphaCount} <span style={{ fontSize: '0.75rem' }}>{lang === 'tr' ? 'Elit Kurumsal' : (lang === 'de' ? 'Elite Quant' : 'Elite Quant')}</span>
                         </div>
                     </div>
 
                     <div style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#f87171', fontWeight: 800 }}>🔥 ALEV İVMELİ</div>
+                        <div style={{ fontSize: '0.7rem', color: '#f87171', fontWeight: 800 }}>{lang === 'tr' ? '🔥 ALEV İVMELİ' : (lang === 'de' ? '🔥 HOHE DYNAMIK' : '🔥 FLAME SURGE')}</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#f87171', marginTop: '0.2rem' }}>
-                            {deskSummary.alevCount} <span style={{ fontSize: '0.75rem' }}>Baskılı</span>
+                            {deskSummary.alevCount} <span style={{ fontSize: '0.75rem' }}>{lang === 'tr' ? 'Baskılı' : (lang === 'de' ? 'Druckphase' : 'High Pressure')}</span>
                         </div>
                     </div>
 
-                    <div style={{ background: 'rgba(16, 185, 129, 0.08)', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#34d399', fontWeight: 800 }}>ORTALAMA BEKLENEN DEĞER</div>
+                    <div style={{ background: 'rgba(168, 85, 247, 0.08)', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#34d399', fontWeight: 800 }}>{lang === 'tr' ? 'ORTALAMA BEKLENEN DEĞER' : (lang === 'de' ? 'DURCHSCHN. EXPECTED VALUE' : 'AVG EXPECTED VALUE')}</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#34d399', marginTop: '0.2rem' }}>
                             +{deskSummary.avgEV}% <span style={{ fontSize: '0.75rem' }}>EV</span>
                         </div>
                     </div>
 
                     <div style={{ background: 'rgba(245, 158, 11, 0.08)', padding: '0.8rem 1rem', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.25)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 800 }}>🛡️ ÖLÜ MAÇ KALKANI</div>
+                        <div style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 800 }}>{lang === 'tr' ? '🛡️ ÖLÜ MAÇ KALKANI' : (lang === 'de' ? '🛡️ DEAD-MATCH-SCHUTZ' : '🛡️ DEAD MATCH SHIELD')}</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fbbf24', marginTop: '0.2rem' }}>
-                            {deskSummary.deadMatchShieldCount} <span style={{ fontSize: '0.75rem' }}>Karantina</span>
+                            {deskSummary.deadMatchShieldCount} <span style={{ fontSize: '0.75rem' }}>{lang === 'tr' ? 'Karantina' : (lang === 'de' ? 'Quarantäne' : 'Quarantined')}</span>
                         </div>
                     </div>
                 </div>
@@ -378,10 +378,10 @@ export function TradingDesk({ lang = 'tr' }) {
                             <span style={{ fontSize: '1.6rem' }}>🤖</span>
                             <div>
                                 <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#f3e8ff', margin: 0 }}>
-                                    {`BAHİS OFİSİ RİSK KOMİTESİ BRİFİNGİ (Nexus Quant Core™)`}
+                                    {lang === 'tr' ? 'BAHİS OFİSİ RİSK KOMİTESİ BRİFİNGİ (Nexus Quant Core™)' : (lang === 'de' ? 'RISIKOKOMITEE-BRIEFING (Nexus Quant Core™)' : 'SPORTSBOOK RISK COMMITTEE BRIEFING (Nexus Quant Core™)')}
                                 </h3>
                                 <div style={{ fontSize: '0.72rem', color: '#c084fc', marginTop: '0.1rem' }}>
-                                    {briefingData.notice || `Sentez Modeli: ${briefingData.model || 'Dixon-Coles & Poisson Hybrid'}`}
+                                    {briefingData.notice || `${lang === 'tr' ? 'Sentez Modeli:' : (lang === 'de' ? 'Synthese-Modell:' : 'Synthesis Model:')} ${briefingData.model || 'Dixon-Coles & Poisson Hybrid'}`}
                                 </div>
                             </div>
                         </div>
@@ -400,7 +400,7 @@ export function TradingDesk({ lang = 'tr' }) {
                                     cursor: 'pointer'
                                 }}
                             >
-                                {copiedBriefing ? '✓ Kopyalandı!' : '📋 Raporu Kopyala'}
+                                {copiedBriefing ? (lang === 'tr' ? '✓ Kopyalandı!' : (lang === 'de' ? '✓ Kopiert!' : '✓ Copied!')) : (lang === 'tr' ? '📋 Raporu Kopyala' : (lang === 'de' ? '📋 Bericht kopieren' : '📋 Copy Report'))}
                             </button>
                             <button
                                 onClick={() => setBriefingData(null)}
@@ -481,7 +481,7 @@ export function TradingDesk({ lang = 'tr' }) {
                     {/* Min EV Slider */}
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
-                            <span style={{ color: '#94a3b8', fontWeight: 700 }}>Min. Beklenen Değer (+EV)</span>
+                            <span style={{ color: '#94a3b8', fontWeight: 700 }}>{lang === 'tr' ? 'Min. Beklenen Değer (+EV)' : (lang === 'de' ? 'Min. Expected Value (+EV)' : 'Min. Expected Value (+EV)')}</span>
                             <span style={{ color: '#38bdf8', fontWeight: 900 }}>+{minEV}% EV</span>
                         </div>
                         <input
@@ -498,7 +498,7 @@ export function TradingDesk({ lang = 'tr' }) {
                     {/* Min Confidence Slider */}
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
-                            <span style={{ color: '#94a3b8', fontWeight: 700 }}>Min. Model Güven Skoru</span>
+                            <span style={{ color: '#94a3b8', fontWeight: 700 }}>{lang === 'tr' ? 'Min. Model Güven Skoru' : (lang === 'de' ? 'Min. Modell-Konfidenz' : 'Min. Model Confidence')}</span>
                             <span style={{ color: '#10b981', fontWeight: 900 }}>%{minConfidence}</span>
                         </div>
                         <input
@@ -515,7 +515,7 @@ export function TradingDesk({ lang = 'tr' }) {
                     {/* Minute Window Selector */}
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
-                            <span style={{ color: '#94a3b8', fontWeight: 700 }}>Dakika Aralığı</span>
+                            <span style={{ color: '#94a3b8', fontWeight: 700 }}>{lang === 'tr' ? 'Dakika Aralığı' : (lang === 'de' ? 'Minutenbereich' : 'Minute Window')}</span>
                             <span style={{ color: '#fbbf24', fontWeight: 900 }}>{minMinute}' - {maxMinute}'</span>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -541,8 +541,8 @@ export function TradingDesk({ lang = 'tr' }) {
                     {/* Dead Match Shield Toggle */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.8rem', background: 'rgba(0,0,0,0.25)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
                         <div>
-                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f8fafc' }}>🛡️ Ölü Maç Kalkanı</div>
-                            <div style={{ fontSize: '0.68rem', color: '#64748b' }}>75'+ ve 2+ farkta NO-BET</div>
+                            <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#f8fafc' }}>{lang === 'tr' ? '🛡️ Ölü Maç Kalkanı' : (lang === 'de' ? '🛡️ Dead-Match-Schutz' : '🛡️ Dead Match Shield')}</div>
+                            <div style={{ fontSize: '0.68rem', color: '#64748b' }}>{lang === 'tr' ? '75\'+ ve 2+ farkta NO-BET' : (lang === 'de' ? 'Ab 75\' & 2+ Diff NO-BET' : '75\'+ & 2+ diff NO-BET')}</div>
                         </div>
                         <button
                             onClick={() => setDeadMatchShield(!deadMatchShield)}
@@ -557,7 +557,7 @@ export function TradingDesk({ lang = 'tr' }) {
                                 color: '#fff'
                             }}
                         >
-                            {deadMatchShield ? 'AÇIK' : 'KAPALI'}
+                            {deadMatchShield ? (lang === 'tr' ? 'AÇIK' : (lang === 'de' ? 'EIN' : 'ON')) : (lang === 'tr' ? 'KAPALI' : (lang === 'de' ? 'AUS' : 'OFF'))}
                         </button>
                     </div>
                 </div>
@@ -576,23 +576,23 @@ export function TradingDesk({ lang = 'tr' }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                         <div>
                             <div style={{ fontSize: '0.75rem', fontWeight: 900, color: '#c084fc', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                🎟️ {calculatedSlip.items.length === 1 ? 'TEKLİ DEĞER BAHİSİ' : `STRATEJİK KOMBİNE (${calculatedSlip.items.length} MAÇ)`}
+                                🎟️ {calculatedSlip.items.length === 1 ? (lang === 'tr' ? 'TEKLİ DEĞER BAHİSİ' : (lang === 'de' ? 'EINZEL-VALUE-WETTE' : 'SINGLE VALUE BET')) : (lang === 'tr' ? `STRATEJİK KOMBİNE (${calculatedSlip.items.length} MAÇ)` : (lang === 'de' ? `STRATEGISCHE KOMBI (${calculatedSlip.items.length} SPIELE)` : `STRATEGIC ACCA (${calculatedSlip.items.length} MATCHES)`))}
                             </div>
                             <div style={{ display: 'flex', gap: '1.2rem', marginTop: '0.4rem', alignItems: 'baseline', flexWrap: 'wrap' }}>
                                 <div>
-                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Toplam Oran: </span>
+                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Toplam Oran: ' : (lang === 'de' ? 'Gesamtquote: ' : 'Total Odds: ')}</span>
                                     <span style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fbbf24' }}>@{calculatedSlip.combinedOdds.toFixed(2)}</span>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Bileşik Olasılık: </span>
+                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Bileşik Olasılık: ' : (lang === 'de' ? 'Kombinierte Wkt: ' : 'Composite Prob: ')}</span>
                                     <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#38bdf8' }}>%{calculatedSlip.compositeProb}</span>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Bileşik EV: </span>
+                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Bileşik EV: ' : (lang === 'de' ? 'Kombinierter EV: ' : 'Composite EV: ')}</span>
                                     <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#10b981' }}>+{calculatedSlip.compositeEV}%</span>
                                 </div>
                                 <div>
-                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Önerilen Kelly Kasa: </span>
+                                    <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Önerilen Kelly Kasa: ' : (lang === 'de' ? 'Empfohlener Kelly-Einsatz: ' : 'Recommended Kelly Stake: ')}</span>
                                     <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#c084fc' }}>%{calculatedSlip.kellyStakePercent}</span>
                                 </div>
                             </div>
@@ -600,25 +600,25 @@ export function TradingDesk({ lang = 'tr' }) {
 
                         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.3)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Kasa:</span>
+                                <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Kasa:' : (lang === 'de' ? 'Bankroll:' : 'Capital:')}</span>
                                 <input
                                     type="number"
                                     value={bankrollAmount}
                                     onChange={(e) => setBankrollAmount(parseFloat(e.target.value) || 0)}
                                     style={{ width: '80px', background: 'none', border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 800, textAlign: 'right' }}
                                 />
-                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>TL</span>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{lang === 'tr' ? 'TL' : '€'}</span>
                             </div>
 
                             <div style={{ fontSize: '0.8rem', color: '#e2e8f0', background: 'rgba(16, 185, 129, 0.2)', padding: '0.45rem 0.8rem', borderRadius: '8px', border: '1px solid #10b981' }}>
-                                Bahis: <strong>{Math.round(bankrollAmount * (calculatedSlip.kellyStakePercent / 100))} TL</strong>
+                                {lang === 'tr' ? 'Bahis:' : (lang === 'de' ? 'Einsatz:' : 'Stake:')} <strong>{Math.round(bankrollAmount * (calculatedSlip.kellyStakePercent / 100))} {lang === 'tr' ? 'TL' : '€'}</strong>
                             </div>
 
                             <button
                                 onClick={() => {
                                     const slipText = calculatedSlip.items.map((it, idx) =>
                                         `${idx + 1}. ${it.homeTeam} vs ${it.awayTeam} (Dk ${it.minute}') ➔ ${it.marketLabel} (@${it.marketOdds}) [Model: %${it.trueProb}]`
-                                    ).join('\n') + `\n\nToplam Oran: @${calculatedSlip.combinedOdds.toFixed(2)} | Bileşik EV: +%${calculatedSlip.compositeEV} | Önerilen Kasa: %${calculatedSlip.kellyStakePercent}`;
+                                    ).join('\n') + `\n\n${lang === 'tr' ? 'Toplam Oran' : (lang === 'de' ? 'Gesamtquote' : 'Total Odds')}: @${calculatedSlip.combinedOdds.toFixed(2)} | ${lang === 'tr' ? 'Bileşik EV' : (lang === 'de' ? 'Kombinierter EV' : 'Composite EV')}: +%${calculatedSlip.compositeEV} | ${lang === 'tr' ? 'Önerilen Kasa' : (lang === 'de' ? 'Empfohlener Einsatz' : 'Recommended Stake')}: %${calculatedSlip.kellyStakePercent}`;
                                     copyToClipboard(slipText, 'slip');
                                 }}
                                 style={{
@@ -632,14 +632,14 @@ export function TradingDesk({ lang = 'tr' }) {
                                     cursor: 'pointer'
                                 }}
                             >
-                                {copiedSlip ? '✓ Kopyalandı!' : '📋 Kuponu Kopyala'}
+                                {copiedSlip ? (lang === 'tr' ? '✓ Kopyalandı!' : (lang === 'de' ? '✓ Kopiert!' : '✓ Copied!')) : (lang === 'tr' ? '📋 Kuponu Kopyala' : (lang === 'de' ? '📋 Wettschein kopieren' : '📋 Copy Ticket'))}
                             </button>
 
                             <button
                                 onClick={() => setSelectedSlipIds([])}
                                 style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.8rem' }}
                             >
-                                Temizle
+                                {lang === 'tr' ? 'Temizle' : (lang === 'de' ? 'Leeren' : 'Clear')}
                             </button>
                         </div>
                     </div>
@@ -650,7 +650,7 @@ export function TradingDesk({ lang = 'tr' }) {
             {loading && opportunities.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8' }}>
                     <div className="spinner" style={{ display: 'inline-block', width: '32px', height: '32px', border: '3px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: '1rem' }}></div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>Canlı maçlar ve kuant telemetrisi analiz ediliyor...</div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>{lang === 'tr' ? 'Canlı maçlar ve kuant telemetrisi analiz ediliyor...' : (lang === 'de' ? 'Live-Spiele und Quant-Telemetrie werden analysiert...' : 'Analyzing live matches and quant telemetry...')}</div>
                 </div>
             ) : error ? (
                 <div style={{ padding: '2rem', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#f87171', textAlign: 'center' }}>
@@ -773,12 +773,12 @@ export function TradingDesk({ lang = 'tr' }) {
                                         alignItems: 'center'
                                     }}>
                                         <div>
-                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700 }}>HEDEF MARKET TAHMİNİ</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700 }}>{lang === 'tr' ? 'HEDEF MARKET TAHMİNİ' : (lang === 'de' ? 'ZIEL-MARKTTIPP' : 'TARGET MARKET PREDICTION')}</div>
                                             <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#38bdf8', marginTop: '0.1rem' }}>
                                                 {opp.marketLabel}
                                             </div>
                                             <div style={{ fontSize: '0.72rem', color: '#10b981', marginTop: '0.15rem' }}>
-                                                Model Olasılığı: <strong>%{opp.trueProb}</strong> (Adil Oran: @{Number(opp.fairOdds || 0).toFixed(2)})
+                                                {lang === 'tr' ? 'Model Olasılığı:' : (lang === 'de' ? 'Modell-Wahrscheinlichkeit:' : 'Model Probability:')} <strong>%{opp.trueProb}</strong> ({lang === 'tr' ? 'Adil Oran:' : (lang === 'de' ? 'Faire Quote:' : 'Fair Odds:')} @{Number(opp.fairOdds || 0).toFixed(2)})
                                             </div>
                                         </div>
 
@@ -817,17 +817,17 @@ export function TradingDesk({ lang = 'tr' }) {
                                             </div>
                                         </div>
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.4rem', borderRadius: '6px' }}>
-                                            <div style={{ color: '#64748b' }}>Ceza Sahası</div>
+                                            <div style={{ color: '#64748b' }}>{lang === 'tr' ? 'Ceza Sahası' : (lang === 'de' ? 'Strafraum' : 'Box Attacks')}</div>
                                             <div style={{ fontWeight: 800, color: '#f8fafc', marginTop: '0.1rem' }}>{opp.stats?.box}</div>
                                         </div>
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.4rem', borderRadius: '6px' }}>
-                                            <div style={{ color: '#64748b' }}>xG Üretimi</div>
+                                            <div style={{ color: '#64748b' }}>{lang === 'tr' ? 'xG Üretimi' : (lang === 'de' ? 'xG-Erzeugung' : 'xG Created')}</div>
                                             <div style={{ fontWeight: 800, color: '#38bdf8', marginTop: '0.1rem' }}>
                                                 {Number(opp.xg?.home || 0).toFixed(2)} - {Number(opp.xg?.away || 0).toFixed(2)}
                                             </div>
                                         </div>
                                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.4rem', borderRadius: '6px' }}>
-                                            <div style={{ color: '#64748b' }}>Dominans</div>
+                                            <div style={{ color: '#64748b' }}>{lang === 'tr' ? 'Dominans' : (lang === 'de' ? 'Dominanz' : 'Dominance')}</div>
                                             <div style={{ fontWeight: 800, color: opp.dominanceIndex >= 0 ? '#10b981' : '#f87171', marginTop: '0.1rem' }}>
                                                 {opp.dominanceIndex >= 0 ? `+${opp.dominanceIndex}` : opp.dominanceIndex}%
                                             </div>
@@ -856,7 +856,7 @@ export function TradingDesk({ lang = 'tr' }) {
                                     borderTop: '1px solid rgba(255,255,255,0.06)'
                                 }}>
                                     <div style={{ fontSize: '0.72rem', color: '#cbd5e1' }}>
-                                        Kasa Payı: <strong style={{ color: '#c084fc' }}>%{opp.recommendedStakePercent} (Kelly)</strong>
+                                        {lang === 'tr' ? 'Kasa Payı:' : (lang === 'de' ? 'Einsatz:' : 'Stake:')} <strong style={{ color: '#c084fc' }}>%{opp.recommendedStakePercent} (Kelly)</strong>
                                     </div>
 
                                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -873,7 +873,7 @@ export function TradingDesk({ lang = 'tr' }) {
                                                 color: isSelected ? '#c084fc' : '#fff'
                                             }}
                                         >
-                                            {isSelected ? '✓ Kuponda' : '+ Kupona Ekle'}
+                                            {isSelected ? (lang === 'tr' ? '✓ Kuponda' : (lang === 'de' ? '✓ Im Schein' : '✓ In Slip')) : (lang === 'tr' ? '+ Kupona Ekle' : (lang === 'de' ? '+ Zum Schein' : '+ Add to Slip'))}
                                         </button>
                                     </div>
                                 </div>
@@ -893,12 +893,12 @@ export function TradingDesk({ lang = 'tr' }) {
                     padding: '1.2rem'
                 }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#f87171', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span>🛡️</span> ÖLÜ MAÇ VE RÖLANTİ KALKANI İLE ENGELLENENLER ({quarantined.length})
+                        <span>🛡️</span> {lang === 'tr' ? 'ÖLÜ MAÇ VE RÖLANTİ KALKANI İLE ENGELLENENLER' : (lang === 'de' ? 'DURCH DEAD-MATCH-SCHUTZ GESPERRT' : 'QUARANTINED BY DEAD MATCH SHIELD')} ({quarantined.length})
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.6rem' }}>
                         {quarantined.map((q, idx) => (
                             <div key={idx} style={{ background: 'rgba(0,0,0,0.3)', padding: '0.6rem 0.8rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', fontSize: '0.75rem' }}>
-                                <div style={{ fontWeight: 800, color: '#e2e8f0' }}>{q.match} ({q.minute}' | Skor: {q.score})</div>
+                                <div style={{ fontWeight: 800, color: '#e2e8f0' }}>{q.match} ({q.minute}' | {lang === 'tr' ? 'Skor:' : (lang === 'de' ? 'Ergebnis:' : 'Score:')} {q.score})</div>
                                 <div style={{ color: '#94a3b8', fontSize: '0.7rem', marginTop: '0.15rem' }}>{q.reason}</div>
                             </div>
                         ))}

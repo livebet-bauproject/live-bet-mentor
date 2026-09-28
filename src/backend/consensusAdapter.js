@@ -25,7 +25,7 @@ export const consensusAdapter = {
                 return data;
             } else {
                 // PRODUCTION: Use Render backend proxy, Firebase as fallback
-                const renderBase = import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com';
+                const renderBase = import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
                 try {
                     const response = await fetch(`${renderBase}/api/consensus`);
                     if (response.ok) {

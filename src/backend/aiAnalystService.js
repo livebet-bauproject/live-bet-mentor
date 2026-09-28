@@ -555,7 +555,7 @@ ${quantSummaryEn}`;
         }
     },
 
-    async getGlobalIntelligenceReport(matches, type = 'LIVE') {
+    async getGlobalIntelligenceReport(matches, type = 'LIVE', lang = 'tr') {
         const userId = this.currentUserId || 'anonymous';
         const tier = this.currentTier || 'trial';
 
@@ -563,12 +563,16 @@ ${quantSummaryEn}`;
         const limitCheck = aiUsageLimiter.canMakeAIRequest(userId, tier);
         if (!limitCheck.allowed) {
             return JSON.stringify({
-                report_summary: `⚠️ Günlük AI raporu limitinize ulaştınız (${limitCheck.current}/${limitCheck.limit}). Yarın tekrar deneyebilir veya planınızı yükseltebilirsiniz.`,
+                report_summary: lang === 'tr'
+                    ? `⚠️ Günlük AI raporu limitinize ulaştınız (${limitCheck.current}/${limitCheck.limit}). Yarın tekrar deneyebilir veya planınızı yükseltebilirsiniz.`
+                    : (lang === 'de'
+                        ? `⚠️ Tägliches KI-Report-Limit erreicht (${limitCheck.current}/${limitCheck.limit}). Versuchen Sie es morgen erneut oder upgraden Sie Ihr Paket.`
+                        : `⚠️ Daily AI report limit reached (${limitCheck.current}/${limitCheck.limit}). Please retry tomorrow or upgrade your plan.`),
                 golden_picks: [],
                 strategic_combo: null,
                 avoid_list: [],
                 value_picks: [],
-                discipline_note: "Sermaye yönetimini elden bırakmayın."
+                discipline_note: lang === 'tr' ? "Sermaye yönetimini elden bırakmayın." : (lang === 'de' ? "Kapitalmanagement beibehalten." : "Maintain strict bankroll discipline.")
             });
         }
 
@@ -576,12 +580,16 @@ ${quantSummaryEn}`;
 
         if (!matches || matches.length === 0) {
             return JSON.stringify({
-                report_summary: "Nexus Quant Core™: İncelenebilecek aktif karşılaşma telemetrisi bulunamadı. Piyasa gözlem modunda.",
+                report_summary: lang === 'tr'
+                    ? "Nexus Quant Core™: İncelenebilecek aktif karşılaşma telemetrisi bulunamadı. Piyasa gözlem modunda."
+                    : (lang === 'de'
+                        ? "Nexus Quant Core™: Keine aktiven Spieldaten zur Prüfung gefunden. Marktbeobachtungsmodus aktiv."
+                        : "Nexus Quant Core™: No active match telemetry available for analysis. Market observation mode."),
                 golden_picks: [],
                 strategic_combo: null,
-                avoid_list: ["Şu an taranan karşılaşma yok veya devre kapalı."],
+                avoid_list: [lang === 'tr' ? "Şu an taranan karşılaşma yok veya devre kapalı." : (lang === 'de' ? "Derzeit keine Spiele im Scan oder Halbzeitpause." : "No active matches scanned or halftime interval.")],
                 value_picks: [],
-                discipline_note: "Saha verisi olmadan işlem açmayın."
+                discipline_note: lang === 'tr' ? "Saha verisi olmadan işlem açmayın." : (lang === 'de' ? "Keine Wetten ohne bestätigte Felddaten." : "Do not place positions without on-pitch telemetry.")
             });
         }
 
@@ -589,8 +597,8 @@ ${quantSummaryEn}`;
         // DEPARTMENT 1: TELEMETRY & SPATIAL MOMENTUM DESK
         // =========================================================================
         const evaluated = matches.map(m => {
-            const home = m.home || m.homeTeam || m.match?.split(' vs ')[0] || 'Ev Sahibi';
-            const away = m.away || m.awayTeam || m.match?.split(' vs ')[1] || 'Deplasman';
+            const home = m.home || m.homeTeam || m.match?.split(' vs ')[0] || (lang === 'tr' ? 'Ev Sahibi' : (lang === 'de' ? 'Heim' : 'Home'));
+            const away = m.away || m.awayTeam || m.match?.split(' vs ')[1] || (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Auswärts' : 'Away'));
             const scoreHome = Number(m.score?.home ?? 0);
             const scoreAway = Number(m.score?.away ?? 0);
             const totalGoals = scoreHome + scoreAway;
@@ -651,10 +659,31 @@ ${quantSummaryEn}`;
             const hasTrapWarning = isDeadMatch || isSterileTrap || isLateTimeDecay || isRadarDivergenceTrap;
 
             let trapReason = null;
-            if (isDeadMatch) trapReason = `Skor farkı ${Math.abs(scoreDiff)} ve 72'+ tempoda hücum baskısı düştü. Ölü maç kalkanı devrede.`;
-            else if (isSterileTrap) trapReason = "Kısır topla oynama tuzağı: Topa sahip olan takım ceza sahasına giremiyor ve şut üretemiyor.";
-            else if (isLateTimeDecay) trapReason = "82'+ zaman erimesi ve düşük atak temposu; geç gol riski yüksek.";
-            else if (isRadarDivergenceTrap) trapReason = `Modeller arasında %${Math.round(divergence)} oranında yüksek görüş ayrılığı var. Pazar tuzağı riski.`;
+            if (isDeadMatch) {
+                trapReason = lang === 'tr'
+                    ? `Skor farkı ${Math.abs(scoreDiff)} ve 72'+ tempoda hücum baskısı düştü. Ölü maç kalkanı devrede.`
+                    : (lang === 'de'
+                        ? `Torvorsprung ${Math.abs(scoreDiff)} und nach Minute 72' erlahmt der Angriffsdruck. Totes-Spiel-Schutz aktiv.`
+                        : `Score cushion ${Math.abs(scoreDiff)} and decelerated attacking tempo past 72'. Dead match shield active.`);
+            } else if (isSterileTrap) {
+                trapReason = lang === 'tr'
+                    ? "Kısır topla oynama tuzağı: Topa sahip olan takım ceza sahasına giremiyor ve şut üretemiyor."
+                    : (lang === 'de'
+                        ? "Sterile Ballbesitz-Falle: Ballbesitz ohne Strafraumaktionen oder Schüsse."
+                        : "Sterile possession trap: Possessing team fails to breach box or generate shots.");
+            } else if (isLateTimeDecay) {
+                trapReason = lang === 'tr'
+                    ? "82'+ zaman erimesi ve düşük atak temposu; geç gol riski yüksek."
+                    : (lang === 'de'
+                        ? "82'+ Zeitverfall bei niedrigem Angriffstempo; spätes Tor unwahrscheinlich."
+                        : "82'+ rapid time decay with subdued attacking tempo; high late-goal variance.");
+            } else if (isRadarDivergenceTrap) {
+                trapReason = lang === 'tr'
+                    ? `Modeller arasında %${Math.round(divergence)} oranında yüksek görüş ayrılığı var. Pazar tuzağı riski.`
+                    : (lang === 'de'
+                        ? `Hohe Divergenz (%${Math.round(divergence)}) zwischen den Modellen. Marktfalle möglich.`
+                        : `High divergence (%${Math.round(divergence)}) across quantitative models. Market trap risk.`);
+            }
 
             // =========================================================================
             // DEPARTMENT 4: QUANTITATIVE MODELING & VALUE ARBITRAGE
@@ -674,38 +703,80 @@ ${quantSummaryEn}`;
 
             let targetMarket = "";
             let timeInfo = type === 'LIVE' 
-                ? `Dk: ${m.minute || parsedMin + "'"} | Skor: ${scoreHome}-${scoreAway}`
-                : `Radar İntel | ${totalSources} Model Kaynağı`;
+                ? (lang === 'tr' ? `Dk: ${m.minute || parsedMin + "'"} | Skor: ${scoreHome}-${scoreAway}` : (lang === 'de' ? `Min: ${m.minute || parsedMin + "'"} | Stand: ${scoreHome}-${scoreAway}` : `Min: ${m.minute || parsedMin + "'"} | Score: ${scoreHome}-${scoreAway}`))
+                : (lang === 'tr' ? `Radar İntel | ${totalSources} Model Kaynağı` : (lang === 'de' ? `Radar-Intel | ${totalSources} Modell-Quellen` : `Radar Intel | ${totalSources} Model Sources`));
             let reasonText = "";
             let hiddenInsight = "";
 
             if (type === 'LIVE') {
                 if (totalGoals === 0) {
-                    targetMarket = "0.5 Üst Gol / İlk Yarı Gol";
-                    reasonText = `xG üretimi (${totalXg.toFixed(2)}) ve %${pressure} hücum baskısı golün olgunlaştığını gösteriyor.`;
-                    hiddenInsight = `${home} ve ${away} toplam ${shotsHome + shotsAway} isabetli şut üretti; ceza sahası aksiyonları çok sıcak.`;
+                    targetMarket = lang === 'tr' ? "0.5 Üst Gol / İlk Yarı Gol" : (lang === 'de' ? "Über 0.5 Tore / 1. HZ Tor" : "Over 0.5 Goals / 1st Half Goal");
+                    reasonText = lang === 'tr'
+                        ? `xG üretimi (${totalXg.toFixed(2)}) ve %${pressure} hücum baskısı golün olgunlaştığını gösteriyor.`
+                        : (lang === 'de'
+                            ? `xG-Produktion (${totalXg.toFixed(2)}) und %${pressure} Offensivdruck deuten auf ein bevorstehendes Tor hin.`
+                            : `xG volume (${totalXg.toFixed(2)}) and %${pressure} attacking surge indicate an impending breakthrough.`);
+                    hiddenInsight = lang === 'tr'
+                        ? `${home} ve ${away} toplam ${shotsHome + shotsAway} isabetli şut üretti; ceza sahası aksiyonları çok sıcak.`
+                        : (lang === 'de'
+                            ? `${home} und ${away} verbuchen zusammen ${shotsHome + shotsAway} Torschüsse; intensive Strafraumaktionen.`
+                            : `${home} and ${away} combined for ${shotsHome + shotsAway} shots on target; lively penalty box action.`);
                 } else if (dominance >= 15) {
-                    targetMarket = `Sıradaki Gol (${home}) / ${totalGoals + 0.5} Üst`;
-                    reasonText = `${home} takımı +%${dominance} saha hakimiyeti ve ${shotsHome} kaleyi bulan şut ile tek taraflı baskı kuruyor.`;
-                    hiddenInsight = `Deplasman takımı son 15 dakikada yarı sahasından çıkamadı. Savunma hattında yorgunluk mevcut.`;
+                    targetMarket = lang === 'tr' ? `Sıradaki Gol (${home}) / ${totalGoals + 0.5} Üst` : (lang === 'de' ? `Nächstes Tor (${home}) / Über ${totalGoals + 0.5}` : `Next Goal (${home}) / Over ${totalGoals + 0.5}`);
+                    reasonText = lang === 'tr'
+                        ? `${home} takımı +%${dominance} saha hakimiyeti ve ${shotsHome} kaleyi bulan şut ile tek taraflı baskı kuruyor.`
+                        : (lang === 'de'
+                            ? `${home} dominiert mit +%${dominance} Feldüberlegenheit und ${shotsHome} Torschüssen.`
+                            : `${home} dominating with +%${dominance} territory control and ${shotsHome} shots on target.`);
+                    hiddenInsight = lang === 'tr'
+                        ? `Deplasman takımı son 15 dakikada yarı sahasından çıkamadı. Savunma hattında yorgunluk mevcut.`
+                        : (lang === 'de'
+                            ? `Auswärtsteam kam in den letzten 15 Minuten kaum aus der eigenen Hälfte; Defensive ermüdet.`
+                            : `Away side pinned in own half for past 15 mins; defensive fatigue setting in.`);
                 } else if (dominance <= -15) {
-                    targetMarket = `Sıradaki Gol (${away}) / ${totalGoals + 0.5} Üst`;
-                    reasonText = `${away} takımı deplasmanda olmasına rağmen baskı ivmesini ele geçirdi (${attacksAway} tehlikeli akın).`;
-                    hiddenInsight = `${home} defans kurgusu dağılmış durumda; kontra atak koridorları son derece açık.`;
+                    targetMarket = lang === 'tr' ? `Sıradaki Gol (${away}) / ${totalGoals + 0.5} Üst` : (lang === 'de' ? `Nächstes Tor (${away}) / Über ${totalGoals + 0.5}` : `Next Goal (${away}) / Over ${totalGoals + 0.5}`);
+                    reasonText = lang === 'tr'
+                        ? `${away} takımı deplasmanda olmasına rağmen baskı ivmesini ele geçirdi (${attacksAway} tehlikeli akın).`
+                        : (lang === 'de'
+                            ? `${away} übernimmt trotz Auswärtsspiel die Spielkontrolle (${attacksAway} gefährliche Angriffe).`
+                            : `${away} seizing momentum despite playing away (${attacksAway} dangerous attacks).`);
+                    hiddenInsight = lang === 'tr'
+                        ? `${home} defans kurgusu dağılmış durumda; kontra atak koridorları son derece açık.`
+                        : (lang === 'de'
+                            ? `${home} Abwehrverbund ist ungeordnet; Konterräume bieten exzellente Chancen.`
+                            : `${home} defensive structure fractured; counter-attack channels wide open.`);
                 } else {
-                    targetMarket = `${totalGoals + 0.5} Üst / Karşılıklı Aksiyon`;
-                    reasonText = `İki takım da orta sahayı hızlı geçiyor. Baskı %${pressure}, toplam xG: ${totalXg.toFixed(2)}.`;
-                    hiddenInsight = "Açık futbol senaryosu: İki kalede de savunma arkası boşluklar sürekli zorlanıyor.";
+                    targetMarket = lang === 'tr' ? `${totalGoals + 0.5} Üst / Karşılıklı Aksiyon` : (lang === 'de' ? `Über ${totalGoals + 0.5} Tore / Offener Schlagabtausch` : `Over ${totalGoals + 0.5} Goals / Both Attacking`);
+                    reasonText = lang === 'tr'
+                        ? `İki takım da orta sahayı hızlı geçiyor. Baskı %${pressure}, toplam xG: ${totalXg.toFixed(2)}.`
+                        : (lang === 'de'
+                            ? `Beide Teams überbrücken das Mittelfeld schnell. Druck %${pressure}, Gesamt-xG: ${totalXg.toFixed(2)}.`
+                            : `Both teams transitioning rapidly through midfield. Pressure %${pressure}, total xG: ${totalXg.toFixed(2)}.`);
+                    hiddenInsight = lang === 'tr'
+                        ? "Açık futbol senaryosu: İki kalede de savunma arkası boşluklar sürekli zorlanıyor."
+                        : (lang === 'de'
+                            ? "Offenes Spielszenario: Auf beiden Seiten werden Tiefenräume konsequent attackiert."
+                            : "Open match scenario: Channels behind both backlines consistently challenged.");
                 }
             } else {
-                targetMarket = `Maç Tercihi: ${topPred}`;
-                reasonText = `${totalSources} küresel analitik kaynaktan ${topPredCount} tanesi (${Math.round(consensusRatio * 100)}%) bu tercihte birleşti.`;
-                hiddenInsight = divergence < 20 ? "Düşük piyasa sapması: Model konsensüsü son derece kararlı." : "Orta düzey divergence: Piyasa oranlarıyla model beklentisi arasında değer marjı var.";
+                targetMarket = lang === 'tr' ? `Maç Tercihi: ${topPred}` : (lang === 'de' ? `Spielprognose: ${topPred}` : `Match Pick: ${topPred}`);
+                reasonText = lang === 'tr'
+                    ? `${totalSources} küresel analitik kaynaktan ${topPredCount} tanesi (%${Math.round(consensusRatio * 100)}) bu tercihte birleşti.`
+                    : (lang === 'de'
+                        ? `${topPredCount} von ${totalSources} globalen Modellen (%${Math.round(consensusRatio * 100)}) einig auf diesen Tipp.`
+                        : `${topPredCount} of ${totalSources} global models (%${Math.round(consensusRatio * 100)}) aligned on this selection.`);
+                hiddenInsight = divergence < 20 
+                    ? (lang === 'tr' ? "Düşük piyasa sapması: Model konsensüsü son derece kararlı." : (lang === 'de' ? "Geringe Marktabweichung: Der Modell-Konsens ist extrem stabil." : "Low market divergence: Model consensus is firmly consolidated."))
+                    : (lang === 'tr' ? "Orta düzey divergence: Piyasa oranlarıyla model beklentisi arasında değer marjı var." : (lang === 'de' ? "Moderate Divergenz: Werthaltige Diskrepanz zwischen Quoten und Modellprojektion." : "Moderate divergence: Value margin exists between odds and model projection."));
             }
 
             const edge = Math.round(((quantProb / 100 * 1.85) - 1) * 100 * 10) / 10;
             const finalEdge = edge > 0 ? edge : Math.round((quantProb * 0.16) * 10) / 10;
-            const riskLevel = quantProb >= 80 ? 'DÜŞÜK' : quantProb >= 68 ? 'ORTA' : 'YÜKSEK';
+            const riskLevel = quantProb >= 80 
+                ? (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW')) 
+                : (quantProb >= 68 
+                    ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')) 
+                    : (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH')));
 
             return {
                 raw: m,
@@ -754,25 +825,25 @@ ${quantSummaryEn}`;
             risk: g.riskLevel,
             reason: g.reasonText,
             hidden_insight: g.hiddenInsight,
-            trap_alert: g.trapReason || (g.minute >= 78 ? "Son düzlük: Skor koruma hamlelerine dikkat edilmeli." : null)
+            trap_alert: g.trapReason || (g.minute >= 78 ? (lang === 'tr' ? "Son düzlük: Skor koruma hamlelerine dikkat edilmeli." : (lang === 'de' ? "Schlussphase: Vorsicht vor defensiver Ergebnisverwaltung." : "Late game: Caution regarding defensive score retention.")) : null)
         }));
 
         const avoidCandidates = evaluated.filter(e => e.hasTrapWarning || e.attractiveness < 35);
         const avoidListFormatted = avoidCandidates.slice(0, 3).map(a => 
-            `⚠️ ${a.match} (${a.time_info}): ${a.trapReason || 'Düşük hücum ivmesi ve rölanti oyun temposu nedeniyle kuponlardan uzak tutulmalıdır.'}`
+            `⚠️ ${a.match} (${a.time_info}): ${a.trapReason || (lang === 'tr' ? 'Düşük hücum ivmesi ve rölanti oyun temposu nedeniyle kuponlardan uzak tutulmalıdır.' : (lang === 'de' ? 'Aufgrund nachlassenden Tempos und geringen Drucks von Wettscheinen fernhalten.' : 'Due to decelerated pace and low pressure, avoid placing on slips.'))}`
         );
         if (avoidListFormatted.length === 0 && evaluated.length > 0) {
-            avoidListFormatted.push("Şu an yüksek riskli ölü maç tespit edilmedi; piyasa dinamik seyrediyor.");
+            avoidListFormatted.push(lang === 'tr' ? "Şu an yüksek riskli ölü maç tespit edilmedi; piyasa dinamik seyrediyor." : (lang === 'de' ? "Derzeit keine toten Spiele mit hohem Risiko erkannt; dynamisches Marktgeschehen." : "No high-risk dead matches detected; market conditions remain dynamic."));
         }
 
         let strategicCombo = null;
         if (golden.length >= 2) {
             const jointProb = Math.round((golden[0].quantProb / 100) * (golden[1].quantProb / 100) * 100);
             strategicCombo = {
-                type: "💎 NEXUS DUAL ALPHA COMBO (STRATEJİK İKİLİ)",
+                type: lang === 'tr' ? "💎 NEXUS DUAL ALPHA COMBO (STRATEJİK İKİLİ)" : (lang === 'de' ? "💎 NEXUS DUAL ALPHA KOMBI (STRATEGISCHES DUO)" : "💎 NEXUS DUAL ALPHA COMBO (STRATEGIC DOUBLE)"),
                 matches: [
-                    `1. ${golden[0].match} ➔ ${golden[0].targetMarket} (%${golden[0].quantProb} Olasılık)`,
-                    `2. ${golden[1].match} ➔ ${golden[1].targetMarket} (%${golden[1].quantProb} Olasılık)`
+                    `1. ${golden[0].match} ➔ ${golden[0].targetMarket} (%${golden[0].quantProb} ${lang === 'tr' ? 'Olasılık' : (lang === 'de' ? 'Wahrsch.' : 'Probability')})`,
+                    `2. ${golden[1].match} ➔ ${golden[1].targetMarket} (%${golden[1].quantProb} ${lang === 'tr' ? 'Olasılık' : (lang === 'de' ? 'Wahrsch.' : 'Probability')})`
                 ],
                 combined_probability: jointProb
             };
@@ -784,11 +855,19 @@ ${quantSummaryEn}`;
             .map(v => ({
                 match: v.match,
                 market: v.targetMarket,
-                reason: `Telemetri ivmesi %${v.pressure}, model konsensüsü: %${Math.round(v.consensusRatio * 100)} '${v.topPred}'.`
+                reason: lang === 'tr'
+                    ? `Telemetri ivmesi %${v.pressure}, model konsensüsü: %${Math.round(v.consensusRatio * 100)} '${v.topPred}'.`
+                    : (lang === 'de'
+                        ? `Telemetrie-Momentum %${v.pressure}, Modell-Konsens: %${Math.round(v.consensusRatio * 100)} '${v.topPred}'.`
+                        : `Telemetry momentum %${v.pressure}, model consensus: %${Math.round(v.consensusRatio * 100)} '${v.topPred}'.`)
             }));
 
         const totalScanned = matches.length;
-        const executiveSummary = `Nexus Quant Core™ komitesi aktif ${totalScanned} karşılaşmanın xG telemetrisini, anlık hücum ivmesini ve 8 küresel kaynağın mutabakatını tarayarak risk denetiminden geçirmiştir. Toplam ${golden.length} yüksek değerli pozisyon onaylanmıştır.`;
+        const executiveSummary = lang === 'tr'
+            ? `Nexus Quant Core™ komitesi aktif ${totalScanned} karşılaşmanın xG telemetrisini, anlık hücum ivmesini ve 8 küresel kaynağın mutabakatını tarayarak risk denetiminden geçirmiştir. Toplam ${golden.length} yüksek değerli pozisyon onaylanmıştır.`
+            : (lang === 'de'
+                ? `Das Nexus Quant Core™-Komitee hat die xG-Telemetrie, das Momentum und den Konsens aus 8 globalen Quellen von ${totalScanned} aktiven Spielen auditiert. Insgesamt wurden ${golden.length} hochgradige Positionen freigegeben.`
+                : `Nexus Quant Core™ audited xG telemetry, match momentum, and consensus across 8 global sources for ${totalScanned} active fixtures. A total of ${golden.length} high-conviction positions were ratified.`);
 
         const finalDossier = {
             report_summary: executiveSummary,
@@ -796,7 +875,11 @@ ${quantSummaryEn}`;
             strategic_combo: strategicCombo,
             avoid_list: avoidListFormatted,
             value_picks: valuePicksFormatted,
-            discipline_note: "Kasa Disiplini (Kelly Kuralı): Tekli bahislerde portföyün %2.0 - %3.0'ünden, ikili kombinelerde ise maksimum %1.5'inden fazlasını riske etmeyiniz."
+            discipline_note: lang === 'tr'
+                ? "Kasa Disiplini (Kelly Kuralı): Tekli bahislerde portföyün %2.0 - %3.0'ünden, ikili kombinelerde ise maksimum %1.5'inden fazlasını riske etmeyiniz."
+                : (lang === 'de'
+                    ? "Bankroll-Disziplin (Kelly-Formel): Riskieren Sie bei Einzelwetten nicht mehr als 2.0% - 3.0% und bei 2er-Kombis maximal 1.5% des Kapitals."
+                    : "Bankroll Discipline (Kelly Criterion): Never allocate more than 2.0% - 3.0% on singles and a maximum of 1.5% on double accumulator positions.")
         };
 
         aiUsageLimiter.recordAIUsage(userId, 'aiReport');

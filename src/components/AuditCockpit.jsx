@@ -83,7 +83,7 @@ export const AuditCockpit = ({
         try {
             const base = proxyBase || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com'));
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com'));
 
             const res = await fetch(`${base}/api/admin/audit-cockpit`, {
                 headers: getAdminHeaders()
@@ -122,7 +122,7 @@ export const AuditCockpit = ({
         try {
             const base = proxyBase || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com'));
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com'));
 
             const res = await fetch(`${base}/api/admin/audit-cockpit/action`, {
                 method: 'POST',
@@ -261,7 +261,7 @@ export const AuditCockpit = ({
                             gap: '0.3rem'
                         }}
                     >
-                        🔄 {loading ? '...' : (isTr ? 'Yenile' : 'Refresh')}
+                        🔄 {loading ? '...' : (isTr ? 'Yenile' : (isDe ? 'Aktualisieren' : 'Refresh'))}
                     </button>
                 </div>
             </div>

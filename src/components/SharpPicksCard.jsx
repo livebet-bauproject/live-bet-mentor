@@ -17,7 +17,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
         try {
             if (forceRefresh) setRefreshing(true);
             const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-            const proxyBase = import.meta.env?.VITE_API_BASE_URL || (isLocal ? 'http://localhost:3001' : 'https://live-bet-mentor.onrender.com');
+            const proxyBase = import.meta.env?.VITE_API_BASE_URL || (isLocal ? 'http://localhost:3001' : 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
             const url = `${proxyBase}/api/sharp-picks${forceRefresh ? '?refresh=1&t=' + Date.now() : ''}`;
             const res = await fetch(url);
             if (res.ok) {
@@ -363,17 +363,17 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 gap: '4px',
                                 opacity: refreshing ? 0.7 : 1
                             }}
-                            title={lang === 'tr' ? 'Tahminleri Canlı Yenile' : 'Refresh Picks Live'}
+                            title={lang === 'tr' ? 'Tahminleri Canlı Yenile' : (lang === 'de' ? 'Tipps live aktualisieren' : 'Refresh Picks Live')}
                         >
                             <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.6s' }}>🔄</span>
-                            <span>{refreshing ? (lang === 'tr' ? 'Yenileniyor...' : 'Refreshing...') : (lang === 'tr' ? 'Yenile' : 'Refresh')}</span>
+                            <span>{refreshing ? (lang === 'tr' ? 'Yenileniyor...' : (lang === 'de' ? 'Wird aktualisiert...' : 'Refreshing...')) : (lang === 'tr' ? 'Yenile' : (lang === 'de' ? 'Aktualisieren' : 'Refresh'))}</span>
                         </button>
                     </div>
                     <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#ffffff', letterSpacing: '-0.02em' }}>
-                        {t.sharp_picks_title || 'Günün Keskin Seçimleri'}
+                        {t.sharp_picks_title || (lang === 'de' ? 'Ausgewählte Value-Tipps des Tages' : (lang === 'tr' ? 'Günün Keskin Seçimleri' : 'Daily Sharp Picks'))}
                     </h2>
                     <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#94a3b8' }}>
-                        {t.sharp_picks_subtitle || 'Kasa katlamaya uygun, riski en düşük sağlam maç tercihleri.'}
+                        {t.sharp_picks_subtitle || (lang === 'de' ? 'Verifizierte Value-Tipps mit niedrigstem Risiko für Bankroll-Aufbau.' : (lang === 'tr' ? 'Kasa katlamaya uygun, riski en düşük sağlam maç tercihleri.' : 'Low-risk verified picks optimized for bankroll compounding.'))}
                     </p>
                 </div>
                 {onClose && (
@@ -413,10 +413,10 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                         <span style={{ fontSize: '18px' }}>🏆</span>
                         <div>
                             <span style={{ fontSize: '12px', fontWeight: '700', color: '#34d399', textTransform: 'uppercase' }}>
-                                {t.sharp_picks_yesterday_success || 'Dünkü Başarı:'}
+                                {t.sharp_picks_yesterday_success || (lang === 'de' ? 'Gestriger Erfolg:' : (lang === 'tr' ? 'Dünkü Başarı:' : 'Yesterday Success:'))}
                             </span>
                             <span style={{ fontSize: '13px', fontWeight: '700', color: '#ffffff', marginLeft: '6px' }}>
-                                {yesterdaySummary.total} {lang === 'tr' ? 'Maçın' : 'Picks,'} <span style={{ color: '#10b981' }}>{yesterdaySummary.won} {t.sharp_picks_matches_won || "Tuttu"}</span>
+                                {yesterdaySummary.total} {lang === 'tr' ? 'Maçın' : (lang === 'de' ? 'Spiele,' : 'Picks,')} <span style={{ color: '#10b981' }}>{yesterdaySummary.won} {t.sharp_picks_matches_won || (lang === 'de' ? 'Gewonnen' : (lang === 'tr' ? 'Tuttu' : 'Won'))}</span>
                             </span>
                         </div>
                     </div>
@@ -581,7 +581,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                                 cursor: 'pointer',
                                 padding: '2px'
                             }}
-                            title="Aramayı Temizle"
+                            title={lang === 'tr' ? 'Aramayı Temizle' : (lang === 'de' ? 'Suche löschen' : 'Clear Search')}
                         >
                             ✕
                         </button>
@@ -590,7 +590,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
 
                 {/* Quick Sort Shortcuts */}
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>Hızlı Sırala:</span>
+                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>{lang === 'tr' ? 'Hızlı Sırala:' : (lang === 'de' ? 'Schnell-Sortierung:' : 'Quick Sort:')}</span>
                     <button
                         onClick={() => setSortBy(sortBy === 'CONF_DESC' ? 'CONF_ASC' : 'CONF_DESC')}
                         style={{
@@ -606,9 +606,9 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                             alignItems: 'center',
                             gap: '3px'
                         }}
-                        title="Model Güvenine Göre Sırala"
+                        title={lang === 'tr' ? 'Model Güvenine Göre Sırala' : (lang === 'de' ? 'Nach Modell-Konfidenz sortieren' : 'Sort by Model Confidence')}
                     >
-                        🎯 Güven {sortBy === 'CONF_DESC' ? '↓ En Yüksek' : sortBy === 'CONF_ASC' ? '↑ En Düşük' : ''}
+                        🎯 {lang === 'tr' ? 'Güven' : (lang === 'de' ? 'Konfidenz' : 'Confidence')} {sortBy === 'CONF_DESC' ? (lang === 'tr' ? '↓ En Yüksek' : (lang === 'de' ? '↓ Höchste' : '↓ Highest')) : sortBy === 'CONF_ASC' ? (lang === 'tr' ? '↑ En Düşük' : (lang === 'de' ? '↑ Niedrigste' : '↑ Lowest')) : ''}
                     </button>
                     <button
                         onClick={() => setSortBy(sortBy === 'TIME_ASC' ? 'TIME_DESC' : 'TIME_ASC')}
@@ -625,9 +625,9 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                             alignItems: 'center',
                             gap: '3px'
                         }}
-                        title="Başlama Saatine Göre Sırala"
+                        title={lang === 'tr' ? 'Başlama Saatine Göre Sırala' : (lang === 'de' ? 'Nach Anstoßzeit sortieren' : 'Sort by Start Time')}
                     >
-                        ⏰ Saat {sortBy === 'TIME_ASC' ? '↑ Erken' : sortBy === 'TIME_DESC' ? '↓ Geç' : ''}
+                        ⏰ {lang === 'tr' ? 'Saat' : (lang === 'de' ? 'Zeit' : 'Time')} {sortBy === 'TIME_ASC' ? (lang === 'tr' ? '↑ Erken' : (lang === 'de' ? '↑ Früheste' : '↑ Earliest')) : sortBy === 'TIME_DESC' ? (lang === 'tr' ? '↓ Geç' : (lang === 'de' ? '↓ Späteste' : '↓ Latest')) : ''}
                     </button>
                     <button
                         onClick={() => setSortBy(sortBy === 'ODDS_DESC' ? 'ODDS_ASC' : 'ODDS_DESC')}
@@ -644,9 +644,9 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                             alignItems: 'center',
                             gap: '3px'
                         }}
-                        title="Orana Göre Sırala"
+                        title={lang === 'tr' ? 'Orana Göre Sırala' : (lang === 'de' ? 'Nach Quote sortieren' : 'Sort by Odds')}
                     >
-                        💰 Oran {sortBy === 'ODDS_DESC' ? '↓ Yüksek' : sortBy === 'ODDS_ASC' ? '↑ Düşük' : ''}
+                        💰 {lang === 'tr' ? 'Oran' : (lang === 'de' ? 'Quote' : 'Odds')} {sortBy === 'ODDS_DESC' ? (lang === 'tr' ? '↓ Yüksek' : (lang === 'de' ? '↓ Höchste' : '↓ Highest')) : sortBy === 'ODDS_ASC' ? (lang === 'tr' ? '↑ Düşük' : (lang === 'de' ? '↑ Niedrigste' : '↑ Lowest')) : ''}
                     </button>
                 </div>
             </div>
@@ -759,7 +759,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                 }}>
                     {/* Model Confidence Threshold Filter */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>🎯 Güven:</span>
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>🎯 {lang === 'tr' ? 'Güven:' : (lang === 'de' ? 'Konfidenz:' : 'Confidence:')}</span>
                         <select
                             value={confFilter}
                             onChange={(e) => setConfFilter(e.target.value)}
@@ -798,7 +798,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
 
                     {/* Bet Type / Market Filter */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>🎲 Tür:</span>
+                        <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '600' }}>🎲 {lang === 'tr' ? 'Tür:' : (lang === 'de' ? 'Typ:' : 'Type:')}</span>
                         <select
                             value={marketFilter}
                             onChange={(e) => setMarketFilter(e.target.value)}
@@ -904,9 +904,9 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                                     cursor: 'pointer',
                                     transition: 'all 0.15s'
                                 }}
-                                title="Tüm filtreleri varsayılana sıfırla"
+                                title={lang === 'tr' ? 'Tüm filtreleri varsayılana sıfırla' : (lang === 'de' ? 'Alle Filter zurücksetzen' : 'Reset all filters to default')}
                             >
-                                ✕ {t.sharp_filter_reset || "Sıfırla"}
+                                ✕ {t.sharp_filter_reset || (lang === 'de' ? 'Zurücksetzen' : (lang === 'tr' ? 'Sıfırla' : 'Reset'))}
                             </button>
                         )}
                     </div>
@@ -916,7 +916,7 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
             {/* Matches List */}
             {loading ? (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b', fontSize: '14px' }}>
-                    Seçimler ve sonuçlar taranıyor...
+                    {lang === 'tr' ? 'Seçimler ve sonuçlar taranıyor...' : (lang === 'de' ? 'Auswahl und Ergebnisse werden geladen...' : 'Scanning selections and live results...')}
                 </div>
             ) : filteredList.length === 0 ? (
                 <div style={{
@@ -930,10 +930,10 @@ export const SharpPicksCard = ({ lang = 'tr', t = {}, onClose }) => {
                 }}>
                     <div style={{ fontSize: '30px', marginBottom: '8px' }}>🔍</div>
                     <div style={{ fontWeight: '700', color: '#f8fafc', marginBottom: '4px' }}>
-                        {t.sharp_no_matches_found || "Filtre kriterlerine uygun maç bulunamadı."}
+                        {t.sharp_no_matches_found || (lang === 'de' ? 'Keine Spiele gefunden, die den Kriterien entsprechen.' : (lang === 'tr' ? 'Filtre kriterlerine uygun maç bulunamadı.' : 'No matches found matching filter criteria.'))}
                     </div>
                     <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '14px' }}>
-                        Arama metninizi veya filtre seçimlerinizi genişleterek tekrar deneyebilirsiniz.
+                        {lang === 'tr' ? 'Arama metninizi veya filtre seçimlerinizi genişleterek tekrar deneyebilirsiniz.' : (lang === 'de' ? 'Versuchen Sie, Ihre Suche oder Filter anzupassen.' : 'Try expanding your search query or filter criteria.')}
                     </div>
                     {isAnyFilterActive && (
                         <button

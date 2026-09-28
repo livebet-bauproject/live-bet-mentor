@@ -19,7 +19,7 @@ export const MatchIncidentsTimeline = ({
     const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Auswärts' : 'Away'));
     const homeTeamId = match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
     const awayTeamId = match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
-    const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com';
+    const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
     const homeTeamLogo = propHomeTeamLogo || match?.homeTeamLogo || (homeTeamId ? `${apiBase}/api/team/${homeTeamId}/image` : null);
     const awayTeamLogo = propAwayTeamLogo || match?.awayTeamLogo || (awayTeamId ? `${apiBase}/api/team/${awayTeamId}/image` : null);
     const currentScore = propCurrentScore || match?.score;
@@ -124,19 +124,23 @@ export const MatchIncidentsTimeline = ({
                 {hasGoalsRecordedInMatch ? (
                     <div>
                         <div style={{ color: '#fbbf24', fontWeight: 800, marginBottom: '2px' }}>
-                            {lang === 'tr' ? `Canlı Olay Akışı Sağlayıcıda Detaylandırılmıyor` : 'Detailed Live Event Feed Unavailable'}
+                            {lang === 'tr' ? `Canlı Olay Akışı Sağlayıcıda Detaylandırılmıyor` : (lang === 'de' ? 'Detaillierter Live-Ereignis-Feed nicht verfügbar' : 'Detailed Live Event Feed Unavailable')}
                         </div>
                         <div style={{ opacity: 0.85, fontSize: '0.68rem' }}>
                             {lang === 'tr'
                                 ? `Bu lig için sağlayıcı anlık olay kronolojisi (gol/kart dakikaları) sağlamıyor. (Güncel Skor: ${curHome} - ${curAway})`
-                                : `Provider does not stream minute-by-minute incidents for this tier. (Current Score: ${curHome} - ${curAway})`}
+                                : (lang === 'de'
+                                    ? `Für diese Liga stellt der Provider keine minütliche Ereignis-Chronologie bereit. (Aktueller Spielstand: ${curHome} - ${curAway})`
+                                    : `Provider does not stream minute-by-minute incidents for this tier. (Current Score: ${curHome} - ${curAway})`)}
                         </div>
                     </div>
                 ) : (
                     <div>
                         {lang === 'tr'
                             ? 'Bu karşılaşmada henüz önemli bir maç olayı (gol, kart, oyuncu değişikliği) kaydedilmedi.'
-                            : 'No major match events (goals, cards, substitutions) recorded yet for this fixture.'}
+                            : (lang === 'de'
+                                ? 'Für dieses Spiel wurden noch keine signifikanten Spielereignisse (Tore, Karten, Wechsel) erfasst.'
+                                : 'No major match events (goals, cards, substitutions) recorded yet for this fixture.')}
                     </div>
                 )}
             </div>

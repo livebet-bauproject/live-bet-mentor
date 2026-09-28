@@ -1027,7 +1027,7 @@ class SmartAlertService {
 
         const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
         let resolvedCount = 0;
         const now = Date.now();
@@ -1096,7 +1096,7 @@ class SmartAlertService {
         try {
             const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
             fetch(`${proxyBase}/api/telegram/send-signal`, {
                 method: 'POST',
@@ -1150,7 +1150,7 @@ class SmartAlertService {
         try {
             const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
                 ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://live-bet-mentor.onrender.com');
+                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
 
             fetch(`${proxyBase}/api/telegram/resolve-signal`, {
                 method: 'POST',
