@@ -309,7 +309,8 @@ export const LiveTerminalTable = ({
                                 ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
                                 : 0;
                             const dqsVal = m.dqs !== undefined ? m.dqs : 0;
-                            const isTrendApproved = hasTrend && dqsVal >= 0.50 && !isDeadMatch;
+                            const isEarlyMin = !opp?.isHalftime && minVal < 15 && (sogHome + sogAway < 2) && (daHome + daAway < 15);
+                            const isTrendApproved = hasTrend && dqsVal >= 0.50 && !isDeadMatch && !isEarlyMin && heatScore >= 45;
                             const isTrendTrap = hasTrend && (dqsVal < 0.40 || isDeadMatch);
                             const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
                             const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
@@ -398,12 +399,12 @@ export const LiveTerminalTable = ({
                                             {/* Opportunity Micro-Badges (from Classic Cards) */}
                                             {opp && (
                                                 <div className="tb-badges-row" style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '3px', justifyContent: 'center' }}>
-                                                    {opp.isHalftime && (
+                                                    {(opp.hasHalftimeValue || (opp.isHalftime && opp.isStatsReady && !opp.isLowData && heatScore >= 50)) && (
                                                         <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
                                                             ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : (lang === 'de' ? '2. HZ VALUE' : '2ND HALF VALUE')}
                                                         </span>
                                                     )}
-                                                    {opp.valueDetected && (
+                                                    {opp.valueDetected && !isEarlyMin && (
                                                         <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
                                                             💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : (lang === 'de' ? 'VALUE-QUOTE' : 'VALUE ODDS')}
                                                         </span>

@@ -151,13 +151,15 @@ class LiveOpportunityScorer {
         // Halftime Activity Evaluation:
         // A match in Halftime is NOT over; it is the prime 15-minute decision window for second-half opportunities.
         let qualifiesForHalftimeAnalysis = true;
+        let hasHalftimeStats = false;
         if (isHalftime) {
             const hStats = match.stats || {};
             const totalXg = (Number(hStats.xg?.home) || 0) + (Number(hStats.xg?.away) || 0);
             const totalSog = (Number(hStats.shotsOnGoal?.home) || 0) + (Number(hStats.shotsOnGoal?.away) || 0);
             const totalAttacks = (Number(hStats.dangerousAttacks?.home) || 0) + (Number(hStats.dangerousAttacks?.away) || 0);
-            const hasStats = totalXg > 0 || totalSog > 0 || totalAttacks > 0;
-            qualifiesForHalftimeAnalysis = !hasStats || (totalXg >= 0.45 || totalSog >= 3 || totalAttacks >= 25 || (match.tier === 1 && (totalSog >= 2 || totalXg >= 0.30)));
+            hasHalftimeStats = totalXg > 0 || totalSog > 0 || totalAttacks > 0;
+            // Real statistical qualification requires genuine match telemetry
+            qualifiesForHalftimeAnalysis = hasHalftimeStats && (totalXg >= 0.45 || totalSog >= 3 || totalAttacks >= 20 || (match.tier === 1 && (totalSog >= 2 || totalXg >= 0.30)));
         }
 
         const matchId = match.id;
@@ -238,10 +240,11 @@ class LiveOpportunityScorer {
         // - If in halftime, meets halftime analysis criteria
         // - Has sufficient DQS and genuine data density
         const hasEarlyMomentum = totalSog >= 2 || totalAttacks >= 20;
+        const hasBasicTelemetry = (totalSog > 0 || totalAttacks >= 8);
         const isStatsReady = (!isEarlyMinute || hasEarlyMomentum) && 
-                             qualifiesForHalftimeAnalysis && 
+                             (!isHalftime || qualifiesForHalftimeAnalysis) && 
                              !isLowData &&
-                             ((dqs >= 0.50) || (totalSog >= 3 && totalAttacks >= 15));
+                             ((dqs >= 0.50 && hasBasicTelemetry) || (totalSog >= 3 && totalAttacks >= 15));
         
         // 3. Dynamic Momentum (Window-based)
         const momentumScore = this._calculateMomentumScore(match, windowMinutes);
@@ -434,7 +437,7 @@ class LiveOpportunityScorer {
 
         // STOP-LOSS & CASH-OUT RADAR DETECTION (v4.0)
         let cashOutWarning = null;
-        if (minute >= 68 && minute <= 88) {
+        if (!isLowData && isStatsReady && minute >= 68 && minute <= 88) {
             const stats = match.stats || {};
             const cards = match.cards || stats.cards || {};
             const curHome = Number(match.homeScore?.current ?? match.score?.home ?? 0);
@@ -442,34 +445,41 @@ class LiveOpportunityScorer {
 
             const daHome = Number(stats.dangerousAttacks?.home ?? 0);
             const daAway = Number(stats.dangerousAttacks?.away ?? 0);
-            const dominantSide = daHome >= daAway ? 'home' : 'away';
-            const domReds = Number(cards[dominantSide]?.red ?? 0);
+            const totalAttacks = daHome + daAway;
 
-            if (domReds > 0) {
-                cashOutWarning = {
-                    reason: `${dominantSide === 'home' ? match.homeTeam : match.awayTeam} kırmızı kart gördü.`,
-                    urgency: 'HIGH'
-                };
-            } else if (dominantSide === 'home' && curAway > curHome && minute >= 74) {
-                cashOutWarning = {
-                    reason: `Deplasman öne geçti (${curHome}-${curAway}), baskı dağılıyor.`,
-                    urgency: 'HIGH'
-                };
-            } else if (dominantSide === 'away' && curHome > curAway && minute >= 74) {
-                cashOutWarning = {
-                    reason: `Ev sahibi öne geçti (${curHome}-${curAway}), deplasman baskısı dağılıyor.`,
-                    urgency: 'HIGH'
-                };
-            } else if (minute >= 78 && (daHome + daAway) < 35 && pressureScore < 45) {
-                cashOutWarning = {
-                    reason: `Son 15 dakikada maç temposu kilitlendi.`,
-                    urgency: 'MEDIUM'
-                };
+            // Only evaluate cashout if the match is actively tracked with real pitch stats
+            if (totalAttacks >= 20) {
+                const dominantSide = daHome >= daAway ? 'home' : 'away';
+                const domReds = Number(cards[dominantSide]?.red ?? 0);
+
+                if (domReds > 0) {
+                    cashOutWarning = {
+                        reason: `${dominantSide === 'home' ? match.homeTeam : match.awayTeam} kırmızı kart gördü.`,
+                        urgency: 'HIGH'
+                    };
+                } else if (dominantSide === 'home' && curAway > curHome && minute >= 74) {
+                    cashOutWarning = {
+                        reason: `Deplasman öne geçti (${curHome}-${curAway}), baskı dağılıyor.`,
+                        urgency: 'HIGH'
+                    };
+                } else if (dominantSide === 'away' && curHome > curAway && minute >= 74) {
+                    cashOutWarning = {
+                        reason: `Ev sahibi öne geçti (${curHome}-${curAway}), deplasman baskısı dağılıyor.`,
+                        urgency: 'HIGH'
+                    };
+                } else if (minute >= 78 && totalAttacks < 35 && pressureScore < 45) {
+                    cashOutWarning = {
+                        reason: `Son 15 dakikada maç temposu kilitlendi.`,
+                        urgency: 'MEDIUM'
+                    };
+                }
             }
         }
 
         // Store for next cycle
         this._updateHistory(matchId, totalScore);
+
+        const hasHalftimeValue = isHalftime && qualifiesForHalftimeAnalysis && !isLowData && totalScore >= 48;
 
         return {
             matchId,
@@ -480,7 +490,7 @@ class LiveOpportunityScorer {
             suggestedMarket,
             reason,
             oddsInfo,
-            valueDetected: (oddsScore >= 70) && !isLowData,
+            valueDetected: (oddsScore >= 70) && !isLowData && isStatsReady,
             smartMoney: isLowData ? null : (oddsMovement?.smartMoney || null),
             oddsMovement: oddsMovement || null,
             isTrap: oddsMovement?.isTrap || false,
@@ -489,12 +499,13 @@ class LiveOpportunityScorer {
             bestEV: isLowData ? null : (evAnalysis?.bestEV || null),
             latencyEdge: isLowData ? null : (latencyEdge || null),
             hasLatencyEdge: !isLowData && latencyEdge !== null,
-            cashOutWarning: cashOutWarning || null,
+            cashOutWarning: (isLowData || !isStatsReady) ? null : (cashOutWarning || null),
             aiMultiplier: aiMultiplier !== 1.0 ? Number(aiMultiplier.toFixed(2)) : null,
             isStatsReady: isStatsReady && !isLowData,      // NEW: Flag for UI
             isLowData,
             dataDensity: isLowData ? 'LOW' : 'NORMAL',
             isHalftime: !!isHalftime,
+            hasHalftimeValue: !!hasHalftimeValue,
             components: {
                 dqs: dqsScore,
                 momentum: momentumScore,
@@ -1371,6 +1382,7 @@ class LiveOpportunityScorer {
             reason: reason,
             oddsInfo: null,
             valueDetected: false,
+            hasHalftimeValue: false,
             components: {},
             excluded: true
         };
