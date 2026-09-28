@@ -2396,6 +2396,22 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         });
     };
 
+    const terminalOpportunitiesMap = useMemo(() => {
+        const oppMatches = enforcedMatches.filter(filterByTier).filter(m => {
+            const minStr = String(m.minute || '').toLowerCase();
+            const code = m.status?.code;
+            const desc = String(m.status?.description || '').toLowerCase();
+            const isPen = code === 120 || code === 110 || minStr === 'pen.' || minStr.includes('pen') || desc.includes('penalt');
+            return !isPen;
+        });
+        const opps = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
+        const map = new Map();
+        opps.forEach(o => {
+            if (o && o.matchId) map.set(o.matchId, o);
+        });
+        return map;
+    }, [enforcedMatches, activeTierFilter, signals, momentumWindow]);
+
     const processedTerminalMatches = useMemo(() => {
         let list = enforcedMatches.filter(filterByTier);
 
@@ -2459,7 +2475,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             signals,
             isSortLocked,
             lockedOrderMapRef.current,
-            trendingBets
+            trendingBets,
+            terminalOpportunitiesMap,
+            momentumWindow
         );
     }, [
         enforcedMatches,
@@ -2470,24 +2488,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         signals,
         isSortLocked,
         pinnedMatchIds,
-        trendingBets
+        trendingBets,
+        terminalOpportunitiesMap,
+        momentumWindow
     ]);
-
-    const terminalOpportunitiesMap = useMemo(() => {
-        const oppMatches = enforcedMatches.filter(filterByTier).filter(m => {
-            const minStr = String(m.minute || '').toLowerCase();
-            const code = m.status?.code;
-            const desc = String(m.status?.description || '').toLowerCase();
-            const isPen = code === 120 || code === 110 || minStr === 'pen.' || minStr.includes('pen') || desc.includes('penalt');
-            return !isPen;
-        });
-        const opps = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
-        const map = new Map();
-        opps.forEach(o => {
-            if (o && o.matchId) map.set(o.matchId, o);
-        });
-        return map;
-    }, [enforcedMatches, activeTierFilter, signals, momentumWindow]);
 
     const terminalGoldenCombo = useMemo(() => {
         const oppMatches = enforcedMatches.filter(filterByTier).filter(m => {
@@ -6340,7 +6344,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     <button
                                         key={m}
                                         type="button"
-                                        onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
+                                        onClick={(e) => { 
+                                            e.stopPropagation(); 
+                                            setMomentumWindow(m);
+                                            setTerminalSortCriteria(SORT_CRITERIA.MOMENTUM);
+                                        }}
                                         style={{
                                             padding: '2px 8px',
                                             fontSize: '0.68rem',
@@ -6352,7 +6360,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             background: momentumWindow === m ? '#38bdf8' : 'transparent',
                                             color: momentumWindow === m ? '#000' : '#cbd5e1'
                                         }}
-                                        title={lang === 'tr' ? `Son ${m} dakikalık ivme ve baskı penceresi` : `${m}-minute momentum window`}
+                                        title={lang === 'tr' ? `Son ${m} dakikalık ivmeye göre anında sırala` : `Sort by last ${m}-minute momentum`}
                                     >
                                         {m}D
                                     </button>
@@ -6917,6 +6925,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 terminalCategoryFilter={terminalCategoryFilter}
                                 isAdmin={isAdmin}
                                 onSendToTelegram={handleSendToTelegram}
+                                momentumWindow={momentumWindow}
                             />
 
                             <LiveTerminalMobile
@@ -6940,6 +6949,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 terminalCategoryFilter={terminalCategoryFilter}
                                 isAdmin={isAdmin}
                                 onSendToTelegram={handleSendToTelegram}
+                                momentumWindow={momentumWindow}
                             />
 
                             {/* Global AI Section */}

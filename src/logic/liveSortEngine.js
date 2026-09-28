@@ -191,7 +191,7 @@ export const isMatchHot = (match, signal = null) => {
  * Uses match.minuteHistory (rolling snapshots) and match.graphPoints (SofaScore minute-by-minute momentum),
  * with rate-based fallbacks for newly tracked matches.
  */
-export const calculateLast20MinMetrics = (match, signal = null) => {
+export const calculateLast20MinMetrics = (match, signal = null, targetMinutes = 20) => {
     if (!match) return {
         surgeScore: 0,
         deltaDA: 0,
@@ -223,9 +223,9 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
 
     if (history.length > 1) {
         const now = Date.now();
-        const targetMs = 20 * 60 * 1000;
+        const targetMs = targetMinutes * 60 * 1000;
         
-        // Find snapshot closest to 20 minutes ago
+        // Find snapshot closest to targetMinutes ago
         let bestSnap = null;
         let minDiff = Infinity;
         for (const snap of history) {
@@ -239,8 +239,9 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
 
         if (bestSnap && bestSnap.stats) {
             const snapAgeMin = Math.round((now - bestSnap.timestamp) / 60000);
-            // Only use HISTORY snapshot if we have at least 8 minutes of tracked history
-            if (snapAgeMin >= 8) {
+            // Flexible min required age based on window size
+            const minRequiredAge = Math.min(6, Math.max(2, Math.round(targetMinutes * 0.4)));
+            if (snapAgeMin >= minRequiredAge) {
                 const curDAHome = Number(stats.dangerousAttacks?.home) || 0;
                 const curDAAway = Number(stats.dangerousAttacks?.away) || 0;
                 const curSogHome = Number(stats.shotsOnGoal?.home) || 0;
@@ -261,7 +262,7 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
                 const rawDeltaShots = Math.max(0, (curTotalShots || curSog) - (oldTotalShots || oldSog));
                 const rawDeltaCorners = Math.max(0, curCorners - oldCorners);
 
-                const scale = snapAgeMin < 20 ? (20 / snapAgeMin) : 1.0;
+                const scale = snapAgeMin < targetMinutes ? (targetMinutes / snapAgeMin) : 1.0;
                 deltaDA = Math.round(rawDeltaDA * scale);
                 deltaShots = Math.round(rawDeltaShots * scale);
                 deltaSog = Math.round(rawDeltaSog * scale);
@@ -308,7 +309,7 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
     // 3. Rate-based calculation if history window is not yet deep enough
     if (source === 'ESTIMATE') {
         const minDivisor = Math.max(10, currentMinute);
-        const windowRatio = Math.min(1.0, 20 / minDivisor);
+        const windowRatio = Math.min(1.0, targetMinutes / minDivisor);
 
         // Extract live pressure robustly
         let pressure = 50;
@@ -334,7 +335,7 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
         deltaCorners = Math.round(curCorners * windowRatio * pressureRatio);
     }
 
-    // CRITICAL HARD CAP: A 20-minute delta can NEVER exceed total stats of the match
+    // CRITICAL HARD CAP: A window delta can NEVER exceed total stats of the match
     deltaDA = Math.max(0, Math.min(curDA, deltaDA));
     deltaShots = Math.max(0, Math.min(curTotalShots || curSog, deltaShots));
     deltaSog = Math.max(0, Math.min(curSog, deltaSog));
@@ -342,7 +343,8 @@ export const calculateLast20MinMetrics = (match, signal = null) => {
 
     // Calculate 0 - 100 Surge Score
     let score = 0;
-    score += Math.min(40, (deltaDA / 8) * 40);
+    const baseDA = Math.max(2.5, targetMinutes * 0.4);
+    score += Math.min(40, (deltaDA / baseDA) * 40);
     score += Math.min(25, (deltaShots / 2) * 25);
     score += Math.min(10, (deltaCorners / 2) * 10);
 
@@ -673,7 +675,7 @@ export const isMatchComeback = (match, signal = null) => {
 /**
  * Sorts matches dynamically based on criteria and lock state
  */
-export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, signals = {}, isLocked = false, lockedOrderMap = null, trendingBets = []) => {
+export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, signals = {}, isLocked = false, lockedOrderMap = null, trendingBets = [], opportunitiesMap = null, momentumWindow = 10) => {
     if (!Array.isArray(matches) || matches.length === 0) return [];
 
     // If user locked sorting, preserve previous position of existing matches
@@ -687,8 +689,10 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
 
     const list = matches.map(m => {
         const sig = signals[m.id];
-        const heat = calculateMatchHeatScore(m, sig);
-        return { match: m, heat };
+        const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
+        const heat = calculateMatchHeatScore(m, sig, opp);
+        const windowMomentum = opp?.components?.momentum ?? opp?.score ?? heat;
+        return { match: m, heat, opp, windowMomentum };
     });
 
     const stableFallback = (a, b) => {
@@ -701,9 +705,13 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
     switch (criteria) {
         case SORT_CRITERIA.MOMENTUM:
             list.sort((a, b) => {
-                // Highest heat score first
+                // 1. Highest active window momentum (5D, 10D, 20D)
+                const momA = a.windowMomentum ?? a.heat;
+                const momB = b.windowMomentum ?? b.heat;
+                if (momB !== momA) return momB - momA;
+                // 2. Total heat score
                 if (b.heat !== a.heat) return b.heat - a.heat;
-                // Secondary tie breaker: DQS
+                // 3. Secondary tie breaker: DQS
                 const dqsDiff = (b.match.dqs || 0) - (a.match.dqs || 0);
                 if (Math.abs(dqsDiff) >= 0.05) return dqsDiff;
                 return stableFallback(a, b);
@@ -712,8 +720,8 @@ export const sortMatches = (matches = [], criteria = SORT_CRITERIA.MOMENTUM, sig
 
         case SORT_CRITERIA.LAST_20_MIN:
             list.sort((a, b) => {
-                const metricsA = calculateLast20MinMetrics(a.match, signals[a.match.id]);
-                const metricsB = calculateLast20MinMetrics(b.match, signals[b.match.id]);
+                const metricsA = calculateLast20MinMetrics(a.match, signals[a.match.id], momentumWindow);
+                const metricsB = calculateLast20MinMetrics(b.match, signals[b.match.id], momentumWindow);
                 if (metricsB.surgeScore !== metricsA.surgeScore) {
                     return metricsB.surgeScore - metricsA.surgeScore;
                 }

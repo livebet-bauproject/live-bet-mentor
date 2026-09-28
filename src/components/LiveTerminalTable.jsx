@@ -44,7 +44,8 @@ export const LiveTerminalTable = ({
     onOpenUpgrade = () => {},
     terminalCategoryFilter = 'ALL',
     isAdmin = false,
-    onSendToTelegram = null
+    onSendToTelegram = null,
+    momentumWindow = 10
 }) => {
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
@@ -198,7 +199,7 @@ export const LiveTerminalTable = ({
                         <th style={{ width: '50px', textAlign: 'center' }}>{t?.score_label || (lang === 'tr' ? 'SKOR' : (lang === 'de' ? 'STAND' : 'SCORE'))}</th>
                         <th style={{ width: '78px', textAlign: 'center' }}>{lang === 'tr' ? 'ISI / DURUM' : (lang === 'de' ? 'HITZE / STATUS' : 'HEAT')}</th>
                         <th style={{ width: '72px', textAlign: 'center' }}>{lang === 'tr' ? '1X2 CANLI' : (lang === 'de' ? '1X2 LIVE' : '1X2 LIVE')}</th>
-                        <th style={{ width: '58px', textAlign: 'center' }}>{lang === 'tr' ? 'BASKI / İVME' : (lang === 'de' ? 'DRUCK / MOM' : 'PRESS / MOM')}</th>
+                        <th style={{ width: '64px', textAlign: 'center' }}>{lang === 'tr' ? `BASKI (${momentumWindow}D)` : (lang === 'de' ? `DRUCK (${momentumWindow}M)` : `PRESS (${momentumWindow}M)`)}</th>
                         <th style={{ width: '56px', textAlign: 'center' }}>{lang === 'tr' ? 'ŞUT (İSB)' : (lang === 'de' ? 'SCHÜSSE (TOR)' : 'SHOTS (SOG)')}</th>
                         <th style={{ width: '54px', textAlign: 'center' }}>{lang === 'tr' ? 'T.ATAK' : (lang === 'de' ? 'G.ANGRIFF' : 'D.ATTACK')}</th>
                         <th style={{ width: '56px', textAlign: 'center' }}>xG</th>
@@ -246,7 +247,8 @@ export const LiveTerminalTable = ({
                                 ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : rawHeatLevel === 'SOGUK' ? 'COLD' : rawHeatLevel)
                                 : (rawHeatLevel === 'FLAME' ? 'ALEV' : rawHeatLevel === 'HOT' ? 'SICAK' : rawHeatLevel === 'COLD' ? 'SOĞUK' : rawHeatLevel);
                             const heatIcon = (rawHeatLevel === 'ALPHA' || heatLevel === 'ALPHA') ? '🚀' : (rawHeatLevel === 'ALEV' || heatLevel === 'FLAME') ? '🔥' : (rawHeatLevel === 'SICAK' || heatLevel === 'HOT') ? '⚡' : '❄️';
-                            const last20 = calculateLast20MinMetrics(m, signal);
+                            const windowMomentum = opp?.components?.momentum ?? opp?.score ?? heat;
+                            const last20 = calculateLast20MinMetrics(m, signal, momentumWindow);
 
                             const sogHome = m.stats?.shotsOnGoal?.home || 0;
                             const sogAway = m.stats?.shotsOnGoal?.away || 0;
@@ -491,8 +493,8 @@ export const LiveTerminalTable = ({
 
                                         {/* Pressure / Momentum Index */}
                                         <td className="tb-stat-cell">
-                                            <span className={`tb-pill-stat ${heatAlertClass}`}>
-                                                %{heat}
+                                            <span className={`tb-pill-stat ${heatAlertClass}`} title={lang === 'tr' ? `Son ${momentumWindow} dakikalık ivme/baskı skoru: %${windowMomentum}` : `Last ${momentumWindow}m momentum score: %${windowMomentum}`}>
+                                                %{windowMomentum}
                                             </span>
                                             {last20.isSurging && (
                                                 <div style={{ marginTop: '3px' }}>
@@ -509,7 +511,7 @@ export const LiveTerminalTable = ({
                                                         maxWidth: '145px',
                                                         overflow: 'hidden',
                                                         textOverflow: 'ellipsis'
-                                                    }} title={lang === 'tr' ? `${last20.dominantTeam ? `${last20.dominantTeam} son 20 dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son 20 Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Toplam Şut${last20.deltaSog ? ` [${last20.deltaSog} İsabetli]` : ''})` : (lang === 'de' ? `${last20.dominantTeam ? `${last20.dominantTeam} macht seit 20 Min. Dauerdruck.` : 'Hoher Offensivdruck.'} (Letzte 20 Min: +${last20.deltaDA} Gefährl. Angriffe, +${last20.deltaShots} Schüsse${last20.deltaSog ? ` [${last20.deltaSog} aufs Tor]` : ''})` : `${last20.dominantTeam ? `${last20.dominantTeam} has been applying attacking pressure in the last 20 mins.` : 'High attacking pressure.'} (Last 20m: +${last20.deltaDA} Dangerous Attacks, +${last20.deltaShots} Total Shots${last20.deltaSog ? ` [${last20.deltaSog} On Target]` : ''})`)}>
+                                                    }} title={lang === 'tr' ? `${last20.dominantTeam ? `${last20.dominantTeam} son ${momentumWindow} dakikadır hücum baskısı kuruyor.` : 'Yüksek hücum baskısı.'} (Son ${momentumWindow} Dk: +${last20.deltaDA} Tehlikeli Atak, +${last20.deltaShots} Toplam Şut${last20.deltaSog ? ` [${last20.deltaSog} İsabetli]` : ''})` : `Last ${momentumWindow}m: +${last20.deltaDA} Attacks`}>
                                                         ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} ${lang === 'tr' ? 'Atak' : (lang === 'de' ? 'Angr.' : 'Atk')})` : `+${last20.deltaDA} ${lang === 'tr' ? 'Atak' : (lang === 'de' ? 'Angr.' : 'Atk')}`}
                                                     </span>
                                                 </div>

@@ -44,7 +44,8 @@ export const LiveTerminalMobile = ({
     onOpenUpgrade = () => {},
     terminalCategoryFilter = 'ALL',
     isAdmin = false,
-    onSendToTelegram = null
+    onSendToTelegram = null,
+    momentumWindow = 10
 }) => {
     const EffectiveAttackGraph = AttackMomentumGraph || DefaultAttackGraph;
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
@@ -222,7 +223,8 @@ export const LiveTerminalMobile = ({
                     ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : rawHeatLevel === 'SOGUK' ? 'COLD' : rawHeatLevel)
                     : rawHeatLevel;
                 const heatIcon = rawHeatLevel === 'ALPHA' ? '🚀' : rawHeatLevel === 'ALEV' ? '🔥' : rawHeatLevel === 'SICAK' ? '⚡' : '❄️';
-                const last20 = calculateLast20MinMetrics(m, signal);
+                const windowMomentum = opp?.components?.momentum ?? opp?.score ?? heat;
+                const last20 = calculateLast20MinMetrics(m, signal, momentumWindow);
 
                     const sogHome = m.stats?.shotsOnGoal?.home || 0;
                     const sogAway = m.stats?.shotsOnGoal?.away || 0;
@@ -454,9 +456,9 @@ export const LiveTerminalMobile = ({
                             <div className="tb-m-stats-grid">
                                 {/* Column 1: BASKI / İVME */}
                                 <div className={`tb-m-stat-cell ${heatAlertClass}`}>
-                                    <span className="tb-m-stat-label">{lang === 'tr' ? 'BASKI/İVME' : (lang === 'de' ? 'DRUCK/MOM' : 'PRESSURE')}</span>
+                                    <span className="tb-m-stat-label">{lang === 'tr' ? `BASKI (${momentumWindow}D)` : (lang === 'de' ? `DRUCK (${momentumWindow}M)` : `PRESS (${momentumWindow}M)`)}</span>
                                     <span className="tb-m-stat-value">
-                                        %{heat}
+                                        %{windowMomentum}
                                         {last20.isSurging && (
                                             <span style={{ display: 'block', fontSize: '0.62rem', color: '#fbbf24', fontWeight: 800, marginTop: '2px' }}>
                                                 ⚡ {last20.dominantTeam ? `${last20.dominantTeam.slice(0, 9)} (+${last20.teamDeltaDA || last20.deltaDA} ${lang === 'tr' ? 'Atak' : (lang === 'de' ? 'Angr.' : 'Atk')})` : `+${last20.deltaDA} ${lang === 'tr' ? 'Atak' : (lang === 'de' ? 'Angr.' : 'Atk')}`}
