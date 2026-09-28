@@ -148,12 +148,27 @@ export const calculateMatchHeatScore = (match, signal = null, oppData = null) =>
         (isNaN(aiContribution) ? 0 : aiContribution) +
         (isNaN(redBonus) ? 0 : redBonus);
 
-    const calculated = Math.min(100, Math.max(0, Math.round(sum)));
+    let calculated = Math.min(100, Math.max(0, Math.round(sum)));
     if (isNaN(calculated) || !isFinite(calculated)) return 0;
+
+    // Hard ceiling for opening minutes (prevent artificial heat spikes before match maturity)
+    const minStr = String(match.minute || '').toLowerCase();
+    const isHalftime = match.status?.code === 31 || minStr.includes('iy') || minStr.includes('ht') || minStr.includes('devre') || minStr.includes('halftime');
+    if (!isHalftime && minute > 0 && minute < 10) {
+        calculated = Math.min(48, calculated);
+    } else if (!isHalftime && minute >= 10 && minute < 15) {
+        calculated = Math.min(64, calculated);
+    }
 
     // If liveOpportunityScorer produced a valid score, blend or take the maximum
     if (directOppScore > 0 && !isNaN(directOppScore)) {
-        return Math.min(100, Math.max(0, Math.round(Math.max(directOppScore, calculated))));
+        let finalScore = Math.min(100, Math.max(0, Math.round(Math.max(directOppScore, calculated))));
+        if (!isHalftime && minute > 0 && minute < 10) {
+            finalScore = Math.min(48, finalScore);
+        } else if (!isHalftime && minute >= 10 && minute < 15) {
+            finalScore = Math.min(64, finalScore);
+        }
+        return finalScore;
     }
 
     return calculated;

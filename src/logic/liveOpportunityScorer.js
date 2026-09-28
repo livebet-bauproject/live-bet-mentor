@@ -236,10 +236,11 @@ class LiveOpportunityScorer {
         const isLowData = !hasDangerousAttacks && !hasRealXG && !hasMomentumGraph;
         
         // A match is ready for full analysis if:
-        // - It has passed the initial minute window (>= 15') OR already has significant early output (>= 2 SOG or >= 20 attacks)
-        // - If in halftime, meets halftime analysis criteria
-        // - Has sufficient DQS and genuine data density
-        const hasEarlyMomentum = totalSog >= 2 || totalAttacks >= 20;
+        // - It has passed the initial minute window (>= 15') OR already has genuine heavy early momentum
+        // Under 10 minutes, isolated shots do NOT constitute verified trend.
+        const hasEarlyMomentum = minute >= 10 
+            ? (totalSog >= 2 || totalAttacks >= 18) 
+            : (totalSog >= 4 && totalAttacks >= 22);
         const hasBasicTelemetry = (totalSog > 0 || totalAttacks >= 8);
         const isStatsReady = (!isEarlyMinute || hasEarlyMomentum) && 
                              (!isHalftime || qualifiesForHalftimeAnalysis) && 
@@ -271,8 +272,8 @@ class LiveOpportunityScorer {
             oddsScore * weights.ODDS
         ) + synergyBonus;
 
-        // CRITICAL: Cap score if stats are not ready or if data density is low (Maximum 48 - SOGUK / BEKLEMEDE)
-        if (!isStatsReady || isLowData) {
+        // CRITICAL: Cap score if stats are not ready, if early exploratory minutes, or if data density is low
+        if (!isStatsReady || isLowData || (!isHalftime && minute < 10)) {
             totalScore = Math.min(48, totalScore);
         }
 
@@ -324,14 +325,21 @@ class LiveOpportunityScorer {
         // Apply external bonuses with capped ceiling (max +15)
         totalScore += Math.min(15, externalBonus);
 
-        // EARLY GAME SANITY CEILING:
-        // In early minutes (< 25'), matches without substantial xG (< 0.6) or heavy shots (<= 4 SOG)
-        // are still in early exploration and must be capped at 78 (SICAK) rather than shooting to 95-100 ALEV!
-        if (minute < 25) {
-            const totalSog = (match.stats?.shotsOnGoal?.home || 0) + (match.stats?.shotsOnGoal?.away || 0);
-            const totalXg = (match.stats?.xg?.home || 0) + (match.stats?.xg?.away || 0);
-            if (totalSog <= 4 && totalXg < 0.6) {
-                totalScore = Math.min(78, totalScore);
+        // EARLY GAME SANITY CEILINGS:
+        // - Under 10 minutes: Strictly capped at 48 (SOĞUK / RADAR İZLEMESİ)
+        // - Under 15 minutes: Capped at 64 (SICAK alt sınırı, asla ALEV veya VIP olamaz)
+        // - Under 25 minutes: Without substantial xG (>= 0.6) or heavy shots (> 4 SOG), capped at 74
+        if (!isHalftime) {
+            if (minute < 10) {
+                totalScore = Math.min(48, totalScore);
+            } else if (minute < 15) {
+                totalScore = Math.min(64, totalScore);
+            } else if (minute < 25) {
+                const totalSog = (match.stats?.shotsOnGoal?.home || 0) + (match.stats?.shotsOnGoal?.away || 0);
+                const totalXg = (match.stats?.xg?.home || 0) + (match.stats?.xg?.away || 0);
+                if (totalSog <= 4 && totalXg < 0.6) {
+                    totalScore = Math.min(74, totalScore);
+                }
             }
         }
 
@@ -375,6 +383,15 @@ class LiveOpportunityScorer {
             
             // Apply multiplier
             totalScore = Math.round(totalScore * aiMultiplier);
+        }
+
+        // Post-multiplier early minute enforcement (hard ceiling)
+        if (!isHalftime) {
+            if (minute < 10) {
+                totalScore = Math.min(48, totalScore);
+            } else if (minute < 15) {
+                totalScore = Math.min(64, totalScore);
+            }
         }
         
         totalScore = Math.max(0, Math.min(100, totalScore));

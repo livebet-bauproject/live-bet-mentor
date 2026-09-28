@@ -32,7 +32,14 @@ export class BayesianModel {
         if (dqs >= 0.7) likelihood += 0.05;
         if (xgRatio > 1.2 || dominantXg >= 1.0) likelihood += 0.10;
 
-        // 2. Game-State & Blowout Dampener (Tactical Complacency / Dead Match)
+        // 2. Early-Minute Sample Size Shrinkage (Noise Dampener)
+        // In the opening 15 minutes, early isolated shots have high statistical noise and must not blow up probabilities.
+        if (minute < 15 && !evidence.isHalftime) {
+            const sampleMaturity = Math.max(0.25, minute / 15);
+            likelihood = 0.5 + ((likelihood - 0.5) * sampleMaturity);
+        }
+
+        // 3. Game-State & Blowout Dampener (Tactical Complacency / Dead Match)
         const isGameDead = isDeadMatch || isBlowout || goalDiff >= 4 || (goalDiff >= 3 && minute >= 40);
         if (isGameDead) {
             likelihood = Math.max(0.20, likelihood - 0.25);
@@ -47,7 +54,15 @@ export class BayesianModel {
             posterior = Math.min(0.35, Math.max(0.10, posterior * 0.55));
         }
 
-        const confidence = isGameDead ? 'LOW' : (likelihood >= 0.65 ? 'HIGH' : (likelihood >= 0.48 ? 'MEDIUM' : 'LOW'));
+        // Confidence calculation strictly constrained by sample maturity
+        let confidence = 'LOW';
+        if (isGameDead || (minute < 10 && !evidence.isHalftime)) {
+            confidence = 'LOW'; // Under 10 minutes, sample size is insufficient for reliable high conviction
+        } else if (minute < 15 && !evidence.isHalftime) {
+            confidence = likelihood >= 0.58 ? 'MEDIUM' : 'LOW';
+        } else {
+            confidence = likelihood >= 0.65 ? 'HIGH' : (likelihood >= 0.48 ? 'MEDIUM' : 'LOW');
+        }
 
         return {
             prior: priorProb,

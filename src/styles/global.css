@@ -5574,9 +5574,27 @@ input[type="checkbox"] {
 @media (max-width: 640px) {
   .support-chat-launcher-btn {
     bottom: 4.8rem !important; /* Above mobile bottom nav */
-    right: 1rem !important;
-    padding: 0.65rem 0.95rem !important;
-    font-size: 0.78rem !important;
+    right: 0.85rem !important;
+    padding: 0 !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.4) !important;
+    z-index: 999 !important;
+  }
+
+  .support-chat-launcher-btn .support-launcher-text {
+    display: none !important; /* Hide text on mobile so it doesn't cover match row stats */
+  }
+
+  .support-chat-launcher-btn .support-launcher-icon {
+    font-size: 1.25rem !important;
+    margin: 0 !important;
   }
 
   .support-chat-modal {

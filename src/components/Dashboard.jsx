@@ -255,9 +255,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const [terminalSearchQuery, setTerminalSearchQuery] = useState('');
     const [terminalMobileSubView, setTerminalMobileSubView] = useState(() => {
         try {
-            return localStorage.getItem('lbm_mobile_subview') || 'CARDS';
+            return localStorage.getItem('lbm_mobile_subview') || 'TABLE';
         } catch {
-            return 'CARDS';
+            return 'TABLE';
         }
     });
 
@@ -6436,7 +6436,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
                     <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
                             {/* GÜNÜN CANLI ALTIN İKİLİSİ (CANLI KUPON SİHİRBAZI v4.0) */}
-                            {terminalGoldenCombo && (
+                            {terminalGoldenCombo ? (
                                 <div className="golden-combo-ticket" style={{ marginBottom: '1.25rem' }}>
                                     <div className="golden-combo-header">
                                         <div className="golden-combo-hero-left">
@@ -6523,6 +6523,55 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             </button>
                                         </div>
                                     )}
+                                </div>
+                            ) : (
+                                <div className="golden-combo-ticket" style={{ 
+                                    marginBottom: '1.25rem',
+                                    padding: '1.1rem 1.4rem',
+                                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.6) 0%, rgba(30, 41, 59, 0.3) 100%)',
+                                    border: '1px dashed rgba(56, 189, 248, 0.25)',
+                                    borderRadius: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '1.5rem',
+                                    flexWrap: 'wrap'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: '280px', flex: '1 1 auto' }}>
+                                        <span style={{ fontSize: '1.6rem', filter: 'drop-shadow(0 0 8px rgba(56, 189, 248, 0.4))' }}>🛡️</span>
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                                <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#38bdf8', letterSpacing: '0.4px' }}>
+                                                    {lang === 'tr' ? 'GÜNÜN CANLI ALTIN İKİLİSİ' : (lang === 'de' ? 'LIVE-GOLD-DOPPEL' : 'LIVE GOLDEN DOUBLE')}
+                                                </span>
+                                                <span style={{ 
+                                                    fontSize: '0.62rem', 
+                                                    fontWeight: 900, 
+                                                    padding: '2px 8px', 
+                                                    borderRadius: '4px',
+                                                    background: 'rgba(16, 185, 129, 0.12)',
+                                                    color: '#34d399',
+                                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                    letterSpacing: '0.5px'
+                                                }}>
+                                                    {lang === 'tr' ? '🛡️ KASA KORUMASI DEVREDE' : (lang === 'de' ? '🛡️ BANKROLL-SCHUTZ AKTIV' : '🛡️ BANKROLL GUARD ACTIVE')}
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '0.74rem', color: 'var(--tb-text-muted)', marginTop: '3px', lineHeight: 1.4 }}>
+                                                {lang === 'tr' 
+                                                    ? 'Kasa disiplini gereği rastgele tahmin üretilmez. Yalnızca patlama kriterlerini (72+ Fırsat Skoru, %75+ Model Güveni ve Onaylı Saha Baskısı) sağlayan 2 elit maç tespit edildiğinde kupon kilitlenir.'
+                                                    : (lang === 'de'
+                                                        ? 'Disziplinierte Wettauswahl: Es werden nur Spiele kombiniert, die strenge Explosions-Kriterien (72+ Score, 75%+ Konfidenz) erfüllen.'
+                                                        : 'Strict bankroll discipline: The Golden Double is only issued when 2 elite matches fulfill verified explosive criteria (72+ score, 75%+ confidence).')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(56, 189, 248, 0.08)', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.18)' }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }} />
+                                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8' }}>
+                                            {lang === 'tr' ? 'RADAR TARAMADA...' : (lang === 'de' ? 'RADAR-SCAN LÄUFT...' : 'RADAR SCANNING...')}
+                                        </span>
+                                    </div>
                                 </div>
                             )}
 

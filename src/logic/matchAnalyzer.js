@@ -43,13 +43,19 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
         homeScore = parseInt(parts[0]) || 0;
         awayScore = parseInt(parts[1]) || 0;
     }
-    const goalDiff = Math.abs(homeScore - awayScore);
-    const minNum = parseInt(String(minute || '').replace(/[^0-9]/g, '')) || 0;
+    const minStr = String(minute || '').toLowerCase();
+    const isHalftime = fixture.status?.code === 31 || minStr.includes('iy') || minStr.includes('ht') || minStr.includes('devre') || minStr.includes('halftime');
+    const minNum = isHalftime ? 45 : (parseInt(minStr.replace(/[^0-9]/g, '')) || 0);
     const isBlowout = goalDiff >= 4 || (goalDiff >= 3 && minNum >= 40) || (goalDiff >= 2 && minNum >= 75);
 
     let pSituation = (pressure.total / 100) * 0.4;
     const xgRate = xgAnalysis?.rate?.perMinute || 0;
-    pSituation += Math.min(0.3, xgRate * 10);
+    let xgRateContribution = Math.min(0.3, xgRate * 10);
+    // In opening 15 minutes, scale xG rate by sample maturity to prevent noise explosion
+    if (minNum < 15 && !isHalftime) {
+        xgRateContribution *= Math.max(0.25, minNum / 15);
+    }
+    pSituation += xgRateContribution;
     pSituation *= (velocity.score || 1.0);
     if (isBlowout) {
         pSituation *= 0.55; // Rehavet / Taktiksel rölanti indirimi
@@ -70,7 +76,8 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
         isDeadMatch: isBlowout,
         isBlowout,
         goalDiff,
-        minute: minNum
+        minute: minNum,
+        isHalftime
     });
     observations.bayesian = bayesianResult;
     const finalP = bayesianResult?.posterior || pSituation;
@@ -109,8 +116,7 @@ export const analyzeMatch = (fixture, odds, consensusReport, enabledStrategies =
     let verdict = 'PASS';
     let reason = 'Strateji Bekleniyor';
     
-    const minStr = String(minute || '').trim();
-    const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
+    const isLateOrFinished = minStr.includes('90+') || minStr === 'ms' || minStr.includes('ft') || minNum >= 88;
 
     if (isLateOrFinished) {
         verdict = 'PASS';

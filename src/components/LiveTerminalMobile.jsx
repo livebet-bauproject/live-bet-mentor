@@ -282,7 +282,7 @@ export const LiveTerminalMobile = ({
                         ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
                         : 0;
                     const dqsVal = m.dqs !== undefined ? m.dqs : 0;
-                    const isEarlyMin = !opp?.isHalftime && minVal < 15 && (sogHome + sogAway < 2) && (daHome + daAway < 15);
+                    const isEarlyMin = !opp?.isHalftime && minVal < 15;
                     const isTrendApproved = hasTrend && dqsVal >= 0.50 && !isDeadMatch && !isEarlyMin && heatScore >= 45;
                     const isTrendTrap = hasTrend && (dqsVal < 0.40 || isDeadMatch);
                     const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
@@ -295,7 +295,13 @@ export const LiveTerminalMobile = ({
                     const goalProb = (rawPosterior * 100).toFixed(1);
                     const baseTempo = bayesian?.prior ? Math.round(bayesian.prior * 100) : Math.min(85, Math.max(20, Math.round(heatNorm * 60 + 15)));
                     const pressureImpact = bayesian?.impact ? (bayesian.impact * 100).toFixed(1) : ((rawPosterior - (baseTempo / 100)) * 100).toFixed(1);
-                    const confidence = bayesian?.confidence || (heat >= 70 ? 'HIGH' : heat >= 45 ? 'MEDIUM' : 'LOW');
+                    const confidence = isDeadMatch 
+                        ? 'LOW' 
+                        : ((minVal < 10 && !opp?.isHalftime) 
+                            ? 'LOW' 
+                            : ((minVal < 15 && !opp?.isHalftime) 
+                                ? (bayesian?.confidence === 'HIGH' ? 'MEDIUM' : (bayesian?.confidence || 'LOW'))
+                                : (bayesian?.confidence || (heat >= 75 ? 'HIGH' : heat >= 50 ? 'MEDIUM' : 'LOW'))));
                     const confidenceLabel = confidence === 'HIGH' ? (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH')) : confidence === 'MEDIUM' ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')) : (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW'));
                     const confidenceColor = confidence === 'HIGH' ? '#10b981' : confidence === 'MEDIUM' ? '#fbbf24' : '#ef4444';
 

@@ -28,11 +28,20 @@ export class BetBuilderEngine {
                 // STRICT: Exclude penalty shootouts or finished matches
                 const minRaw = String(opp.minute || '').toLowerCase();
                 if (minRaw.includes('pen') || minRaw === 'ms' || minRaw.includes('ft')) return false;
-                // TIME WINDOW: Do not add late matches (>= 75') where remaining time is too short for a fresh combo pick
+                // TIME WINDOW: Strictly require between 18' and 72' (or Halftime 45') for mature, high-yield betting
                 const minVal = parseInt(String(opp.minute || '').replace(/[^0-9]/g, '')) || 0;
-                if (minVal >= 75) return false;
-                if (opp.score < 60) return false;
+                if (!opp.isHalftime && (minVal < 18 || minVal > 72)) return false;
+                
+                // STRICT EXPLOSION CRITERIA:
+                // Only truly explosive opportunities (High SICAK or ALEV, Score >= 72) can enter Golden Double!
+                if (opp.score < 72) return false;
+                
+                // HIGH CONVICTION GATE:
+                // Market must have at least 75% algorithmic confidence
                 if (!opp.suggestedMarket?.marketKey) return false;
+                const marketConf = opp.suggestedMarket.confidence || 0;
+                if (marketConf < 75) return false;
+
                 return true;
             })
             .map(opp => {
@@ -43,6 +52,7 @@ export class BetBuilderEngine {
                 const mMinRaw = String(match.minute || opp.minute || '').toLowerCase();
                 const mStatusCode = match.status?.code;
                 const mDesc = (match.status?.description || '').toLowerCase();
+                const isHalftimeMatch = mStatusCode === 31 || mMinRaw.includes('iy') || mMinRaw.includes('ht') || mDesc.includes('devre') || mDesc.includes('halftime');
                 if (mMinRaw.includes('pen') || mStatusCode === 120 || mStatusCode === 110 || mDesc.includes('penalt') || mMinRaw === 'ms' || mMinRaw.includes('ft')) {
                     return null;
                 }
@@ -50,7 +60,33 @@ export class BetBuilderEngine {
                 if (totalGoals >= 7) return null;
 
                 const mMin = parseInt(String(match.minute || opp.minute || '').replace(/[^0-9]/g, '')) || 0;
-                if (mMin >= 75) return null;
+                if (!isHalftimeMatch && (mMin < 18 || mMin > 72)) return null;
+
+                // STRICT REAL PITCH EXPLOSION VALIDATION:
+                // Ensure the match actually exploded on the pitch (not just idle ball possession)
+                const stats = match.stats || {};
+                const daHome = Number(stats.dangerousAttacks?.home || 0);
+                const daAway = Number(stats.dangerousAttacks?.away || 0);
+                const daTotal = daHome + daAway;
+                const daDiff = Math.abs(daHome - daAway);
+                const sogTotal = Number(stats.shotsOnGoal?.home || 0) + Number(stats.shotsOnGoal?.away || 0);
+                const shotsTotal = Number(stats.totalShots?.home || 0) + Number(stats.totalShots?.away || 0);
+                const xgTotal = (Number(stats.xg?.home || 0)) + (Number(stats.xg?.away || 0));
+                const activeSignal = match.signal;
+
+                // 1) Active AI Strategy BET Verdict
+                const hasAiSignal = activeSignal && (activeSignal.verdict === 'BET' || (activeSignal.activeStrategies && activeSignal.activeStrategies.length > 0));
+                // 2) Heavy pressure dominance (one team heavily dominating)
+                const hasHeavyDominance = (daDiff >= 12 && daTotal >= 18) || (opp.components?.pressure >= 65);
+                // 3) High goal mouth activity (shots + xG verified)
+                const hasGoalThreat = (sogTotal >= 4 && shotsTotal >= 7) || xgTotal >= 0.70;
+                // 4) Halftime sustained pressure
+                const hasHalftimeExplosion = isHalftimeMatch && (daTotal >= 25 || sogTotal >= 3 || xgTotal >= 0.65);
+
+                const isPitchExploded = hasAiSignal || hasHeavyDominance || hasGoalThreat || hasHalftimeExplosion;
+                if (!isPitchExploded) {
+                    return null; // Reject lukewarm matches that lack concrete explosive indicators!
+                }
 
                 // Also check league level: reject youth/reserve matches if they don't have verified xG
                 const leagueLower = (match.league || match.leagueName || '').toLowerCase();
@@ -70,14 +106,19 @@ export class BetBuilderEngine {
                     if (oVal >= 1.10 && oVal <= 3.20) odds = oVal;
                 }
 
-                // If odds is still invalid, outside sanity range (1.10 - 3.20), or missing:
-                // Use statistical fair value based on engine conviction
-                if (!odds || isNaN(odds) || odds < 1.10 || odds > 3.20) {
-                    const conf = opp.suggestedMarket.confidence || 75;
-                    if (conf >= 85) odds = 1.48;
-                    else if (conf >= 80) odds = 1.55;
-                    else if (conf >= 70) odds = 1.68;
-                    else odds = 1.82;
+                // Mathematical Dynamic In-Play Fair Odds Model:
+                // Time-decay & Poisson based on elapsed game time and model conviction
+                if (!odds || isNaN(odds) || odds < 1.15 || odds > 3.20) {
+                    const conf = opp.suggestedMarket.confidence || 78;
+                    const elapsed = isHalftimeMatch ? 45 : Math.min(78, Math.max(18, mMin));
+                    const remaining = Math.max(15, 93 - elapsed);
+                    
+                    // Base fair odds that rise as remaining minutes decrease (time decay)
+                    const timeFactor = 1.32 + Math.pow((90 - remaining) / 90, 1.8) * 0.90;
+                    // Conviction adjustment: higher model confidence brings odds slightly down (higher true probability)
+                    const confDiscount = ((conf - 70) / 100) * 0.35;
+                    const dynamicOdds = Math.max(1.35, Math.min(2.75, timeFactor - confDiscount));
+                    odds = Number(dynamicOdds.toFixed(2));
                 }
 
                 return {
@@ -114,30 +155,34 @@ export class BetBuilderEngine {
         const avgConfidence = Math.round(((pick1.market.confidence || 75) + (pick2.market.confidence || 75)) / 2);
 
         const formatMarketLabel = (pick) => {
-            const key = pick.market.marketKey;
-            const team = pick.market.team || '';
+            const key = pick.market?.marketKey;
+            const team = pick.market?.team || '';
+            const target = pick.market?.target || '';
             if (lang === 'de') {
                 if (key === 'HOME_NEXT_GOAL') return `Nächstes Tor: ${pick.homeTeam}`;
                 if (key === 'AWAY_NEXT_GOAL') return `Nächstes Tor: ${pick.awayTeam}`;
                 if (key === 'HOME_WIN_NEXT') return `Heimsieg (1): ${pick.homeTeam}`;
                 if (key === 'AWAY_WIN_NEXT') return `Auswärtssieg (2): ${pick.awayTeam}`;
-                if (key === 'OVER_GOALS') return `Live Über-Tore`;
-                return `${team || 'Heim'} Tor / Druck`;
+                if (key === 'OVER_GOALS' || key === 'OVER_NEXT_DYNAMIC') return target ? `Über ${target} Tore` : `Live Über-Tore`;
+                if (key === 'market_fh_over05') return `1. HZ Über 0.5 Tore`;
+                return team ? `${team} Tor / Druck` : 'Live Tor-Baskisi';
             }
             if (lang === 'en') {
                 if (key === 'HOME_NEXT_GOAL') return `Next Goal: ${pick.homeTeam}`;
                 if (key === 'AWAY_NEXT_GOAL') return `Next Goal: ${pick.awayTeam}`;
                 if (key === 'HOME_WIN_NEXT') return `Full-Time Win (1): ${pick.homeTeam}`;
                 if (key === 'AWAY_WIN_NEXT') return `Full-Time Win (2): ${pick.awayTeam}`;
-                if (key === 'OVER_GOALS') return `Live Over Goals`;
-                return `${team || 'Home'} Goal / Pressure`;
+                if (key === 'OVER_GOALS' || key === 'OVER_NEXT_DYNAMIC') return target ? `Over ${target} Goals` : `Live Over Goals`;
+                if (key === 'market_fh_over05') return `1st Half Over 0.5`;
+                return team ? `${team} Goal / Pressure` : 'Live Goal Pressure';
             }
             if (key === 'HOME_NEXT_GOAL') return `Sıradaki Gol: ${pick.homeTeam}`;
             if (key === 'AWAY_NEXT_GOAL') return `Sıradaki Gol: ${pick.awayTeam}`;
             if (key === 'HOME_WIN_NEXT') return `Maç Sonu (MS 1): ${pick.homeTeam}`;
             if (key === 'AWAY_WIN_NEXT') return `Maç Sonu (MS 2): ${pick.awayTeam}`;
-            if (key === 'OVER_GOALS') return `Canlı Üst Gol`;
-            return `${team || 'Ev'} Gol / Baskı`;
+            if (key === 'OVER_GOALS' || key === 'OVER_NEXT_DYNAMIC') return target ? `${target} Üst Gol Bekleniyor` : `Canlı Üst Gol`;
+            if (key === 'market_fh_over05') return `İlk Yarı 0.5 Üst`;
+            return team ? `${team} Gol / Baskı` : 'Canlı Gol Baskısı';
         };
 
         const title = lang === 'tr' 

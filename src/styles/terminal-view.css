@@ -1306,6 +1306,7 @@
     flex-direction: column !important;
     width: 100% !important;
     gap: 5px !important;
+    padding-bottom: 5.5rem !important; /* Safe scroll buffer so last matches are completely visible above bottom nav */
   }
 
   .tb-mobile-stream {
@@ -1544,7 +1545,7 @@
 }
 
 .tb-mc-intel-col {
-  width: 100px;
+  width: 104px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -1555,7 +1556,23 @@
 .tb-mc-intel-top {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
+}
+
+.tb-mc-intel-top .tb-heat-badge {
+  font-size: 0.65rem !important;
+  padding: 1px 5px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.2px;
+}
+
+.tb-mc-intel-top .tb-pill-stat {
+  font-size: 0.62rem !important;
+  padding: 1px 5px !important;
+  border-radius: 4px !important;
+  font-weight: 800 !important;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .tb-mc-intel-bottom {
