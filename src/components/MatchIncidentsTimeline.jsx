@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
+import { getApiBaseUrl } from '../config.js';
 
 const incidentsCache = new Map();
 
@@ -19,9 +20,9 @@ export const MatchIncidentsTimeline = ({
     const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Auswärts' : 'Away'));
     const homeTeamId = match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
     const awayTeamId = match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
-    const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
-    const homeTeamLogo = propHomeTeamLogo || match?.homeTeamLogo || (homeTeamId ? `${apiBase}/api/team/${homeTeamId}/image` : null);
-    const awayTeamLogo = propAwayTeamLogo || match?.awayTeamLogo || (awayTeamId ? `${apiBase}/api/team/${awayTeamId}/image` : null);
+    const apiBase = getApiBaseUrl();
+    const homeTeamLogo = propHomeTeamLogo || match?.homeTeamLogo || (homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null);
+    const awayTeamLogo = propAwayTeamLogo || match?.awayTeamLogo || (awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null);
     const currentScore = propCurrentScore || match?.score;
 
     const [fetchedIncidents, setFetchedIncidents] = useState(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { CONFIG } from '../config';
+import { CONFIG, getApiBaseUrl, initBackendDiscovery } from '../config';
 import { dataWorker } from '../backend/dataWorker';
 import { bankrollManager } from '../logic/bankrollManager';
 import { autoSettlementEngine } from '../logic/autoSettlementEngine';
@@ -106,7 +106,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         window.location.hostname === '127.0.0.1' ||
         window.location.hostname.startsWith('192.168.')
     );
-    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+    const proxyBase = getApiBaseUrl();
 
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
@@ -398,9 +398,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             // Fetch pending membership request
             const fetchPendingRequest = async () => {
                 try {
-                    const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                        ? 'http://localhost:3001'
-                        : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+                    const proxyBase = getApiBaseUrl();
 
                     // 1. Check Backend API upgrade requests (Scoped to current user)
                     try {
@@ -665,22 +663,16 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const fetchTrendingBets = useCallback(async () => {
         setTrendingLoading(true);
         try {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const primaryBase = isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
-            const fallbackBase = 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
+            const primaryBase = await initBackendDiscovery() || getApiBaseUrl();
 
             let res = null;
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 2500);
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
                 res = await fetch(`${primaryBase}/api/market/trending`, { signal: controller.signal });
                 clearTimeout(timeoutId);
             } catch (fetchErr) {
-                if (isLocal) {
-                    res = await fetch(`${fallbackBase}/api/market/trending`);
-                } else {
-                    throw fetchErr;
-                }
+                // Ignore temporary delay
             }
 
             if (res && res.ok) {
@@ -829,9 +821,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         if (!user || requestLoading) return;
         setRequestLoading(true);
         try {
-            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const proxyBase = getApiBaseUrl();
 
             const payload = {
                 userId: user.id,
@@ -930,9 +920,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             return;
         }
         
-        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+        const proxyBase = getApiBaseUrl();
 
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-signal`, {
@@ -982,9 +970,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             return;
         }
 
-        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+        const proxyBase = getApiBaseUrl();
 
         try {
             const res = await fetch(`${proxyBase}/api/telegram/send-radar`, {
@@ -1033,9 +1019,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             return;
         }
 
-        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+        const proxyBase = getApiBaseUrl();
 
         setIsSendingGoldenCombo(true);
         try {
@@ -1822,7 +1806,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <h2 style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                                     {(currentMatch.homeTeamLogo || currentMatch.homeTeamId) && (
                                         <img
-                                            src={currentMatch.homeTeamLogo || `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.homeTeamId}/image`}
+                                            src={currentMatch.homeTeamLogo || `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image`}
                                             alt=""
                                             style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(34, 197, 94, 0.4)' }}
                                             onError={e => e.target.style.display = 'none'}
@@ -1837,7 +1821,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     <span style={{ opacity: 0.35, margin: '0 4px' }}>vs</span>
                                     {(currentMatch.awayTeamLogo || currentMatch.awayTeamId) && (
                                         <img
-                                            src={currentMatch.awayTeamLogo || `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.awayTeamId}/image`}
+                                            src={currentMatch.awayTeamLogo || `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image`}
                                             alt=""
                                             style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'contain', background: 'rgba(255,255,255,0.06)', padding: '2px', border: '1px solid rgba(59, 130, 246, 0.4)' }}
                                             onError={e => e.target.style.display = 'none'}
@@ -1891,8 +1875,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 points={matchGraphPoints}
                                 homeTeam={currentMatch.homeTeam}
                                 awayTeam={currentMatch.awayTeam}
-                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.homeTeamId}/image` : null)}
-                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.awayTeamId}/image` : null)}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image` : null)}
                                 homeTeamId={currentMatch.homeTeamId}
                                 awayTeamId={currentMatch.awayTeamId}
                                 currentMinute={parseInt(currentMatch.minute) || 90}
@@ -1909,8 +1893,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 incidents={matchIncidents}
                                 homeTeam={currentMatch.homeTeam}
                                 awayTeam={currentMatch.awayTeam}
-                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.homeTeamId}/image` : null)}
-                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/team/${currentMatch.awayTeamId}/image` : null)}
+                                homeTeamLogo={currentMatch.homeTeamLogo || (currentMatch.homeTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.homeTeamId}/image` : null)}
+                                awayTeamLogo={currentMatch.awayTeamLogo || (currentMatch.awayTeamId ? `https://img.sofascore.com/api/v1/team/${currentMatch.awayTeamId}/image` : null)}
                                 currentScore={currentMatch.score}
                                 lang={lang}
                                 loading={incidentsLoading}
@@ -2105,15 +2089,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         }
     }, [showPlanComparison]);
 
-    // Live Odds Fetching for Opportunity Scoring (Local Proxy first, then Firebase)
+    // Live Odds Fetching for Opportunity Scoring (Active 24/7 backend first, then Firebase)
     useEffect(() => {
         const fetchLiveOdds = async () => {
             try {
-                // 1. Try local proxy or production Render
-                const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+                const proxyBase = await initBackendDiscovery() || getApiBaseUrl();
                 try {
-                    const res = await fetch(`${proxyBase}/api/odds/live`, { signal: AbortSignal.timeout(3500) });
+                    const res = await fetch(`${proxyBase}/api/odds/live`, { signal: AbortSignal.timeout(4500) });
                     if (res.ok) {
                         const data = await res.json();
                         if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
@@ -2122,24 +2104,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             return;
                         }
                     }
-                } catch (pe) { /* fallback to cloud / firebase */ }
+                } catch (pe) { /* fallback to firebase */ }
 
-                // 2. If localhost was tried and failed, try Render cloud
-                if (isLocalHost) {
-                    try {
-                        const cloudRes = await fetch('https://sandra-blackberry-synthetic-massage.trycloudflare.com/api/odds/live', { signal: AbortSignal.timeout(5000) });
-                        if (cloudRes.ok) {
-                            const data = await cloudRes.json();
-                            if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
-                                setLiveOdds(data);
-                                liveOpportunityScorer.setLiveOdds(data);
-                                return;
-                            }
-                        }
-                    } catch (ce) {}
-                }
-
-                // 3. Fallback to Firebase
+                // Fallback to Firebase
                 try {
                     const snapshot = await get(ref(database, 'live_odds'));
                     if (snapshot.exists()) {
@@ -2154,7 +2121,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         };
 
         fetchLiveOdds();
-        const interval = setInterval(fetchLiveOdds, 30000); // Every 30 seconds
+        const interval = setInterval(fetchLiveOdds, 25000); // Every 25 seconds
         return () => clearInterval(interval);
     }, []);
 
@@ -2162,8 +2129,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     useEffect(() => {
         const fetchAiWeights = async () => {
             try {
-                const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-                const proxyBase = import.meta.env.VITE_API_BASE_URL || (isLocalHost ? 'http://localhost:3001' : 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+                const proxyBase = await initBackendDiscovery() || getApiBaseUrl();
                 const res = await fetch(`${proxyBase}/api/learning/weights`);
                 if (res.ok) {
                     const data = await res.json();

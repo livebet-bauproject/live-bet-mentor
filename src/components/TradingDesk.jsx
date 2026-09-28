@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getApiBaseUrl } from '../config.js';
 
 export function TradingDesk({ lang = 'tr' }) {
     const [opportunities, setOpportunities] = useState([]);
@@ -34,9 +35,7 @@ export function TradingDesk({ lang = 'tr' }) {
     const [bankrollAmount, setBankrollAmount] = useState(5000); // Default 5,000 TL/USD bankroll
     const [copiedSlip, setCopiedSlip] = useState(false);
 
-    const getProxyBase = () => (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:3001'
-        : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+    const getProxyBase = () => getApiBaseUrl();
 
     const getAdminHeaders = () => {
         let token = '';

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
 import { calculateLast20MinMetrics } from '../logic/liveSortEngine';
+import { getApiBaseUrl } from '../config.js';
 
 const graphCache = new Map();
 const incidentsCache = new Map();
@@ -27,9 +28,9 @@ export const AttackMomentumGraph = ({
     const awayTeam = propAwayTeam || (typeof match?.awayTeam === 'object' ? match?.awayTeam?.name : match?.awayTeam) || (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Auswärts' : 'Away'));
     const homeTeamId = propHomeTeamId ?? match?.homeTeamId ?? (typeof match?.homeTeam === 'object' ? match?.homeTeam?.id : null);
     const awayTeamId = propAwayTeamId ?? match?.awayTeamId ?? (typeof match?.awayTeam === 'object' ? match?.awayTeam?.id : null);
-    const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
-    const homeTeamLogo = propHomeTeamLogo || match?.homeTeamLogo || (homeTeamId ? `${apiBase}/api/team/${homeTeamId}/image` : null);
-    const awayTeamLogo = propAwayTeamLogo || match?.awayTeamLogo || (awayTeamId ? `${apiBase}/api/team/${awayTeamId}/image` : null);
+    const apiBase = getApiBaseUrl();
+    const homeTeamLogo = propHomeTeamLogo || match?.homeTeamLogo || (homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null);
+    const awayTeamLogo = propAwayTeamLogo || match?.awayTeamLogo || (awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null);
     const currentMinute = propCurrentMinute ?? (parseInt(match?.minute) || 90);
     const status = propStatus || match?.status;
 
@@ -212,10 +213,9 @@ export const AttackMomentumGraph = ({
     const liveX = currentMinute > 0 && currentMinute <= totalMinutes ? ((currentMinute - 1) / totalMinutes) * svgWidth : null;
 
     const renderTeamBadge = (isHome) => {
-        const apiBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com';
         const logoUrl = isHome
-            ? (homeTeamLogo || (homeTeamId ? `${apiBase}/api/team/${homeTeamId}/image` : null))
-            : (awayTeamLogo || (awayTeamId ? `${apiBase}/api/team/${awayTeamId}/image` : null));
+            ? (homeTeamLogo || (homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null))
+            : (awayTeamLogo || (awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null));
         const name = isHome ? homeTeam : awayTeam;
         const color = isHome ? '#22c55e' : '#3b82f6';
         const initial = (name || '?').charAt(0).toUpperCase();

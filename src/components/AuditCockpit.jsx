@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { getApiBaseUrl } from '../config.js';
 
 export const AuditCockpit = ({
     lang = 'tr',
@@ -81,9 +82,7 @@ export const AuditCockpit = ({
     const fetchCockpitData = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const base = proxyBase || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com'));
+            const base = proxyBase || getApiBaseUrl();
 
             const res = await fetch(`${base}/api/admin/audit-cockpit`, {
                 headers: getAdminHeaders()
@@ -120,9 +119,7 @@ export const AuditCockpit = ({
         setActionLoading(true);
         setStatusFeedback({ type: '', message: '' });
         try {
-            const base = proxyBase || (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com'));
+            const base = proxyBase || getApiBaseUrl();
 
             const res = await fetch(`${base}/api/admin/audit-cockpit/action`, {
                 method: 'POST',

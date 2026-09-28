@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getApiBaseUrl } from '../config.js';
 
 // Gentle web audio notification chime (Zero external audio file dependency)
 const playChimeSound = () => {
@@ -24,11 +25,7 @@ const playChimeSound = () => {
     } catch (e) {}
 };
 
-const defaultApiBase = (typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' || 
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.startsWith('192.168.')
-)) ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+const defaultApiBase = getApiBaseUrl();
 
 export const LiveSupportChat = ({
     isOpen = false,

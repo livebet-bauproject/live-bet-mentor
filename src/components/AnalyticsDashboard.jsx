@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getAdminHeaders } from '../utils/adminAuth';
+import { getApiBaseUrl } from '../config.js';
 
 export const AnalyticsDashboard = ({ lang = 'tr' }) => {
     const [subTab, setSubTab] = useState('overview'); // 'overview', 'radar', 'audit', 'events', 'funnel', 'traffic'
@@ -216,11 +217,7 @@ export const AnalyticsDashboard = ({ lang = 'tr' }) => {
         hideCities: 'Hide Cities'
     };
 
-    const getProxyBase = () => {
-        if (typeof window === 'undefined') return 'http://localhost:3001';
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        return isLocal ? 'http://localhost:3001' : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
-    };
+    const getProxyBase = () => getApiBaseUrl();
 
     const fetchSummary = async (isManual = false) => {
         if (isManual) setRefreshing(true);

@@ -2,7 +2,7 @@
  * CONSENSUS ADAPTER
  * Normalizes external predictions and applies fuzzy logic for team matching.
  */
-import { CONFIG, getApiBaseUrl } from '../config.js';
+import { CONFIG, getApiBaseUrl, initBackendDiscovery } from '../config.js';
 import { database, ref, get } from '../firebase/config.js';
 
 const cleanCache = new Map();
@@ -25,7 +25,7 @@ export const consensusAdapter = {
                 return data;
             } else {
                 // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
-                const renderBase = getApiBaseUrl();
+                const renderBase = await initBackendDiscovery() || getApiBaseUrl();
                 try {
                     const response = await fetch(`${renderBase}/api/consensus`);
                     if (response.ok) {

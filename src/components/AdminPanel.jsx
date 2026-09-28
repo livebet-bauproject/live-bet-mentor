@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiBaseUrl } from '../config.js';
 import { supabase } from '../backend/supabaseClient';
 import { bankrollManager } from '../logic/bankrollManager';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
@@ -89,9 +90,7 @@ const SupportStaffDesk = ({
         setIsTranslating(true);
         const timer = setTimeout(async () => {
             try {
-                const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-                    ? 'http://localhost:3001'
-                    : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+                const proxyBase = getApiBaseUrl();
 
                 const res = await fetch(`${proxyBase}/api/support/translate?text=${encodeURIComponent(adminSupportReply.trim())}&source=tr&target=${targetLang}`);
                 if (res.ok) {
@@ -112,9 +111,7 @@ const SupportStaffDesk = ({
 
     const handleTranslateSingleMessage = async (msgId, text, sourceLang) => {
         try {
-            const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const proxyBase = getApiBaseUrl();
 
             const res = await fetch(`${proxyBase}/api/support/translate?text=${encodeURIComponent(text)}&source=${sourceLang || 'auto'}&target=tr`);
             if (res.ok) {
@@ -1888,9 +1885,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
 
     const loadStrategyAnalytics = async () => {
         try {
-            const proxyBase = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const proxyBase = getApiBaseUrl();
             const res = await fetch(`${proxyBase}/api/analytics/strategy-performance`);
             if (res.ok) {
                 const data = await res.json();
@@ -1984,9 +1979,7 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
     const [telegramStatus, setTelegramStatus] = useState(null);
     const [telegramLoading, setTelegramLoading] = useState(false);
 
-    const getProxyBase = () => (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-        ? 'http://localhost:3001'
-        : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+    const getProxyBase = () => getApiBaseUrl();
 
     const getAdminHeaders = () => {
         let token = '';

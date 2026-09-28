@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiBaseUrl, initBackendDiscovery } from '../config.js';
 
 const DE_TO_TR_TEAMS = {
     'Türkei': 'Türkiye',
@@ -424,8 +425,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
     const fetchBetanoCards = async (forceRefresh = false) => {
         try {
             if (forceRefresh) setRefreshing(true);
-            const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-            const proxyBase = import.meta.env?.VITE_API_BASE_URL || (isLocal ? 'http://localhost:3001' : 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const proxyBase = await initBackendDiscovery() || getApiBaseUrl();
             const url = `${proxyBase}/api/betano/cards${forceRefresh ? '?refresh=1&t=' + Date.now() : ''}`;
             const res = await fetch(url);
             if (res.ok) {

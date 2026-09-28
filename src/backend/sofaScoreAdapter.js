@@ -3,47 +3,12 @@
  * Focus: XHR/JSON extraction and normalization.
  */
 
-import { CONFIG, getApiBaseUrl } from '../config.js';
+import { CONFIG, getApiBaseUrl, initBackendDiscovery } from '../config.js';
 import { database, ref, get } from '../firebase/config.js';
 import { supabase } from './supabaseClient.js';
 
-let resolvedTunnelUrl = null;
-let lastTunnelFetchTime = 0;
-
 export async function resolveBackendUrl() {
-    if (typeof window !== 'undefined') {
-        const hostname = window.location.hostname;
-        const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.');
-        if (isLocal) return 'http://127.0.0.1:3001';
-
-        const now = Date.now();
-        if (resolvedTunnelUrl && (now - lastTunnelFetchTime < 120000)) {
-            return resolvedTunnelUrl;
-        }
-
-        const cached = localStorage.getItem('lbm_backend_api_url');
-        if (cached && cached.startsWith('http') && (now - lastTunnelFetchTime < 60000)) {
-            resolvedTunnelUrl = cached.replace(/\/$/, '');
-            return resolvedTunnelUrl;
-        }
-
-        try {
-            lastTunnelFetchTime = now;
-            const { data } = await supabase.from('system_settings').select('value').eq('key', 'backend_api_url').maybeSingle();
-            if (data && data.value && data.value.startsWith('http')) {
-                const freshUrl = data.value.trim().replace(/\/$/, '');
-                resolvedTunnelUrl = freshUrl;
-                localStorage.setItem('lbm_backend_api_url', freshUrl);
-                return freshUrl;
-            }
-        } catch (e) {}
-
-        if (cached && cached.startsWith('http')) {
-            resolvedTunnelUrl = cached.replace(/\/$/, '');
-            return resolvedTunnelUrl;
-        }
-    }
-    return getApiBaseUrl();
+    return (await initBackendDiscovery()) || getApiBaseUrl();
 }
 
 // Central live odds in-memory cache to prevent redundant HTTP requests

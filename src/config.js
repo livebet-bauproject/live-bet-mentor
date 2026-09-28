@@ -1,23 +1,85 @@
-/**
- * LIVE BETTING MENTOR - Centralized Configuration
- */
+import { supabase } from './backend/supabaseClient.js';
 
-/**
- * CONFIGURATION - [FROZEN FOR OBSERVATION PHASE: DEC 26 - JAN 05]
- * DO NOT MODIFY LIMITS, RISK, OR LEAGUES DURING THIS PERIOD.
- */
+let activeBackendUrl = null;
+let lastDiscoveryTime = 0;
+let discoveryPromise = null;
+
+export async function initBackendDiscovery() {
+  if (typeof window === 'undefined') return getApiBaseUrl();
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
+    activeBackendUrl = 'http://localhost:3001';
+    return activeBackendUrl;
+  }
+
+  const now = Date.now();
+  if (activeBackendUrl && (now - lastDiscoveryTime < 60000)) {
+    return activeBackendUrl;
+  }
+
+  if (discoveryPromise) return discoveryPromise;
+
+  discoveryPromise = (async () => {
+    try {
+      lastDiscoveryTime = now;
+      const { data } = await supabase.from('system_settings').select('value').eq('key', 'backend_api_url').maybeSingle();
+      if (data && data.value && data.value.startsWith('http')) {
+        const freshUrl = data.value.trim().replace(/\/$/, '');
+        activeBackendUrl = freshUrl;
+        try { localStorage.setItem('lbm_backend_api_url', freshUrl); } catch(e) {}
+        console.log('[API_DISCOVERY] Connected to active 24/7 backend:', freshUrl);
+        return freshUrl;
+      }
+    } catch(err) {
+      console.warn('[API_DISCOVERY] Discovery notice:', err.message);
+    } finally {
+      discoveryPromise = null;
+    }
+
+    try {
+      const cached = localStorage.getItem('lbm_backend_api_url');
+      if (cached && cached.startsWith('http')) {
+        activeBackendUrl = cached.replace(/\/$/, '');
+        return activeBackendUrl;
+      }
+    } catch(e) {}
+
+    return activeBackendUrl || 'http://localhost:3001';
+  })();
+
+  return discoveryPromise;
+}
+
+// Auto-trigger discovery immediately when module loads in browser
+if (typeof window !== 'undefined') {
+  try {
+    const cached = localStorage.getItem('lbm_backend_api_url');
+    if (cached && cached.startsWith('http')) {
+      activeBackendUrl = cached.replace(/\/$/, '');
+    }
+  } catch(e) {}
+  initBackendDiscovery();
+  // Auto-refresh every 60s
+  setInterval(initBackendDiscovery, 60000);
+}
+
 export function getApiBaseUrl() {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
       return 'http://localhost:3001';
     }
-    const cached = localStorage.getItem('lbm_backend_api_url');
-    if (cached && cached.startsWith('http')) {
-      return cached.replace(/\/$/, '');
+    if (activeBackendUrl) {
+      return activeBackendUrl;
     }
+    try {
+      const cached = localStorage.getItem('lbm_backend_api_url');
+      if (cached && cached.startsWith('http')) {
+        return cached.replace(/\/$/, '');
+      }
+    } catch(e) {}
   }
-  return ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://live-bet-mentor.onrender.com').replace(/\/$/, '');
+  return activeBackendUrl || ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:3001').replace(/\/$/, '');
 }
 
 export const CONFIG = {

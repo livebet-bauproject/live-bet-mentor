@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../backend/supabaseClient';
+import { getApiBaseUrl } from '../config.js';
 import { translations } from '../locales/translations';
 import { LegalModal } from './LegalModal';
 import { StakingCalculator } from './StakingCalculator';
@@ -9,12 +10,7 @@ import { trackAnalyticsEvent } from '../utils/analyticsTracker';
 import '../styles/global.css';
 
 export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, settings = {} }) => {
-    const isLocal = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' || 
-        window.location.hostname === '127.0.0.1' ||
-        window.location.hostname.startsWith('192.168.')
-    );
-    const proxyBase = isLocal ? 'http://localhost:3001' : ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+    const proxyBase = getApiBaseUrl();
 
     const [view, setView] = useState('login'); // 'login' or 'register'
     const [email, setEmail] = useState('');
@@ -66,9 +62,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
 
         let isMounted = true;
         const checkStatus = async () => {
-            const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                ? 'http://localhost:3001'
-                : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+            const proxyBase = getApiBaseUrl();
 
             try {
                 const res = await fetch(`${proxyBase}/api/members/trial-status?code=${encodeURIComponent(pendingVerification.trialCode)}`);
@@ -120,9 +114,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
         const cleanEmail = (email || '').trim().toLowerCase();
         const isAdmin = cleanEmail === 'admin@livebetmentor.com' || cleanEmail === 'admin' || cleanEmail === 'karabulut.hamza@gmail.com';
 
-        const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? 'http://localhost:3001'
-            : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+        const proxyBase = getApiBaseUrl();
 
         try {
             if (view === 'login') {
@@ -596,9 +588,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                                             type="button"
                                             onClick={async () => {
                                                 setError(null);
-                                                const proxyBase = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-                                                    ? 'http://localhost:3001'
-                                                    : (import.meta.env?.VITE_API_BASE_URL || 'https://sandra-blackberry-synthetic-massage.trycloudflare.com');
+                                                const proxyBase = getApiBaseUrl();
                                                 try {
                                                     const res = await fetch(`${proxyBase}/api/members/trial-status?code=${encodeURIComponent(pendingVerification.trialCode)}`);
                                                     const data = await res.json();
