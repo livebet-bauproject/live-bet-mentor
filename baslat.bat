@@ -18,7 +18,7 @@ if errorlevel 1 (
 
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo [HATA] Python bulunamadi! Lutfen https://python.org adresinden yukleyin (Kurulumda 'Add Python to PATH' secenegini isaretleyin).
+    echo [HATA] Python bulunamadi! Lutfen https://python.org adresinden yukleyin.
     pause
     exit /b 1
 )
@@ -44,12 +44,12 @@ if not exist node_modules (
 
 python -c "import undetected_chromedriver, selenium, curl_cffi, requests" >nul 2>&1
 if errorlevel 1 (
-    echo [BILGI] Gerekli Python kutuphaneleri yukleniyor (bu ilk seferde 1-2 dk surebilir)...
+    echo [BILGI] Gerekli Python kutuphaneleri yukleniyor - ilk seferde 1-2 dk surebilir...
     pip install undetected-chromedriver selenium curl_cffi requests python-dotenv
 )
 
 if not exist "server\bin\cloudflared.exe" (
-    echo [BILGI] 7/24 Guvenli Tunnel modulu (cloudflared) indiriliyor...
+    echo [BILGI] 7/24 Guvenli Tunnel modulu indiriliyor...
     if not exist "server\bin" mkdir "server\bin"
     curl.exe -L -o "server\bin\cloudflared.exe" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 )
@@ -62,7 +62,7 @@ echo [4/4] Sistem baslatiliyor...
 echo.
 echo ============================================================
 echo   LIVE BET MENTOR 7/24 AKTIF!
-echo   - Bu siyah pencereyi ASLA KAPATMAYIN (Simge durumuna kucultebilirsiniz).
+echo   - Bu siyah pencereyi ASLA KAPATMAYIN!
 echo   - Veriler ve Cloudflare Tunel adresi asagida gorunecektir.
 echo ============================================================
 echo.
