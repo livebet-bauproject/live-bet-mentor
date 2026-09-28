@@ -248,13 +248,6 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     };
 
     // BETBALLERS STYLE TERMINAL COCKPIT STATES
-    const [displayViewMode, setDisplayViewMode] = useState(() => {
-        try {
-            return localStorage.getItem('lbm_view_mode') || 'TERMINAL';
-        } catch {
-            return 'TERMINAL';
-        }
-    });
     const [isSortLocked, setIsSortLocked] = useState(false);
     const [terminalSortCriteria, setTerminalSortCriteria] = useState(SORT_CRITERIA.MOMENTUM);
     const [terminalCategoryFilter, setTerminalCategoryFilter] = useState('ALL');
@@ -349,7 +342,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             el.removeEventListener('mousemove', onMouseMove);
             el.removeEventListener('click', onClickCapture, true);
         };
-    }, [displayViewMode]);
+    }, []);
 
     const togglePinMatch = (matchId) => {
         setPinnedMatchIds(prev => {
@@ -365,14 +358,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         });
     };
 
-    const handleSwitchViewMode = (mode) => {
-        setDisplayViewMode(mode);
-        try {
-            localStorage.setItem('lbm_view_mode', mode);
-        } catch (e) {
-            console.error('Failed to persist view mode:', e);
-        }
-    };
+
 
     // Track internal view changes in analytics
     useEffect(() => {
@@ -6327,153 +6313,120 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     <div className="tb-cockpit-toolbar">
                         {/* Top row on mobile, left block on desktop */}
                         <div className="tb-toolbar-row-top">
-                            {/* View Mode Switcher */}
-                            <div className="tb-mode-switcher">
-                                <button
-                                    type="button"
-                                    className={`tb-mode-btn ${displayViewMode === 'TERMINAL' ? 'active' : ''}`}
-                                    onClick={() => handleSwitchViewMode('TERMINAL')}
-                                    title={lang === 'tr' ? 'BetBallers Stili Dinamik ve Kompakt Canlı Tablo' : (lang === 'de' ? 'Dynamische Live-Tabelle im BetBallers-Stil' : 'BetBallers Style Live Terminal')}
-                                >
-                                    <span>📊</span>
-                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Terminal' : (lang === 'de' ? 'Live-Terminal' : 'Live Terminal')}</span>
-                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Terminal' : (lang === 'de' ? 'Terminal' : 'Terminal')}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`tb-mode-btn ${displayViewMode === 'CLASSIC' ? 'active' : ''}`}
-                                    onClick={() => handleSwitchViewMode('CLASSIC')}
-                                    title={lang === 'tr' ? 'Klasik Kart Görünümü' : (lang === 'de' ? 'Klassische Kartenansicht' : 'Classic Cards View')}
-                                >
-                                    <span>🎴</span>
-                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Klasik Kartlar' : (lang === 'de' ? 'Klassische Karten' : 'Classic Cards')}</span>
-                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Klasik' : (lang === 'de' ? 'Klassisch' : 'Classic')}</span>
-                                </button>
-                            </div>
-
                             {/* Dynamic Re-order Lock / Stream Status */}
-                            {displayViewMode === 'TERMINAL' && (
-                                <button
-                                    type="button"
-                                    onClick={handleToggleLockSort}
-                                    className={`tb-stream-status ${isSortLocked ? 'locked' : 'live'}`}
-                                    title={isSortLocked ? (lang === 'tr' ? 'Sıralama kilitli. Canlı akışı başlatmak için tıklayın.' : (lang === 'de' ? 'Sortierung gesperrt. Klicken, um Live-Stream zu starten.' : 'Sort locked. Click to resume live stream.')) : (lang === 'tr' ? 'Canlı sıralama devrede. Sıralamayı sabitlemek için tıklayın.' : 'Live sorting active. Click to lock order.')}
-                                >
-                                    <span className="tb-pulse-dot" />
-                                    <span className="tb-status-full">
-                                        {isSortLocked
-                                            ? (lang === 'tr' ? '🔒 Sıralama Kilitli' : (lang === 'de' ? '🔒 Sortierung gesperrt' : '🔒 Sort Locked'))
-                                            : (lang === 'tr' ? '🟢 Canlı Akış (Momentum)' : (lang === 'de' ? '🟢 Live-Stream (Momentum)' : '🟢 Live Stream (Momentum)'))}
-                                    </span>
-                                    <span className="tb-status-short">
-                                        {isSortLocked
-                                            ? (lang === 'tr' ? '🔒 Sabit' : (lang === 'de' ? '🔒 Fixiert' : '🔒 Locked'))
-                                            : (lang === 'tr' ? '🟢 Canlı' : (lang === 'de' ? '🟢 Live' : '🟢 Live'))}
-                                    </span>
-                                </button>
-                            )}
+                            <button
+                                type="button"
+                                onClick={handleToggleLockSort}
+                                className={`tb-stream-status ${isSortLocked ? 'locked' : 'live'}`}
+                                title={isSortLocked ? (lang === 'tr' ? 'Sıralama kilitli. Canlı akışı başlatmak için tıklayın.' : (lang === 'de' ? 'Sortierung gesperrt. Klicken, um Live-Stream zu starten.' : 'Sort locked. Click to resume live stream.')) : (lang === 'tr' ? 'Canlı sıralama devrede. Sıralamayı sabitlemek için tıklayın.' : 'Live sorting active. Click to lock order.')}
+                            >
+                                <span className="tb-pulse-dot" />
+                                <span className="tb-status-full">
+                                    {isSortLocked
+                                        ? (lang === 'tr' ? '🔒 Sıralama Kilitli' : (lang === 'de' ? '🔒 Sortierung gesperrt' : '🔒 Sort Locked'))
+                                        : (lang === 'tr' ? '🟢 Canlı Akış (Momentum)' : (lang === 'de' ? '🟢 Live-Stream (Momentum)' : '🟢 Live Stream (Momentum)'))}
+                                </span>
+                                <span className="tb-status-short">
+                                    {isSortLocked
+                                        ? (lang === 'tr' ? '🔒 Sabit' : (lang === 'de' ? '🔒 Fixiert' : '🔒 Locked'))
+                                        : (lang === 'tr' ? '🟢 Canlı' : (lang === 'de' ? '🟢 Live' : '🟢 Live'))}
+                                </span>
+                            </button>
 
                             {/* Momentum Window Selector (5D / 10D / 20D) */}
-                            {displayViewMode === 'TERMINAL' && (
-                                <div className="tb-momentum-selector" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255, 255, 255, 0.05)', padding: '3px 6px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                                    <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800, padding: '0 4px' }}>⏱️ {lang === 'tr' ? 'İvme:' : (lang === 'de' ? 'Dynamik:' : 'Window:')}</span>
-                                    {[5, 10, 20].map(m => (
-                                        <button
-                                            key={m}
-                                            type="button"
-                                            onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
-                                            style={{
-                                                padding: '2px 8px',
-                                                fontSize: '0.68rem',
-                                                fontWeight: 800,
-                                                borderRadius: '4px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                transition: 'all 0.15s ease',
-                                                background: momentumWindow === m ? '#38bdf8' : 'transparent',
-                                                color: momentumWindow === m ? '#000' : '#cbd5e1'
-                                            }}
-                                            title={lang === 'tr' ? `Son ${m} dakikalık ivme ve baskı penceresi` : `${m}-minute momentum window`}
-                                        >
-                                            {m}D
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            <div className="tb-momentum-selector" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: 'rgba(255, 255, 255, 0.05)', padding: '3px 6px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                                <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 800, padding: '0 4px' }}>⏱️ {lang === 'tr' ? 'İvme:' : (lang === 'de' ? 'Dynamik:' : 'Window:')}</span>
+                                {[5, 10, 20].map(m => (
+                                    <button
+                                        key={m}
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
+                                        style={{
+                                            padding: '2px 8px',
+                                            fontSize: '0.68rem',
+                                            fontWeight: 800,
+                                            borderRadius: '4px',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.15s ease',
+                                            background: momentumWindow === m ? '#38bdf8' : 'transparent',
+                                            color: momentumWindow === m ? '#000' : '#cbd5e1'
+                                        }}
+                                        title={lang === 'tr' ? `Son ${m} dakikalık ivme ve baskı penceresi` : `${m}-minute momentum window`}
+                                    >
+                                        {m}D
+                                    </button>
+                                ))}
+                            </div>
 
                             {/* Mobile Sub-View Switcher: [ 📱 Kart | 📋 Tablo ] */}
-                            {displayViewMode === 'TERMINAL' && (
-                                <div className="tb-mobile-view-toggle">
-                                    <button
-                                        type="button"
-                                        className={`tb-sub-btn ${terminalMobileSubView === 'CARDS' ? 'active' : ''}`}
-                                        onClick={() => handleSetTerminalMobileSubView('CARDS')}
-                                        title={lang === 'tr' ? 'Mobil Net Kart Görünümü' : (lang === 'de' ? 'Mobile Kartenansicht' : 'Mobile Cards View')}
-                                    >
-                                        <span>📱</span>
-                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Kartlar' : (lang === 'de' ? 'Karten' : 'Cards')}</span>
-                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Kart' : (lang === 'de' ? 'Karten' : 'Cards')}</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`tb-sub-btn ${terminalMobileSubView === 'TABLE' ? 'active' : ''}`}
-                                        onClick={() => handleSetTerminalMobileSubView('TABLE')}
-                                        title={lang === 'tr' ? 'Genişletilmiş Tablo Görünümü' : (lang === 'de' ? 'Erweiterte Tabellenansicht' : 'Full Table View')}
-                                    >
-                                        <span>📋</span>
-                                        <span>{lang === 'tr' ? 'Tablo' : (lang === 'de' ? 'Tabelle' : 'Table')}</span>
-                                    </button>
-                                </div>
-                            )}
+                            <div className="tb-mobile-view-toggle">
+                                <button
+                                    type="button"
+                                    className={`tb-sub-btn ${terminalMobileSubView === 'CARDS' ? 'active' : ''}`}
+                                    onClick={() => handleSetTerminalMobileSubView('CARDS')}
+                                    title={lang === 'tr' ? 'Mobil Net Kart Görünümü' : (lang === 'de' ? 'Mobile Kartenansicht' : 'Mobile Cards View')}
+                                >
+                                    <span>📱</span>
+                                    <span className="tb-btn-label-full">{lang === 'tr' ? 'Kartlar' : (lang === 'de' ? 'Karten' : 'Cards')}</span>
+                                    <span className="tb-btn-label-short">{lang === 'tr' ? 'Kart' : (lang === 'de' ? 'Karten' : 'Cards')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`tb-sub-btn ${terminalMobileSubView === 'TABLE' ? 'active' : ''}`}
+                                    onClick={() => handleSetTerminalMobileSubView('TABLE')}
+                                    title={lang === 'tr' ? 'Genişletilmiş Tablo Görünümü' : (lang === 'de' ? 'Erweiterte Tabellenansicht' : 'Full Table View')}
+                                >
+                                    <span>📋</span>
+                                    <span>{lang === 'tr' ? 'Tablo' : (lang === 'de' ? 'Tabelle' : 'Table')}</span>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Bottom row on mobile, right block on desktop */}
-                        {displayViewMode === 'TERMINAL' && (
-                            <div className="tb-toolbar-row-bottom">
-                                {/* Search Box */}
-                                <div className="tb-search-box">
-                                    <span>🔍</span>
-                                    <input
-                                        type="text"
-                                        placeholder={lang === 'tr' ? 'Takım veya lig ara...' : (lang === 'de' ? 'Team oder Liga suchen...' : 'Filter team or league...')}
-                                        value={terminalSearchQuery}
-                                        onChange={(e) => setTerminalSearchQuery(e.target.value)}
-                                    />
-                                    {terminalSearchQuery && (
-                                        <button
-                                            type="button"
-                                            onClick={() => setTerminalSearchQuery('')}
-                                            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', padding: '0 2px' }}
-                                        >
-                                            ✕
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* Sort criteria selector */}
-                                <div className="tb-sort-wrapper">
-                                    <span className="tb-sort-label">
-                                        {lang === 'tr' ? 'Sırala:' : (lang === 'de' ? 'Sortierung:' : 'Sort:')}
-                                    </span>
-                                    <select
-                                        className="tb-sort-select"
-                                        value={terminalSortCriteria}
-                                        onChange={(e) => setTerminalSortCriteria(e.target.value)}
+                        <div className="tb-toolbar-row-bottom">
+                            {/* Search Box */}
+                            <div className="tb-search-box">
+                                <span>🔍</span>
+                                <input
+                                    type="text"
+                                    placeholder={lang === 'tr' ? 'Takım veya lig ara...' : (lang === 'de' ? 'Team oder Liga suchen...' : 'Filter team or league...')}
+                                    value={terminalSearchQuery}
+                                    onChange={(e) => setTerminalSearchQuery(e.target.value)}
+                                />
+                                {terminalSearchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setTerminalSearchQuery('')}
+                                        style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem', padding: '0 2px' }}
                                     >
-                                        <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı)' : (lang === 'de' ? 'Live-Dynamik (Druck)' : 'Live Momentum')}</option>
-                                        <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali (%55+)' : (lang === 'de' ? 'Torwahrscheinlichkeit (55%+)' : 'Goal Probability')}</option>
-                                        <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : (lang === 'de' ? 'Dynamik letzte 20 Min.' : 'Last 20m Surge')}</option>
-                                        <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Kupon Hacmi' : (lang === 'de' ? 'Markt-Wettscheinvolumen' : 'Market Volume')}</option>
-                                        <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Maç Dakikası' : (lang === 'de' ? 'Spielminute' : 'Match Minute')}</option>
-                                        <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig Sıralaması' : (lang === 'de' ? 'Liga-Rang' : 'League')}</option>
-                                    </select>
-                                </div>
+                                        ✕
+                                    </button>
+                                )}
                             </div>
-                        )}
+
+                            {/* Sort criteria selector */}
+                            <div className="tb-sort-wrapper">
+                                <span className="tb-sort-label">
+                                    {lang === 'tr' ? 'Sırala:' : (lang === 'de' ? 'Sortierung:' : 'Sort:')}
+                                </span>
+                                <select
+                                    className="tb-sort-select"
+                                    value={terminalSortCriteria}
+                                    onChange={(e) => setTerminalSortCriteria(e.target.value)}
+                                >
+                                    <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı)' : (lang === 'de' ? 'Live-Dynamik (Druck)' : 'Live Momentum')}</option>
+                                    <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali (%55+)' : (lang === 'de' ? 'Torwahrscheinlichkeit (55%+)' : 'Goal Probability')}</option>
+                                    <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : (lang === 'de' ? 'Dynamik letzte 20 Min.' : 'Last 20m Surge')}</option>
+                                    <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Kupon Hacmi' : (lang === 'de' ? 'Markt-Wettscheinvolumen' : 'Market Volume')}</option>
+                                    <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Maç Dakikası' : (lang === 'de' ? 'Spielminute' : 'Match Minute')}</option>
+                                    <option value={SORT_CRITERIA.LEAGUE}>🏆 {lang === 'tr' ? 'Lig Sıralaması' : (lang === 'de' ? 'Liga-Rang' : 'League')}</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    {displayViewMode === 'TERMINAL' ? (
-                        <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
+                    <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
                             {/* GÜNÜN CANLI ALTIN İKİLİSİ (CANLI KUPON SİHİRBAZI v4.0) */}
                             {terminalGoldenCombo && (
                                 <div className="golden-combo-ticket" style={{ marginBottom: '1.25rem' }}>
@@ -6993,1104 +6946,6 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <div style={{ marginTop: '3rem' }}>
                                 {renderGlobalAISection('LIVE')}
                             </div>
-                        </section>
-                    ) : (
-                        <>
-                            {/* Live Opportunities Panel - Sıcak Fırsatlar & Canlı Radar */}
-                            {(() => {
-                        const oppMatches = matches.filter(filterByTier).filter(m => {
-                            const minStr = String(m.minute || '').toLowerCase();
-                            const code = m.status?.code;
-                            const desc = String(m.status?.description || '').toLowerCase();
-                            const isPen = code === 120 || code === 110 || minStr === 'pen.' || minStr.includes('pen') || desc.includes('penalt');
-                            return !isPen;
-                        });
-                        const allOpportunities = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
-                        const goldenCombo = betBuilderEngine.generateGoldenCombo(allOpportunities, oppMatches, lang);
-
-                        // Apply limit to TOTAL opportunities first
-                        const limitedOpportunities = liveOpportunitiesLimit === 'ALL'
-                            ? allOpportunities
-                            : allOpportunities.slice(0, liveOpportunitiesLimit);
-
-                        // Then split into ready/pending
-                        const readyOpportunities = allOpportunities.filter(o => o.isStatsReady);
-                        const pendingOpportunities = allOpportunities.filter(o => !o.isStatsReady);
-
-                        const topReady = limitedOpportunities.filter(o => o.isStatsReady);
-                        const topPending = limitedOpportunities.filter(o => !o.isStatsReady);
-
-                        const heatColors = {
-                            ALPHA: { bg: 'rgba(56, 189, 248, 0.2)', border: 'var(--accent-color)', text: 'var(--accent-color)', icon: '🚀' },
-                            ALEV: { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.4)', text: '#ef4444', icon: '🔥' },
-                            SICAK: { bg: 'rgba(251, 191, 36, 0.15)', border: 'rgba(251, 191, 36, 0.4)', text: '#fbbf24', icon: '⚡' },
-                            SOGUK: { bg: 'rgba(148, 163, 184, 0.1)', border: 'rgba(148, 163, 184, 0.3)', text: '#94a3b8', icon: '❄️' }
-                        };
-
-                        const renderOppCard = (opp, idx, isCompact = false) => {
-                            const match = matches.find(m => m.id === opp.matchId);
-                            if (!match) return null;
-                            const heatStyle = heatColors[opp.heatLevel] || heatColors.SOGUK;
-                            const isTop = idx === 0 && opp.heatLevel === 'ALEV' && !isCompact;
-
-                            if (isCompact) {
-                                return (
-                                    <div
-                                        key={opp.matchId}
-                                        onClick={() => setSelectedMatch(match)}
-                                        className="opp-card-container"
-                                        style={{
-                                            padding: '0.75rem 1rem',
-                                            background: 'rgba(15, 23, 42, 0.45)',
-                                            border: '1px solid rgba(255,255,255,0.06)',
-                                            opacity: 0.8
-                                        }}
-                                    >
-                                        <div className="opp-meta-row">
-                                            <div className="opp-meta-left">
-                                                <div className="opp-rank-badge" style={{ background: heatStyle.text }}>
-                                                    #{idx + 1}
-                                                </div>
-                                                {(match.league || match.leagueName) && (
-                                                    <span className="opp-league-pill">
-                                                        {match.league || match.leagueName}
-                                                    </span>
-                                                )}
-                                                <div className="opp-minute-pill">
-                                                    {renderMatchMinute(match.minute, t, false)}
-                                                </div>
-                                            </div>
-                                            <div className="opp-meta-right">
-                                                <div className="opp-heat-pill" style={{ color: heatStyle.text }}>
-                                                    <span>{opp.score}</span>
-                                                    <span style={{ fontSize: '0.58rem', opacity: 0.8 }}>{opp.heatLevel}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="opp-teams-hero" style={{ padding: '0.1rem 0' }}>
-                                            <div className="opp-team-side home">
-                                                <span className="opp-team-name">{match.homeTeam}</span>
-                                            </div>
-                                            <div className="opp-score-box" style={{ fontSize: '1rem', padding: '2px 10px' }}>
-                                                <span>{match.score?.home ?? 0}</span>
-                                                <span className="opp-score-divider">-</span>
-                                                <span>{match.score?.away ?? 0}</span>
-                                            </div>
-                                            <div className="opp-team-side away">
-                                                <span className="opp-team-name">{match.awayTeam}</span>
-                                            </div>
-                                        </div>
-                                        <div style={{ fontSize: '0.62rem', color: '#94a3b8', textAlign: 'center', opacity: 0.7 }}>
-                                            ⏳ Derin İstatistikler Yükleniyor...
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            // Full Non-Compact Card
-                            const daHome = Number(match.stats?.dangerousAttacks?.home || 0);
-                            const daAway = Number(match.stats?.dangerousAttacks?.away || 0);
-                            const sogHome = Number(match.stats?.shotsOnGoal?.home || 0);
-                            const sogAway = Number(match.stats?.shotsOnGoal?.away || 0);
-                            const cornersHome = Number(match.stats?.corners?.home || 0);
-                            const cornersAway = Number(match.stats?.corners?.away || 0);
-                            const xgHome = Number(match.stats?.xg?.home || 0);
-                            const xgAway = Number(match.stats?.xg?.away || 0);
-                            const pressHome = Number(match.observations?.pressure?.home || 0);
-                            const pressAway = Number(match.observations?.pressure?.away || 0);
-                            const velocityTrend = match.observations?.velocity?.trend || 'STABLE';
-
-                            // Weighted Attack Pressure Index
-                            const homePower = (daHome * 1.0) + (sogHome * 3.5) + (cornersHome * 1.5) + (xgHome * 15) + (pressHome * 0.5);
-                            const awayPower = (daAway * 1.0) + (sogAway * 3.5) + (cornersAway * 1.5) + (xgAway * 15) + (pressAway * 0.5);
-                            const totalPower = homePower + awayPower;
-
-                            let homePct = 50;
-                            if (totalPower > 0) {
-                                homePct = Math.min(88, Math.max(12, Math.round((homePower / totalPower) * 100)));
-                            } else if (daHome + daAway > 0) {
-                                homePct = Math.round((daHome / (daHome + daAway)) * 100);
-                            }
-                            const awayPct = 100 - homePct;
-
-                            const isHomeHeavy = homePct >= 62;
-                            const isAwayHeavy = awayPct >= 62;
-                            const isHot = velocityTrend === 'HOT';
-                            const odds = (match.matchedOdds && match.matchedOdds.home) ? match.matchedOdds : opp.oddsInfo;
-
-                            return (
-                                <div
-                                    key={opp.matchId}
-                                    onClick={() => setSelectedMatch(match)}
-                                    className="opp-card-container"
-                                    style={{
-                                        background: heatStyle.bg,
-                                        border: `1px solid ${heatStyle.border}`,
-                                        animation: isTop ? 'pulse 2s infinite' : 'none'
-                                    }}
-                                >
-                                    {/* 1. Meta Row: Rank, League, Minute, Heat, Telegram */}
-                                    <div className="opp-meta-row">
-                                        <div className="opp-meta-left">
-                                            <div className="opp-rank-badge" style={{ background: heatStyle.text }}>
-                                                #{idx + 1}
-                                            </div>
-                                            {(match.league || match.leagueName) && (
-                                                <span className="opp-league-pill">
-                                                    {match.league || match.leagueName}
-                                                </span>
-                                            )}
-                                            <div className="opp-minute-pill">
-                                                <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', animation: 'pulse 1.5s infinite' }} />
-                                                {renderMatchMinute(match.minute, t, false)}
-                                            </div>
-                                        </div>
-
-                                        <div className="opp-meta-right">
-                                            <div className="opp-heat-pill" style={{ color: heatStyle.text }}>
-                                                <span>{opp.score}</span>
-                                                <span style={{ fontSize: '0.58rem', opacity: 0.8 }}>{opp.heatLevel}</span>
-                                            </div>
-                                            {isAdmin && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleSendToTelegram(e, match, opp)}
-                                                    className="opp-telegram-btn"
-                                                    title={lang === 'tr' ? "VIP Gruba Gönder" : (lang === 'de' ? "An VIP-Gruppe senden" : "Send to VIP Group")}
-                                                >
-                                                    ✈️
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* 2. Teams & Score Hero */}
-                                    <div className="opp-teams-hero">
-                                        <div className="opp-team-side home">
-                                            <span className="opp-team-name">
-                                                {match.homeTeam}
-                                                {isHomeHeavy && <span style={{ color: '#38bdf8', marginLeft: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Ev Baskısı" : (lang === 'de' ? "Intensiver Heimdruck" : "Heavy Home Pressure")}>⚡▶</span>}
-                                            </span>
-                                            {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
-                                                <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff' }}>
-                                                    🟥 {(match.cards?.home?.red || match.stats?.cards?.home?.red)}
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        <div className="opp-score-box">
-                                            <span>{match.score?.home ?? 0}</span>
-                                            <span className="opp-score-divider">-</span>
-                                            <span>{match.score?.away ?? 0}</span>
-                                        </div>
-
-                                        <div className="opp-team-side away">
-                                            {((match.cards?.away?.red || 0) > 0 || (match.stats?.cards?.away?.red || 0) > 0) && (
-                                                <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff' }}>
-                                                    🟥 {(match.cards?.away?.red || match.stats?.cards?.away?.red)}
-                                                </span>
-                                            )}
-                                            <span className="opp-team-name">
-                                                {isAwayHeavy && <span style={{ color: '#f43f5e', marginRight: '4px', fontSize: '0.75rem', animation: 'pulse 1s infinite' }} title={lang === 'tr' ? "Yoğun Deplasman Baskısı" : (lang === 'de' ? "Intensiver Auswärtsdruck" : "Heavy Away Pressure")}>◀⚡</span>}
-                                                {match.awayTeam}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {/* 3. Badges Row */}
-                                    <div className="opp-badges-row">
-                                        {opp.isHalftime && (
-                                            <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24' }}>
-                                                ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : (lang === 'de' ? '2. HZ VALUE' : '2ND HALF VALUE')}
-                                            </span>
-                                        )}
-                                        {opp.valueDetected && (
-                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000' }}>
-                                                💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : (lang === 'de' ? 'VALUE-QUOTE' : 'VALUE ODDS')}
-                                            </span>
-                                        )}
-                                        {match.stats?.xg && (
-                                            <span className="opp-micro-badge" style={{ background: 'rgba(251, 191, 36, 0.15)', border: '1px solid rgba(251, 191, 36, 0.3)', color: '#fbbf24' }}>
-                                                ⚽ xG: {(Number(match.stats?.xg?.home) || 0).toFixed(1)}-{(Number(match.stats?.xg?.away) || 0).toFixed(1)}
-                                            </span>
-                                        )}
-                                        <span className="opp-micro-badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#cbd5e1' }}>
-                                            {opp.trend === 'UP' ? '⬆️' : opp.trend === 'DOWN' ? '⬇️' : '➡️'} %{opp.trendDelta > 0 ? '+' : ''}{opp.trendDelta} ({momentumWindow}{lang === 'tr' ? 'dk' : (lang === 'de' ? 'Min.' : 'm')})
-                                        </span>
-                                        {opp.smartMoney?.active && (
-                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', color: '#fff' }}>
-                                                📉 {lang === 'tr' ? 'BÜYÜK PARA' : (lang === 'de' ? 'BIG MONEY' : 'SMART MONEY')} (-%{opp.smartMoney.dropPct.toFixed(0)})
-                                            </span>
-                                        )}
-                                        {opp.hasValueEV && opp.bestEV && (
-                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #a855f7, #6366f1)', color: '#fff' }}>
-                                                💎 +EV %{opp.bestEV.ev}
-                                            </span>
-                                        )}
-                                        {opp.hasLatencyEdge && opp.latencyEdge && (
-                                            <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #eab308, #f97316)', color: '#000' }}>
-                                                ⚡ RADAR (+%{opp.latencyEdge.discrepancyPct})
-                                            </span>
-                                        )}
-                                        {opp.cashOutWarning && (
-                                            <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff', animation: 'pulse 1.5s infinite' }}>
-                                                🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : (lang === 'de' ? 'CASHOUT' : 'CASHOUT')}
-                                            </span>
-                                        )}
-                                        {opp.isLowData && (
-                                            <span className="opp-micro-badge" style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}>
-                                                ⚠️ {lang === 'tr' ? 'Kısıtlı İstatistik' : (lang === 'de' ? 'Eingeschränkte Statistiken' : 'Limited Stats')}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* 4. Modern Momentum & Pitch Control Box */}
-                                    <div className="opp-momentum-container">
-                                        <div className="opp-momentum-top">
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isHomeHeavy ? '#38bdf8' : '#94a3b8' }}>
-                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block', boxShadow: isHomeHeavy ? '0 0 8px #38bdf8' : 'none' }} />
-                                                <span>%{homePct}</span>
-                                                {isHomeHeavy && <span style={{ fontSize: '0.58rem', color: '#38bdf8', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : (lang === 'de' ? 'DRUCK' : 'PRESS')}</span>}
-                                            </div>
-
-                                            <div className="opp-momentum-pill" style={{
-                                                background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
-                                                color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
-                                            }}>
-                                                {isHot ? (lang === 'tr' ? '🔥 RİTİM YÜKSEK' : (lang === 'de' ? '🔥 HOHE INTENSITÄT' : '🔥 HIGH TEMPO')) : (isHomeHeavy ? (lang === 'tr' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Ev'} Yükleniyor` : (lang === 'de' ? `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Heim'} drückt` : `⚡ ${match.homeTeam?.split(' ')?.[0] || 'Home'} Pressing`)) : isAwayHeavy ? (lang === 'tr' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Dep'} Yükleniyor` : (lang === 'de' ? `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Gast'} drückt` : `⚡ ${match.awayTeam?.split(' ')?.[0] || 'Away'} Pressing`)) : (lang === 'tr' ? '⚪ DENGELİ TEMPO' : (lang === 'de' ? '⚪ AUSGEGLICHENES TEMPO' : '⚪ BALANCED TEMPO')))}
-                                            </div>
-
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8' }}>
-                                                {isAwayHeavy && <span style={{ fontSize: '0.58rem', color: '#f43f5e', fontWeight: 900 }}>{lang === 'tr' ? 'BASKI' : (lang === 'de' ? 'DRUCK' : 'PRESS')}</span>}
-                                                <span>%{awayPct}</span>
-                                                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#f43f5e', display: 'inline-block', boxShadow: isAwayHeavy ? '0 0 8px #f43f5e' : 'none' }} />
-                                            </div>
-                                        </div>
-
-                                        {/* Dual Colored Gradient Momentum Bar */}
-                                        <div className="opp-dual-bar">
-                                            <div className="opp-dual-bar-home" style={{ width: `${homePct}%` }} />
-                                            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: '1px', background: 'rgba(255, 255, 255, 0.4)', zIndex: 2 }} />
-                                            <div className="opp-dual-bar-away" style={{ width: `${awayPct}%` }} />
-                                        </div>
-
-                                        {/* Bottom Row: Micro Metric Badges & Graph Button */}
-                                        <div className="opp-momentum-bottom">
-                                            <div className="opp-telemetry-row">
-                                                <span style={{ color: (sogHome > 0 || sogAway > 0) ? '#38bdf8' : 'inherit' }}>
-                                                    🎯 {sogHome}-{sogAway}
-                                                </span>
-                                                <span style={{ color: (daHome > 0 || daAway > 0) ? '#fbbf24' : 'inherit' }}>
-                                                    ⚔️ {daHome}-{daAway}
-                                                </span>
-                                                <span style={{ color: (cornersHome > 0 || cornersAway > 0) ? '#a78bfa' : 'inherit' }}>
-                                                    🚩 {cornersHome}-{cornersAway}
-                                                </span>
-                                            </div>
-
-                                            <button 
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedMatch(match);
-                                                }}
-                                                className="opp-wave-btn"
-                                                title={lang === 'tr' ? 'Detaylı Baskı Grafiği' : (lang === 'de' ? 'Detaillierter Druckwellen-Graph' : 'Detailed Momentum Pressure Wave')}
-                                            >
-                                                <span>📈</span>
-                                                <span>{lang === 'tr' ? 'Baskı Grafiği' : (lang === 'de' ? 'Druckwelle' : 'Wave')}</span>
-                                                <span style={{ fontSize: '0.7rem' }}>➔</span>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* 5. Algorithmic Prediction & Live Odds Card */}
-                                    {opp.suggestedMarket?.marketKey && (
-                                        <div className="opp-prediction-card">
-                                            <div className="opp-pred-header">
-                                                <span className="opp-pred-tag">
-                                                    <span>💡</span>
-                                                    <span>{opp.isHalftime ? (lang === 'tr' ? '2. YARI TAHMİNİ' : (lang === 'de' ? '2. HZ PROGNOSE' : '2ND HALF PREDICTION')) : (lang === 'tr' ? 'SİSTEM TAHMİNİ' : (lang === 'de' ? 'SYSTEM-PROGNOSE' : 'SYSTEM PREDICTION'))}</span>
-                                                </span>
-                                                {opp.suggestedMarket.confidence && (
-                                                    <span className="opp-pred-confidence">
-                                                        {lang === 'tr' ? `%${opp.suggestedMarket.confidence} Güven` : (lang === 'de' ? `${opp.suggestedMarket.confidence}% Konfidenz` : `${opp.suggestedMarket.confidence}% Confidence`)}
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <div className="opp-pred-body">
-                                                {(t[opp.suggestedMarket.marketKey] || opp.suggestedMarket.label || opp.suggestedMarket.marketKey)
-                                                    .replace('{team}', opp.suggestedMarket.team || '')
-                                                    .replace('{goals}', opp.suggestedMarket.target || `${((match.score?.home ?? 0) + (match.score?.away ?? 0)) + 0.5}`)}
-                                            </div>
-
-                                            {odds && odds.home && (
-                                                <div className="opp-odds-row" style={{ marginTop: '0.25rem' }}>
-                                                    <div className="opp-odd-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                                                        <span className="opp-odd-label">1 ({lang === 'tr' ? 'MS 1' : '1'})</span>
-                                                        <span className="opp-odd-val" style={{ color: '#10b981' }}>{odds.home}</span>
-                                                    </div>
-                                                    <div className="opp-odd-pill">
-                                                        <span className="opp-odd-label">{lang === 'tr' ? 'X (Beraberlik)' : (lang === 'de' ? 'X (Unentschieden)' : 'X (Draw)')}</span>
-                                                        <span className="opp-odd-val" style={{ color: '#94a3b8' }}>{odds.draw || '-'}</span>
-                                                    </div>
-                                                    <div className="opp-odd-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.25)' }}>
-                                                        <span className="opp-odd-label">2 ({lang === 'tr' ? 'MS 2' : '2'})</span>
-                                                        <span className="opp-odd-val" style={{ color: '#ef4444' }}>{odds.away}</span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* If no prediction, show odds directly */}
-                                    {!opp.suggestedMarket?.marketKey && odds && odds.home && (
-                                        <div className="opp-odds-row">
-                                            <div className="opp-odd-pill" style={{ borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                                                <span className="opp-odd-label">1 ({lang === 'tr' ? 'MS 1' : '1'})</span>
-                                                <span className="opp-odd-val" style={{ color: '#10b981' }}>{odds.home}</span>
-                                            </div>
-                                            <div className="opp-odd-pill">
-                                                <span className="opp-odd-label">{lang === 'tr' ? 'X (Beraberlik)' : (lang === 'de' ? 'X (Unentschieden)' : 'X (Draw)')}</span>
-                                                <span className="opp-odd-val" style={{ color: '#94a3b8' }}>{odds.draw || '-'}</span>
-                                            </div>
-                                            <div className="opp-odd-pill" style={{ borderColor: 'rgba(239, 68, 68, 0.25)' }}>
-                                                <span className="opp-odd-label">2 ({lang === 'tr' ? 'MS 2' : '2'})</span>
-                                                <span className="opp-odd-val" style={{ color: '#ef4444' }}>{odds.away}</span>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        };
-
-                        return (
-                            <section className="live-opportunities-section" style={{ marginBottom: '4rem' }}>
-                                <div className="glass-panel live-opportunities-panel" style={{
-                                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.03) 0%, rgba(15, 23, 42, 0.4) 100%)',
-                                    border: '1px solid rgba(239, 68, 68, 0.15)',
-                                    borderRadius: '20px'
-                                }}>
-                                    {/* Streamlined Live Radar Header & Smart Controls */}
-                                    <div className="opps-header-container">
-                                        {/* Row 1: Brand Title & Live Status Indicator */}
-                                        <div className="opps-header-main">
-                                            <div className="opps-title-cluster">
-                                                <h3 className="opps-title">
-                                                    <span className="opps-icon">🔥</span>
-                                                    <span className="opps-text-primary">{lang === 'tr' ? 'SICAK FIRSATLAR' : (lang === 'de' ? 'HEISSE CHANCEN' : 'HOT OPPORTUNITIES')}</span>
-                                                    <span className="opps-text-secondary">{lang === 'tr' ? '& CANLI RADAR' : (lang === 'de' ? '& LIVE-RADAR' : '& LIVE RADAR')}</span>
-                                                </h3>
-                                                <div className="opps-live-indicator">
-                                                    <span className="opps-pulse-dot" />
-                                                    <span className="opps-live-txt">LIVE</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="opps-stat-pills">
-                                                <div className="opps-stat-pill ready">
-                                                    <span className="opps-pill-dot ready" />
-                                                    <span className="opps-pill-val">{readyOpportunities.length}</span>
-                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Hazır' : (lang === 'de' ? 'Bereit' : 'Ready')}</span>
-                                                </div>
-                                                <div className="opps-stat-pill total">
-                                                    <span className="opps-pill-val">{allOpportunities.length}</span>
-                                                    <span className="opps-pill-lbl">{lang === 'tr' ? 'Canlı' : (lang === 'de' ? 'Live' : 'Live')}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Row 2: Category Quick Filters (Scrollable Thumb Strip) */}
-                                        <div className="mobile-quick-chips">
-                                            <button
-                                                type="button"
-                                                className={`mobile-quick-chip all ${mobileQuickFilter === 'ALL' ? 'active' : ''}`}
-                                                onClick={() => setMobileQuickFilter('ALL')}
-                                            >
-                                                <span>⚡</span>
-                                                <span>{lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}</span>
-                                                <span className="chip-count">{allOpportunities.length}</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`mobile-quick-chip hot ${mobileQuickFilter === 'HOT' ? 'active' : ''}`}
-                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'HOT' ? 'ALL' : 'HOT')}
-                                            >
-                                                <span>🔥</span>
-                                                <span>{lang === 'tr' ? 'Sıcak Fırsatlar' : (lang === 'de' ? 'Heiße Chancen' : 'Hot Picks')}</span>
-                                                <span className="chip-count">{allOpportunities.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA').length}</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`mobile-quick-chip ready ${mobileQuickFilter === 'READY' ? 'active' : ''}`}
-                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'READY' ? 'ALL' : 'READY')}
-                                            >
-                                                <span>🟢</span>
-                                                <span>{lang === 'tr' ? 'Hazır' : (lang === 'de' ? 'Bereit' : 'Ready')}</span>
-                                                <span className="chip-count">{readyOpportunities.length}</span>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className={`mobile-quick-chip second-half ${mobileQuickFilter === 'SECOND_HALF' ? 'active' : ''}`}
-                                                onClick={() => setMobileQuickFilter(mobileQuickFilter === 'SECOND_HALF' ? 'ALL' : 'SECOND_HALF')}
-                                            >
-                                                <span>☕</span>
-                                                <span>{lang === 'tr' ? '2. Yarı' : (lang === 'de' ? '2. HZ' : '2nd Half')}</span>
-                                                <span className="chip-count">{allOpportunities.filter(o => o.isHalftime || o.isSecondHalfPressure).length}</span>
-                                            </button>
-                                            {goldenCombo && (
-                                                <button
-                                                    type="button"
-                                                    className={`mobile-quick-chip combo ${mobileQuickFilter === 'COMBO' ? 'active' : ''}`}
-                                                    onClick={() => setMobileQuickFilter(mobileQuickFilter === 'COMBO' ? 'ALL' : 'COMBO')}
-                                                >
-                                                    <span>🎟️</span>
-                                                    <span>{lang === 'tr' ? 'Altın İkili' : (lang === 'de' ? 'Gold-Doppel' : 'Golden Combo')}</span>
-                                                    <span className="chip-count">{goldenCombo.totalOdds}</span>
-                                                </button>
-                                            )}
-                                        </div>
-
-                                        {/* Row 3: Secondary Precision Toolbar (Momentum Window & Limits) */}
-                                        <div className="opps-sub-toolbar">
-                                            {/* Momentum Window Selector */}
-                                            <div className="opps-ctrl-group">
-                                                <span className="opps-ctrl-title">
-                                                    <span>⏱️</span>
-                                                    <span>{lang === 'tr' ? 'İvme:' : (lang === 'de' ? 'Dynamik:' : 'Momentum:')}</span>
-                                                </span>
-                                                <div className="opps-segmented-bar">
-                                                    {[5, 10, 20].map(m => (
-                                                        <button
-                                                            key={m}
-                                                            type="button"
-                                                            onClick={(e) => { e.stopPropagation(); setMomentumWindow(m); }}
-                                                            className={`opps-segment-btn ${momentumWindow === m ? 'active' : ''}`}
-                                                        >
-                                                            {m}D
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Limit Filter Selector */}
-                                            <div className="opps-ctrl-group">
-                                                <span className="opps-ctrl-title">
-                                                    <span>🎯</span>
-                                                    <span>{lang === 'tr' ? 'Limit:' : (lang === 'de' ? 'Limit:' : 'Limit:')}</span>
-                                                </span>
-                                                <div className="opps-segmented-bar">
-                                                    {[5, 10, 'ALL'].map(limit => (
-                                                        <button
-                                                            key={limit}
-                                                            type="button"
-                                                            onClick={(e) => { e.stopPropagation(); setLiveOpportunitiesLimit(limit); }}
-                                                            className={`opps-segment-btn ${liveOpportunitiesLimit === limit ? 'active' : ''}`}
-                                                        >
-                                                            {limit === 'ALL' ? (lang === 'tr' ? 'TÜMÜ' : (lang === 'de' ? 'ALLE' : 'ALL')) : `TOP ${limit}`}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* GOLDEN DOUBLE COMBO WIDGET (CANLI KUPON SİHİRBAZI) */}
-                                    {goldenCombo && (
-                                        <div className={`golden-combo-ticket ${mobileQuickFilter === 'COMBO' ? 'highlighted' : ''}`}>
-                                            <div className="golden-combo-header">
-                                                <div className="golden-combo-hero-left">
-                                                    <span className="golden-combo-icon">🎟️</span>
-                                                    <div className="golden-combo-text-block">
-                                                        <div className="golden-combo-title-row">
-                                                            <span className="golden-combo-main-title">
-                                                                {lang === 'tr' ? 'GÜNÜN CANLI ALTIN İKİLİSİ' : (lang === 'de' ? 'LIVE-GOLD-DOPPEL DES TAGES' : 'LIVE GOLDEN DOUBLE')}
-                                                            </span>
-                                                            <span className="golden-combo-vtag">
-                                                                {lang === 'tr' ? 'KUPON SİHİRBAZI v4.0' : (lang === 'de' ? 'WETTSCHEIN-ASSISTENT v4.0' : 'COMBO WIZARD v4.0')}
-                                                            </span>
-                                                        </div>
-                                                        <div className="golden-combo-desc">
-                                                            {lang === 'tr' ? 'Sistemdeki en yüksek olasılığa ve korelasyona sahip 2 canlı fırsatın kurumsal kombinasyonu' : (lang === 'de' ? 'Institutionelle Kombination der 2 aussichtsreichsten korrelierten Live-Chancen' : 'Algorithmic 2-leg combo combining the highest conviction opportunities')}
-                                                        </div>
-                                                        <div className="golden-combo-disclaimer">
-                                                            ℹ️ {lang === 'tr' ? 'Olasılık bazlı algoritmik analiz modelidir. Kesin kazanç garantisi içermez, yatırım tavsiyesi değildir.' : (lang === 'de' ? 'Wahrscheinlichkeitsbasiertes algorithmisches Modell. Keine Gewinngarantie, keine Anlageberatung.' : 'Algorithmic probability model. Does not guarantee winnings.')}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="golden-combo-hero-right">
-                                                    <div className="golden-combo-conf-box">
-                                                        <div className="golden-combo-conf-lbl">
-                                                            {lang === 'tr' ? 'SİSTEM GÜVENİ' : (lang === 'de' ? 'SYSTEM-KONFIDENZ' : 'CONVICTION')}
-                                                        </div>
-                                                        <div className="golden-combo-conf-val">
-                                                            %{goldenCombo.averageConfidence}
-                                                        </div>
-                                                    </div>
-                                                    <div className="golden-combo-odds-badge">
-                                                        <span className="golden-combo-odds-lbl">
-                                                            {lang === 'tr' ? 'TOPLAM ORAN' : (lang === 'de' ? 'GESAMTQUOTE' : 'TOTAL ODDS')}
-                                                        </span>
-                                                        <span className="golden-combo-odds-val">{goldenCombo.totalOdds}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* 2 Picks Grid */}
-                                            <div className="golden-combo-picks">
-                                                {goldenCombo.picks.map((pick, pIdx) => (
-                                                    <div key={pIdx} className="golden-pick-card">
-                                                        <div className="golden-pick-info">
-                                                            <div className="golden-pick-match">
-                                                                {pick.matchTitle}
-                                                            </div>
-                                                            <div className="golden-pick-meta">
-                                                                {renderMatchMinute(pick.minute, t, false)} • {lang === 'tr' ? 'Skor' : (lang === 'de' ? 'Stand' : 'Score')}: {pick.score} • {pick.league}
-                                                            </div>
-                                                            <div className="golden-pick-market">
-                                                                🎯 {pick.market}
-                                                            </div>
-                                                        </div>
-                                                        <div className="golden-pick-odds-wrap">
-                                                            <div className="golden-pick-odds">
-                                                                {pick.odds}
-                                                            </div>
-                                                            <div className="golden-pick-conf">
-                                                                %{pick.confidence} {lang === 'tr' ? 'Güven' : (lang === 'de' ? 'Konfidenz' : 'Conviction')}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-
-                                            {/* Golden Combo Action Bar (Admin Only) */}
-                                            {isAdmin && (
-                                                <div className="golden-combo-actions">
-                                                    <button
-                                                        type="button"
-                                                        disabled={isSendingGoldenCombo}
-                                                        onClick={(e) => handleSendGoldenComboToTelegram(e, goldenCombo)}
-                                                        className="golden-combo-vip-btn"
-                                                        style={isSendingGoldenCombo ? { opacity: 0.65, cursor: 'wait' } : undefined}
-                                                    >
-                                                        <span>{isSendingGoldenCombo ? '⏳' : '✈️'}</span>
-                                                        <span>
-                                                            {isSendingGoldenCombo 
-                                                                ? (lang === 'tr' ? 'VIP Gruba İletiliyor...' : (lang === 'de' ? 'Wird an VIP-Gruppe gesendet...' : 'Sending to VIP...')) 
-                                                                : (lang === 'tr' ? 'VIP Gruba İlet' : (lang === 'de' ? 'An VIP-Gruppe senden' : 'Share to VIP'))}
-                                                        </span>
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    {/* Compute Displayed Opportunities Based on Quick Filter */}
-                                    {(() => {
-                                        const comboMatchIds = goldenCombo ? goldenCombo.picks.map(p => p.matchId) : [];
-                                        const displayedReady = mobileQuickFilter === 'HOT'
-                                            ? topReady.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA')
-                                            : mobileQuickFilter === 'SECOND_HALF'
-                                            ? topReady.filter(o => o.isHalftime || o.isSecondHalfPressure)
-                                            : mobileQuickFilter === 'COMBO'
-                                            ? topReady.filter(o => comboMatchIds.includes(o.matchId))
-                                            : topReady;
-
-                                        const displayedPending = mobileQuickFilter === 'HOT'
-                                            ? topPending.filter(o => o.heatScore >= 70 || o.heatLevel === 'ALEV' || o.heatLevel === 'ALPHA')
-                                            : mobileQuickFilter === 'SECOND_HALF'
-                                            ? topPending.filter(o => o.isHalftime || o.isSecondHalfPressure)
-                                            : (mobileQuickFilter === 'READY' || mobileQuickFilter === 'COMBO')
-                                            ? []
-                                            : topPending;
-
-                                        return (
-                                            <>
-                                                {/* SECTION 1: READY OPPORTUNITIES */}
-                                                <div style={{ marginBottom: '2.5rem' }}>
-                                                    <div className="opps-section-badge ready">
-                                                        <span className="opps-badge-dot" />
-                                                        <span className="opps-badge-title">
-                                                            {lang === 'tr' ? 'CANLI ANALİZ HAZIR' : (lang === 'de' ? 'LIVE-ANALYSE BEREIT' : 'LIVE ANALYSIS READY')}
-                                                        </span>
-                                                        <span className="opps-badge-count">{displayedReady.length}</span>
-                                                    </div>
-
-                                                    {displayedReady.length > 0 ? (
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                                            {displayedReady.map((opp, idx) => renderOppCard(opp, idx, false))}
-                                                        </div>
-                                                    ) : (
-                                                        <div style={{
-                                                            padding: '2rem',
-                                                            textAlign: 'center',
-                                                            background: 'rgba(255,255,255,0.02)',
-                                                            borderRadius: '16px',
-                                                            fontSize: '0.85rem',
-                                                            opacity: 0.5
-                                                        }}>
-                                                            {lang === 'tr' ? 'Seçili filtreye uygun canlı maç bulunamadı.' : (lang === 'de' ? 'Keine Live-Spiele für diesen Filter gefunden.' : 'No live matches match this filter.')}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                {/* SECTION 2: PENDING STATS */}
-                                                {displayedPending.length > 0 && !hidePendingOpportunities && (
-                                                    <div>
-                                                        <div className="opps-section-badge pending">
-                                                            <span className="opps-badge-icon">⏳</span>
-                                                            <span className="opps-badge-title">
-                                                                {lang === 'tr' ? 'CANLI VERİ BEKLENİYOR (RADAR AKTİF)' : (lang === 'de' ? 'WARTE AUF LIVE-DATEN (RADAR AKTIV)' : 'WAITING FOR LIVE DATA (RADAR ACTIVE)')}
-                                                            </span>
-                                                            <span className="opps-badge-count">{displayedPending.length}</span>
-                                                        </div>
-
-                                                        <div className="pending-opps-grid" style={{
-                                                            display: 'grid',
-                                                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                                                            gap: '0.8rem',
-                                                            maxHeight: liveOpportunitiesLimit === 'ALL' ? '600px' : 'none',
-                                                            overflowY: liveOpportunitiesLimit === 'ALL' ? 'auto' : 'visible',
-                                                            paddingRight: liveOpportunitiesLimit === 'ALL' ? '0.5rem' : '0'
-                                                        }}>
-                                                            {displayedPending.map((opp, idx) => renderOppCard(opp, idx, true))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </>
-                                        );
-                                    })()}
-                                </div>
-                            </section>
-                        );
-                    })()}
-
-                    {/* Live Matches Main Display */}
-                    <section className="dashboard-section live-matches-main" style={{ marginBottom: '3.5rem' }}>
-                        <div className="section-header" style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                <span style={{ fontSize: '1.4rem' }}>⚽</span>
-                                <h2 style={{ fontSize: '1.3rem', fontWeight: 900, letterSpacing: '-0.5px' }}>
-                                    {lang === 'tr' ? 'CANLI MAÇLAR' : (lang === 'de' ? 'LIVE-SPIELE' : 'LIVE MATCHES')}
-                                </h2>
-                                <span style={{
-                                    background: 'rgba(16, 185, 129, 0.15)',
-                                    color: '#10b981',
-                                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                                    padding: '0.15rem 0.6rem',
-                                    borderRadius: '12px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 900
-                                }}>
-                                    {matches.filter(filterByTier).length} {lang === 'tr' ? 'Maç' : (lang === 'de' ? 'Spiele' : 'Matches')}
-                                </span>
-                            </div>
-                            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                                {activeTierFilter === 'ALL' ? (lang === 'tr' ? 'Tüm Kademeler' : (lang === 'de' ? 'Alle Stufen' : 'All Tiers')) : `Tier ${activeTierFilter}`}
-                            </span>
-                        </div>
-
-                        {/* Mobile Match Cards (Screen < 768px) */}
-                        <div className="mobile-matches-view">
-                            {matches.filter(filterByTier).length === 0 ? (
-                                <div className="no-matches-mobile glass-panel">
-                                    <span>📡</span>
-                                    <p>{lang === 'tr' ? 'Bu kademede şu anda canlı maç bulunmuyor.' : (lang === 'de' ? 'In dieser Stufe gibt es derzeit keine Live-Spiele.' : 'No live matches in this tier currently.')}</p>
-                                </div>
-                            ) : (
-                                matches.filter(filterByTier).map(m => {
-                                    const isQualified = (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD;
-                                    const scoreHome = (m.score && typeof m.score === 'object') ? (m.score.home ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[0]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[0]?.trim() : 0));
-                                    const scoreAway = (m.score && typeof m.score === 'object') ? (m.score.away ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[1]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[1]?.trim() : 0));
-                                    
-                                    const trendingBet = (trendingBets || []).find(tb => 
-                                        consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                                        consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                                    );
-                                    const sHome = Number(scoreHome) || 0;
-                                    const sAway = Number(scoreAway) || 0;
-                                    const gDiff = Math.abs(sHome - sAway);
-                                    const mMin = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
-                                    const isDead = gDiff >= 4 || (gDiff >= 3 && mMin >= 40) || (gDiff >= 2 && mMin >= 75);
-                                    const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50 && !isDead;
-                                    const isTrendTrap = trendingBet && ((m.dqs || 0) < 0.40 || isDead);
-                                    const marketPrediction = trendingBet ? formatMarketPrediction(trendingBet, lang) : '';
-
-                                    return (
-                                        <div
-                                            key={m.id}
-                                            className="mobile-match-card glass-panel"
-                                            onClick={() => setSelectedMatch(m)}
-                                        >
-                                            <div className="match-card-header">
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                                    <span className="match-league">{m.league || m.leagueName || 'Football'}</span>
-                                                    {trendingBet && (
-                                                        <span
-                                                            style={{
-                                                                fontSize: '0.62rem',
-                                                                padding: '0.12rem 0.45rem',
-                                                                borderRadius: '999px',
-                                                                background: isTrendApproved ? 'rgba(16, 185, 129, 0.15)' : isTrendTrap ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.15)',
-                                                                border: `1px solid ${isTrendApproved ? 'rgba(16, 185, 129, 0.4)' : isTrendTrap ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.4)'}`,
-                                                                color: isTrendApproved ? '#34d399' : isTrendTrap ? '#f87171' : '#38bdf8',
-                                                                fontWeight: 800,
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.25rem'
-                                                            }}
-                                                        >
-                                                            <span>🔥</span>
-                                                            <span>{isTrendApproved ? (lang === 'tr' ? 'Akıllı Para:' : (lang === 'de' ? 'Smart Money:' : 'Smart Money:')) : isTrendTrap ? (lang === 'tr' ? 'Tuzak:' : 'Trap:') : (lang === 'tr' ? 'Piyasa:' : 'Market:')} {marketPrediction}{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
-                                                            <span style={{ opacity: 0.8 }}>• {trendingBet.count} K</span>
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="match-minute-pill">
-                                                    <span className="live-minute-dot"></span>
-                                                    <span>{renderMatchMinute(m.minute, t, false)}</span>
-                                                </div>
-                                            </div>
-
-                                            <div className="match-card-body">
-                                                <div className="match-teams-box">
-                                                    <div className="team-row">
-                                                        <span className="team-name">{m.homeTeam}</span>
-                                                        <span className="team-score">{scoreHome}</span>
-                                                    </div>
-                                                    <div className="team-row">
-                                                        <span className="team-name">{m.awayTeam}</span>
-                                                        <span className="team-score">{scoreAway}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="match-card-footer">
-                                                <div className="match-metric">
-                                                    <span className="metric-label">DQS</span>
-                                                    <span className={`metric-value ${isQualified ? 'text-success' : 'text-danger'}`}>
-                                                        {m.dqs ? m.dqs.toFixed(2) : '0.00'}
-                                                    </span>
-                                                </div>
-                                                <div className="match-metric">
-                                                    <span className="metric-label">{t.sog}</span>
-                                                    <span className="metric-value">{m.stats?.shotsOnGoal?.home || 0}:{m.stats?.shotsOnGoal?.away || 0}</span>
-                                                </div>
-                                                <div className="match-metric">
-                                                    <span className="metric-label">TIER</span>
-                                                    <span className="metric-value">T{m.tier}</span>
-                                                </div>
-                                                <div className="match-status-badge">
-                                                    <span className={`status-pill ${isQualified ? 'qualified' : 'rejected'}`}>
-                                                        {isQualified ? (t.in_analysis || 'ANALİZDE') : (t.rejected || 'BEKLEMEDE')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-
-                        {/* Desktop Table (Screen >= 768px) */}
-                        <div className="desktop-matches-view glass-panel" style={{ padding: '0', overflow: 'hidden', border: '1px solid var(--glass-border)' }}>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-                                    <thead>
-                                        <tr style={{ background: 'rgba(255, 255, 255, 0.03)', borderBottom: '1px solid var(--glass-border)' }}>
-                                            <th style={{ padding: '1.25rem 2rem', color: 'var(--accent-color)', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.match_score}</th>
-                                            <th style={{ padding: '1.25rem 1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.minute_short}</th>
-                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.dqs}</th>
-                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.tier_label}</th>
-                                            <th style={{ padding: '1rem', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.sog}</th>
-                                            <th style={{ padding: '1.25rem 2rem', textAlign: 'right', textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: '2px', fontWeight: 800 }}>{t.status}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {matches.filter(filterByTier).map(m => {
-                                            const trendingBet = (trendingBets || []).find(tb => 
-                                                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                                                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                                            );
-                                            const sHome = (m.score && typeof m.score === 'object') ? (m.score.home ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[0]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[0]?.trim() : 0));
-                                            const sAway = (m.score && typeof m.score === 'object') ? (m.score.away ?? 0) : (typeof m.score === 'string' && m.score.includes(':') ? m.score.split(':')[1]?.trim() : (typeof m.score === 'string' && m.score.includes('-') ? m.score.split('-')[1]?.trim() : 0));
-                                            const gDiff = Math.abs(Number(sHome) - Number(sAway));
-                                            const mMin = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
-                                            const isDead = gDiff >= 4 || (gDiff >= 3 && mMin >= 40) || (gDiff >= 2 && mMin >= 75);
-                                            const isTrendApproved = trendingBet && (m.dqs || 0) >= 0.50 && !isDead;
-                                            const isTrendTrap = trendingBet && ((m.dqs || 0) < 0.40 || isDead);
-                                            const marketPrediction = trendingBet ? formatMarketPrediction(trendingBet, lang) : '';
-
-                                            return (
-                                                <tr key={m.id} onClick={() => setSelectedMatch(m)} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                                                    <td style={{ padding: '1.25rem 2rem' }}>
-                                                        <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                                             <span>{m.homeTeam} <span style={{ opacity: 0.3 }}>-</span> {m.awayTeam}</span>
-                                                             {trendingBet && (
-                                                                <span
-                                                                    title={isTrendApproved 
-                                                                        ? (lang === 'tr' ? `Akıllı Para: Piyasa tercihi (${marketPrediction}) saha baskısıyla doğrulanıyor.` : (lang === 'de' ? `Smart Money: Marktprognose (${marketPrediction}) wird durch Spieldruck bestätigt.` : `Smart Money: Market pick (${marketPrediction}) verified by pitch pressure.`))
-                                                                        : isTrendTrap
-                                                                        ? (lang === 'tr' ? `Tuzak Uyarısı: Kalabalık piyasada (${marketPrediction}) oynuyor ancak saha verisi yetersiz!` : (lang === 'de' ? `Fallen-Warnung: Publikum setzt auf (${marketPrediction}), Spieldaten stützen dies jedoch nicht!` : `Trap Alert: Crowd is betting (${marketPrediction}), but pitch stats do not support it!`))
-                                                                        : (lang === 'tr' ? `Piyasa Akışı: ${marketPrediction} - Son 5 dakikada ${trendingBet.count} kupon.` : (lang === 'de' ? `Marktzufluss: ${marketPrediction} - ${trendingBet.count} Wettscheine in den letzten 5 Minuten.` : `Market Influx: ${marketPrediction} - ${trendingBet.count} bets in last 5m.`))}
-                                                                    style={{
-                                                                        fontSize: '0.62rem',
-                                                                        padding: '0.15rem 0.5rem',
-                                                                        borderRadius: '999px',
-                                                                        background: isTrendApproved ? 'rgba(16, 185, 129, 0.15)' : isTrendTrap ? 'rgba(239, 68, 68, 0.15)' : 'rgba(56, 189, 248, 0.15)',
-                                                                        border: `1px solid ${isTrendApproved ? 'rgba(16, 185, 129, 0.4)' : isTrendTrap ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.4)'}`,
-                                                                        color: isTrendApproved ? '#34d399' : isTrendTrap ? '#f87171' : '#38bdf8',
-                                                                        fontWeight: 800,
-                                                                        display: 'inline-flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '0.35rem'
-                                                                    }}
-                                                                >
-                                                                    <span>🔥</span>
-                                                                    <span>{isTrendApproved ? (lang === 'tr' ? 'AKILLI PARA:' : (lang === 'de' ? 'SMART MONEY:' : 'SMART MONEY:')) : isTrendTrap ? (lang === 'tr' ? 'TUZAK ALARMI:' : 'TRAP ALERT:') : (lang === 'tr' ? 'PİYASA AKIŞI:' : 'INFLUX:')} <strong style={{ color: '#fff' }}>{marketPrediction}</strong>{trendingBet.odds ? ` @${trendingBet.odds}` : ''}</span>
-                                                                    <span>•</span>
-                                                                    <span>{trendingBet.count} {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Wettscheine' : 'Bets')}</span>
-                                                                </span>
-                                                             )}
-                                                        </div>
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--accent-color)', marginTop: '0.25rem', fontWeight: 600 }}>{(m.score && typeof m.score === 'object') ? `${m.score.home ?? 0} : ${m.score.away ?? 0}` : (m.score || '0 : 0')}</div>
-                                                    </td>
-                                                <td style={{ padding: '1.25rem 1rem', fontWeight: 800 }}>{renderMatchMinute(m.minute, t, false)}</td>
-                                                <td style={{ padding: '1rem', fontWeight: 800, color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)' }}>
-                                                    {m.dqs ? m.dqs.toFixed(2) : '0.00'}
-                                                </td>
-                                                <td style={{ padding: '1rem' }}><span style={{ background: 'rgba(255,255,255,0.05)', padding: '0.3rem 0.6rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800 }}>T{m.tier}</span></td>
-                                                <td style={{ padding: '1rem', opacity: 0.7, fontWeight: 700 }}>{m.stats?.shotsOnGoal?.home || 0} <span style={{ opacity: 0.3 }}>/</span> {m.stats?.shotsOnGoal?.away || 0}</td>
-                                                <td style={{ padding: '1.25rem 2rem', textAlign: 'right' }}>
-                                                    <span style={{
-                                                        padding: '0.4rem 0.8rem',
-                                                        borderRadius: '6px',
-                                                        fontSize: '0.7rem',
-                                                        fontWeight: 800,
-                                                        background: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-                                                        color: (m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'var(--success-color)' : 'var(--danger-color)',
-                                                        border: `1px solid ${(m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
-                                                    }}>
-                                                        {(m.dqs || 0) >= CONFIG.DECISION.DQS_THRESHOLD ? (t.in_analysis || 'ANALİZDE') : (t.rejected || 'BEKLEMEDE')}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        )})}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </section>
-
-                    {renderGlobalAISection('LIVE')}
-
-                    {/* Analysis Candidates */}
-                    <section className="dashboard-section" style={{ marginBottom: '5rem' }}>
-                        <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2.5rem' }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.5px' }}>DQS {t.analysis_candidates}</h2>
-                            <span style={{ padding: '0.3rem 0.8rem', borderRadius: '8px', background: 'var(--success-color)', color: '#000', fontSize: '0.75rem', fontWeight: 800 }}>{eligibleMatches.filter(filterByTier).length}</span>
-                        </div>
-                        {/* Active Matches Grid */}
-                        <div className="match-grid" style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                            gap: '2rem',
-                            marginBottom: '4rem'
-                        }}>
-                            {eligibleMatches.filter(filterByTier).map(match => {
-                                const signal = signals[match.id];
-                                const isVip = match.tier === 1;
-                                const isSignalReady = !!signal;
-                                return (
-                                    <div key={match.id} className={`match-card glass-panel ${isVip ? 'vip-glow' : ''}`} style={{
-                                        padding: '2rem',
-                                        cursor: 'pointer',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                        border: isVip ? '1px solid var(--success-color)' : '1px solid var(--glass-border)',
-                                        boxShadow: isVip ? '0 0 20px rgba(16, 185, 129, 0.15)' : 'none'
-                                    }} onClick={() => setSelectedMatch(match)}>
-                                        {isVip && (
-                                            <div style={{ position: 'absolute', top: 0, right: 0, background: 'var(--success-color)', color: '#000', padding: '0.2rem 1rem', fontSize: '0.6rem', fontWeight: 900, borderBottomLeftRadius: '10px', letterSpacing: '1px', zIndex: 10 }}>VIP</div>
-                                        )}
-                                        {isSignalReady && signal.observations?.reverseSignal && (
-                                            <div style={{ position: 'absolute', top: isVip ? '25px' : 0, right: 0, background: 'var(--danger-color)', color: '#fff', padding: '0.2rem 1rem', fontSize: '0.6rem', fontWeight: 900, borderBottomLeftRadius: '10px', letterSpacing: '1px', animation: 'pulse 2s infinite', zIndex: 10 }}>REVERSE SIGNAL</div>
-                                        )}
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
-                                            <div>
-                                                {(match.league || match.leagueName) && (
-                                                    <div style={{
-                                                        fontSize: '0.65rem',
-                                                        fontWeight: 800,
-                                                        color: '#94a3b8',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.5px',
-                                                        marginBottom: '4px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '4px'
-                                                    }}>
-                                                        <span>🏆</span>
-                                                        <span>{match.league || match.leagueName}</span>
-                                                    </div>
-                                                )}
-                                                <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>
-                                                    {match.homeTeam}
-                                                    {((match.cards?.home?.red || 0) > 0 || (match.stats?.cards?.home?.red || 0) > 0) && (
-                                                        <span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', verticalAlign: 'middle', fontWeight: 900 }}>
-                                                            🟥 {(match.cards?.home?.red || match.stats?.cards?.home?.red)}
-                                                        </span>
-                                                    )}
-                                                    <span style={{ opacity: 0.3, margin: '0 6px' }}>vs</span>
-                                                    {match.awayTeam}
-                                                    {((match.cards?.away?.red || 0) > 0 || (match.stats?.cards?.away?.red || 0) > 0) && (
-                                                        <span style={{ marginLeft: '6px', background: '#ef4444', color: '#fff', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', verticalAlign: 'middle', fontWeight: 900 }}>
-                                                            🟥 {(match.cards?.away?.red || match.stats?.cards?.away?.red)}
-                                                        </span>
-                                                    )}
-                                                </h3>
-                                                <div className="match-meta" style={{ marginTop: '0.5rem' }}>
-                                                    <span style={{ fontSize: '0.9rem', color: 'var(--accent-color)', fontWeight: 800 }}>
-                                                        {renderMatchMinute(match.minute, t, true)}
-                                                        <span style={{ opacity: 0.5, margin: '0 0.5rem' }}>|</span>
-                                                        {(match.score && typeof match.score === 'object') ? `${match.score.home ?? 0} - ${match.score.away ?? 0}` : (match.score || '0 - 0')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <span className={`tier-badge tier-${match.tier}`} style={{ padding: '0.3rem 0.6rem', borderRadius: '6px', fontSize: '0.65rem', fontWeight: 800, background: match.tier === 1 ? 'var(--success-color)' : match.tier === 2 ? 'var(--warning-color)' : 'var(--text-secondary)', color: '#000' }}>TIER {match.tier}</span>
-                                        </div>
-
-                                        {/* Match Stats & Status */}
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.2rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                            <div style={{ textAlign: 'center' }}>
-                                                <div style={{ fontSize: '0.6rem', opacity: 0.4, textTransform: 'uppercase', marginBottom: '0.4rem' }}>{t.shots_on_target || 'SOG'}</div>
-                                                <div style={{ fontWeight: 800, color: 'var(--success-color)' }}>
-                                                    {match.stats?.shotsOnGoal?.home || 0} - {match.stats?.shotsOnGoal?.away || 0}
-                                                </div>
-                                            </div>
-                                            <div style={{ textAlign: 'center', borderLeft: '1px solid rgba(255,255,255,0.05)' }}>
-                                                <div style={{ fontSize: '0.6rem', opacity: 0.4, textTransform: 'uppercase', marginBottom: '0.4rem' }}>{t.dangerous_attacks || 'DA'}</div>
-                                                <div style={{ fontWeight: 800, color: '#ff9800' }}>
-                                                    {match.stats?.dangerousAttacks?.home || 0} - {match.stats?.dangerousAttacks?.away || 0}
-                                                </div>
-                                            </div>
-                                            {match.stats?.xg && (Number(match.stats.xg.home) > 0 || Number(match.stats.xg.away) > 0) && (
-                                                <div style={{ textAlign: 'center', gridColumn: 'span 2', marginTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.6rem' }}>
-                                                    <div style={{ fontSize: '0.6rem', opacity: 0.4, textTransform: 'uppercase', marginBottom: '0.2rem' }}>xG (Expected Goals)</div>
-                                                    <div style={{ fontWeight: 800, color: 'var(--warning-color)', fontSize: '0.9rem' }}>
-                                                        {(Number(match.stats.xg.home) || 0).toFixed(2)} - {(Number(match.stats.xg.away) || 0).toFixed(2)}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
-                                            <div style={{ fontSize: '0.8rem', opacity: 0.6, fontWeight: 600 }}>{t.dqs_score_label.replace(':', '')}: <span style={{ color: 'var(--text-primary)', fontWeight: 800 }}>{(match.dqs || 0).toFixed(2)}</span></div>
-                                            <div style={{
-                                                padding: '0.5rem 1.2rem',
-                                                borderRadius: '8px',
-                                                background: (isSignalReady && signal.verdict === 'BET') ? 'var(--success-color)' : 'rgba(255,255,255,0.05)',
-                                                color: (isSignalReady && signal.verdict === 'BET') ? '#000' : 'var(--text-secondary)',
-                                                fontWeight: 800,
-                                                fontSize: '0.8rem',
-                                                letterSpacing: '1px'
-                                            }}>
-                                                {!isSignalReady ? 'ANALİZ...' : (signal.verdict === 'BET' ? t.verdict_bet : t.verdict_pass)}
-                                            </div>
-                                        </div>
-
-                                        {isSignalReady && signal.verdict === 'BET' && (
-                                            <div style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: '0.8rem', borderRadius: '10px', border: '1px solid var(--glass-border)' }}>
-                                                    <span style={{ fontSize: '0.65rem', opacity: 0.5, display: 'block' }}>{t.recom_stake_short}</span>
-                                                    <span style={{ fontWeight: 800, color: 'var(--accent-color)' }}>{bankrollManager.calculateRecommendedStake(match, signal)} ₺</span>
-                                                </div>
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const stake = bankrollManager.calculateRecommendedStake(match, signal);
-                                                        if (bankrollManager.approveBet(match, signal, stake)) {
-                                                            alert(t.bet_approved_alert);
-                                                            setBankState(bankrollManager.getState());
-
-                                                            // Record in Prediction Tracker
-                                                            predictionTracker.recordPrediction({
-                                                                matchId: match.id,
-                                                                match: `${match.homeTeam} vs ${match.awayTeam}`,
-                                                                homeTeam: match.homeTeam,
-                                                                awayTeam: match.awayTeam,
-                                                                minute: match.minute,
-                                                                score: match.score,
-                                                                market: signal.market || 'Match Result',
-                                                                prediction: signal.prediction,
-                                                                confidence: signal.confidence || 75,
-                                                                source: 'LIVE_SYSTEM',
-                                                                dqs: match.dqs,
-                                                                xgHome: match.stats?.xg?.home || 0,
-                                                                xgAway: match.stats?.xg?.away || 0,
-                                                                consensusCount: match.consensusReport?.totalSources || 0
-                                                            }).then(() => {
-                                                                setTrackingStats(predictionTracker.getStats());
-                                                            });
-                                                        }
-                                                    }}
-                                                    style={{ background: 'var(--accent-color)', color: '#000', border: 'none', borderRadius: '10px', fontWeight: 900, fontSize: '0.75rem', cursor: 'pointer' }}
-                                                >
-                                                    {t.approve_bet}
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {isSignalReady && signal.verdict === 'PASS' && (
-                                            <div style={{ marginTop: '1rem', fontSize: '0.75rem', color: signal.reasonKey === 'bankroll_stop' ? 'var(--danger-color)' : 'var(--warning-color)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}>
-                                                <span style={{ opacity: 0.6 }}>{signal.reasonKey === 'bankroll_stop' ? '🛑' : '⚠️'}</span> {t[signal.reasonKey] || signal.mainReason}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </section>
-
-                    {/* Observation Only */}
-                    <section className="dashboard-section observational" style={{ marginBottom: '5rem', opacity: 0.7 }}>
-                        <div className="section-header" style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '2rem' }}>
-                            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, opacity: 0.7 }}>{t.observation_only}</h2>
-                            <span style={{ padding: '0.2rem 0.6rem', borderRadius: '6px', background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', fontSize: '0.7rem', fontWeight: 800 }}>{observationMatches.filter(filterByTier).length}</span>
-                        </div>
-                        <div className="matches-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '1.5rem' }}>
-                            {observationMatches.filter(filterByTier).map(match => (
-                                <div key={match.id} className="match-card glass-panel" style={{ padding: '1.5rem', filter: 'grayscale(1)', opacity: 0.5 }} onClick={() => setSelectedMatch(match)}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                            <h4 style={{ fontSize: '0.95rem', fontWeight: 700 }}>{match.homeTeam} vs {match.awayTeam}</h4>
-                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-                                                {renderMatchMinute(match.minute, t, true)}
-                                                <span style={{ opacity: 0.5, margin: '0 0.5rem' }}>|</span>
-                                                {(match.score && typeof match.score === 'object') ? `${match.score.home ?? 0} - ${match.score.away ?? 0}` : (match.score || '0 - 0')}
-                                                {match.stats?.xg && (Number(match.stats.xg.home) > 0 || Number(match.stats.xg.away) > 0) && (
-                                                    <span style={{ fontSize: '0.7rem', color: 'var(--warning-color)', marginLeft: '0.5rem', fontWeight: 800 }}>
-                                                        (xG {(Number(match.stats.xg.home) || 0).toFixed(2)} - {(Number(match.stats.xg.away) || 0).toFixed(2)})
-                                                    </span>
-                                                )}
-                                                {match.isPartial && (
-                                                    <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', marginLeft: '0.8rem', opacity: 0.5 }}>
-                                                        [BASIC]
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div style={{ textAlign: 'right' }}>
-                                            <div style={{ fontSize: '0.7rem', fontWeight: 800, opacity: 0.6 }}>{t.dqs_label} {(match.dqs || 0).toFixed(2)}</div>
-                                            <div style={{ fontSize: '0.6rem', fontWeight: 800, marginTop: '0.2rem', color: 'var(--danger-color)' }}>{t.rejected.toUpperCase()}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
 
                         {/* Tier 3 Performance Monitor - Improved */}
                         {(() => {
@@ -8211,9 +7066,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 </div>
                             );
                         })()}
-                    </section>
-                        </>
-                    )}
+                        </section>
 
                 </>
             )
