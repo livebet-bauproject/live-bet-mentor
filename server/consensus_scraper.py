@@ -140,11 +140,12 @@ class ConsensusScraper:
                                 markets["1X2"] = {"pred": pred}
 
                     if markets:
-                        preds.append({
-                            "home": home, "away": away, "date": m_date, "time": m_time,
-                            "score_pred": score_pred, "markets": markets,
-                            "timestamp": datetime.now().isoformat()
-                        })
+                        if not any(p["home"].lower() == home.lower() and p["away"].lower() == away.lower() for p in preds):
+                            preds.append({
+                                "home": home, "away": away, "date": m_date, "time": m_time,
+                                "score_pred": score_pred, "markets": markets,
+                                "timestamp": datetime.now().isoformat()
+                            })
                 except: continue
             if preds:
                 self.results["forebet"] = preds
@@ -174,21 +175,25 @@ class ConsensusScraper:
                         prob_2 = cells[5].get_text(strip=True) if len(cells)>5 else "0"
                         tip_raw = cells[6].get_text(strip=True).lower() if len(cells)>6 else ""
                         
-                        clean_tip = tip_raw.replace("a", "").upper()
+                        clean_tip = tip_raw.replace("a", "").strip().upper()
                         pred = "N/A"
                         if clean_tip in ["1", "X", "2", "1X", "X2", "12"]: pred = clean_tip
+                        elif clean_tip in ["21", "2-1"]: pred = "12"
                         elif clean_tip == "X1": pred = "1X"
                         elif clean_tip == "2X": pred = "X2"
-                        elif "1" in tip_raw: pred = "1"
-                        elif "2" in tip_raw: pred = "2"
-                        elif "X" in clean_tip: pred = "X"
+                        elif clean_tip.startswith("1"): pred = "1"
+                        elif clean_tip.startswith("2"): pred = "2"
+                        elif clean_tip.startswith("X"): pred = "X"
 
                         score_pred = cells[10].get_text(strip=True) if len(cells)>10 else "N/A"
-                        if pred == "N/A" and "-" in score_pred:
+                        if "-" in score_pred:
                             parts = score_pred.split("-")
                             if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
                                 h, a = int(parts[0]), int(parts[1])
-                                pred = "1" if h > a else ("2" if a > h else "X")
+                                if pred == "N/A":
+                                    pred = "1" if h > a else ("2" if a > h else "X")
+                                elif pred in ["1", "2"] and ((h > a and pred == "2") or (a > h and pred == "1")):
+                                    pred = "1" if h > a else "2"
 
                         tip_ou = "N/A"
                         if len(cells) > 13:
@@ -201,7 +206,8 @@ class ConsensusScraper:
                         m_time = cells[1].get_text(strip=True) if len(cells)>1 else ""
                         markets = {}
                         if pred != "N/A":
-                            markets["1X2"] = {"pred": pred, "prob": prob_1 if pred=="1" else (prob_2 if pred=="2" else prob_x), "prob_full": f"{prob_1}/{prob_x}/{prob_2}"}
+                            p_val = prob_1 if pred == "1" else (prob_2 if pred == "2" else (prob_x if pred == "X" else str(max(int(prob_1 or 0), int(prob_2 or 0)))))
+                            markets["1X2"] = {"pred": pred, "prob": p_val, "prob_full": f"{prob_1}/{prob_x}/{prob_2}"}
                         if tip_ou != "N/A":
                             markets["OU25"] = {"pred": tip_ou}
 
@@ -244,19 +250,25 @@ class ConsensusScraper:
                     pred_box = row.find("div", class_=lambda c: c and "ptpredbox" in c)
                     pred_text = pred_box.get_text(strip=True) if pred_box else ""
 
-                    pred = "N/A"
-                    if "Home" in pred_text or "1" in pred_text: pred = "1"
-                    elif "Away" in pred_text or "2" in pred_text: pred = "2"
-                    elif "Draw" in pred_text or "X" in pred_text: pred = "X"
-
                     score_pred = "N/A"
-                    score_match = re.search(r'(\d+-\d+)', pred_text)
-                    if score_match: score_pred = score_match.group(1)
+                    score_match = re.search(r'(\d+)\s*[-:]\s*(\d+)', pred_text)
+                    if score_match:
+                        score_pred = f"{score_match.group(1)}-{score_match.group(2)}"
+
+                    pred = "N/A"
+                    if score_pred != "N/A":
+                        h, a = int(score_match.group(1)), int(score_match.group(2))
+                        pred = "1" if h > a else ("2" if a > h else "X")
+                    else:
+                        p_upper = pred_text.upper()
+                        if "HOME" in p_upper or re.search(r'\b1\b', pred_text): pred = "1"
+                        elif "AWAY" in p_upper or re.search(r'\b2\b', pred_text): pred = "2"
+                        elif "DRAW" in p_upper or re.search(r'\bX\b', p_upper): pred = "X"
 
                     markets = {}
                     if pred != "N/A": markets["1X2"] = {"pred": pred}
                     if score_pred != "N/A":
-                        h, a = [int(x) for x in score_pred.split("-")]
+                        h, a = int(score_match.group(1)), int(score_match.group(2))
                         markets["BTTS"] = {"pred": "Yes" if h > 0 and a > 0 else "No"}
                         markets["OU25"] = {"pred": "OVER" if (h + a) > 2.5 else "UNDER"}
 
@@ -286,13 +298,18 @@ class ConsensusScraper:
                 try:
                     team_divs = row.find_all("div", class_="wtteam")
                     if len(team_divs) >= 2:
-                        h_a = team_divs[0].find("a")
-                        a_a = team_divs[1].find("a")
-                        home = h_a.get_text(strip=True) if h_a else team_divs[0].get_text(strip=True)
-                        away = a_a.get_text(strip=True) if a_a else team_divs[1].get_text(strip=True)
-                        # Clean " Results" noise
-                        home = re.sub(r'\s*Results$', '', home, flags=re.I).strip()
-                        away = re.sub(r'\s*Results$', '', away, flags=re.I).strip()
+                        h_mob = team_divs[0].find("div", class_="wtmoblnk")
+                        a_mob = team_divs[1].find("div", class_="wtmoblnk")
+                        if h_mob and a_mob:
+                            home = h_mob.get_text(strip=True)
+                            away = a_mob.get_text(strip=True)
+                        else:
+                            h_a = team_divs[0].find("a")
+                            a_a = team_divs[1].find("a")
+                            home = h_a.get_text(strip=True) if h_a else team_divs[0].get_text(strip=True)
+                            away = a_a.get_text(strip=True) if a_a else team_divs[1].get_text(strip=True)
+                            home = re.sub(r'\s*Results$', '', home, flags=re.I).strip()
+                            away = re.sub(r'\s*Results$', '', away, flags=re.I).strip()
                     else: continue
 
                     pred_el = row.find("div", class_=lambda c: c and "wtprd" in c) or row.find("div", class_=lambda c: c and "wtfullpred" in c)
@@ -357,16 +374,40 @@ class ConsensusScraper:
                     date_div = m.find("div", class_="date")
                     m_time = date_div.get_text(strip=True) if date_div else ""
 
+                    coef_boxes = m.find_all("div", class_="coefbox")
+                    vals = [cb.find("div", class_="value").get_text(strip=True) for cb in coef_boxes if cb.find("div", class_="value")]
+                    p1 = vals[0] if len(vals) > 0 and vals[0].isdigit() else "0"
+                    px = vals[1] if len(vals) > 1 and vals[1].isdigit() else "0"
+                    p2 = vals[2] if len(vals) > 2 and vals[2].isdigit() else "0"
+                    o25 = vals[7] if len(vals) > 7 and vals[7].isdigit() else "0"
+                    bts = vals[9] if len(vals) > 9 and vals[9].isdigit() else "0"
+
                     markets = {}
-                    if pred != "N/A": markets["1X2"] = {"pred": pred}
+                    if pred != "N/A":
+                        m1x2 = {"pred": pred}
+                        prob = p1 if pred == "1" else (p2 if pred == "2" else (px if pred == "X" else ""))
+                        if prob and prob != "0":
+                            m1x2["prob"] = prob
+                        if p1 != "0" or px != "0" or p2 != "0":
+                            m1x2["prob_full"] = f"{p1}/{px}/{p2}"
+                        markets["1X2"] = m1x2
+
+                    if o25 != "0":
+                        o25_val = int(o25)
+                        markets["OU25"] = {"pred": "OVER" if o25_val >= 50 else "UNDER", "prob": str(o25_val)}
+
+                    if bts != "0":
+                        bts_val = int(bts)
+                        markets["BTTS"] = {"pred": "Yes" if bts_val >= 50 else "No", "prob": str(bts_val)}
 
                     if home and away and markets:
-                        preds.append({
-                            "home": home, "away": away, "time": m_time,
-                            "date": datetime.now().strftime("%d.%m"),
-                            "score_pred": "N/A", "markets": markets,
-                            "timestamp": datetime.now().isoformat()
-                        })
+                        if not any(p["home"].lower() == home.lower() and p["away"].lower() == away.lower() for p in preds):
+                            preds.append({
+                                "home": home, "away": away, "time": m_time,
+                                "date": datetime.now().strftime("%d.%m"),
+                                "score_pred": "N/A", "markets": markets,
+                                "timestamp": datetime.now().isoformat()
+                            })
                 except: continue
             if preds:
                 self.results["statarea"] = preds
@@ -412,15 +453,27 @@ class ConsensusScraper:
                             elif tag == "X": px_val = val
                             elif tag == "2": p2_val = val
 
-                    if p1_val > 0 or px_val > 0 or p2_val > 0:
-                        max_p = max(p1_val, px_val, p2_val)
+                    # Vitibet official prediction tip is located in div.livescore-match-circle-col
+                    circle_el = it.find("div", class_="livescore-match-circle-col")
+                    circle_tip = circle_el.get_text(strip=True).upper() if circle_el else ""
+
+                    max_p = max(p1_val, px_val, p2_val)
+                    if circle_tip in ["1", "X", "2", "1X", "X2", "12"]:
+                        pred = circle_tip
+                    elif p1_val > 0 or px_val > 0 or p2_val > 0:
                         pred = "1" if p1_val == max_p else ("2" if p2_val == max_p else "X")
-                        prob_str = str(max_p)
-                        prob_full = f"{p1_val}/{px_val}/{p2_val}"
                     else:
                         pred = "N/A"
-                        prob_str = ""
-                        prob_full = ""
+
+                    if pred == "1": prob_str = str(p1_val)
+                    elif pred == "2": prob_str = str(p2_val)
+                    elif pred == "X": prob_str = str(px_val)
+                    elif pred == "1X": prob_str = str(max(p1_val, px_val))
+                    elif pred == "X2": prob_str = str(max(p2_val, px_val))
+                    elif pred == "12": prob_str = str(max(p1_val, p2_val))
+                    else: prob_str = str(max_p) if max_p > 0 else ""
+
+                    prob_full = f"{p1_val}/{px_val}/{p2_val}" if (p1_val > 0 or px_val > 0 or p2_val > 0) else ""
 
                     markets = {}
                     if pred != "N/A":
@@ -429,6 +482,10 @@ class ConsensusScraper:
                         s_parts = score_pred.split("-")
                         if len(s_parts) == 2 and s_parts[0].strip().isdigit() and s_parts[1].strip().isdigit():
                             h, a = int(s_parts[0].strip()), int(s_parts[1].strip())
+                            # Reconcile if single 1X2 directly contradicts score
+                            if pred in ["1", "2"] and ((h > a and pred == "2") or (a > h and pred == "1")):
+                                pred = "1" if h > a else "2"
+                                markets["1X2"]["pred"] = pred
                             markets["BTTS"] = {"pred": "Yes" if h > 0 and a > 0 else "No"}
                             markets["OU25"] = {"pred": "OVER" if (h + a) > 2.5 else "UNDER"}
 
@@ -466,22 +523,40 @@ class ConsensusScraper:
                         parts = txt.split(" - ")
                         home = parts[0].strip().split("\n")[-1].strip()
                         away = parts[1].strip().split("\n")[0].strip()
-                        tip_raw = cells[6].get_text(strip=True)
+                        tip_raw = cells[6].get_text(strip=True).upper()
                         pred = "N/A"
-                        if "1" in tip_raw: pred = "1"
-                        elif "2" in tip_raw: pred = "2"
-                        elif "X" in tip_raw: pred = "X"
+                        if tip_raw in ["1", "X", "2", "1X", "X2", "12"]:
+                            pred = tip_raw
+                        elif "1X" in tip_raw: pred = "1X"
+                        elif "X2" in tip_raw: pred = "X2"
+                        elif "12" in tip_raw or "21" in tip_raw: pred = "12"
+                        elif tip_raw.startswith("1"): pred = "1"
+                        elif tip_raw.startswith("2"): pred = "2"
+                        elif tip_raw.startswith("X"): pred = "X"
 
-                        prob_full = cells[5].get_text(strip=True) if len(cells)>5 else ""
+                        p1 = cells[3].get_text(strip=True).replace("%", "").strip() if len(cells) > 3 else "0"
+                        px = cells[4].get_text(strip=True).replace("%", "").strip() if len(cells) > 4 else "0"
+                        p2 = cells[5].get_text(strip=True).replace("%", "").strip() if len(cells) > 5 else "0"
+
+                        prob = p1 if pred == "1" else (p2 if pred == "2" else (px if pred == "X" else ""))
+                        prob_full = f"{p1}/{px}/{p2}" if (p1 != "0" or px != "0" or p2 != "0") else ""
+
                         markets = {}
                         if pred != "N/A":
-                            markets["1X2"] = {"pred": pred, "prob_full": prob_full}
+                            m1x2 = {"pred": pred}
+                            if prob and prob != "0":
+                                m1x2["prob"] = prob
+                            if prob_full:
+                                m1x2["prob_full"] = prob_full
+                            markets["1X2"] = m1x2
+
                         if markets:
-                            preds.append({
-                                "home": home, "away": away, "date": datetime.now().strftime("%d.%m"),
-                                "score_pred": "N/A", "markets": markets,
-                                "timestamp": datetime.now().isoformat()
-                            })
+                            if not any(p["home"].lower() == home.lower() and p["away"].lower() == away.lower() for p in preds):
+                                preds.append({
+                                    "home": home, "away": away, "date": datetime.now().strftime("%d.%m"),
+                                    "score_pred": "N/A", "markets": markets,
+                                    "timestamp": datetime.now().isoformat()
+                                })
                     except: continue
             if preds:
                 self.results["zulubet"] = preds
@@ -507,43 +582,67 @@ class ConsensusScraper:
                     for s in row.find_all(["strong", "span"]):
                         t = s.get_text(strip=True)
                         if "%" in t:
-                            pct = t.replace("%", "").strip()
-                            break
-                    
-                    # OLBG tip selection is in div.sel
-                    sel_el = row.find("div", class_="sel")
-                    sel_tag = sel_el.find(["h4", "a"]) if sel_el else None
-                    sel_val = sel_tag.get_text(strip=True) if sel_tag else (sel_el.get_text(strip=True) if sel_el else "")
+                            m_pct = re.search(r'(\d+)%', t)
+                            if m_pct:
+                                pct = m_pct.group(1)
+                                break
 
-                    pred = "N/A"
+                    sel_el = row.find("div", class_="sel")
+                    if not sel_el: continue
+                    h4 = sel_el.find("h4")
+                    sel_val = h4.get_text(strip=True) if h4 else (sel_el.get_text(strip=True) or "")
+                    p_market = sel_el.find("p")
+                    market_val = p_market.get_text(strip=True).lower() if p_market else "full time result"
+
                     s = sel_val.lower().strip()
                     h = home.lower().strip()
                     a = away.lower().strip()
 
-                    if "draw" in s or "tie" in s or "berabere" in s:
-                        pred = "X"
-                    elif h in s or s in h:
-                        pred = "1"
-                    elif a in s or s in a:
-                        pred = "2"
-                    else:
-                        s_tokens = set(s.split())
-                        h_tokens = set(h.split())
-                        a_tokens = set(a.split())
-                        h_overlap = len(s_tokens & h_tokens)
-                        a_overlap = len(s_tokens & a_tokens)
-                        if h_overlap > a_overlap:
+                    markets = {}
+                    if "full time" in market_val or "result" in market_val or "match" in market_val:
+                        pred = "N/A"
+                        if "draw" in s or "tie" in s or "berabere" in s:
+                            pred = "X"
+                        elif h in s or s in h:
                             pred = "1"
-                        elif a_overlap > h_overlap:
+                        elif a in s or s in a:
                             pred = "2"
                         else:
-                            pred = "1"
+                            s_tokens = set(re.findall(r'\w+', s))
+                            h_tokens = set(re.findall(r'\w+', h))
+                            a_tokens = set(re.findall(r'\w+', a))
+                            h_overlap = len(s_tokens & h_tokens)
+                            a_overlap = len(s_tokens & a_tokens)
+                            if h_overlap > a_overlap and h_overlap > 0:
+                                pred = "1"
+                            elif a_overlap > h_overlap and a_overlap > 0:
+                                pred = "2"
 
-                    preds.append({
-                        "home": home, "away": away, "date": datetime.now().strftime("%d.%m"),
-                        "score_pred": "N/A", "markets": {"1X2": {"pred": pred, "prob": pct}},
-                        "timestamp": datetime.now().isoformat()
-                    })
+                        if pred != "N/A":
+                            markets["1X2"] = {"pred": pred, "prob": pct}
+                    elif "total" in market_val or "goals" in market_val or "over" in market_val or "under" in market_val:
+                        if "over" in s:
+                            markets["OU25"] = {"pred": "OVER", "prob": pct}
+                        elif "under" in s:
+                            markets["OU25"] = {"pred": "UNDER", "prob": pct}
+                    elif "both" in market_val or "btts" in market_val:
+                        if "yes" in s:
+                            markets["BTTS"] = {"pred": "Yes", "prob": pct}
+                        elif "no" in s:
+                            markets["BTTS"] = {"pred": "No", "prob": pct}
+                    elif "double chance" in market_val:
+                        if "draw" in s and (h in s or "1" in s):
+                            markets["1X2"] = {"pred": "1X", "prob": pct}
+                        elif "draw" in s and (a in s or "2" in s):
+                            markets["1X2"] = {"pred": "X2", "prob": pct}
+
+                    if markets:
+                        if not any(p["home"].lower() == home.lower() and p["away"].lower() == away.lower() for p in preds):
+                            preds.append({
+                                "home": home, "away": away, "date": datetime.now().strftime("%d.%m"),
+                                "score_pred": "N/A", "markets": markets,
+                                "timestamp": datetime.now().isoformat()
+                            })
                 except: continue
             if preds:
                 self.results["olbg"] = preds

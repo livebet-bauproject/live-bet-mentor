@@ -278,6 +278,20 @@ export const consensusAdapter = {
                     if (scorePred === 'N/A' || scorePred === '-' || scorePred === '') scorePred = null;
                 }
 
+                // Self-Healing Sanity Check: If score_pred is a valid score "H-A", reconcile single-sign 1X2 prediction
+                // Mathematically, a score like "0-1" is an Away Win (2) - never allow it to be counted as Home Win (1).
+                if (scorePred && market === '1X2') {
+                    const sm = scorePred.match(/^(\d+)\s*-\s*(\d+)$/);
+                    if (sm) {
+                        const h = parseInt(sm[1], 10);
+                        const a = parseInt(sm[2], 10);
+                        const scoreOutcome = h > a ? '1' : (a > h ? '2' : 'X');
+                        if (['1', 'X', '2'].includes(normalizedPred) && normalizedPred !== scoreOutcome) {
+                            normalizedPred = scoreOutcome;
+                        }
+                    }
+                }
+
                 report.totalSources++;
                 report.signals.push({
                     site,
@@ -407,16 +421,43 @@ export const consensusAdapter = {
                 }
 
                 // Normalization
-                let normalizedPred = mData.pred;
-                if (selectedMarket === 'BTTS') {
+                let normalizedPred = String(mData.pred || '').trim();
+                if (selectedMarket === '1X2') {
+                    const p = normalizedPred.toUpperCase();
+                    if (p === '1' || p.includes('HOME') || p === 'H') normalizedPred = '1';
+                    else if (p === '2' || p.includes('AWAY') || p === 'A') normalizedPred = '2';
+                    else if (p === 'X' || p.includes('DRAW') || p === 'D' || p === 'BER') normalizedPred = 'X';
+                    else if (p === '1X' || p === 'X1') normalizedPred = '1X';
+                    else if (p === 'X2' || p === '2X') normalizedPred = 'X2';
+                    else if (p === '12') normalizedPred = '12';
+                } else if (selectedMarket === 'BTTS') {
                     const p = normalizedPred.toLowerCase();
                     if (p.includes('yes') || p === '1' || p === 'kg var' || p === 'y') normalizedPred = 'KG Var';
-                    if (p.includes('no') || p === '0' || p === 'kg yok' || p === 'n') normalizedPred = 'KG Yok';
-                }
-                if (selectedMarket === 'OU25') {
+                    else if (p.includes('no') || p === '0' || p === 'kg yok' || p === 'n') normalizedPred = 'KG Yok';
+                } else if (selectedMarket === 'OU25') {
                     const p = normalizedPred.toLowerCase();
                     if (p.includes('over') || p === 'o' || p === 'üst' || p === 'üst 2.5') normalizedPred = 'Üst';
-                    if (p.includes('under') || p === 'u' || p === 'alt' || p === 'alt 2.5') normalizedPred = 'Alt';
+                    else if (p.includes('under') || p === 'u' || p === 'alt' || p === 'alt 2.5') normalizedPred = 'Alt';
+                }
+
+                // Clean and normalize score prediction
+                let scorePred = m.score_pred;
+                if (scorePred && typeof scorePred === 'string') {
+                    scorePred = scorePred.replace(':', '-').trim();
+                    if (scorePred === 'N/A' || scorePred === '-' || scorePred === '') scorePred = null;
+                }
+
+                // Self-Healing Sanity Check: If score_pred is a valid score "H-A", reconcile single-sign 1X2 prediction
+                if (scorePred && selectedMarket === '1X2') {
+                    const sm = scorePred.match(/^(\d+)\s*-\s*(\d+)$/);
+                    if (sm) {
+                        const h = parseInt(sm[1], 10);
+                        const a = parseInt(sm[2], 10);
+                        const scoreOutcome = h > a ? '1' : (a > h ? '2' : 'X');
+                        if (['1', 'X', '2'].includes(normalizedPred) && normalizedPred !== scoreOutcome) {
+                            normalizedPred = scoreOutcome;
+                        }
+                    }
                 }
 
                 matchMap[key].predictions[site] = normalizedPred;
@@ -428,8 +469,8 @@ export const consensusAdapter = {
                     matchMap[key].tipCounts[site] = mData.tip_count;
                 }
 
-                if (m.score_pred && m.score_pred !== "N/A") {
-                    matchMap[key].scorePredictions[site] = m.score_pred;
+                if (scorePred) {
+                    matchMap[key].scorePredictions[site] = scorePred;
                 }
 
                 matchMap[key].agreement[normalizedPred] = (matchMap[key].agreement[normalizedPred] || 0) + 1;
