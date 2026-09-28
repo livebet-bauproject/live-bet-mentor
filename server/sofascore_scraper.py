@@ -65,6 +65,41 @@ def parse_odds_value(choice):
             pass
     return None
 
+def filter_live_events(data):
+    """Purge finished, ended, ghost, or over-duration matches from live events list."""
+    if not isinstance(data, dict) or 'events' not in data:
+        return data
+    events = data.get('events', [])
+    now = time.time()
+    clean = []
+    for e in events:
+        if not isinstance(e, dict):
+            continue
+        start_ts = e.get('startTimestamp') or now
+        # 1. Match started > 165 mins (2.75h) ago is 100% finished
+        if (now - start_ts) > (165 * 60):
+            continue
+        # 2. Feed locked and kickoff > 90 mins ago
+        if e.get('feedLocked') and (now - start_ts) > (90 * 60):
+            continue
+        # 3. Status checks
+        status = e.get('status', {})
+        st_type = str(status.get('type', '')).lower()
+        st_code = status.get('code')
+        desc = str(status.get('description', '')).lower()
+
+        if st_type == 'finished' or st_code == 100:
+            continue
+        if any(w in desc for w in ['ended', 'finished', 'bitti', 'sona', 'cancel', 'ertele', 'iptal', 'abandon', 'interrupt', 'suspend', 'delayed']):
+            continue
+        if desc in ['ft', 'aet', 'ap']:
+            continue
+        # 4. Halftime sanity: Stuck in Halftime > 85 mins after kickoff
+        if (st_code == 31 or 'halftime' in desc or desc == 'ht') and (now - start_ts) > (85 * 60):
+            continue
+        clean.append(e)
+    return {**data, 'events': clean}
+
 def update_central_odds(match_id, odds_data):
     """Synchronize match odds into a central file for the proxy/frontend."""
     try:
@@ -126,6 +161,7 @@ def fetch_live_list_directly():
         if response.status_code == 200:
             data = response.json()
             if 'events' in data:
+                data = filter_live_events(data)
                 with open(DATA_FILE, 'w', encoding='utf-8') as f:
                     json.dump(data, f)
                 
@@ -337,7 +373,7 @@ def get_scraper():
             if attempt == max_retries - 1:
                 raise
 
-def capture_sofascore():
+def _run_capture_session():
     driver = None
     last_restart_time = time.time()
     
@@ -425,6 +461,8 @@ def capture_sofascore():
                                 if body:
                                     json_data = json.loads(body)
                                     if "error" not in json_data:
+                                        if type_label == "LIVE_LIST":
+                                            json_data = filter_live_events(json_data)
                                         with open(target_path, 'w', encoding='utf-8') as f:
                                             json.dump(json_data, f)
                                         
@@ -441,7 +479,7 @@ def capture_sofascore():
                                             logger.warning(f"Firebase upload failed: {e}")
 
                                         if type_label == "LIVE_LIST":
-                                            logger.info(f"Captured LIVE_LIST -> {target_path}")
+                                            logger.info(f"Captured LIVE_LIST -> {target_path} ({len(json_data.get('events', []))} clean events)")
                                         else:
                                             logger.info(f"Captured {type_label} for {match_id} -> {target_path}")
                                     else:
@@ -481,7 +519,7 @@ def capture_sofascore():
                     result = driver.execute_async_script(script_live)
                     
                     if result and result.get('status') == 'success':
-                        json_data = result.get('data')
+                        json_data = filter_live_events(result.get('data'))
                         target_path = DATA_FILE
                         with open(target_path, 'w', encoding='utf-8') as f:
                             json.dump(json_data, f)
@@ -493,7 +531,7 @@ def capture_sofascore():
                         except:
                             pass
                             
-                        logger.info(f"[JS-FETCH] Captured LIVE_LIST directly -> {target_path}")
+                        logger.info(f"[JS-FETCH] Captured LIVE_LIST directly -> {target_path} ({len(json_data.get('events', []))} clean events)")
                         last_live_fetch = time.time()
                     else:
                         logger.warning(f"[JS-FETCH] Live List Failed: {result.get('message')}")
@@ -519,6 +557,7 @@ def capture_sofascore():
                                 if body:
                                     json_data = json.loads(body)
                                     if "events" in json_data:
+                                        json_data = filter_live_events(json_data)
                                         with open(DATA_FILE, 'w', encoding='utf-8') as f:
                                             json.dump(json_data, f)
                                         
@@ -529,7 +568,7 @@ def capture_sofascore():
                                         except:
                                             pass
 
-                                        logger.info(f"Captured LIVE_LIST -> {DATA_FILE}")
+                                        logger.info(f"Captured LIVE_LIST -> {DATA_FILE} ({len(json_data.get('events', []))} clean events)")
                                         captured = True
                                         break
                     except:
@@ -649,14 +688,23 @@ def capture_sofascore():
             time.sleep(1)
             
     except Exception as e:
-        logger.error(f"FATAL ERROR in capture loop: {e}", exc_info=True)
-        sys.exit(1) # Tell proxy.js that we crashed, not exited cleanly
+        logger.error(f"[SCRAPER] Loop error: {e}. Auto-healing in 5s...", exc_info=True)
+        time.sleep(5)
     finally:
         if driver:
             try:
                 driver.quit()
             except:
                 pass
+
+def capture_sofascore():
+    """Autonomous 24/7 self-healing scraper driver with zero-crash recovery."""
+    while True:
+        try:
+            _run_capture_session()
+        except Exception as e:
+            logger.error(f"[SCRAPER] Recoverable session error: {e}. Auto-healing in 5s...", exc_info=True)
+            time.sleep(5)
 
 if __name__ == "__main__":
     if not os.path.exists('server'): os.makedirs('server')

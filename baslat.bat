@@ -30,6 +30,7 @@ taskkill /F /IM node.exe /T >nul 2>&1
 taskkill /F /IM chromedriver.exe /T >nul 2>&1
 taskkill /F /IM undetected_chromedriver.exe /T >nul 2>&1
 taskkill /F /IM cloudflared.exe /T >nul 2>&1
+timeout /t 2 /nobreak >nul
 
 if exist "node_modules\.vite" (
     rmdir /s /q "node_modules\.vite" >nul 2>&1
@@ -54,10 +55,11 @@ if not exist "server\bin\cloudflared.exe" (
     curl.exe -L -o "server\bin\cloudflared.exe" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 )
 
-REM 4. Otomatik Tarayici Tetikleyici (12 sn sonra tarayiciyi acar)
-start /b cmd /c "timeout /t 12 >nul && start http://localhost:5173/?v=%random%"
+REM 4. Otomatik Tarayici Tetikleyici (10 sn sonra tarayiciyi acar)
+start "" cmd /c "timeout /t 10 >nul & start http://localhost:5173/?v=%random%"
 
-REM 5. Sunucuyu ve Tüneli Doğrudan Bu Pencerede Çalıştır
+REM 5. Sunucuyu ve Tüneli Doğrudan Bu Pencerede Çalıştır (Otomatik Yeniden Başlatma Korumalı)
+:start_loop
 echo [4/4] Sistem baslatiliyor...
 echo.
 echo ============================================================
@@ -70,5 +72,6 @@ echo.
 call npm run start
 
 echo.
-echo [UYARI] Sistem durduruldu. Yeniden baslatmak icin bir tusa basin...
-pause
+echo [UYARI] Sistem kapandi veya durduruldu. 5 saniye icinde otomatik yeniden baslatiliyor...
+timeout /t 5 /nobreak >nul
+goto start_loop

@@ -61,9 +61,16 @@ try {
         const stored = sessionStorage.getItem('lbm_cached_live_events');
         if (stored) {
             const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-                adapterLiveEventsCache = parsed;
-                adapterLiveEventsTime = Date.now();
+            const events = Array.isArray(parsed) ? parsed : (parsed?.events || []);
+            const cacheTime = parsed?.time || 0;
+            // Only accept cache if fresher than 45 seconds
+            if (Array.isArray(events) && cacheTime && (Date.now() - cacheTime < 45000)) {
+                adapterLiveEventsCache = events;
+                adapterLiveEventsTime = cacheTime;
+            } else {
+                sessionStorage.removeItem('lbm_cached_live_events');
+                adapterLiveEventsCache = [];
+                adapterLiveEventsTime = 0;
             }
         }
     }
@@ -103,8 +110,7 @@ export const sofaScoreAdapter = {
     async fetchScheduledEvents() {
         try {
             // Detect environment: Local dev uses local proxy, any deployed domain uses cloud/Firebase
-            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const isProduction = !isLocalDev;
+            const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
             if (isLocalDev) {
                 // LOCAL DEVELOPMENT: Try local proxy first (faster, no Firebase quota)
@@ -154,10 +160,16 @@ export const sofaScoreAdapter = {
                     if (normalized.length > 0) {
                         adapterLiveEventsCache = normalized;
                         adapterLiveEventsTime = Date.now();
+                        try {
+                            if (typeof window !== 'undefined' && window.sessionStorage) {
+                                window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 100) }));
+                            }
+                        } catch(e) {}
                     }
                     return normalized;
                 }
-                return adapterLiveEventsCache && adapterLiveEventsCache.length > 0 ? adapterLiveEventsCache : [];
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
+                return isCacheValid ? adapterLiveEventsCache : [];
             } else {
                 // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
                 const apiBase = await resolveBackendUrl();
@@ -181,7 +193,8 @@ export const sofaScoreAdapter = {
                                 }
                             }
                         } catch (fbErr) {}
-                        return (adapterLiveEventsCache && adapterLiveEventsCache.length > 0) ? adapterLiveEventsCache : [];
+                        const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
+                        return isCacheValid ? adapterLiveEventsCache : [];
                     }
                     const data = await response.json();
                     if (data && data.events) {
@@ -192,7 +205,11 @@ export const sofaScoreAdapter = {
                         if (normalized.length > 0) {
                             adapterLiveEventsCache = normalized;
                             adapterLiveEventsTime = Date.now();
-                            try { if (typeof window !== 'undefined' && window.sessionStorage) window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify(normalized.slice(0, 100))); } catch(e) {}
+                            try {
+                                if (typeof window !== 'undefined' && window.sessionStorage) {
+                                    window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 100) }));
+                                }
+                            } catch(e) {}
                             return normalized;
                         }
                     }
@@ -213,8 +230,9 @@ export const sofaScoreAdapter = {
                         }
                     } catch (fbErr) {}
                 }
-                // If both Render and Firebase fail, return last known cached live events (prevents UI flicker)
-                if (adapterLiveEventsCache && adapterLiveEventsCache.length > 0) {
+                // Return cached events ONLY if fresher than 45 seconds (prevents serving finished/stale matches)
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
+                if (isCacheValid) {
                     console.log(`[SOFASCORE_ADAPTER] Using cached live events: ${adapterLiveEventsCache.length} matches`);
                     return adapterLiveEventsCache;
                 }
@@ -222,7 +240,8 @@ export const sofaScoreAdapter = {
             }
         } catch (error) {
             console.error('[SOFASCORE_ADAPTER] Error fetching:', error);
-            return (adapterLiveEventsCache && adapterLiveEventsCache.length > 0) ? adapterLiveEventsCache : [];
+            const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
+            return isCacheValid ? adapterLiveEventsCache : [];
         }
     },
 
@@ -235,27 +254,45 @@ export const sofaScoreAdapter = {
         // CRITICAL: Strict filtering to match SofaScore "Live" (Football) count
         // 1. Sport ID check (ID 1 is Football)
         const sportId = event.tournament?.category?.sport?.id;
-        // RELAXED: If sportId is missing, assume it's football because the endpoint is sport/football
         if (sportId && sportId !== 1) return null; 
 
-        // 2. Anti-Ghost filter: Reject matches that started > 5.5 hours ago or are scheduled > 1 hour in future
+        // 2. Anti-Ghost filter: A football match CANNOT last > 165 minutes (2.75 hours)
         const nowSec = Date.now() / 1000;
         const startTs = event.startTimestamp || nowSec;
-        if ((nowSec - startTs) > 5.5 * 3600) {
-            return null; // Ghost match stuck in SofaScore feed from earlier
+        if ((nowSec - startTs) > 2.75 * 3600) {
+            return null; // Match started > 165 mins ago, guaranteed finished
         }
         if ((startTs - nowSec) > 3600) {
-            return null; // Postponed/rescheduled amateur match with future timestamp
+            return null; // Scheduled in future
         }
 
-        // 3. Must be Active (Filter out anything finished, ended, canceled or delayed)
+        // 3. Feed locked check: SofaScore locks event feed when match concludes
+        if (event.feedLocked && (nowSec - startTs) > 5400) {
+            return null; // Feed locked and > 90 mins from kickoff -> ended
+        }
+
+        const statusCode = event.status?.code;
         const statusType = (event.status?.type || '').toLowerCase();
         const statusDesc = (event.status?.description || '').toLowerCase();
 
-        const isActuallyFinished = statusType === 'finished' || 
-            statusDesc.includes('ended') || statusDesc.includes('finished') || 
+        // 4. Halftime sanity check: Real halftime is 15 minutes.
+        // If status is Halftime but match started > 85 mins ago, feed is dead/finished
+        if ((statusCode === 31 || statusDesc === 'halftime' || statusDesc === 'ht') && (nowSec - startTs) > 5100) {
+            return null;
+        }
+
+        // 5. Must be Active (Filter out anything finished, ended, canceled or delayed)
+        if (statusType === 'finished' || statusCode === 100) return null;
+
+        const isActuallyFinished = statusType === 'finished' || statusCode === 100 ||
+            statusDesc.includes('ended') || statusDesc.includes('finish') || 
             statusDesc.includes('canceled') || statusDesc.includes('bitti') || 
-            statusDesc.includes('ertele') || statusDesc.includes('iptal');
+            statusDesc.includes('sona') || statusDesc.includes('ertele') || 
+            statusDesc.includes('iptal') || statusDesc.includes('abandoned') || 
+            statusDesc.includes('interrupted') || statusDesc.includes('suspended') || 
+            statusDesc.includes('delayed') || statusDesc === 'ft' || 
+            statusDesc === 'aet' || statusDesc === 'ap' ||
+            /\b(ft|finished|ended|full time|full-time)\b/i.test(statusDesc);
 
         if (isActuallyFinished) return null;
         if (statusType === 'notstarted' && !statusDesc.includes('live')) return null;
@@ -316,7 +353,7 @@ export const sofaScoreAdapter = {
         const startTime = Date.now();
 
         try {
-            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
             const isProduction = !isLocalDev;
 
             if (isLocalDev) {
@@ -921,10 +958,11 @@ export const sofaScoreAdapter = {
 
         // Check if we're in stoppage/injury time (past 45' in 1st half, or past 90' in 2nd half)
         if (rawSec > maxSec) {
-            // Extreme safety guard: if a match has been running for > 80 mins in a single period
+            // Extreme safety guard: if a match has been running for > 60 mins in a single period
             // and the feed died, force end it
-            if (elapsedSec > 80 * 60) {
-                if (code === 6 || descLower.includes('1st')) {
+            if (elapsedSec > 60 * 60) {
+                const totalElapsedFromStart = event.startTimestamp ? (now - event.startTimestamp) : 0;
+                if ((code === 6 || descLower.includes('1st')) && totalElapsedFromStart < 80 * 60) {
                     return 'İY';
                 }
                 return 'MS';

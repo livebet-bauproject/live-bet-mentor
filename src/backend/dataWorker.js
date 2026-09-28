@@ -344,20 +344,34 @@ class DataWorker {
                         console.log('[DATA_WORKER] Normalized fixtures with full details:', this.fixtures?.length || 0);
                     } else if (rawMatches.length === 0) {
                         this._consecutiveEmptyPolls = (this._consecutiveEmptyPolls || 0) + 1;
-                        if (this._consecutiveEmptyPolls >= 6) {
+                        if (this._consecutiveEmptyPolls >= 4) {
                             this.fixtures = [];
                         } else {
-                            console.warn(`[DATA_WORKER] Empty match list received, retaining previous fixtures (grace period ${this._consecutiveEmptyPolls}/6)`);
+                            console.warn(`[DATA_WORKER] Empty match list received, retaining previous fixtures (grace period ${this._consecutiveEmptyPolls}/4)`);
                         }
                     }
                 } else {
                     console.warn('[DATA_WORKER] Fetched matches is not an array:', rawMatches);
                     this._consecutiveEmptyPolls = (this._consecutiveEmptyPolls || 0) + 1;
-                    if (this._consecutiveEmptyPolls >= 6) {
+                    if (this._consecutiveEmptyPolls >= 4) {
                         this.fixtures = [];
                     }
                 }
 
+                // Strict finished & ghost match active purge
+                const nowSec = Date.now() / 1000;
+                this.fixtures = (this.fixtures || []).filter(f => {
+                    if (!f || !f.id) return false;
+                    const startTs = f.startTimestamp || nowSec;
+                    if ((nowSec - startTs) > 2.75 * 3600) return false; // Over 165 mins -> ended
+                    const minStr = String(f.minute || '').toUpperCase();
+                    if (minStr === 'MS' || minStr === 'FT' || minStr === 'ERT.') return false;
+                    const stType = String(f.status?.type || '').toLowerCase();
+                    if (stType === 'finished') return false;
+                    const stCode = f.status?.code;
+                    if (stCode === 100) return false;
+                    return true;
+                });
 
                 this.lastFetchDuration = Date.now() - startTime;
                 this.healthStats.lastFetch = Date.now();

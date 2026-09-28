@@ -596,14 +596,28 @@ const cleanEvents = (events) => {
     if (!Array.isArray(events)) return [];
     const nowSec = Date.now() / 1000;
     return events.filter(e => {
+        if (!e) return false;
         const startTs = e.startTimestamp || nowSec;
-        // Anti-ghost filter: remove matches started > 5.5 hours ago
-        if ((nowSec - startTs) > 5.5 * 3600) return false;
-        // Anti-future-ghost filter: remove matches scheduled > 1 hour in future (postponed ghost matches)
+        // Anti-ghost filter: remove matches started > 165 minutes (2.75h) ago
+        if ((nowSec - startTs) > 2.75 * 3600) return false;
+        // Anti-future-ghost filter: remove matches scheduled > 1 hour in future
         if ((startTs - nowSec) > 3600) return false;
+        // Feed locked check: SofaScore locks event feed when match ends
+        if (e.feedLocked && (nowSec - startTs) > 5400) return false;
+
+        const statusCode = e.status?.code;
         const st = (e.status?.type || '').toLowerCase();
         const desc = (e.status?.description || '').toLowerCase();
-        if (st === 'finished' || desc.includes('ended') || desc.includes('finish') || desc.includes('bitti') || desc.includes('cancel')) return false;
+
+        // Halftime sanity check: Real halftime is 15 mins. Stuck in halftime > 85 mins after start -> ended
+        if ((statusCode === 31 || desc.includes('halftime') || desc === 'ht') && (nowSec - startTs) > 5100) return false;
+
+        if (st === 'finished' || statusCode === 100) return false;
+        if (desc.includes('ended') || desc.includes('finish') || desc.includes('bitti') || 
+            desc.includes('sona') || desc.includes('cancel') || desc.includes('ertele') || 
+            desc.includes('iptal') || desc.includes('abandon') || desc.includes('interrupt') || 
+            desc.includes('suspend') || desc.includes('delayed') || desc === 'ft' || 
+            desc === 'aet' || desc === 'ap' || /\b(ft|finished|ended|full time|full-time)\b/i.test(desc)) return false;
         return true;
     });
 };
@@ -617,16 +631,16 @@ app.post('/api/sync/live', express.json({ limit: '10mb' }), (req, res) => {
     }
     const incomingEvents = cleanEvents(req.body?.events || []);
     const existingEvents = cleanEvents(memoryLiveData?.events || []);
-    const isExistingStale = !lastUploadTime || (Date.now() - lastUploadTime > 60000);
+    const isExistingStale = !lastUploadTime || (Date.now() - lastUploadTime > 45000);
 
-    // Guard against degrading live data: accept if incoming has valid events (>= 10) AND (existing is stale or incoming reasonable)
-    if (incomingEvents.length >= 10 && (isExistingStale || incomingEvents.length >= Math.floor(existingEvents.length * 0.7))) {
+    // Guard against degrading live data: accept if incoming has valid events AND (existing is stale or incoming reasonable)
+    if (incomingEvents.length > 0 && (isExistingStale || incomingEvents.length >= Math.floor(existingEvents.length * 0.5))) {
         memoryLiveData = req.body;
         lastUploadTime = Date.now();
         try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
         console.log(`[SYNC] Accepted live data: ${incomingEvents.length} clean events`);
     } else {
-        console.warn(`[SYNC] 🛡️ Ignored live sync: incoming has only ${incomingEvents.length} valid events vs ${existingEvents.length} current (stale: ${isExistingStale}).`);
+        console.warn(`[SYNC] ⚠️ Ignored live sync: incoming has only ${incomingEvents.length} valid events vs ${existingEvents.length} current (stale: ${isExistingStale}).`);
     }
     res.json({ ok: true, events: incomingEvents.length });
 });
@@ -686,16 +700,16 @@ app.post('/api/sync/bundle', express.json({ limit: '15mb' }), (req, res) => {
     if (live && Array.isArray(live.events)) {
         const incomingClean = cleanEvents(live.events);
         const existingClean = cleanEvents(memoryLiveData?.events || []);
-        const isExistingStale = !lastUploadTime || (Date.now() - lastUploadTime > 60000);
+        const isExistingStale = !lastUploadTime || (Date.now() - lastUploadTime > 45000);
 
-        // Guard: accept if incoming has a healthy amount of live events (>= 10) AND (existing is stale or incoming reasonable)
-        if (incomingClean.length >= 10 && (isExistingStale || incomingClean.length >= Math.floor(existingClean.length * 0.7))) {
+        // Guard: accept if incoming has live events AND (existing is stale or incoming reasonable)
+        if (incomingClean.length > 0 && (isExistingStale || incomingClean.length >= Math.floor(existingClean.length * 0.5))) {
             memoryLiveData = live;
             lastUploadTime = Date.now();
             try { fs.writeFileSync(SOFASCORE_FILE, JSON.stringify(live), 'utf8'); } catch(e) {}
             telegramBot.autoResolveSignals(live.events).catch(err => console.warn('[TELEGRAM] Auto-resolve error:', err.message));
         } else {
-            console.warn(`[SYNC_BUNDLE] 🛡️ Retained server live data (${existingClean.length} active) instead of degraded sync (${incomingClean.length} valid, stale: ${isExistingStale})`);
+            console.warn(`[SYNC_BUNDLE] ⚠️ Retained server live data (${existingClean.length} active) instead of sync (${incomingClean.length} valid, stale: ${isExistingStale})`);
         }
     }
 
@@ -783,12 +797,16 @@ app.get('/api/sync/status', (req, res) => {
 });
 
 // 1. Live Events List
-app.get('/api/sofascore/live', (req, res) => {
+app.get('/api/sofascore/live', async (req, res) => {
     // 1. Check file
     let fileEvents = [];
     let fileParsed = null;
+    let fileAgeSec = 999999;
+
     if (fs.existsSync(SOFASCORE_FILE)) {
         try {
+            const stats = fs.statSync(SOFASCORE_FILE);
+            fileAgeSec = (Date.now() - stats.mtimeMs) / 1000;
             const data = fs.readFileSync(SOFASCORE_FILE, 'utf8');
             fileParsed = JSON.parse(data);
             if (fileParsed && Array.isArray(fileParsed.events)) {
@@ -799,6 +817,11 @@ app.get('/api/sofascore/live', (req, res) => {
         }
     }
 
+    // Auto-heal: If file is older than 45s, kick off a background refresh
+    if (fileAgeSec > 45) {
+        fetchSofaScoreLiveNode().catch(() => {});
+    }
+
     // 2. Check memory
     let memoryEvents = [];
     if (memoryLiveData && Array.isArray(memoryLiveData.events)) {
@@ -806,7 +829,7 @@ app.get('/api/sofascore/live', (req, res) => {
     }
 
     // 3. Serve whichever source is fresher and valid to prevent serving stale files
-    const isMemoryFresh = lastUploadTime && (Date.now() - lastUploadTime < 180000);
+    const isMemoryFresh = lastUploadTime && (Date.now() - lastUploadTime < 90000);
     if (isMemoryFresh && memoryEvents.length > 0) {
         return res.json({
             ...memoryLiveData,
@@ -814,7 +837,16 @@ app.get('/api/sofascore/live', (req, res) => {
         });
     }
 
-    if (memoryEvents.length >= fileEvents.length && memoryEvents.length > 0) {
+    // If file is fresh (< 90s) and has clean events, serve it
+    if (fileAgeSec < 90 && fileEvents.length > 0) {
+        memoryLiveData = fileParsed ? { ...fileParsed, events: fileEvents } : { events: fileEvents };
+        return res.json({
+            ...(fileParsed || {}),
+            events: fileEvents
+        });
+    }
+
+    if (memoryEvents.length > 0) {
         return res.json({
             ...memoryLiveData,
             events: memoryEvents
@@ -828,6 +860,17 @@ app.get('/api/sofascore/live', (req, res) => {
             events: fileEvents
         });
     }
+
+    // Fallback: try an immediate fetch right now
+    try {
+        const direct = await fetchSofaScoreLiveNode();
+        if (direct && Array.isArray(direct.events)) {
+            const clean = cleanEvents(direct.events);
+            if (clean.length > 0) {
+                return res.json({ ...direct, events: clean });
+            }
+        }
+    } catch(e) {}
 
     // Fallback if memory has any events
     if (memoryEvents.length > 0) {
@@ -4517,9 +4560,11 @@ function startScraper() {
         });
 
         scraperProcess.on('close', (code) => {
-            console.log(`[PROXY] Scraper process exited with code ${code}. Restarting in 30s...`);
+            console.log(`[PROXY] Scraper process exited with code ${code}. Restarting in 5s...`);
             scraperProcess = null;
-            setTimeout(startScraper, 30000);
+            // Immediate fallback: trigger Node fetcher right now so data is never interrupted!
+            fetchSofaScoreLiveNode().catch(() => {});
+            setTimeout(startScraper, 5000);
         });
     } catch (err) {
         console.error('[PROXY] Failed to start scraper, falling back to Node.js fetcher:', err.message);
@@ -4661,7 +4706,7 @@ app.get('/api/tunnel/url', (req, res) => {
 });
 
 // --- START SERVER ---
-app.listen(PORT, '0.0.0.0', async () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
     console.log(`[PROXY SERVER] Running on http://0.0.0.0:${PORT} (accessible from network)`);
     console.log(`[PROXY] Environment: ${IS_CLOUD ? 'CLOUD (Render)' : 'LOCAL'}`);
 
@@ -4790,9 +4835,9 @@ app.listen(PORT, '0.0.0.0', async () => {
                     }
                 }
 
-                // 4. Send Bundle to Render (Only send liveData if it has at least 10 valid, active matches)
+                // 4. Send Bundle to Render (Send liveData if it has valid, active matches)
                 const cleanLiveList = cleanEvents(liveData?.events || []);
-                const validLiveToSend = cleanLiveList.length >= 10 ? liveData : null;
+                const validLiveToSend = cleanLiveList.length > 0 ? liveData : null;
 
                 if (validLiveToSend || oddsData || betanoData || Object.keys(statsBundle).length > 0) {
                     const payload = {
@@ -4861,5 +4906,17 @@ app.listen(PORT, '0.0.0.0', async () => {
             syncToCloud(); // First sync
             setInterval(syncToCloud, 15000); // Then every 15 seconds
         }, 20000);
+    }
+});
+
+server.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+        console.warn(`[PROXY] Port ${PORT} busy (EADDRINUSE), retrying in 2 seconds...`);
+        setTimeout(() => {
+            try { server.close(); } catch(e) {}
+            server.listen(PORT, '0.0.0.0');
+        }, 2000);
+    } else {
+        console.error('[PROXY] Server listen error:', err.message);
     }
 });
