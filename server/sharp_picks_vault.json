@@ -1,6 +1,6 @@
 {
   "model": "Mentor Alpha-10 Quant",
-  "last_updated": "2026-09-28T12:46:28.490Z",
+  "last_updated": "2026-09-28T13:06:28.454Z",
   "today_picks": [
     {
       "id": "curacaonicaragua",
@@ -122,8 +122,8 @@
       "away": "Uruguay",
       "tip": "12",
       "odds": 1.36,
-      "score": "-",
-      "status": "PENDING",
+      "score": "1-4",
+      "status": "WON",
       "confidence": 80,
       "is_top": false,
       "tier": "Value-Safe"

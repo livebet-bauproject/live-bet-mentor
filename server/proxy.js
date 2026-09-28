@@ -4602,7 +4602,24 @@ function startCloudflareTunnel() {
     const cfBinary = path.join(__dirname, 'bin', isWindows ? 'cloudflared.exe' : 'cloudflared');
 
     if (!fs.existsSync(cfBinary)) {
-        console.log('[TUNNEL] Cloudflare binary not found in server/bin/, skipping tunnel start.');
+        console.log('[TUNNEL] Cloudflare binary not found in server/bin/, downloading automatically...');
+        try {
+            fs.mkdirSync(path.join(__dirname, 'bin'), { recursive: true });
+            const dlUrl = isWindows 
+                ? 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe'
+                : 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64';
+            spawnSync('curl', ['-L', '-o', cfBinary, dlUrl], { timeout: 60000 });
+            if (!isWindows && fs.existsSync(cfBinary)) {
+                try { fs.chmodSync(cfBinary, 0o755); } catch(e) {}
+            }
+        } catch(dlErr) {
+            console.warn('[TUNNEL] Could not auto-download cloudflared:', dlErr.message);
+            return;
+        }
+    }
+
+    if (!fs.existsSync(cfBinary)) {
+        console.log('[TUNNEL] Cloudflare binary not available, skipping tunnel start.');
         return;
     }
 
