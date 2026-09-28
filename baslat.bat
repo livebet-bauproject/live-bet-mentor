@@ -1,33 +1,41 @@
 @echo off
-REM Live Bet Mentor - Baslatici
+REM Live Bet Mentor - 7/24 Otonom Baslatici
+title Live Bet Mentor - 7/24 Veri ve Tunel Konsolu
 cd /d "%~dp0"
 
-echo ==========================================
-echo    Live Bet Mentor Baslatiliyor...
-echo ==========================================
+echo ============================================================
+echo    Live Bet Mentor - 7/24 Otonom Sistem Baslatiliyor...
+echo ============================================================
 
 REM 1. Gereksinim Kontrolu
-echo [1/4] Node ve Python kontrol ediliyor...
-node -v
-python --version
+echo [1/4] Node.js ve Python kontrol ediliyor...
+node -v >nul 2>&1
+if errorlevel 1 (
+    echo [HATA] Node.js bulunamadi! Lutfen https://nodejs.org adresinden yukleyin.
+    pause
+    exit /b 1
+)
 
-REM 2. Cache ve Surec Temizleme
+python --version >nul 2>&1
+if errorlevel 1 (
+    echo [HATA] Python bulunamadi! Lutfen https://python.org adresinden yukleyin (Kurulumda 'Add Python to PATH' secenegini isaretleyin).
+    pause
+    exit /b 1
+)
+
+REM 2. Eski Surecleri Temizle
 echo [2/4] Eski cache ve sarkan surecler temizleniyor...
 taskkill /F /IM python.exe /T >nul 2>&1
 taskkill /F /IM node.exe /T >nul 2>&1
 taskkill /F /IM chromedriver.exe /T >nul 2>&1
 taskkill /F /IM undetected_chromedriver.exe /T >nul 2>&1
 taskkill /F /IM cloudflared.exe /T >nul 2>&1
-if exist "dist" (
-    echo [BILGI] dist klasoru siliniyor...
-    rmdir /s /q "dist"
-)
+
 if exist "node_modules\.vite" (
-    echo [BILGI] Vite cache temizleniyor...
-    rmdir /s /q "node_modules\.vite"
+    rmdir /s /q "node_modules\.vite" >nul 2>&1
 )
 
-REM 3. Modul Kontrolu
+REM 3. Modul ve Paket Kontrolu
 echo [3/4] Bagimliliklar kontrol ediliyor...
 if not exist node_modules (
     echo [BILGI] Node modulleri yukleniyor, lutfen bekleyin...
@@ -46,21 +54,21 @@ if not exist "server\bin\cloudflared.exe" (
     curl.exe -L -o "server\bin\cloudflared.exe" "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
 )
 
-REM 4. Sunucuyu Baslat
-echo [4/4] Uygulama baslatiliyor...
-echo Bu pencereyi kapatmayin.
-echo Tarayici 10 saniye icinde otomatik acilacak.
+REM 4. Otomatik Tarayici Tetikleyici (12 sn sonra tarayiciyi acar)
+start /b cmd /c "timeout /t 12 >nul && start http://localhost:5173/?v=%random%"
 
-REM Yeni pencerede sunuculari baslat
-start "LBM-Sunucu" cmd /k "npm run start"
+REM 5. Sunucuyu ve Tüneli Doğrudan Bu Pencerede Çalıştır
+echo [4/4] Sistem baslatiliyor...
+echo.
+echo ============================================================
+echo   LIVE BET MENTOR 7/24 AKTIF!
+echo   - Bu siyah pencereyi ASLA KAPATMAYIN (Simge durumuna kucultebilirsiniz).
+echo   - Veriler ve Cloudflare Tunel adresi asagida gorunecektir.
+echo ============================================================
+echo.
 
-REM Tarayiciyi acmak icin bekle (Scraper ilk canli veriyi yazana kadar 16 sn bekle)
-timeout /t 16
-
-REM Tarayiciyi cache bypass ile ac (Ctrl+Shift+R efekti)
-start "" "http://localhost:5173/?v=%random%"
+call npm run start
 
 echo.
-echo Islem tamam! 
-echo [IPUCU] Hala eski goruyorsan tarayicida Ctrl+Shift+R yap.
+echo [UYARI] Sistem durduruldu. Yeniden baslatmak icin bir tusa basin...
 pause
