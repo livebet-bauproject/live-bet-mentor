@@ -1052,10 +1052,16 @@ export const LiveTerminalTable = ({
                                                                     <div style={{ fontSize: '0.69rem', color: '#7dd3fc', background: 'rgba(56, 189, 248, 0.08)', border: '1px dashed rgba(56, 189, 248, 0.25)', borderRadius: '4px', padding: '4px 8px' }}>
                                                                         ℹ️ <strong>{lang === 'tr' ? 'Kalan Süre Kuralı:' : (lang === 'de' ? 'Restzeit-Regel:' : 'Rest of Match Rule:')}</strong>{' '}
                                                                         {lang === 'tr'
-                                                                            ? `Bu bahis giriş anındaki (${trendInfo.entryScore}) skordan sonraki golleri sayar. Bahsin tutması için maçta toplam en az ${trendInfo.initialGoals + 1} gol gereklidir.`
+                                                                            ? (!trendInfo.isUnder 
+                                                                                ? `Bu bahis giriş anındaki (${trendInfo.entryScore}) skordan sonraki golleri sayar. Bahsin tutması için kalan sürede en az ${trendInfo.restGoalsNeeded} gol (maçta toplam en az ${trendInfo.totalGoalsTarget} gol) gereklidir.`
+                                                                                : `Bu bahis giriş anındaki (${trendInfo.entryScore}) skordan sonraki golleri sayar. Bahsin tutması için kalan sürede en fazla ${trendInfo.restGoalsNeeded} gol (maçta toplam en fazla ${trendInfo.totalGoalsTarget} gol) olabilir.`)
                                                                             : (lang === 'de'
-                                                                                ? `Diese Wette zählt Tore erst ab dem Spielstand ${trendInfo.entryScore}. Für einen Gewinn sind insgesamt mind. ${trendInfo.initialGoals + 1} Tore erforderlich.`
-                                                                                : `This bet counts goals scored after the ${trendInfo.entryScore} entry score. At least ${trendInfo.initialGoals + 1} total match goals are required.`)}
+                                                                                ? (!trendInfo.isUnder
+                                                                                    ? `Diese Wette zählt Tore erst ab dem Spielstand ${trendInfo.entryScore}. Für einen Gewinn sind in der Restzeit mind. ${trendInfo.restGoalsNeeded} Tore (insgesamt mind. ${trendInfo.totalGoalsTarget} Tore) erforderlich.`
+                                                                                    : `Diese Wette zählt Tore erst ab dem Spielstand ${trendInfo.entryScore}. Für einen Gewinn dürfen in der Restzeit max. ${trendInfo.restGoalsNeeded} Tore (insgesamt max. ${trendInfo.totalGoalsTarget} Tore) fallen.`)
+                                                                                : (!trendInfo.isUnder
+                                                                                    ? `This bet counts goals scored after the ${trendInfo.entryScore} entry score. At least ${trendInfo.restGoalsNeeded} more goals in remaining time (at least ${trendInfo.totalGoalsTarget} total match goals) are required.`
+                                                                                    : `This bet counts goals scored after the ${trendInfo.entryScore} entry score. Maximum ${trendInfo.restGoalsNeeded} more goals in remaining time (max ${trendInfo.totalGoalsTarget} total match goals) are allowed.`))}
                                                                     </div>
                                                                 )}
 

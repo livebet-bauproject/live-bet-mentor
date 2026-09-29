@@ -967,6 +967,22 @@ export const getTrendTimelineInfo = (bet, match, lang = 'tr') => {
     const mStr = `${bet.market || ''} ${bet.marketShort || ''} ${bet.outcome || ''}`.toLowerCase();
     const isRest = mStr.includes('restzeit') || mStr.includes('rest of the game') || mStr.includes('rest of game') || mStr.includes('kalan süre') || mStr.includes('kalan ');
 
+    const isUnder = mStr.includes('under') || mStr.includes('unter') || mStr.includes('alt');
+    const thresholdMatch = mStr.match(/(\d+[.,]\d+)/);
+    const threshold = thresholdMatch ? parseFloat(thresholdMatch[1].replace(',', '.')) : 0.5;
+
+    let restGoalsNeeded = 1;
+    if (isRest) {
+        if (!isUnder) {
+            // Over: 0.5 -> 1 goal, 1.5 -> 2 goals, 2.5 -> 3 goals
+            restGoalsNeeded = Math.floor(threshold) + 1;
+        } else {
+            // Under: 0.5 -> max 0 goals, 1.5 -> max 1 goal
+            restGoalsNeeded = Math.floor(threshold);
+        }
+    }
+    const totalGoalsTarget = initialGoals + restGoalsNeeded;
+
     return {
         entryScore,
         currentScoreStr,
@@ -975,6 +991,10 @@ export const getTrendTimelineInfo = (bet, match, lang = 'tr') => {
         durationLabel,
         entryMinStr,
         isRest,
+        isUnder,
+        threshold,
+        restGoalsNeeded,
+        totalGoalsTarget,
         initialGoals,
         currentGoals,
         isNew: durMinutes <= 3,
