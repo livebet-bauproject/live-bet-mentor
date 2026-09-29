@@ -450,6 +450,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
     // Global AI Report State
     const [globalReport, setGlobalReport] = useState({ content: '', type: null, loading: false });
+    const [showTopIntelligence, setShowTopIntelligence] = useState(false);
 
     // Live Odds State for Opportunity Scoring
     const [liveOdds, setLiveOdds] = useState(null);
@@ -2815,7 +2816,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         try {
             let report = "";
             if (type === 'LIVE') {
-                report = await dataWorker.generateGlobalIntelligence('LIVE', lang);
+                report = await dataWorker.generateGlobalIntelligence('LIVE', lang, enforcedMatches);
             } else {
                 // Pre-match logic: Selective mix for the AI "Judge"
                 const highConsensus = filteredRadarMatches.filter(m =>
@@ -2871,23 +2872,26 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         }
     };
 
-    const renderGlobalAISection = (type) => {
+    const renderGlobalAISection = (type, isTop = false, onClose = null) => {
         const isLoading = globalReport.loading && globalReport.type === type;
         const hasContent = globalReport.content && globalReport.type === type;
 
         return (
             <div className="global-ai-container glass-panel" style={{
-                marginBottom: '2.5rem',
-                padding: '2rem',
-                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.05) 0%, rgba(15, 23, 42, 0.4) 100%)',
-                border: '1px solid rgba(56, 189, 248, 0.2)',
+                marginBottom: isTop ? '1.25rem' : '2.5rem',
+                padding: isTop ? '1.25rem 1.5rem' : '2rem',
+                background: isTop 
+                    ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(15, 23, 42, 0.75) 100%)'
+                    : 'linear-gradient(135deg, rgba(56, 189, 248, 0.05) 0%, rgba(15, 23, 42, 0.4) 100%)',
+                border: isTop ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid rgba(56, 189, 248, 0.2)',
                 position: 'relative',
                 overflow: 'hidden',
-                borderRadius: '16px'
+                borderRadius: '16px',
+                boxShadow: isTop ? '0 10px 30px -10px rgba(56, 189, 248, 0.2)' : 'none'
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 900, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <h4 style={{ margin: 0, fontSize: isTop ? '0.88rem' : '0.9rem', fontWeight: 900, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.5px' }}>
                             <span style={{ fontSize: '1.2rem' }}>💎</span>
                             {t.global_title}
                         </h4>
@@ -2900,46 +2904,92 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             borderRadius: '4px',
                             letterSpacing: '1px'
                         }}>PRO</span>
+                        {isTop && (
+                            <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(56, 189, 248, 0.08)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                ⚡ {lang === 'tr' ? 'Canlı İstihbarat Özeti' : (lang === 'de' ? 'Live-Intelligenz-Bericht' : 'Live Intel Dossier')}
+                            </span>
+                        )}
                     </div>
 
-                    <button
-                        onClick={() => handleGenerateGlobalReport(type)}
-                        disabled={isLoading}
-                        style={{
-                            background: isLoading ? 'rgba(255,255,255,0.05)' : 'var(--accent-color)',
-                            color: '#000',
-                            border: 'none',
-                            padding: '0.6rem 1.2rem',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: 900,
-                            cursor: isLoading ? 'default' : 'pointer',
-                            transition: 'all 0.3s',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            boxShadow: isLoading ? 'none' : '0 4px 15px rgba(56, 189, 248, 0.3)'
-                        }}
-                    >
-                        {isLoading ? (
-                            <>
-                                <span style={{ animation: 'spin 2s linear infinite', display: 'inline-block' }}>🌀</span>
-                                {t.analyzing}
-                            </>
-                        ) : (
-                            <>
-                                <span>🚀</span>
-                                {t.generate_report}
-                            </>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <button
+                            onClick={() => handleGenerateGlobalReport(type)}
+                            disabled={isLoading}
+                            style={{
+                                background: isLoading ? 'rgba(255,255,255,0.05)' : 'var(--accent-color)',
+                                color: '#000',
+                                border: 'none',
+                                padding: '0.5rem 1rem',
+                                borderRadius: '10px',
+                                fontSize: '0.74rem',
+                                fontWeight: 900,
+                                cursor: isLoading ? 'default' : 'pointer',
+                                transition: 'all 0.3s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                boxShadow: isLoading ? 'none' : '0 4px 15px rgba(56, 189, 248, 0.3)'
+                            }}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <span style={{ animation: 'spin 2s linear infinite', display: 'inline-block' }}>🌀</span>
+                                    {t.analyzing}
+                                </>
+                            ) : (
+                                <>
+                                    <span>{hasContent ? '🔄' : '🚀'}</span>
+                                    {hasContent ? (lang === 'tr' ? 'Yeniden Tara' : (lang === 'de' ? 'Neu Scannen' : 'Rescan')) : t.generate_report}
+                                </>
+                            )}
+                        </button>
+
+                        {isTop && onClose && (
+                            <button
+                                onClick={onClose}
+                                style={{
+                                    background: 'rgba(255,255,255,0.06)',
+                                    color: '#94a3b8',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    padding: '0.5rem 0.8rem',
+                                    borderRadius: '10px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                }}
+                                title={lang === 'tr' ? 'Paneli Gizle' : 'Close Panel'}
+                            >
+                                ✕ {lang === 'tr' ? 'Gizle' : (lang === 'de' ? 'Schließen' : 'Hide')}
+                            </button>
                         )}
-                    </button>
+                    </div>
                 </div>
 
                 {isLoading ? (
-                    <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                        <div className="skeleton-loader" style={{ height: '0.8rem', width: '95%', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}></div>
-                        <div className="skeleton-loader" style={{ height: '0.8rem', width: '85%', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}></div>
-                        <div className="skeleton-loader" style={{ height: '0.8rem', width: '90%', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}></div>
+                    <div style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', textAlign: 'center' }}>
+                        <div style={{
+                            width: '42px',
+                            height: '42px',
+                            border: '3px solid rgba(56, 189, 248, 0.2)',
+                            borderTopColor: 'var(--accent-color)',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite'
+                        }} />
+                        <div style={{ fontSize: '0.88rem', fontWeight: 800, color: 'var(--accent-color)', letterSpacing: '0.5px' }}>
+                            {lang === 'tr' ? 'NEXUS QUANT CORE™ TÜM CANLI BÜLTENİ VE TELEMETRİYİ İNCELİYOR...' : (lang === 'de' ? 'NEXUS QUANT CORE™ ANALYSIERT ALLE LIVE-SPIELE...' : 'NEXUS QUANT CORE™ AUDITING ALL LIVE TELEMETRY...')}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: '520px', lineHeight: 1.4 }}>
+                            {lang === 'tr' 
+                                ? 'xG üretimi, hücum ivmesi, piyasa mutabakatı ve tuzak filtreleri çapraz kontrol ediliyor...'
+                                : 'Auditing xG generation, pressure momentum, consensus divergence and trap criteria...'}
+                        </div>
+                        <div style={{ width: '100%', maxWidth: '380px', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: '50%', background: 'linear-gradient(90deg, #38bdf8, #818cf8)', borderRadius: '4px', animation: 'indeterminate-bar 1.5s infinite ease-in-out' }} />
+                        </div>
                     </div>
                 ) : hasContent ? (
                     <div className="ai-report-content" style={{ padding: '0.5rem' }}>
@@ -3039,6 +3089,42 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>⚠️</span> {pick.trap_alert}
                                                     </div>
                                                 )}
+
+                                                {(() => {
+                                                    const matchObj = enforcedMatches.find(m => 
+                                                        (m.homeTeam && pick.match && pick.match.toLowerCase().includes(m.homeTeam.toLowerCase())) ||
+                                                        (m.awayTeam && pick.match && pick.match.toLowerCase().includes(m.awayTeam.toLowerCase()))
+                                                    );
+                                                    if (!matchObj) return null;
+                                                    return (
+                                                        <div style={{ marginTop: '0.5rem' }}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setSelectedMatch(matchObj);
+                                                                }}
+                                                                style={{
+                                                                    background: 'rgba(56, 189, 248, 0.12)',
+                                                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                                                    borderRadius: '6px',
+                                                                    color: '#38bdf8',
+                                                                    fontSize: '0.72rem',
+                                                                    fontWeight: 800,
+                                                                    padding: '4px 10px',
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '5px',
+                                                                    transition: 'all 0.2s ease'
+                                                                }}
+                                                            >
+                                                                <span>⚡</span>
+                                                                {lang === 'tr' ? 'Maç Detayını Aç' : (lang === 'de' ? 'Spiel öffnen' : 'View Match')}
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
                                         ))}
                                     </div>
@@ -6917,6 +7003,30 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     )}
                                                 </button>
                                             </div>
+
+                                            {/* Pro Intelligence Action Button */}
+                                            <div className="tb-intel-action-wrapper">
+                                                <button
+                                                    type="button"
+                                                    className={`tb-intel-toggle-btn ${showTopIntelligence ? 'active' : ''} ${globalReport.loading && globalReport.type === 'LIVE' ? 'loading' : ''}`}
+                                                    onClick={() => {
+                                                        const nextState = !showTopIntelligence;
+                                                        setShowTopIntelligence(nextState);
+                                                        if (nextState && (!globalReport.content || globalReport.type !== 'LIVE')) {
+                                                            handleGenerateGlobalReport('LIVE');
+                                                        }
+                                                    }}
+                                                    title={lang === 'tr' ? 'Nexus Quant Core™ Canlı İstihbarat Raporunu Aç / Kapat' : 'Toggle Nexus Quant Core™ Live Intelligence'}
+                                                >
+                                                    <span className="tb-intel-pulse-dot" />
+                                                    <span className="tb-intel-icon">🧠</span>
+                                                    <span className="tb-intel-label">
+                                                        {lang === 'tr' ? 'Canlı İstihbarat Özeti' : (lang === 'de' ? 'Live-Intelligenz' : 'Live Intel Dossier')}
+                                                    </span>
+                                                    <span className="tb-intel-badge">PRO</span>
+                                                    <span className="tb-intel-chevron">{showTopIntelligence ? '▲' : '▼'}</span>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         {/* Chips List: Dynamically toggles based on filterGroupMode */}
@@ -7242,6 +7352,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                 ? 'Listet Teams auf, die im Rückstand liegen, aber das gegnerische Tor für den Ausgleich belagern.'
                                                 : 'Highlights teams that are currently trailing on the scoreboard but intensely besieging the opponent for an equalizer.')}
                                     </span>
+                                </div>
+                            )}
+
+                            {/* Expandable Top Live Intelligence Panel */}
+                            {showTopIntelligence && (
+                                <div className="tb-top-intel-container" style={{ marginBottom: '1.25rem' }}>
+                                    {renderGlobalAISection('LIVE', true, () => setShowTopIntelligence(false))}
                                 </div>
                             )}
 

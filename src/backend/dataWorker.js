@@ -110,22 +110,23 @@ class DataWorker {
         return isNaN(num) ? 0 : num;
     }
 
-    async generateGlobalIntelligence(type = 'LIVE', lang = 'tr') {
+    async generateGlobalIntelligence(type = 'LIVE', lang = 'tr', customMatches = null) {
         let candidates = [];
         if (type === 'LIVE') {
-            const allLive = (this.fixtures || []).map(f => ({
+            const pool = (customMatches && customMatches.length > 0) ? customMatches : (this.fixtures || []);
+            const allLive = pool.map(f => ({
                 ...f,
                 parsedMinute: this.parseMatchMinute(f.minute),
-                signal: this.getSignalForMatch(f.id)
+                signal: f.signal || this.getSignalForMatch(f.id)
             }));
 
             // Tier 1: Matches in active action window (minute <= 85), solid DQS, and official BET signal
             candidates = allLive.filter(f => f.dqs >= 0.40 && f.signal?.verdict === 'BET' && f.parsedMinute <= 85);
 
-            // Tier 2: High pressure & active telemetry matches (minute <= 88, DQS >= 0.35)
-            if (candidates.length < 4) {
+            // Tier 2: High pressure & active telemetry matches (minute <= 88, DQS >= 0.30)
+            if (candidates.length < 6) {
                 const extra = allLive
-                    .filter(f => !candidates.find(c => c.id === f.id) && f.dqs >= 0.35 && f.parsedMinute <= 88)
+                    .filter(f => !candidates.find(c => c.id === f.id) && f.dqs >= 0.30 && f.parsedMinute <= 88)
                     .sort((a, b) => {
                         const pressureA = Number(a.observations?.pressure?.total ?? 0);
                         const pressureB = Number(b.observations?.pressure?.total ?? 0);
@@ -133,13 +134,19 @@ class DataWorker {
                         const dqsB = Number(b.dqs ?? 0);
                         return (pressureB * 0.6 + dqsB * 40) - (pressureA * 0.6 + dqsA * 40);
                     })
-                    .slice(0, 6 - candidates.length);
+                    .slice(0, 8 - candidates.length);
                 candidates = [...candidates, ...extra];
+            }
+
+            // Include potential trap matches for Risk Committee auditing (Avoid List)
+            const potentialTraps = allLive.filter(f => !candidates.find(c => c.id === f.id) && f.parsedMinute >= 70);
+            if (potentialTraps.length > 0) {
+                candidates = [...candidates, ...potentialTraps.slice(0, 3)];
             }
 
             // Tier 3 Resilience: If still empty but fixtures exist, feed top live fixtures
             if (candidates.length === 0 && allLive.length > 0) {
-                candidates = allLive.slice(0, 6);
+                candidates = allLive.slice(0, 8);
             }
         }
 
