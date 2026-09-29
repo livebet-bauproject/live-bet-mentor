@@ -23,23 +23,30 @@ export function resolveMarketText(alert, lang = 'tr', includeOdds = false) {
     if (team.toLowerCase() === 'away') team = away;
 
     if (!includeOdds && label) {
-        label = label.replace(/\s*\((Oran|Odds|Quote):\s*[0-9.]+\)/gi, '').trim();
+        label = label.replace(/\s*\((Oran|Odds|Quote):\s*[0-9.]+\)/gi, '')
+                     .replace(/\s*\(Oran Bekleniyor\)/gi, '')
+                     .replace(/\s*\(Quote ausstehend\)/gi, '')
+                     .replace(/\s*\(Odds Pending\)/gi, '').trim();
     }
 
     const oddsVal = rec.odds || alert.odds;
     const numOdds = parseFloat(oddsVal);
-    const hasExistingOdds = /\(Oran:|\(Odds:|\(Quote:/i.test(label || '') || /\(Oran:|\(Odds:|\(Quote:/i.test(rec.predictionText || '');
-    const oddsStr = (includeOdds && !hasExistingOdds && oddsVal) ? 
-        (!isNaN(numOdds) && numOdds > 1.0 ? 
+    const isRealOdds = rec.isRealOdds !== false && oddsVal && !isNaN(numOdds) && numOdds > 1.0;
+    const hasExistingOdds = /\(Oran:|\(Odds:|\(Quote:|\(Oran Bekleniyor|\(Quote ausstehend|\(Odds Pending/i.test(label || '') || /\(Oran:|\(Odds:|\(Quote:|\(Oran Bekleniyor/i.test(rec.predictionText || '');
+    const oddsStr = (includeOdds && !hasExistingOdds) ? 
+        (isRealOdds ? 
             (isTr ? ` (Oran: ${numOdds.toFixed(2)})` : isDe ? ` (Quote: ${numOdds.toFixed(2)})` : ` (Odds: ${numOdds.toFixed(2)})`) :
-            (isTr ? ` (Canlı Piyasa)` : isDe ? ` (Live-Quote)` : ` (Live Market)`)
+            (isTr ? ` (Oran Bekleniyor)` : isDe ? ` (Quote ausstehend)` : ` (Odds Pending)`)
         ) : '';
 
     // Direct explicit prediction if provided
     if (rec.predictionText) {
         let pt = cleanMd(rec.predictionText);
         if (!includeOdds) {
-            pt = pt.replace(/\s*\((Oran|Odds|Quote):\s*[0-9.]+\)/gi, '').trim();
+            pt = pt.replace(/\s*\((Oran|Odds|Quote):\s*[0-9.]+\)/gi, '')
+                   .replace(/\s*\(Oran Bekleniyor\)/gi, '')
+                   .replace(/\s*\(Quote ausstehend\)/gi, '')
+                   .replace(/\s*\(Odds Pending\)/gi, '').trim();
         }
         if (isTr) {
             pt = pt.replace(/\bNext Goal:\s*/gi, 'Sıradaki Gol: ')
@@ -236,17 +243,25 @@ export function formatVIPSignal(alert, lang = 'tr') {
 
     const badge = alert.level === 'ALPHA' ? (isTr ? '💎 ALFA SİNYAL' : isDe ? '💎 ALPHA-SIGNAL' : '💎 ALPHA SIGNAL') : (isTr ? '🔥 CANLI ALARM' : isDe ? '🔥 LIVE-ALARM' : '🔥 LIVE ALERT');
     const marketText = resolveMarketText(alert, lang);
-    const rawOdds = alert.recommendation?.odds || alert.odds;
+    const rec = alert.recommendation || {};
+    const rawOdds = rec.odds || alert.odds;
     const numOdds = parseFloat(rawOdds);
-    const oddsVal = (!isNaN(numOdds) && numOdds > 1.0) ? numOdds.toFixed(2) : (isTr ? 'Canlı Piyasa' : isDe ? 'Live-Quote' : 'Live Market');
-    const conf = alert.recommendation?.confidence || 82;
+    const isRealOdds = rec.isRealOdds !== false && rawOdds && !isNaN(numOdds) && numOdds > 1.0;
+    const oddsVal = isRealOdds 
+        ? numOdds.toFixed(2) 
+        : (isTr ? 'Oran Bekleniyor ⏳' : isDe ? 'Quote ausstehend ⏳' : 'Odds Pending ⏳');
+    const conf = rec.confidence || 82;
     const stake = alert.level === 'ALPHA' ? '1.5' : '1.0';
+
+    const reasonLine = rec.reasoning && rec.reasoning.length > 0 
+        ? (isTr ? `\n⚡ *Analiz:* _${cleanMd(rec.reasoning[0])}_` : isDe ? `\n⚡ *Analyse:* _${cleanMd(rec.reasoning[0])}_` : `\n⚡ *Edge:* _${cleanMd(rec.reasoning[0])}_`)
+        : '';
 
     if (isTr) {
         return `${badge} · *${alert.minute}'* [*${alert.score || '0-0'}*]
 ⚽ *${home} - ${away}*
 🎯 *Tahmin:* *${marketText}*
-📊 *Güven:* %${conf} | *Oran:* ${oddsVal} | *Kasa:* %${stake}
+📊 *Güven:* %${conf} | *Oran:* ${oddsVal} | *Kasa:* %${stake}${reasonLine}
 👉 *Canlı Radar:* ${WEB_URL}`;
     }
 
@@ -254,14 +269,14 @@ export function formatVIPSignal(alert, lang = 'tr') {
         return `${badge} · *${alert.minute}'* [*${alert.score || '0-0'}*]
 ⚽ *${home} - ${away}*
 🎯 *Tipp:* *${marketText}*
-📊 *Konfidenz:* ${conf}% | *Quote:* ${oddsVal} | *Einsatz:* ${stake}%
+📊 *Konfidenz:* ${conf}% | *Quote:* ${oddsVal} | *Einsatz:* ${stake}%${reasonLine}
 👉 *Live-Radar:* ${WEB_URL}`;
     }
 
     return `${badge} · *${alert.minute}'* [*${alert.score || '0-0'}*]
 ⚽ *${home} - ${away}*
 🎯 *Pick:* *${marketText}*
-📊 *Conf:* ${conf}% | *Odds:* ${oddsVal} | *Stake:* ${stake}%
+📊 *Conf:* ${conf}% | *Odds:* ${oddsVal} | *Stake:* ${stake}%${reasonLine}
 👉 *Live Radar:* ${WEB_URL}`;
 }
 

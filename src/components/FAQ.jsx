@@ -20,14 +20,14 @@ export const FAQ = ({ onClose, lang = 'tr', mode = 'live' }) => {
     const getHeaderTitle = () => {
         if (isAI) return t.faq_ai_title;
         if (isStaking) return t.staking_faq_title;
-        if (isRadar) return t.faq_radar_title;
+        if (isRadar) return t.faq_radar_title || t.radar_faq_title;
         return t.faq_live_title;
     };
 
     const getHeaderSubtitle = () => {
         if (isAI) return t.faq_ai_subtitle;
         if (isStaking) return t.staking_faq_subtitle || (lang === 'tr' ? 'Bileşik Kelly Modeli, Kombine Kupon Tuzağı ve Otomatik Kasa Koruma Kilitleri' : (lang === 'de' ? 'Kelly-Kriterium-Modell, Kombiwetten-Falle und automatische Kapitalschutzsperren' : 'Kelly Criterion Model, Multi-Bet Trap Analysis & Automated Bankroll Protections'));
-        if (isRadar) return t.faq_radar_subtitle;
+        if (isRadar) return t.faq_radar_subtitle || t.radar_faq_subtitle;
         return t.faq_live_subtitle;
     };
 

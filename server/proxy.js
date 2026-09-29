@@ -1506,6 +1506,86 @@ app.post('/api/telegram/send-signal', async (req, res) => {
     }
 });
 
+// Send custom manual signal with admin note directly to Telegram VIP / Public
+app.post('/api/telegram/send-custom-signal', async (req, res) => {
+    try {
+        if (!isAdminRequest(req)) {
+            return res.status(403).json({ error: 'Unauthorized: Sadece yöneticiler özel sinyal gönderebilir.' });
+        }
+        const { match, prediction, odds, adminNote, target, stake } = req.body || {};
+        if (!match || !match.homeTeam || !match.awayTeam) {
+            return res.status(400).json({ error: 'Eksik maç verisi.' });
+        }
+        
+        const home = match.homeTeam;
+        const away = match.awayTeam;
+        const minStr = match.minute ? `${match.minute}'` : 'Canlı';
+        const scoreStr = match.score || '0-0';
+        const numOdds = parseFloat(odds);
+        const hasRealOdds = !isNaN(numOdds) && numOdds > 1.0;
+        const oddsDisplay = hasRealOdds ? numOdds.toFixed(2) : 'Oran Bekleniyor ⏳';
+        const stakeDisplay = stake || '%1.5';
+        const noteClean = adminNote ? adminNote.trim() : '';
+
+        const msg = `👑 *YÖNETİCİ ÖZEL TAVSİYESİ* · *${minStr}* [*${scoreStr}*]\n` +
+                    `⚽ *${home} - ${away}*\n` +
+                    `🎯 *Tahmin:* *${prediction || 'Sıradaki Gol'}*\n` +
+                    `📊 *Oran:* ${oddsDisplay} | *Kasa:* ${stakeDisplay}\n` +
+                    (noteClean ? `💬 *Admin Notu:* _"${noteClean}"_\n` : '') +
+                    `👉 *Canlı Radar:* https://www.livebetmentor.com`;
+
+        const vipDests = telegramBot.getActiveVipChannels();
+        const pubDests = telegramBot.getActivePublicChannels();
+        const deliveries = [];
+
+        if (target === 'vip' || target === 'both' || !target) {
+            for (const v of vipDests) {
+                const r = await telegramBot.sendMessage(v.channelId, msg);
+                deliveries.push({ channel: 'vip', channelId: v.channelId, ok: !!r });
+            }
+        }
+
+        if (target === 'public' || target === 'both') {
+            const pubMsg = `⚡ *CANLI YÖNETİCİ RADARI* · *${minStr}* [*${scoreStr}*]\n` +
+                           `⚽ *${home} - ${away}*\n` +
+                           `🔥 *Yüksek Gol/Baskı İvmesi Takipte!*\n` +
+                           (noteClean ? `💬 *Yönetici Notu:* _"${noteClean}"_\n` : '') +
+                           `🔒 _Net tahmin ve oran VIP kanalımızda paylaşıldı._\n\n` +
+                           `💎 *Anında yakalamak için:* @${telegramBot.botUsername || 'Livebetmentorbot'} bota /vip yazın veya /deneme başlatın!`;
+            for (const p of pubDests) {
+                const r = await telegramBot.sendMessage(p.channelId, pubMsg);
+                deliveries.push({ channel: 'public', channelId: p.channelId, ok: !!r });
+            }
+        }
+
+        // Track in stats for settlement
+        telegramBot.dailyStats.total++;
+        telegramBot.dailyStats.pending++;
+        const signalData = {
+            id: `manual_${Date.now()}`,
+            matchId: match.id ? String(match.id) : null,
+            homeTeam: home,
+            awayTeam: away,
+            match: `${home} vs ${away}`,
+            level: 'ALPHA',
+            time: new Date().toISOString(),
+            scoreAtPrediction: scoreStr,
+            minute: match.minute || 0,
+            market: prediction || 'Sıradaki Gol',
+            recommendation: { predictionText: `${prediction || 'Sıradaki Gol'} (${oddsDisplay})`, odds: hasRealOdds ? numOdds : null, isRealOdds: hasRealOdds },
+            adminNote: noteClean,
+            status: 'PENDING'
+        };
+        telegramBot.dailyStats.signals.push(signalData);
+        telegramBot.saveHistory();
+
+        res.json({ sent: true, deliveries });
+    } catch (e) {
+        console.error('[PROXY] Custom signal send error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Send radar pick to Telegram VIP group
 app.post('/api/telegram/send-radar', async (req, res) => {
     try {

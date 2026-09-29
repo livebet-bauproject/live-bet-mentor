@@ -6,6 +6,14 @@
  * - Recommends cash-out or stop-loss to protect bettor bankroll
  */
 
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const STATS_DIR = path.join(__dirname, 'stats');
+
 export class CashOutEngine {
     constructor() {
         this.monitoredSignals = new Map(); // signalId -> signalData
@@ -36,6 +44,29 @@ export class CashOutEngine {
     }
 
     /**
+     * Parse stats file from disk
+     */
+    _loadStats(eventId) {
+        const statsPath = path.join(STATS_DIR, `${eventId}_stats.json`);
+        const res = { home: {}, away: {} };
+        if (!fs.existsSync(statsPath)) return res;
+        try {
+            const raw = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
+            const all = raw.statistics?.find(s => s.period === 'ALL') || raw.statistics?.[0];
+            if (all) {
+                for (const g of all.groups || []) {
+                    for (const item of g.statisticsItems || []) {
+                        const key = (item.name || '').toLowerCase().trim();
+                        res.home[key] = parseFloat(item.home) || item.homeValue || 0;
+                        res.away[key] = parseFloat(item.away) || item.awayValue || 0;
+                    }
+                }
+            }
+        } catch (e) {}
+        return res;
+    }
+
+    /**
      * Evaluate live match events against active monitored signals
      * @param {Array} liveEvents - SofaScore live matches
      * @returns {Array} - Array of cash-out recommendations
@@ -63,68 +94,66 @@ export class CashOutEngine {
             };
 
             const minute = this._parseMinute(match.minute || match.status?.description);
-            const stats = match.stats || {};
-            const cards = match.cards || stats.cards || {};
+            const stats = this._loadStats(match.id);
 
-            // We look for cash-out opportunities between 68' and 88'
-            // Before 68', there is usually plenty of time to recover
-            if (minute >= 68 && minute <= 88) {
-                let cashOutReason = null;
-                let severity = 'MEDIUM';
+            const targetSide = (sig.market || '').toLowerCase().includes('away') || (sig.market || '').toLowerCase().includes('deplasman') ? 'away' : 'home';
+            const oppSide = targetSide === 'home' ? 'away' : 'home';
 
-                const targetSide = (sig.market || '').toLowerCase().includes('away') ? 'away' : 'home';
-                const oppSide = targetSide === 'home' ? 'away' : 'home';
+            const targetTeamName = targetSide === 'home' ? (match.homeTeam?.name || sig.homeTeam) : (match.awayTeam?.name || sig.awayTeam);
+            const oppTeamName = oppSide === 'home' ? (match.homeTeam?.name || sig.homeTeam) : (match.awayTeam?.name || sig.awayTeam);
 
-                const targetTeamName = targetSide === 'home' ? match.homeTeam?.name : match.awayTeam?.name;
-                const oppTeamName = oppSide === 'home' ? match.homeTeam?.name : match.awayTeam?.name;
+            let cashOutReason = null;
+            let severity = 'MEDIUM';
 
-                // 1. Critical Danger: Red Card to target team
-                const targetReds = Number(cards[targetSide]?.red ?? 0);
-                if (targetReds > 0) {
-                    cashOutReason = `${targetTeamName} kırmızı kart gördü (10 kişi kaldı).`;
+            // 1. CRITICAL: Red Card to target team (Alert immediately at ANY minute)
+            const targetReds = Number(stats[targetSide]?.['red cards'] ?? 0);
+            if (targetReds > 0) {
+                cashOutReason = `🚨 ${targetTeamName} kırmızı kart gördü (10 kişi kaldı). Acil kâr al veya riski sınırla!`;
+                severity = 'HIGH';
+            }
+
+            // 2. LATE GAME RADAR (Between 68' and 88')
+            if (!cashOutReason && minute >= 68 && minute <= 88) {
+                const targetSOT = Number(stats[targetSide]?.['shots on target'] ?? 0);
+                const oppSOT = Number(stats[oppSide]?.['shots on target'] ?? 0);
+                const targetBox = Number(stats[targetSide]?.['touches in penalty area'] ?? 0);
+                const oppBox = Number(stats[oppSide]?.['touches in penalty area'] ?? 0);
+
+                // A. Opponent completely reversed momentum
+                if (oppBox >= (targetBox * 1.6 + 6) && oppSOT > targetSOT) {
+                    cashOutReason = `⚠️ ${oppTeamName} son bölümde oyunu yıktı (${oppBox} vs ${targetBox} ceza sahası aksiyonu). Baskı aleyhe döndü.`;
                     severity = 'HIGH';
                 }
 
-                // 2. Severe Momentum Collapse
-                // If in late game the target team has 0 dangerous attacks or shots in recent phase
-                const daTarget = Number(stats.dangerousAttacks?.[targetSide] ?? 0);
-                const daOpp = Number(stats.dangerousAttacks?.[oppSide] ?? 0);
-                const sogTarget = Number(stats.shotsOnGoal?.[targetSide] ?? 0);
-
-                if (!cashOutReason && daOpp > (daTarget * 1.8 + 10) && daOpp >= 30) {
-                    cashOutReason = `${oppTeamName} oyunu tamamen yıktı (${daOpp} atak vs ${daTarget} atak). Tempo aleyhe döndü.`;
-                    severity = 'HIGH';
-                }
-
-                // 3. Stagnation / Dead Game: Total shots stagnant in late game
-                if (!cashOutReason && minute >= 75 && sogTarget <= 2 && daTarget <= 20) {
-                    cashOutReason = `Son 15 dakikada gol aksiyonu üretilemedi. Maç kilitlendi.`;
+                // B. Stagnation / Dead Game: No target shot activity in late game
+                else if (minute >= 76 && targetSOT <= 2 && targetBox <= 10) {
+                    cashOutReason = `⏳ Son 15 dakikada gol aksiyonu üretilemedi. Maç kilitlendi, kâr al değerlendirilmeli.`;
                     severity = 'MEDIUM';
                 }
 
-                // 4. Opponent Took Lead (Trailing)
+                // C. Opponent Took Lead (Trailing)
                 const targetGoals = curScore[targetSide];
                 const oppGoals = curScore[oppSide];
-                if (!cashOutReason && oppGoals > targetGoals && minute >= 72) {
-                    cashOutReason = `${oppTeamName} öne geçti (${curScore.home}-${curScore.away}). Baskı dağıldı.`;
+                if (oppGoals > targetGoals && minute >= 72) {
+                    cashOutReason = `⚡ ${oppTeamName} öne geçti (${curScore.home}-${curScore.away}). Baskı ritmi dağıldı.`;
                     severity = 'HIGH';
                 }
+            }
 
-                if (cashOutReason) {
-                    this.alertedCashOuts.add(signalId);
-                    recommendations.push({
-                        signalId,
-                        matchId: match.id,
-                        matchTitle: `${match.homeTeam?.name} vs ${match.awayTeam?.name}`,
-                        minute,
-                        score: `${curScore.home} - ${curScore.away}`,
-                        market: sig.market,
-                        targetTeam: targetTeamName,
-                        reason: cashOutReason,
-                        severity,
-                        timestamp: Date.now()
-                    });
-                }
+            if (cashOutReason) {
+                this.alertedCashOuts.add(signalId);
+                recommendations.push({
+                    signalId,
+                    matchId: match.id,
+                    matchTitle: `${match.homeTeam?.name || sig.homeTeam} vs ${match.awayTeam?.name || sig.awayTeam}`,
+                    minute,
+                    score: `${curScore.home} - ${curScore.away}`,
+                    market: sig.market,
+                    targetTeam: targetTeamName,
+                    reason: cashOutReason,
+                    severity,
+                    timestamp: Date.now()
+                });
             }
         }
 

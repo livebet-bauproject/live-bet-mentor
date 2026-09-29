@@ -855,7 +855,7 @@ class TelegramBot {
                     if (curHome > initHome) {
                         const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
                         if (res) resolved.push(res);
-                    } else if (curAway > initAway && isFinished) {
+                    } else if (curAway > initAway) {
                         const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
                         if (res) resolved.push(res);
                     } else if (isFinished && totalGoals === (initHome + initAway)) {
@@ -866,7 +866,7 @@ class TelegramBot {
                     if (curAway > initAway) {
                         const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
                         if (res) resolved.push(res);
-                    } else if (curHome > initHome && isFinished) {
+                    } else if (curHome > initHome) {
                         const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
                         if (res) resolved.push(res);
                     } else if (isFinished && totalGoals === (initHome + initAway)) {

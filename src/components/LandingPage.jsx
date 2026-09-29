@@ -835,7 +835,7 @@ export const LandingPage = ({ onLoginSuccess, onNavigate, lang, setLang, setting
                                                     display: 'flex',
                                                     alignItems: 'center'
                                                 }}
-                                                title={showPassword ? 'Gizle' : 'Göster'}
+                                                title={showPassword ? (lang === 'tr' ? 'Gizle' : lang === 'de' ? 'Verbergen' : 'Hide') : (lang === 'tr' ? 'Göster' : lang === 'de' ? 'Anzeigen' : 'Show')}
                                             >
                                                 {showPassword ? '👁️' : '👁️‍🗨️'}
                                             </button>

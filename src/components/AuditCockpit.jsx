@@ -73,10 +73,10 @@ export const AuditCockpit = ({
         healthy: isTr ? 'STABİL' : isDe ? 'STABIL' : 'STABLE',
         warning: isTr ? 'UYARI' : isDe ? 'WARNUNG' : 'WARNING',
         critical: isTr ? 'KRİTİK' : isDe ? 'KRITISCH' : 'CRITICAL',
-        pillar1: isTr ? '1. Finansal & Kasa Denetimi' : '1. Financial & Bankroll Audit',
-        pillar2: isTr ? '2. Algoritma & Veri Bütünlüğü' : '2. Algorithm & Data Integrity',
-        pillar3: isTr ? '3. Kullanıcı & Personel Güvenliği' : '3. User & Staff Audit',
-        pillar4: isTr ? '4. Otonom Ofis & Görev Senkronizasyonu' : '4. Autonomous Office Sync'
+        pillar1: isTr ? '1. Finansal & Kasa Denetimi' : isDe ? '1. Finanz- & Bankroll-Audit' : '1. Financial & Bankroll Audit',
+        pillar2: isTr ? '2. Algoritma & Veri Bütünlüğü' : isDe ? '2. Algorithmus- & Datenintegrität' : '2. Algorithm & Data Integrity',
+        pillar3: isTr ? '3. Kullanıcı & Personel Güvenliği' : isDe ? '3. Benutzer- & Personal-Audit' : '3. User & Staff Audit',
+        pillar4: isTr ? '4. Otonom Ofis & Görev Senkronizasyonu' : isDe ? '4. Autonomes Büro & Synchronisation' : '4. Autonomous Office Sync'
     };
 
     const fetchCockpitData = useCallback(async (silent = false) => {

@@ -300,9 +300,9 @@ export const LiveTerminalTable = ({
         const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
         const rawHeatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
         const heatLevel = lang === 'en'
-            ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : rawHeatLevel === 'SOGUK' ? 'COLD' : rawHeatLevel)
-            : (rawHeatLevel === 'FLAME' ? 'ALEV' : rawHeatLevel === 'HOT' ? 'SICAK' : rawHeatLevel === 'COLD' ? 'SOĞUK' : rawHeatLevel);
-        const heatIcon = (rawHeatLevel === 'ALPHA' || heatLevel === 'ALPHA') ? '🚀' : (rawHeatLevel === 'ALEV' || heatLevel === 'FLAME') ? '🔥' : (rawHeatLevel === 'SICAK' || heatLevel === 'HOT') ? '⚡' : '❄️';
+            ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : (rawHeatLevel === 'SOGUK' || rawHeatLevel === 'COLD') ? 'COLD' : rawHeatLevel)
+            : lang === 'de' ? (rawHeatLevel === 'ALEV' ? 'FEUER' : rawHeatLevel === 'SICAK' ? 'HEISS' : (rawHeatLevel === 'SOGUK' || rawHeatLevel === 'COLD') ? 'KALT' : rawHeatLevel) : (rawHeatLevel === 'ALEV' ? 'ALEV' : rawHeatLevel === 'SICAK' ? 'SICAK' : rawHeatLevel === 'COLD' ? 'SOĞUK' : rawHeatLevel);
+        const heatIcon = (rawHeatLevel === 'ALPHA' || heatLevel === 'ALPHA') ? '🚀' : (rawHeatLevel === 'ALEV' || heatLevel === 'FLAME' || heatLevel === 'FEUER') ? '🔥' : (rawHeatLevel === 'SICAK' || heatLevel === 'HOT' || heatLevel === 'HEISS') ? '⚡' : '❄️';
         const windowMomentum = opp?.components?.momentum ?? opp?.score ?? heat;
         const last20 = calculateLast20MinMetrics(m, signal, momentumWindow);
 
@@ -1285,7 +1285,7 @@ export const LiveTerminalTable = ({
                                                 className={`tb-action-ignore tb-fav-btn ${isPinned ? 'pinned' : ''}`}
                                                 onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
                                                 title={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : (lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites')) : (lang === 'tr' ? 'Favoriye Ekle (Sabitle)' : (lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites'))}
-                                                aria-label={isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
+                                                aria-label={isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites') : (lang === 'tr' ? 'Favoriye Ekle' : lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites')}
                                             >
                                                 <StarIcon filled={isPinned} size={14} />
                                             </button>
@@ -1607,7 +1607,7 @@ export const LiveTerminalTable = ({
                                             className={`tb-action-ignore tb-fav-btn ${d.isPinned ? 'pinned' : ''}`}
                                             onClick={(e) => { e.stopPropagation(); togglePinMatch(m.id); }}
                                             title={d.isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : 'Remove from Favorites') : (lang === 'tr' ? 'Favoriye Ekle' : 'Add to Favorites')}
-                                            aria-label={d.isPinned ? 'Favorilerden Çıkar' : 'Favoriye Ekle'}
+                                            aria-label={d.isPinned ? (lang === 'tr' ? 'Favorilerden Çıkar' : lang === 'de' ? 'Aus Favoriten entfernen' : 'Remove from Favorites') : (lang === 'tr' ? 'Favoriye Ekle' : lang === 'de' ? 'Zu Favoriten hinzufügen' : 'Add to Favorites')}
                                         >
                                             <StarIcon filled={d.isPinned} size={13} />
                                         </button>

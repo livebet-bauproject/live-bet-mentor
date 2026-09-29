@@ -302,125 +302,202 @@ export class AutonomousSignalEngine {
         const aBox = a['touches in penalty area'] || a['shots inside box'] || 0;
         const hPoss = h['ball possession'] || 50;
         const aPoss = a['ball possession'] || 50;
+        const hXG = Number(h['expected goals'] || 0);
+        const aXG = Number(a['expected goals'] || 0);
+        const totalXG = parseFloat((hXG + aXG).toFixed(2));
+        const hBigChances = Number(h['big chances'] || 0);
+        const aBigChances = Number(a['big chances'] || 0);
+        const hRed = Number(h['red cards'] || 0);
+        const aRed = Number(a['red cards'] || 0);
 
         const totalSOT = hSOT + aSOT;
         const totalBox = hBox + aBox;
+
+        // 🛑 Disciplinary Filter: Multiple red cards ruin predictable match dynamics
+        if (hRed >= 2 || aRed >= 2 || (hRed >= 1 && aRed >= 1)) return null;
 
         // Minimum activity filter
         if ((hShots + aShots) < 6) return null;
 
         let selectedSetup = null;
 
-        // 1. One-Sided Heavy Dominance (Next Goal)
-        if (hPoss >= 62 && hSOT >= (aSOT + 3) && hBox >= 12 && curHome <= curAway) {
-            const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_home', { teamName: homeTeam });
-            if (oddsRes?.suspended) return null;
+        // 1. One-Sided Heavy Dominance (Next Goal - Home)
+        // Disqualify if home has a red card!
+        if (hRed === 0 && hPoss >= 60 && hSOT >= (aSOT + 2) && hBox >= 11 && curHome <= curAway) {
+            // Require xG confirmation if xG is available: home must have positive xG advantage or at least 1 big chance/good xG
+            if (hXG > 0 && aXG > 0 && hXG < (aXG * 0.7) && hBigChances === 0) {
+                // Sterile possession with no real goal threat -> skip
+            } else {
+                const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_home', { teamName: homeTeam });
+                if (oddsRes?.suspended) return null;
 
-            const oddsVal = (oddsRes?.isLive && oddsRes?.odds)
-                ? oddsRes.odds
-                : this.calculateDynamicNextGoalOdds(minute, hPoss, hSOT, aSOT);
+                // STRICT NO-FAKE-ODDS RULE:
+                // Only provide odds if genuine live market odds are available and within value bounds (1.48 - 2.80)
+                let oddsVal = null;
+                let isReal = false;
+                if (oddsRes?.isLive && oddsRes?.odds) {
+                    if (oddsRes.odds >= 1.48 && oddsRes.odds <= 2.80) {
+                        oddsVal = oddsRes.odds;
+                        isReal = true;
+                    } else if (oddsRes.odds < 1.48) {
+                        // Odds too low (<1.48) to offer single value -> skip to protect bankroll
+                        return null;
+                    }
+                }
 
-            selectedSetup = {
-                strategyId: 'PRESS',
-                strategyLabel: 'Baskı Dominasyonu',
-                level: 'ALPHA',
-                marketKey: 'market_next_goal_home',
-                marketLabel: `Sıradaki Gol: ${homeTeam}`,
-                odds: oddsVal,
-                isRealOdds: !!(oddsRes?.isLive && oddsRes?.odds),
-                confidence: 86,
-                reasoning: [
-                    `${homeTeam} yoğun hücum baskısı ve ceza sahası hakimiyeti (%${hPoss} topla oynama)`,
-                    `Ceza sahasında yüksek topla buluşma (${hBox} temas)`,
-                    `Baskılı şut üstünlüğü (${hSOT} - ${aSOT} isabetli şut)`
-                ]
-            };
-        } else if (aPoss >= 62 && aSOT >= (hSOT + 3) && aBox >= 12 && curAway <= curHome) {
-            const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_away', { teamName: awayTeam });
-            if (oddsRes?.suspended) return null;
+                const redAdvantage = aRed > 0 ? ` (${awayTeam} 10 kişi, kırmızı kart avantajı)` : '';
+                const xgNote = hXG > 0 ? ` · xG: ${hXG.toFixed(2)}` : '';
+                const confidenceScore = aRed > 0 ? 89 : (hBigChances >= 1 || hXG >= 1.0 ? 87 : 85);
 
-            const oddsVal = (oddsRes?.isLive && oddsRes?.odds)
-                ? oddsRes.odds
-                : this.calculateDynamicNextGoalOdds(minute, aPoss, aSOT, hSOT);
-
-            selectedSetup = {
-                strategyId: 'PRESS',
-                strategyLabel: 'Baskı Dominasyonu',
-                level: 'ALPHA',
-                marketKey: 'market_next_goal_away',
-                marketLabel: `Sıradaki Gol: ${awayTeam}`,
-                odds: oddsVal,
-                isRealOdds: !!(oddsRes?.isLive && oddsRes?.odds),
-                confidence: 85,
-                reasoning: [
-                    `${awayTeam} deplasmanda yoğun baskı kurdu (%${aPoss} topla oynama)`,
-                    `Sürekli ceza sahası penetrasyonu (${aBox} temas)`,
-                    `Savunma hattı zorlanıyor (${aSOT} - ${hSOT} isabetli şut)`
-                ]
-            };
+                selectedSetup = {
+                    strategyId: 'PRESS',
+                    strategyLabel: 'Baskı Dominasyonu',
+                    level: 'ALPHA',
+                    marketKey: 'market_next_goal_home',
+                    marketLabel: `Sıradaki Gol: ${homeTeam}`,
+                    odds: oddsVal,
+                    isRealOdds: isReal,
+                    confidence: confidenceScore,
+                    reasoning: [
+                        `${homeTeam} yoğun hücum baskısı ve ceza sahası hakimiyeti (%${hPoss} topla oynama)${redAdvantage}`,
+                        `Ceza sahasında yüksek topla buluşma (${hBox} temas)${xgNote}`,
+                        `Baskılı şut üstünlüğü (${hSOT} - ${aSOT} isabetli şut)`
+                    ],
+                    statsMeta: { hXG, aXG, totalXG, hRed, aRed, hPoss, aPoss, hSOT, aSOT, hBox, aBox }
+                };
+            }
         }
-        // 2. High Threat In-Play Over Goals (Target Line is strictly the NEXT goal: totalGoals + 0.5)
-        else if (totalSOT >= 5 && totalBox >= 16 && minute >= 25 && minute <= 74) {
-            // Target the next goal line consistently
-            const targetLine = (totalGoals === 0 && minute < 30) ? '1.5' : (totalGoals + 0.5).toFixed(1);
-            
-            const oddsRes = this.getRealMarketOdds(ev.id, 'market_over_goals', { targetLine });
-            if (oddsRes?.suspended) return null;
+        // 2. One-Sided Heavy Dominance (Next Goal - Away)
+        // Disqualify if away has a red card!
+        else if (aRed === 0 && aPoss >= 60 && aSOT >= (hSOT + 2) && aBox >= 11 && curAway <= curHome) {
+            if (aXG > 0 && hXG > 0 && aXG < (hXG * 0.7) && aBigChances === 0) {
+                // Sterile possession -> skip
+            } else {
+                const oddsRes = this.getRealMarketOdds(ev.id, 'market_next_goal_away', { teamName: awayTeam });
+                if (oddsRes?.suspended) return null;
 
-            const oddsVal = (oddsRes?.isLive && oddsRes?.odds)
-                ? oddsRes.odds
-                : this.calculateDynamicOverOdds(minute, totalGoals, targetLine, totalSOT);
+                let oddsVal = null;
+                let isReal = false;
+                if (oddsRes?.isLive && oddsRes?.odds) {
+                    if (oddsRes.odds >= 1.48 && oddsRes.odds <= 2.80) {
+                        oddsVal = oddsRes.odds;
+                        isReal = true;
+                    } else if (oddsRes.odds < 1.48) {
+                        return null;
+                    }
+                }
 
-            const stratId = minute >= 68 ? 'MOMENTUM' : (minute <= 40 ? 'FHG' : 'PRESS');
-            const stratLabel = minute >= 68 ? 'Son 20dk Patlaması' : (minute <= 40 ? 'İY 0.5 Üst Erken Gol' : 'Baskı Dominasyonu');
+                const redAdvantage = hRed > 0 ? ` (${homeTeam} 10 kişi, kırmızı kart avantajı)` : '';
+                const xgNote = aXG > 0 ? ` · xG: ${aXG.toFixed(2)}` : '';
+                const confidenceScore = hRed > 0 ? 89 : (aBigChances >= 1 || aXG >= 1.0 ? 87 : 85);
 
-            selectedSetup = {
-                strategyId: stratId,
-                strategyLabel: stratLabel,
-                level: totalSOT >= 7 ? 'ALPHA' : 'ALEV',
-                marketKey: 'market_over_goals',
-                marketLabel: `Maçta ${targetLine} Üst Gol`,
-                odds: oddsVal,
-                isRealOdds: !!(oddsRes?.isLive && oddsRes?.odds),
-                confidence: 84,
-                reasoning: [
-                    `Yüksek maç temposu ve ${totalSOT} isabetli şut`,
-                    `Yoğun ceza sahası aksiyonu (${totalBox} temas)`,
-                    `xG gol ivmesi yakın bir golü doğruluyor`
-                ]
-            };
+                selectedSetup = {
+                    strategyId: 'PRESS',
+                    strategyLabel: 'Baskı Dominasyonu',
+                    level: 'ALPHA',
+                    marketKey: 'market_next_goal_away',
+                    marketLabel: `Sıradaki Gol: ${awayTeam}`,
+                    odds: oddsVal,
+                    isRealOdds: isReal,
+                    confidence: confidenceScore,
+                    reasoning: [
+                        `${awayTeam} deplasmanda yoğun baskı kurdu (%${aPoss} topla oynama)${redAdvantage}`,
+                        `Sürekli ceza sahası penetrasyonu (${aBox} temas)${xgNote}`,
+                        `Savunma hattı zorlanıyor (${aSOT} - ${hSOT} isabetli şut)`
+                    ],
+                    statsMeta: { hXG, aXG, totalXG, hRed, aRed, hPoss, aPoss, hSOT, aSOT, hBox, aBox }
+                };
+            }
         }
-        // 3. BTTS Opportunity (Both Teams To Score)
-        else if ((curHome === 0 || curAway === 0) && hSOT >= 3 && aSOT >= 3 && minute >= 30 && minute <= 70) {
-            const oddsRes = this.getRealMarketOdds(ev.id, 'market_btts');
-            if (oddsRes?.suspended) return null;
+        // 3. High Threat In-Play Over Goals (Target Line is strictly the NEXT goal: totalGoals + 0.5)
+        else if (totalSOT >= 5 && totalBox >= 15 && minute >= 25 && minute <= 74) {
+            // Quality check: if xG available, avoid pure low-danger long shots
+            const hasRealThreat = totalXG >= 0.70 || (hBigChances + aBigChances) >= 1 || totalSOT >= 7;
+            if (hasRealThreat) {
+                const targetLine = (totalGoals === 0 && minute < 30) ? '1.5' : (totalGoals + 0.5).toFixed(1);
+                
+                const oddsRes = this.getRealMarketOdds(ev.id, 'market_over_goals', { targetLine });
+                if (oddsRes?.suspended) return null;
 
-            const oddsVal = (oddsRes?.isLive && oddsRes?.odds)
-                ? oddsRes.odds
-                : this.calculateDynamicBttsOdds(minute, hSOT, aSOT);
+                let oddsVal = null;
+                let isReal = false;
+                if (oddsRes?.isLive && oddsRes?.odds) {
+                    if (oddsRes.odds >= 1.48 && oddsRes.odds <= 2.60) {
+                        oddsVal = oddsRes.odds;
+                        isReal = true;
+                    } else if (oddsRes.odds < 1.48) {
+                        return null; // Skip non-valuable low odds
+                    }
+                }
 
-            selectedSetup = {
-                strategyId: 'BTTS',
-                strategyLabel: 'KG Var Dinamiği',
-                level: 'ALEV',
-                marketKey: 'market_btts',
-                marketLabel: 'Karşılıklı Gol Var (KG Var)',
-                odds: oddsVal,
-                isRealOdds: !!(oddsRes?.isLive && oddsRes?.odds),
-                confidence: 82,
-                reasoning: [
-                    `İki takım da karşılıklı tehlikeli ataklar geliştiriyor`,
-                    `Yüksek çift taraflı hücum hacmi (${hSOT} & ${aSOT} isabetli şut)`,
-                    `Açık alan geçişleri ve yüksek gol tehlikesi`
-                ]
-            };
+                const stratId = minute >= 68 ? 'MOMENTUM' : (minute <= 40 ? 'FHG' : 'PRESS');
+                const stratLabel = minute >= 68 ? 'Son 20dk Patlaması' : (minute <= 40 ? 'İY 0.5 Üst Erken Gol' : 'Baskı Dominasyonu');
+                const xgNote = totalXG > 0 ? ` · Toplam xG: ${totalXG.toFixed(2)}` : '';
+
+                selectedSetup = {
+                    strategyId: stratId,
+                    strategyLabel: stratLabel,
+                    level: (totalSOT >= 7 || totalXG >= 1.4) ? 'ALPHA' : 'ALEV',
+                    marketKey: 'market_over_goals',
+                    marketLabel: `Maçta ${targetLine} Üst Gol`,
+                    odds: oddsVal,
+                    isRealOdds: isReal,
+                    confidence: (totalXG >= 1.5 || (hBigChances + aBigChances) >= 2) ? 86 : 84,
+                    reasoning: [
+                        `Yüksek maç temposu ve ${totalSOT} isabetli şut${xgNote}`,
+                        `Yoğun ceza sahası aksiyonu (${totalBox} temas)`,
+                        `xG gol ivmesi yakın bir golü doğruluyor`
+                    ],
+                    statsMeta: { hXG, aXG, totalXG, hRed, aRed, hPoss, aPoss, hSOT, aSOT, hBox, aBox }
+                };
+            }
+        }
+        // 4. BTTS Opportunity (Both Teams To Score) - full squads required (no red cards)
+        else if (hRed === 0 && aRed === 0 && (curHome === 0 || curAway === 0) && hSOT >= 3 && aSOT >= 3 && minute >= 30 && minute <= 70) {
+            const hasBalancedThreat = totalXG === 0 || (hXG >= 0.40 && aXG >= 0.40) || (hBigChances >= 1 && aBigChances >= 1);
+            if (hasBalancedThreat) {
+                const oddsRes = this.getRealMarketOdds(ev.id, 'market_btts');
+                if (oddsRes?.suspended) return null;
+
+                let oddsVal = null;
+                let isReal = false;
+                if (oddsRes?.isLive && oddsRes?.odds) {
+                    if (oddsRes.odds >= 1.50 && oddsRes.odds <= 2.60) {
+                        oddsVal = oddsRes.odds;
+                        isReal = true;
+                    } else if (oddsRes.odds < 1.50) {
+                        return null;
+                    }
+                }
+
+                selectedSetup = {
+                    strategyId: 'BTTS',
+                    strategyLabel: 'KG Var Dinamiği',
+                    level: 'ALEV',
+                    marketKey: 'market_btts',
+                    marketLabel: 'Karşılıklı Gol Var (KG Var)',
+                    odds: oddsVal,
+                    isRealOdds: isReal,
+                    confidence: 83,
+                    reasoning: [
+                        `İki takım da karşılıklı tehlikeli ataklar geliştiriyor (${hSOT} & ${aSOT} isabetli şut)`,
+                        `Açık alan geçişleri ve yüksek gol tehlikesi`,
+                        `Savunma hatları her iki kalede de baskı altında`
+                    ],
+                    statsMeta: { hXG, aXG, totalXG, hRed, aRed, hPoss, aPoss, hSOT, aSOT, hBox, aBox }
+                };
+            }
         }
 
         if (!selectedSetup) return null;
 
-        const predText = selectedSetup.odds
-            ? `${selectedSetup.marketLabel} (Oran: ${selectedSetup.odds})`
-            : selectedSetup.marketLabel;
+        // Transparent, truthful prediction text: show real odds or "Oran Bekleniyor"
+        const predText = selectedSetup.isRealOdds && selectedSetup.odds
+            ? `${selectedSetup.marketLabel} (Oran: ${selectedSetup.odds.toFixed(2)})`
+            : `${selectedSetup.marketLabel} (Oran Bekleniyor)`;
+
+        const calcXgSurplus = parseFloat(Math.abs((selectedSetup.statsMeta?.hXG || 0) - (selectedSetup.statsMeta?.aXG || 0)).toFixed(2));
+        const calcDqs = Math.min(0.96, Math.max(0.68, 0.60 + (totalSOT * 0.035)));
 
         return {
             id: `sig_${ev.id}_${minute}`,
@@ -438,7 +515,10 @@ export class AutonomousSignalEngine {
                 odds: selectedSetup.odds,
                 isRealOdds: selectedSetup.isRealOdds,
                 confidence: selectedSetup.confidence,
-                reasoning: selectedSetup.reasoning
+                reasoning: selectedSetup.reasoning,
+                xgSurplus: calcXgSurplus,
+                totalXG: selectedSetup.statsMeta?.totalXG || 0,
+                redCards: { home: hRed, away: aRed }
             },
             activeStrategies: [
                 {
@@ -448,16 +528,16 @@ export class AutonomousSignalEngine {
                     verdict: selectedSetup.reasoning[0]
                 }
             ],
-            maxEV: 0.12,
+            maxEV: selectedSetup.isRealOdds ? 0.12 : null,
             bestEV: {
-                ev: 12,
+                ev: selectedSetup.isRealOdds ? 12 : null,
                 label: selectedSetup.marketLabel,
                 fairOdds: selectedSetup.odds ? (selectedSetup.odds * 0.88).toFixed(2) : null,
                 marketOdds: selectedSetup.odds,
                 trueProb: selectedSetup.confidence
             },
-            xgSurplus: 0.65,
-            dqs: 0.85
+            xgSurplus: calcXgSurplus || 0.50,
+            dqs: parseFloat(calcDqs.toFixed(2))
         };
     }
 

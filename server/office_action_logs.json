@@ -1,5 +1,125 @@
 [
   {
+    "id": "act_1790647104224_yb84",
+    "timestamp": "2026-09-29T01:58:24.224Z",
+    "agent": "SENTINEL",
+    "level": "ALERT",
+    "message": "Veri akışında aksama tespit edildi (5410s gecikme).",
+    "details": null
+  },
+  {
+    "id": "act_1790647104213_orsm",
+    "timestamp": "2026-09-29T01:58:24.213Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1790647099187_u4zs",
+    "timestamp": "2026-09-29T01:58:19.187Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1790631253191_2hcu",
+    "timestamp": "2026-09-28T21:34:13.191Z",
+    "agent": "SENTINEL",
+    "level": "ALERT",
+    "message": "Veri akışında aksama tespit edildi (5290s gecikme).",
+    "details": null
+  },
+  {
+    "id": "act_1790631253180_pb2n",
+    "timestamp": "2026-09-28T21:34:13.180Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1790631248161_kete",
+    "timestamp": "2026-09-28T21:34:08.161Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1790625301646_l4xa",
+    "timestamp": "2026-09-28T19:55:01.646Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1790625269441_lm0s",
+    "timestamp": "2026-09-28T19:54:29.441Z",
+    "agent": "SENTINEL",
+    "level": "ALERT",
+    "message": "Veri akışında aksama tespit edildi (10314s gecikme).",
+    "details": null
+  },
+  {
+    "id": "act_1790625269430_2ln9",
+    "timestamp": "2026-09-28T19:54:29.430Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1790625264405_q3on",
+    "timestamp": "2026-09-28T19:54:24.405Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1790611109499_krk4",
+    "timestamp": "2026-09-28T15:58:29.499Z",
+    "agent": "SENTINEL",
+    "level": "ALERT",
+    "message": "Veri akışında aksama tespit edildi (570s gecikme).",
+    "details": null
+  },
+  {
+    "id": "act_1790611109489_8a00",
+    "timestamp": "2026-09-28T15:58:29.489Z",
+    "agent": "SENTINEL",
+    "level": "WARNING",
+    "message": "Sistem kilit dosyası otomatik sıfırlandı (Self-Healing devreye girdi).",
+    "details": null
+  },
+  {
+    "id": "act_1790611104469_62sk",
+    "timestamp": "2026-09-28T15:58:24.469Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1790610703332_bec7",
+    "timestamp": "2026-09-28T15:51:43.332Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
+    "id": "act_1790610409844_2uw0",
+    "timestamp": "2026-09-28T15:46:49.844Z",
+    "agent": "OFFICE",
+    "level": "INFO",
+    "message": "Otonom Ofis 7/24 nöbet döngüsünü başlattı.",
+    "details": null
+  },
+  {
     "id": "act_1790597182870_9gc6",
     "timestamp": "2026-09-28T12:06:22.870Z",
     "agent": "SENTINEL",

@@ -679,7 +679,7 @@ export const LiveTerminalMobile = ({
                                                         background: isHot ? 'rgba(239, 68, 68, 0.2)' : (isHomeHeavy || isAwayHeavy ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)'),
                                                         color: isHot ? '#f87171' : (isHomeHeavy ? '#38bdf8' : isAwayHeavy ? '#f43f5e' : '#94a3b8')
                                                     }}>
-                                                        {isHot ? '🔥 RİTİM' : (isHomeHeavy ? '⚡ EV BASKI' : isAwayHeavy ? '⚡ DEP BASKI' : '⚪ DENGELİ')}
+                                                        {isHot ? (lang === 'tr' ? '🔥 RİTİM' : lang === 'de' ? '🔥 RHYTHMUS' : '🔥 RHYTHM') : (isHomeHeavy ? (lang === 'tr' ? '⚡ EV BASKI' : lang === 'de' ? '⚡ HEIMDRUCK' : '⚡ HOME PRESSURE') : isAwayHeavy ? (lang === 'tr' ? '⚡ DEP BASKI' : lang === 'de' ? '⚡ AUSWÄRTSDRUCK' : '⚡ AWAY PRESSURE') : (lang === 'tr' ? '⚪ DENGELİ' : lang === 'de' ? '⚪ AUSGEGLICHEN' : '⚪ BALANCED'))}
                                                     </div>
 
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isAwayHeavy ? '#f43f5e' : '#94a3b8', fontWeight: isAwayHeavy ? 900 : 700 }}>
