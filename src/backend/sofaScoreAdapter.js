@@ -422,11 +422,15 @@ export const sofaScoreAdapter = {
 
                     if (!detailRes.ok && detailRes.status !== 202) return null;
 
-                    const detail = await detailRes.json();
                     let stats = null;
-                    if (statsRes.ok) stats = await statsRes.json();
-                    else if (statsRes.status === 404) stats = { statistics: [] };
-                    else if (statsRes.status === 202) stats = { status: 'queued' };
+                    if (statsRes.status === 202) {
+                        stats = { status: 'queued' };
+                    } else if (statsRes.ok) {
+                        stats = await statsRes.json();
+                        if (stats?.status === 'queued') stats = { status: 'queued' };
+                    } else if (statsRes.status === 404) {
+                        stats = { statistics: [] };
+                    }
 
                     if (detail.status === 'queued' || detail?.error) return null;
 
@@ -560,15 +564,22 @@ export const sofaScoreAdapter = {
 
         const promise = (async () => {
             try {
-                const apiBase = await resolveBackendUrl();
-
                 const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/statistics`, {
-                    signal: AbortSignal.timeout(4000)
+                    signal: AbortSignal.timeout(5000)
                 });
                 if (res.ok) {
+                    if (res.status === 202) {
+                        // Backend queued the request, DO NOT cache empty array so UI retries quickly
+                        return [];
+                    }
                     const data = await res.json();
+                    if (data?.status === 'queued') {
+                        return [];
+                    }
                     const stats = data?.statistics || [];
-                    adapterStatsCache.set(eventId, { time: Date.now(), data: stats });
+                    if (Array.isArray(stats) && stats.length > 0) {
+                        adapterStatsCache.set(eventId, { time: Date.now(), data: stats });
+                    }
                     return stats;
                 }
             } catch (e) {

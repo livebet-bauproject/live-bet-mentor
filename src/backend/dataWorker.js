@@ -229,31 +229,44 @@ class DataWorker {
                     const priorityIds = new Set();
                     const now = Date.now();
 
-                    // Top Priority: Selected Match in UI
+                    // 1. Top Priority: Selected Match in UI
                     if (this.selectedMatchId) {
                         priorityIds.add(this.selectedMatchId);
                         priorityIds.add(Number(this.selectedMatchId));
                         priorityIds.add(String(this.selectedMatchId));
                     }
 
-                    // Matches missing stats: initialize up to 2 per cycle
-                    const missingStats = rawMatches.filter(rm => {
+                    // 2. Tier 1 Core matches missing stats: prioritize immediately (up to 8 per cycle)
+                    const tier1Missing = rawMatches.filter(rm => {
+                        const leagueName = rm.leagueName || rm.tournament?.name || '';
+                        const isTier1 = leagueProfileModule.getTier(leagueName) === 1;
+                        if (!isTier1) return false;
                         const ex = this.fixtures.find(f => f.id === rm.id);
                         return !ex || !ex.stats || ex.isPartial;
                     });
-                    for (const rm of missingStats.slice(0, 2)) {
+                    for (const rm of tier1Missing.slice(0, 8)) {
                         priorityIds.add(rm.id);
                     }
 
-                    // Major Tier 1 & 2 matches that haven't refreshed in > 60s: up to 2 per cycle
+                    // 3. Other matches missing stats: up to 3 per cycle
+                    const otherMissingStats = rawMatches.filter(rm => {
+                        if (priorityIds.has(rm.id)) return false;
+                        const ex = this.fixtures.find(f => f.id === rm.id);
+                        return !ex || !ex.stats || ex.isPartial;
+                    });
+                    for (const rm of otherMissingStats.slice(0, 3)) {
+                        priorityIds.add(rm.id);
+                    }
+
+                    // 4. Major Tier 1 & 2 matches that haven't refreshed in > 30s: up to 5 per cycle
                     const staleHighPriority = rawMatches.filter(rm => {
                         if (priorityIds.has(rm.id)) return false;
                         const leagueName = rm.leagueName || rm.tournament?.name || '';
                         const isMajor = leagueProfileModule.getTier(leagueName) <= 2;
                         const lastFetch = this.matchLastStatsFetch.get(rm.id) || 0;
-                        return isMajor && (now - lastFetch > 60000);
+                        return isMajor && (now - lastFetch > 30000);
                     });
-                    for (const rm of staleHighPriority.slice(0, 2)) {
+                    for (const rm of staleHighPriority.slice(0, 5)) {
                         priorityIds.add(rm.id);
                     }
 

@@ -179,8 +179,12 @@ export const CONFIG = {
     },
     // Phase 12: Tiered League System
     LEAGUE_TIERS: {
-      TIER_1: ['Süper Lig', 'Trendyol Süper Lig', 'Premier League', 'Bundesliga', 'LaLiga', 'Serie A', 'Ligue 1', 'Champions League', 'Europa League'],
-      TIER_2: ['Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Pro League', 'Austrian Bundesliga', 'Super League', 'Superliga', 'Scottish Premiership', 'MLS'],
+      TIER_1: [
+        'Süper Lig', 'Trendyol Süper Lig', 'Premier League', 'Bundesliga', 'LaLiga', 'Serie A', 'Ligue 1',
+        'Champions League', 'Europa League', 'Conference League', 'UEFA Champions League', 'UEFA Europa League', 'UEFA Europa Conference League',
+        'UEFA Nations League', 'Nations League', 'World Cup', 'Euro', 'European Championship', 'Copa America'
+      ],
+      TIER_2: ['Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Pro League', 'Austrian Bundesliga', 'Super League', 'Superliga', 'Scottish Premiership', 'MLS', 'Championship'],
       // Everything else is TIER_3 (Discovery) by default
       SETTINGS: {
         TIER_2_MOMENTUM_WINDOW: 15, // More aggressive (15m instead of 10m)

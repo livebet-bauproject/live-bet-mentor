@@ -203,9 +203,9 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
 
     // Helper to render horizontal comparative stat bar
     const renderStatBar = (label, homeDisplay, awayDisplay, homeVal, awayVal, isPercent = false) => {
-        const total = (homeVal + awayVal) || 1;
-        const homePct = isPercent ? homeVal : Math.max(10, Math.min(90, Math.round((homeVal / total) * 100)));
-        const awayPct = 100 - homePct;
+        const total = (homeVal + awayVal) || 0;
+        const homePct = total === 0 ? 50 : (isPercent ? Math.min(100, Math.max(0, homeVal)) : Math.max(10, Math.min(90, Math.round((homeVal / total) * 100))));
+        const awayPct = total === 0 ? 50 : (100 - homePct);
 
         return (
             <div style={{ marginBottom: '0.55rem' }}>
@@ -349,13 +349,23 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                     )}
 
                     {/* Possession or 20m Pressure Share */}
-                    {renderStatBar(
-                        isLast20 ? (lang === 'tr' ? 'Baskı Payı (Son 20 Dk)' : (lang === 'de' ? 'Druckanteil (Letzte 20 Min)' : 'Pressure Share (Last 20m)')) : (lang === 'tr' ? 'Topla Oynama' : (lang === 'de' ? 'Ballbesitz' : 'Possession')),
-                        `%${effectivePossHome}`,
-                        `%${effectivePossAway}`,
-                        effectivePossHome,
-                        effectivePossAway,
-                        true
+                    {((effectivePossHome > 0 && effectivePossAway > 0) && !(effectivePossHome === 0 && effectivePossAway === 100 && (shotsHome + shotsAway === 0))) ? (
+                        renderStatBar(
+                            isLast20 ? (lang === 'tr' ? 'Baskı Payı (Son 20 Dk)' : (lang === 'de' ? 'Druckanteil (Letzte 20 Min)' : 'Pressure Share (Last 20m)')) : (lang === 'tr' ? 'Topla Oynama' : (lang === 'de' ? 'Ballbesitz' : 'Possession')),
+                            `%${effectivePossHome}`,
+                            `%${effectivePossAway}`,
+                            effectivePossHome,
+                            effectivePossAway,
+                            true
+                        )
+                    ) : (
+                        <div style={{ marginBottom: '0.55rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', marginBottom: '3px' }}>
+                                <span style={{ color: 'var(--tb-text-muted)' }}>-</span>
+                                <span style={{ color: 'var(--tb-text-muted)', fontSize: '0.68rem', fontWeight: 600, textAlign: 'center', flex: 1 }}>{lang === 'tr' ? 'Topla Oynama' : (lang === 'de' ? 'Ballbesitz' : 'Possession')}</span>
+                                <span style={{ color: 'var(--tb-text-muted)' }}>-</span>
+                            </div>
+                        </div>
                     )}
 
                     {/* Expected Goals (xG) - Only in Full Match */}

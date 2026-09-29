@@ -1460,7 +1460,7 @@ export const LiveTerminalTable = ({
 
                                         {/* Topla Oynama (Possession) */}
                                         <td className="tb-stat-cell" title={lang === 'tr' ? `Topla Oynama: ${m.homeTeam} %${possHome} - %${possAway} ${m.awayTeam}` : `Possession: ${m.homeTeam} ${possHome}% - ${possAway}% ${m.awayTeam}`}>
-                                            {(possHome > 0 || possAway > 0) ? (
+                                            {(possHome > 0 && possAway > 0 && possHome + possAway >= 90 && possHome + possAway <= 110 && possHome !== 100 && possAway !== 100) ? (
                                                 <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px', minWidth: '48px' }}>
                                                     <span style={{ 
                                                         fontSize: '0.72rem', 

@@ -41,11 +41,16 @@ export class LeagueProfileModule {
         // If league contains an excluded pattern, skip to Tier 3
         const hasExcludedPattern = excludedPatterns.some(pattern => normalizedName.includes(pattern));
 
-        // Exception: Europa/Champions should not be excluded even if they have "cup" relationship
-        const isProtectedCompetition = normalizedName.includes('champions') || normalizedName.includes('europa league');
+        // Exception: Major international and continental competitions should never be excluded
+        const isProtectedCompetition = normalizedName.includes('champions') ||
+            normalizedName.includes('europa') ||
+            normalizedName.includes('conference league') ||
+            normalizedName.includes('nations league') ||
+            normalizedName.includes('world cup') ||
+            normalizedName.includes('euro') ||
+            normalizedName.includes('copa america');
 
         if (hasExcludedPattern && !isProtectedCompetition) {
-
             return 3; // Discovery tier for excluded leagues
         }
 
@@ -65,6 +70,11 @@ export class LeagueProfileModule {
             // Special case for Serie A - require strict matching
             if (tierLower === 'serie a') {
                 return isRealSerieA;
+            }
+
+            // Special case for UEFA Nations League (matches "UEFA Nations League, League A, Gr. 3", etc.)
+            if ((tierLower === 'nations league' || tierLower === 'uefa nations league') && normalizedName.includes('nations league')) {
+                return true;
             }
 
             // Exact match
