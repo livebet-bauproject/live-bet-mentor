@@ -351,6 +351,35 @@ class DataWorker {
                     }
                     this._consecutiveDropPolls = 0;
 
+                    // Graceful in-progress match retainer (Anti-Premature-Drop):
+                    // If a match was previously tracked, is in progress, started < 135 minutes ago,
+                    // and was not marked as finished, do not drop it immediately if the live feed momentarily excludes it.
+                    if (this.fixtures && this.fixtures.length > 0) {
+                        const incomingIds = new Set(validMatches.map(m => String(m.id)));
+                        const nowSec = Date.now() / 1000;
+                        for (const prev of this.fixtures) {
+                            if (!prev || !prev.id) continue;
+                            const idStr = String(prev.id);
+                            if (!incomingIds.has(idStr)) {
+                                const startTs = prev.startTimestamp || nowSec;
+                                const elapsed = nowSec - startTs;
+                                const isStillPlaying = prev.status?.type === 'inprogress' &&
+                                    prev.status?.code !== 100 &&
+                                    !['finished', 'ended'].includes(String(prev.status?.type || '').toLowerCase()) &&
+                                    elapsed < 135 * 60;
+
+                                if (isStillPlaying) {
+                                    prev._missingCycles = (prev._missingCycles || 0) + 1;
+                                    if (prev._missingCycles <= 30) {
+                                        validMatches.push(prev);
+                                    }
+                                }
+                            } else {
+                                prev._missingCycles = 0;
+                            }
+                        }
+                    }
+
                     if (validMatches.length > 0) {
                         this.fixtures = this.normalizeFixtures(validMatches);
                         this._consecutiveEmptyPolls = 0;

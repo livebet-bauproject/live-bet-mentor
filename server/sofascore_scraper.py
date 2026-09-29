@@ -79,9 +79,8 @@ def filter_live_events(data):
         # 1. Match started > 165 mins (2.75h) ago is 100% finished
         if (now - start_ts) > (165 * 60):
             continue
-        # 2. Feed locked and kickoff > 90 mins ago
-        if e.get('feedLocked') and (now - start_ts) > (90 * 60):
-            continue
+        # Note: feedLocked is an editorial commentary lock in SofaScore, NOT an indicator of match conclusion.
+        # Match conclusion is determined strictly by status (finished/code 100) or elapsed duration (> 165 mins).
         # 3. Status checks
         status = e.get('status', {})
         st_type = str(status.get('type', '')).lower()

@@ -266,10 +266,8 @@ export const sofaScoreAdapter = {
             return null; // Scheduled in future
         }
 
-        // 3. Feed locked check: SofaScore locks event feed when match concludes
-        if (event.feedLocked && (nowSec - startTs) > 5400) {
-            return null; // Feed locked and > 90 mins from kickoff -> ended
-        }
+        // Note: feedLocked is an editorial commentary lock in SofaScore, NOT an indicator of match conclusion.
+        // Match conclusion is determined strictly by status (finished/code 100) or elapsed duration (> 165 mins).
 
         const statusCode = event.status?.code;
         const statusType = (event.status?.type || '').toLowerCase();

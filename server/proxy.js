@@ -602,8 +602,8 @@ const cleanEvents = (events) => {
         if ((nowSec - startTs) > 2.75 * 3600) return false;
         // Anti-future-ghost filter: remove matches scheduled > 1 hour in future
         if ((startTs - nowSec) > 3600) return false;
-        // Feed locked check: SofaScore locks event feed when match ends
-        if (e.feedLocked && (nowSec - startTs) > 5400) return false;
+        // Note: feedLocked is an editorial commentary lock in SofaScore, NOT an indicator of match conclusion.
+        // Match conclusion is determined strictly by status (finished/code 100) or elapsed duration (> 165 mins).
 
         const statusCode = e.status?.code;
         const st = (e.status?.type || '').toLowerCase();

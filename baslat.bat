@@ -23,7 +23,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM 2. Eski Surecleri Temizle
+REM 1.5. Kod Guncellemesi (En son guncellemeleri GitHub'dan otomatik cek)
+echo [Git] En son sistem guncellemeleri kontrol ediliyor...
+git pull origin main >nul 2>&1
+
 echo [2/4] Eski cache ve sarkan surecler temizleniyor...
 taskkill /F /IM python.exe /T >nul 2>&1
 taskkill /F /IM node.exe /T >nul 2>&1
