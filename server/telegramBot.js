@@ -23,7 +23,8 @@ import {
     formatLatencyArbitrageAlert,
     formatFomoWinningCard,
     formatTrialExpiringOffer,
-    formatBetanoRadar
+    formatBetanoRadar,
+    formatPublicDailyRecap
 } from './telegramTemplates.js';
 import { learningEngine } from './learningEngine.js';
 import { cashOutEngine } from './cashOutEngine.js';
@@ -31,6 +32,7 @@ import { vipManager } from './vipManager.js';
 import { consensusReader } from './consensusReader.js';
 import { cryptoPay } from './cryptoPay.js';
 import { supportChatService } from './supportChatService.js';
+import { saveTelegramHistory, loadTelegramHistory } from './persistenceManager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +81,9 @@ class TelegramBot {
         this.messageQueue = [];
         this.isProcessing = false;
         this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
+        this.historyArchive = [];
+        this.lastDailyReportDate = null;
+        this.reportSchedulerTimer = null;
         this.pollingOffset = 0;
         this.isPolling = false;
 
@@ -86,11 +91,61 @@ class TelegramBot {
         this.historyFile = path.join(__dirname, 'telegram_signal_history.json');
         this.loadHistory();
 
+        // Start automated daily report heartbeat scheduler
+        this.scheduleDailyReport(23, 55);
+
         // Level hierarchy for filtering
         this.levelHierarchy = { 'SICAK': 1, 'ALEV': 2, 'ALPHA': 3 };
 
         // Compatibility self-reference
         this.bot = this;
+    }
+
+    /**
+     * Helper to get trading day date in Turkish Time (UTC+3)
+     * Shifts session cutoff to 05:00 AM TSİ so late-night matches belong to the same session
+     */
+    getTurkishDateStr() {
+        const now = new Date();
+        const trTime = new Date(now.getTime() + 3 * 3600 * 1000);
+        if (trTime.getUTCHours() < 5) {
+            trTime.setUTCDate(trTime.getUTCDate() - 1);
+        }
+        return trTime.toISOString().split('T')[0];
+    }
+
+    /**
+     * Synchronize won, lost, pending, and total counters directly from signals array
+     */
+    syncStatsCounters() {
+        if (!this.dailyStats) {
+            this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
+        }
+        if (!Array.isArray(this.dailyStats.signals)) {
+            this.dailyStats.signals = [];
+        }
+
+        let won = 0, lost = 0, pending = 0;
+        for (const s of this.dailyStats.signals) {
+            if (s.status === 'WON') won++;
+            else if (s.status === 'LOST') lost++;
+            else pending++;
+        }
+        this.dailyStats.won = won;
+        this.dailyStats.lost = lost;
+        this.dailyStats.pending = pending;
+        this.dailyStats.total = this.dailyStats.signals.length;
+    }
+
+    archivePastDay(dateKey) {
+        if (!this.historyArchive) this.historyArchive = [];
+        if (this.dailyStats && (this.dailyStats.total > 0 || (this.dailyStats.signals && this.dailyStats.signals.length > 0))) {
+            this.historyArchive.push({
+                date: dateKey || this.getTurkishDateStr(),
+                stats: JSON.parse(JSON.stringify(this.dailyStats))
+            });
+            if (this.historyArchive.length > 30) this.historyArchive.shift();
+        }
     }
 
     /**
@@ -136,15 +191,23 @@ class TelegramBot {
 
     loadHistory() {
         try {
-            if (fs.existsSync(this.historyFile)) {
-                const data = JSON.parse(fs.readFileSync(this.historyFile, 'utf8'));
+            let data = loadTelegramHistory();
+            if (!data && fs.existsSync(this.historyFile)) {
+                data = JSON.parse(fs.readFileSync(this.historyFile, 'utf8'));
+            }
+
+            if (data) {
+                this.historyArchive = data.archive || [];
+                this.lastDailyReportDate = data.lastDailyReportDate || null;
                 this.dailyStats = data.dailyStats || this.dailyStats;
 
-                // Check if it's a new day — reset stats
+                // Check if it's a new day using Turkish trading day (cutoff 05:00 AM)
                 const lastDate = data.lastDate || '';
-                const today = new Date().toISOString().split('T')[0];
-                if (lastDate !== today) {
+                const today = this.getTurkishDateStr();
+                if (lastDate && lastDate !== today) {
+                    this.archivePastDay(lastDate);
                     this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
+                    this.lastDailyReportDate = null;
                 } else if (this.dailyStats && Array.isArray(this.dailyStats.signals)) {
                     // Re-register active pending signals for cash-out evaluation
                     this.dailyStats.signals.forEach(s => {
@@ -153,6 +216,8 @@ class TelegramBot {
                         }
                     });
                 }
+
+                this.syncStatsCounters();
 
                 // Restore sent signals locks across server restarts (last 3 hours)
                 const now = Date.now();
@@ -164,8 +229,8 @@ class TelegramBot {
                     }
                 }
                 // Also index all signals in dailyStats from the last 3 hours
-                if (data.dailyStats && Array.isArray(data.dailyStats.signals)) {
-                    data.dailyStats.signals.forEach(s => {
+                if (this.dailyStats && Array.isArray(this.dailyStats.signals)) {
+                    this.dailyStats.signals.forEach(s => {
                         const sigTime = s.time ? new Date(s.time).getTime() : 0;
                         if (sigTime && (now - sigTime < 3 * 3600 * 1000)) {
                             if (s.matchId) this.sentSignals.set(String(s.matchId), sigTime);
@@ -174,7 +239,7 @@ class TelegramBot {
                         }
                     });
                 }
-                console.log(`[TELEGRAM] 🛡️ Restored ${this.sentSignals.size} active match locks from disk`);
+                console.log(`[TELEGRAM] 🛡️ Restored ${this.sentSignals.size} active match locks and ${this.dailyStats.signals.length} signals for ${today}`);
             }
         } catch (e) {
             console.error('[TELEGRAM] Error loading history:', e.message);
@@ -183,6 +248,7 @@ class TelegramBot {
 
     saveHistory() {
         try {
+            this.syncStatsCounters();
             const now = Date.now();
             const activeLocks = [];
             for (const [k, ts] of this.sentSignals.entries()) {
@@ -193,9 +259,11 @@ class TelegramBot {
             const data = {
                 dailyStats: this.dailyStats,
                 sentSignalsList: activeLocks,
-                lastDate: new Date().toISOString().split('T')[0]
+                lastDailyReportDate: this.lastDailyReportDate,
+                archive: this.historyArchive || [],
+                lastDate: this.getTurkishDateStr()
             };
-            fs.writeFileSync(this.historyFile, JSON.stringify(data, null, 2));
+            saveTelegramHistory(data, true);
         } catch (e) {
             console.error('[TELEGRAM] Error saving history:', e.message);
         }
@@ -635,10 +703,13 @@ class TelegramBot {
     }
 
     /**
-     * Send daily performance report
+     * Send daily performance report across VIP and Public channels
      */
     async sendDailyReport(reset = false) {
+        this.syncStatsCounters();
         const results = { vip: null, public: null };
+
+        // 1. VIP gets detailed institutional ledger
         const activeVips = this.getActiveVipChannels();
         for (const dest of activeVips) {
             const report = formatDailyReport(this.dailyStats, dest.lang);
@@ -646,16 +717,21 @@ class TelegramBot {
             if (!results.vip) results.vip = res;
         }
 
+        // 2. Public gets high-converting social proof recap card
         const activePubs = this.getActivePublicChannels();
         for (const dest of activePubs) {
-            const report = formatDailyReport(this.dailyStats, dest.lang);
-            const res = await this.sendMessage(dest.channelId, report);
+            const recap = formatPublicDailyRecap(this.dailyStats, dest.lang);
+            const res = await this.sendMessage(dest.channelId, recap);
             if (!results.public) results.public = res;
         }
 
-        console.log('[TELEGRAM] 📊 Daily report sent across all active language channels');
+        this.lastDailyReportDate = this.getTurkishDateStr();
+        this.saveHistory();
+
+        console.log(`[TELEGRAM] 📊 Daily report sent across VIP and Public channels for ${this.lastDailyReportDate}`);
 
         if (reset) {
+            this.archivePastDay(this.lastDailyReportDate);
             this.dailyStats = { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
             this.saveHistory();
         }
@@ -729,14 +805,7 @@ class TelegramBot {
         signal.resolvedAt = new Date().toISOString();
         cashOutEngine.unregisterSignal(signal.id);
 
-        if (this.dailyStats.pending > 0) {
-            this.dailyStats.pending--;
-        }
-        if (result === 'WON') {
-            this.dailyStats.won++;
-        } else if (result === 'LOST') {
-            this.dailyStats.lost++;
-        }
+        this.syncStatsCounters();
         this.saveHistory();
 
         console.log(`[TELEGRAM] 🎯 Signal resolved: ${signal.match} -> ${result} (${score || ''}) [Won: ${this.dailyStats.won}, Lost: ${this.dailyStats.lost}, Pending: ${this.dailyStats.pending}]`);
@@ -800,19 +869,39 @@ class TelegramBot {
     }
 
     /**
-     * Automatically evaluate results of pending signals using live match events
+     * Add match ID to stats_request.json queue so scrapers fetch detail
      */
-    async autoResolveSignals(liveEvents) {
-        if (!Array.isArray(liveEvents) || liveEvents.length === 0) return [];
+    queueMatchForStats(matchId) {
+        if (!matchId) return;
+        try {
+            const queueFile = path.join(__dirname, 'stats_request.json');
+            let queue = { ids: [] };
+            if (fs.existsSync(queueFile)) {
+                queue = JSON.parse(fs.readFileSync(queueFile, 'utf8'));
+            }
+            const sId = String(matchId);
+            if (!queue.ids.includes(sId) && !queue.ids.includes(Number(matchId))) {
+                queue.ids.push(sId);
+                fs.writeFileSync(queueFile, JSON.stringify(queue), 'utf8');
+            }
+        } catch (e) {}
+    }
+
+    /**
+     * Automatically evaluate results of pending signals using live match events & off-feed tracking
+     */
+    async autoResolveSignals(liveEvents = []) {
+        if (!this.dailyStats?.signals || !Array.isArray(this.dailyStats.signals)) return [];
 
         const pendingSignals = this.dailyStats.signals.filter(s => s.status === 'PENDING');
         if (pendingSignals.length === 0) return [];
 
         const resolved = [];
+        const now = Date.now();
 
         for (const signal of pendingSignals) {
-            // Find event by matchId or team names
-            const ev = liveEvents.find(e => {
+            // Find event by matchId or team names in liveEvents
+            const ev = Array.isArray(liveEvents) ? liveEvents.find(e => {
                 if (signal.matchId && String(e.id) === String(signal.matchId)) return true;
                 const home = (signal.homeTeam || signal.match?.split(' vs ')[0] || '').toLowerCase().trim();
                 const away = (signal.awayTeam || signal.match?.split(' vs ')[1] || '').toLowerCase().trim();
@@ -821,15 +910,92 @@ class TelegramBot {
                 const evAway = (e.awayTeam?.name || '').toLowerCase().trim();
                 return (evHome.includes(home.slice(0, 5)) || home.includes(evHome.slice(0, 5))) &&
                        (evAway.includes(away.slice(0, 5)) || away.includes(evAway.slice(0, 5)));
-            });
+            }) : null;
 
-            if (!ev) continue;
+            let curHome = 0;
+            let curAway = 0;
+            let isFinished = false;
+            let currentScoreStr = '0-0';
 
-            const curHome = Number(ev.homeScore?.current ?? ev.score?.home ?? 0);
-            const curAway = Number(ev.awayScore?.current ?? ev.score?.away ?? 0);
+            if (ev) {
+                curHome = Number(ev.homeScore?.current ?? ev.score?.home ?? 0);
+                curAway = Number(ev.awayScore?.current ?? ev.score?.away ?? 0);
+                currentScoreStr = `${curHome}-${curAway}`;
+                isFinished = ev.status?.type === 'finished' || ev.status?.code === 100 || ev.minute === 'MS' || (ev.status?.description && /ended|finished/i.test(ev.status.description));
+                signal.lastSeenScore = currentScoreStr;
+            } else {
+                // Tier 2: OFF-FEED RESOLUTION (Match ended or dropped from live feed)
+                const signalTime = signal.time ? new Date(signal.time).getTime() : now;
+                const elapsedMinutes = (now - signalTime) / 60000;
+                const estimatedMatchMinute = (Number(signal.minute) || 0) + elapsedMinutes;
+
+                let detailObj = null;
+
+                // A. Check local stats file
+                if (signal.matchId) {
+                    const detailPath = path.join(__dirname, 'stats', `${signal.matchId}_detail.json`);
+                    if (fs.existsSync(detailPath)) {
+                        try {
+                            const parsed = JSON.parse(fs.readFileSync(detailPath, 'utf8'));
+                            if (parsed?.event) detailObj = parsed.event;
+                        } catch (e) {}
+                    }
+                }
+
+                // B. If missing or not marked finished and match is past 60 min, queue it
+                if (!detailObj && signal.matchId && estimatedMatchMinute >= 60) {
+                    this.queueMatchForStats(signal.matchId);
+                }
+
+                if (detailObj) {
+                    curHome = Number(detailObj.homeScore?.current ?? detailObj.homeScore?.display ?? 0);
+                    curAway = Number(detailObj.awayScore?.current ?? detailObj.awayScore?.display ?? 0);
+                    currentScoreStr = `${curHome}-${curAway}`;
+                    const desc = (detailObj.status?.description || '').toLowerCase();
+                    isFinished = detailObj.status?.type === 'finished' || detailObj.status?.code === 100 || desc.includes('ended') || desc.includes('ft') || desc.includes('finished');
+                }
+
+                // C. If still not confirmed finished and match has elapsed past 95 minutes, query internal API
+                if (!isFinished && estimatedMatchMinute >= 95 && signal.matchId) {
+                    const lastCheck = signal._lastDetailCheck || 0;
+                    if (now - lastCheck > 20000) {
+                        signal._lastDetailCheck = now;
+                        try {
+                            const port = process.env.PORT || 3001;
+                            const res = await fetch(`http://127.0.0.1:${port}/api/sofascore/event/${signal.matchId}`, { timeout: 3500 }).catch(() => null);
+                            if (res && res.ok) {
+                                const data = await res.json();
+                                if (data?.event) {
+                                    detailObj = data.event;
+                                    curHome = Number(detailObj.homeScore?.current ?? detailObj.homeScore?.display ?? curHome);
+                                    curAway = Number(detailObj.awayScore?.current ?? detailObj.awayScore?.display ?? curAway);
+                                    currentScoreStr = `${curHome}-${curAway}`;
+                                    const desc = (detailObj.status?.description || '').toLowerCase();
+                                    isFinished = detailObj.status?.type === 'finished' || detailObj.status?.code === 100 || desc.includes('ended') || desc.includes('ft') || desc.includes('finished');
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                }
+
+                // D. Definitive elapsed timeout: If match disappeared from feed AND (elapsed >= 60m from signal OR match minute >= 115)
+                if (!isFinished) {
+                    if (estimatedMatchMinute >= 115 || elapsedMinutes >= 60) {
+                        isFinished = true;
+                        if (signal.lastSeenScore) {
+                            const parts = signal.lastSeenScore.split('-');
+                            curHome = parseInt(parts[0]) || curHome;
+                            curAway = parseInt(parts[1]) || curAway;
+                            currentScoreStr = `${curHome}-${curAway}`;
+                        }
+                    } else {
+                        // Still active or in transition, skip until next cycle
+                        continue;
+                    }
+                }
+            }
+
             const totalGoals = curHome + curAway;
-            const currentScoreStr = `${curHome}-${curAway}`;
-            const isFinished = ev.status?.type === 'finished' || ev.status?.code === 100 || ev.minute === 'MS';
 
             let initHome = 0, initAway = 0;
             if (typeof signal.scoreAtPrediction === 'string' && signal.scoreAtPrediction.includes('-')) {
@@ -933,7 +1099,7 @@ class TelegramBot {
             }
         }
 
-        // 5. Evaluate Cash-Out & Stop-Loss Radar for active signals
+        // 6. Evaluate Cash-Out & Stop-Loss Radar for active signals
         try {
             const cashOuts = cashOutEngine.evaluateCashOuts(liveEvents);
             const activeVips = this.getActiveVipChannels();
@@ -2098,35 +2264,59 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
     }
 
     /**
-     * Schedule daily report (call this once at startup, default 23:00 TSİ)
+     * Heartbeat check for daily report schedule (evaluated every 60s)
      */
-    scheduleDailyReport(targetHourTRT = 23, targetMinuteTRT = 0) {
-        const scheduleNext = () => {
-            const now = new Date();
-            const targetUtcHour = (targetHourTRT - 3 + 24) % 24;
-            const targetUtc = new Date(Date.UTC(
-                now.getUTCFullYear(),
-                now.getUTCMonth(),
-                now.getUTCDate(),
-                targetUtcHour,
-                targetMinuteTRT,
-                0,
-                0
-            ));
-            if (targetUtc.getTime() <= now.getTime()) {
-                targetUtc.setUTCDate(targetUtc.getUTCDate() + 1);
+    async checkDailyReportSchedule() {
+        if (!this.enabled) return;
+
+        const now = new Date();
+        const trTime = new Date(now.getTime() + 3 * 3600 * 1000); // UTC+3 Turkey Time
+        const trHours = trTime.getUTCHours();
+        const trMinutes = trTime.getUTCMinutes();
+        const todayStr = this.getTurkishDateStr();
+
+        // 1. Don't send multiple times for the same trading day
+        if (this.lastDailyReportDate === todayStr) return;
+
+        // 2. Need at least 1 signal to report
+        this.syncStatsCounters();
+        if (!this.dailyStats || this.dailyStats.total === 0) return;
+
+        // Condition A: It's 23:55 TSİ or later (up to 04:30 TSİ before session cutoff)
+        const isTargetTime = (trHours === 23 && trMinutes >= 55) || (trHours >= 0 && trHours < 5);
+
+        // Condition B: Late evening (after 22:30 TSİ) and ALL signals are resolved (0 pending!)
+        const isEarlyEveningComplete = (trHours >= 22 || trHours < 5) && this.dailyStats.pending === 0 && this.dailyStats.total >= 1;
+
+        if (isTargetTime || isEarlyEveningComplete) {
+            console.log(`[TELEGRAM] ⏰ Triggering automated Daily Performance Report at ${trHours}:${String(trMinutes).padStart(2, '0')} TSİ (Total: ${this.dailyStats.total}, Won: ${this.dailyStats.won}, Lost: ${this.dailyStats.lost})`);
+            try {
+                await this.sendDailyReport(false);
+            } catch (err) {
+                console.error('[TELEGRAM] ❌ Failed to dispatch daily report:', err.message);
             }
+        }
+    }
 
-            const delay = targetUtc.getTime() - now.getTime();
-            console.log(`[TELEGRAM] 📅 Next daily report (23:00 TSİ) scheduled in ${Math.round(delay / 60000)} minutes (${targetUtc.toISOString()})`);
+    /**
+     * Start the recurring daily report heartbeat scheduler (default 23:55 TSİ)
+     */
+    scheduleDailyReport(targetHourTRT = 23, targetMinuteTRT = 55) {
+        if (this.reportSchedulerTimer) {
+            clearInterval(this.reportSchedulerTimer);
+        }
 
-            setTimeout(async () => {
-                await this.sendDailyReport();
-                scheduleNext(); // Schedule next day
-            }, delay);
-        };
+        // Run check every 60 seconds
+        this.reportSchedulerTimer = setInterval(() => {
+            this.checkDailyReportSchedule().catch(e => console.error('[TELEGRAM] Schedule check error:', e.message));
+        }, 60 * 1000);
 
-        scheduleNext();
+        // Also check shortly after startup (10 seconds)
+        setTimeout(() => {
+            this.checkDailyReportSchedule().catch(e => console.error('[TELEGRAM] Initial schedule check error:', e.message));
+        }, 10000);
+
+        console.log(`[TELEGRAM] 📅 Automated Daily Report scheduler active (monitoring 23:55 TSİ & all-resolved triggers)`);
     }
 
     /**

@@ -22,6 +22,7 @@ const SEED_MEMBERS_FILE = path.join(__dirname, 'seed_members.json');
 const VIP_FILE = path.join(__dirname, 'vip_users.json');
 const TRIALS_FILE = path.join(__dirname, 'device_trials.json');
 const UPGRADES_FILE = path.join(__dirname, 'upgrade_requests.json');
+const TELEGRAM_HISTORY_FILE = path.join(__dirname, 'telegram_signal_history.json');
 
 // --- In-Memory Fallback Cache ---
 let memoryMembers = null;
@@ -180,6 +181,34 @@ export function saveUpgradeRequests(requests, syncToCloud = true) {
 
     if (syncToCloud) {
         syncKeyToCloud('persistent_upgrade_requests', requests);
+    }
+    return true;
+}
+
+// ==========================================
+// 4.5. TELEGRAM SIGNAL HISTORY PERSISTENCE
+// ==========================================
+
+export function loadTelegramHistory() {
+    try {
+        if (fs.existsSync(TELEGRAM_HISTORY_FILE)) {
+            return JSON.parse(fs.readFileSync(TELEGRAM_HISTORY_FILE, 'utf8'));
+        }
+    } catch (e) {
+        console.error('[PERSISTENCE] Error reading telegram_signal_history.json:', e.message);
+    }
+    return null;
+}
+
+export function saveTelegramHistory(data, syncToCloud = true) {
+    if (!data || typeof data !== 'object') return false;
+    try {
+        fs.writeFileSync(TELEGRAM_HISTORY_FILE, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+        console.error('[PERSISTENCE] Error saving telegram_signal_history.json:', e.message);
+    }
+    if (syncToCloud) {
+        syncKeyToCloud('persistent_telegram_history', data);
     }
     return true;
 }
@@ -380,6 +409,28 @@ export async function initPersistence() {
                     fs.writeFileSync(TRIALS_FILE, JSON.stringify(merged, null, 2), 'utf8');
                 }
             } catch (tErr) {}
+        }
+
+        // 4. Restore Telegram Signal History
+        const { data: histRow } = await supabase
+            .from('system_settings')
+            .select('*')
+            .eq('key', 'persistent_telegram_history')
+            .maybeSingle();
+
+        if (histRow && histRow.value) {
+            try {
+                const cloudHist = JSON.parse(histRow.value);
+                if (cloudHist && typeof cloudHist === 'object') {
+                    const localHist = loadTelegramHistory();
+                    if (!localHist || (cloudHist.dailyStats?.signals?.length || 0) >= (localHist.dailyStats?.signals?.length || 0)) {
+                        fs.writeFileSync(TELEGRAM_HISTORY_FILE, JSON.stringify(cloudHist, null, 2), 'utf8');
+                        console.log(`[PERSISTENCE] Restored Telegram history (${cloudHist.dailyStats?.signals?.length || 0} signals) from Supabase Cloud!`);
+                    }
+                }
+            } catch (hErr) {
+                console.error('[PERSISTENCE] Error parsing cloud telegram history:', hErr.message);
+            }
         }
 
     } catch (e) {

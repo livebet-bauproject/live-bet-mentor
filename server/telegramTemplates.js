@@ -460,11 +460,13 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
             return `🟢 *KAZANDI!* ${scoreStr ? `[${scoreStr}]` : ''}
 ⚽ *${home} - ${away}*
 🎯 *Tahmin:* *${market}* ✅
-💰 *Kâr kasaya eklendi!* · 💎 _Live Bet Mentor_`;
+📈 *Günün İstatistiği:* %${winRate} (${currentStats.won || 1}/${totalResolved || 1} İsabet)
+💰 *Kâr kasaya eklendi!* · 💎 _Live Bet Mentor VIP_`;
         } else {
             return `🔴 *KAYBETTİ* ${scoreStr ? `[${scoreStr}]` : ''}
 ⚽ *${home} - ${away}*
 🎯 *Tahmin:* *${market}*
+📈 *Günün İstatistiği:* %${winRate} (${currentStats.won || 0}/${totalResolved || 1} İsabet)
 🛡️ *Sermaye koruma devrede, kasa yönetimine sadık kalın.*`;
         }
     }
@@ -622,47 +624,153 @@ export function formatDailyReport(stats, lang = 'tr') {
     const isDe = lang === 'de';
     const date = new Date().toLocaleDateString(isTr ? 'tr-TR' : isDe ? 'de-DE' : 'en-GB', {
         day: '2-digit',
-        month: 'short'
+        month: 'long',
+        year: 'numeric'
     });
 
-    const winRate = stats.total > 0 ? ((stats.won / stats.total) * 100).toFixed(1) : '0.0';
+    const wonCount = stats.won || 0;
+    const lostCount = stats.lost || 0;
+    const pendingCount = stats.pending || 0;
+    const totalSignals = (stats.signals && stats.signals.length) || stats.total || (wonCount + lostCount + pendingCount);
+    const totalResolved = wonCount + lostCount;
+    const winRate = totalResolved > 0 ? ((wonCount / totalResolved) * 100).toFixed(1) : (totalSignals > 0 && wonCount > 0 ? '100.0' : '0.0');
+
+    // Calculate Net Profit / Unit Yield
+    let netUnits = 0;
+    if (Array.isArray(stats.signals)) {
+        stats.signals.forEach(s => {
+            const stake = parseFloat(s.level === 'ALPHA' ? 1.5 : 1.0);
+            const oddsVal = parseFloat(s.recommendation?.odds || s.odds || 1.80);
+            const validOdds = (!isNaN(oddsVal) && oddsVal > 1.0) ? oddsVal : 1.80;
+            if (s.status === 'WON') {
+                netUnits += (validOdds - 1.0) * stake;
+            } else if (s.status === 'LOST') {
+                netUnits -= 1.0 * stake;
+            }
+        });
+    }
+    const signPrefix = netUnits >= 0 ? '+' : '';
+    const roiStr = `${signPrefix}${netUnits.toFixed(2)} Birim (${signPrefix}%${(netUnits * 1.0).toFixed(1)} Kasa)`;
+
+    // Build Match-by-Match Breakdown
+    let matchBreakdown = '';
+    if (Array.isArray(stats.signals) && stats.signals.length > 0) {
+        const lines = stats.signals.map(s => {
+            const icon = s.status === 'WON' ? '🟢' : (s.status === 'LOST' ? '🔴' : '⏳');
+            const mark = s.status === 'WON' ? '✅' : (s.status === 'LOST' ? '❌' : '⏳');
+            const score = s.resultScore ? `[${s.resultScore}]` : (s.scoreAtPrediction ? `[${s.scoreAtPrediction}]` : '');
+            const mText = cleanMd(s.market || resolveMarketText(s, lang) || 'Tahmin');
+            const numOdds = parseFloat(s.recommendation?.odds || s.odds);
+            const oddsPart = (!isNaN(numOdds) && numOdds > 1.0) ? ` (Oran: ${numOdds.toFixed(2)})` : '';
+            const home = cleanMd(s.homeTeam || s.match?.split(' vs ')[0] || '');
+            const away = cleanMd(s.awayTeam || s.match?.split(' vs ')[1] || '');
+            return `• ${icon} *${home} - ${away}* | ${mText} ${score} ${mark}${oddsPart}`;
+        });
+        matchBreakdown = (isTr ? `\n📋 *Günün Sinyal Dökümü:*\n` : isDe ? `\n📋 *Signal-Übersicht des Tages:*\n` : `\n📋 *Today's Signal Ledger:*\n`) + lines.join('\n') + '\n';
+    }
 
     if (isTr) {
-        return `📊 *GÜNLÜK ALGORİTMİK RAPOR (${date})*
-━━━━━━━━━━━━━━━━━━
-✅ Kazandı: *${stats.won || 0}*
-❌ Kaybetti: *${stats.lost || 0}*
-⏳ Devam Eden: *${stats.pending || 0}*
+        return `📊 *GÜNÜN ÖZETİ & PERFORMANS RAPORU*
+📅 *Tarih:* ${date}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 *Toplam Sinyal:* *${totalSignals}*
+🟢 *Kazandı:* *${wonCount}*
+🔴 *Kaybetti:* *${lostCount}*
+⏳ *Devam Eden:* *${pendingCount}*
 
-📈 *Başarı Oranı: %${winRate}*
-🔥 Toplam Sinyal: ${stats.total || 0}
-${stats.bestPick ? `🏆 En İyi Tahmin: ${cleanMd(stats.bestPick)}\n` : ''}━━━━━━━━━━━━━━━━━━
-💎 *Live Bet Mentor Quant Labs*`;
+📈 *Net Başarı Oranı:* *%${winRate}*
+💰 *Tahmini Kasa Kârı:* *${roiStr}*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━${matchBreakdown}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Quant Syndicate*
+👉 https://www.livebetmentor.com`;
     }
 
     if (isDe) {
-        return `📊 *TÄGLICHER QUANT-BERICHT (${date})*
-━━━━━━━━━━━━━━━━━━
-✅ Gewonnen: *${stats.won || 0}*
-❌ Verloren: *${stats.lost || 0}*
-⏳ Offen: *${stats.pending || 0}*
+        return `📊 *TAGESBERICHT & QUANT-PERFORMANCE*
+📅 *Datum:* ${date}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 *Gesamt-Signale:* *${totalSignals}*
+🟢 *Gewonnen:* *${wonCount}*
+🔴 *Verloren:* *${lostCount}*
+⏳ *Offen:* *${pendingCount}*
 
-📈 *Trefferquote: ${winRate}%*
-🔥 Gesamt-Signale: ${stats.total || 0}
-${stats.bestPick ? `🏆 Bester Tipp: ${cleanMd(stats.bestPick)}\n` : ''}━━━━━━━━━━━━━━━━━━
-💎 *Live Bet Mentor Quant Labs*`;
+📈 *Trefferquote:* *${winRate}%*
+💰 *Netto-Profit:* *${roiStr}*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━${matchBreakdown}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Quant Syndicate*
+👉 https://www.livebetmentor.com`;
     }
 
-    return `📊 *DAILY QUANT REPORT (${date})*
-━━━━━━━━━━━━━━━━━━
-✅ Won: *${stats.won || 0}*
-❌ Lost: *${stats.lost || 0}*
-⏳ In-Play: *${stats.pending || 0}*
+    return `📊 *DAILY PERFORMANCE & LEDGER REPORT*
+📅 *Date:* ${date}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 *Total Signals:* *${totalSignals}*
+🟢 *Won:* *${wonCount}*
+🔴 *Lost:* *${lostCount}*
+⏳ *Pending:* *${pendingCount}*
 
-📈 *Win Rate: ${winRate}%*
-🔥 Total Signals: ${stats.total || 0}
-${stats.bestPick ? `🏆 Top Pick: ${cleanMd(stats.bestPick)}\n` : ''}━━━━━━━━━━━━━━━━━━
-💎 *Live Bet Mentor Quant Labs*`;
+📈 *Net Win Rate:* *${winRate}%*
+💰 *Estimated Yield:* *${roiStr}*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━${matchBreakdown}━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor VIP Quant Syndicate*
+👉 https://www.livebetmentor.com`;
+}
+
+export function formatPublicDailyRecap(stats, lang = 'tr') {
+    const isTr = lang === 'tr';
+    const isDe = lang === 'de';
+    const botUser = process.env.TELEGRAM_BOT_USERNAME || 'Livebetmentorbot';
+    const wonCount = stats.won || 0;
+    const lostCount = stats.lost || 0;
+    const totalResolved = wonCount + lostCount;
+    const totalSignals = (stats.signals && stats.signals.length) || stats.total || totalResolved;
+    const winRate = totalResolved > 0 ? ((wonCount / totalResolved) * 100).toFixed(1) : (wonCount > 0 ? '100.0' : '0.0');
+
+    let winningList = '';
+    if (Array.isArray(stats.signals)) {
+        const wins = stats.signals.filter(s => s.status === 'WON');
+        if (wins.length > 0) {
+            winningList = wins.map(s => {
+                const home = cleanMd(s.homeTeam || s.match?.split(' vs ')[0] || '');
+                const away = cleanMd(s.awayTeam || s.match?.split(' vs ')[1] || '');
+                const score = s.resultScore ? `[${s.resultScore}]` : '';
+                const mText = cleanMd(resolveMarketText(s, lang) || s.market || '');
+                return `  ✅ *${home} - ${away}* ${score} · _${mText}_`;
+            }).slice(0, 6).join('\n');
+        }
+    }
+
+    if (isTr) {
+        return `🔥 *GÜNÜN VIP KAZANÇ ÖZETİ* 🔥
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Bugün VIP Grubumuz Kasasını Büyüttü!*
+
+📊 *Toplam Sinyal:* ${totalSignals}
+🟢 *Kazanan Tahmin:* ${wonCount}
+🎯 *Net İsabet Oranı:* *%${winRate}*
+
+🏆 *Günün Öne Çıkan Kazananları:*
+${winningList || '  ✅ Yapay zeka değer sinyalleri hedefe ulaştı!'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 *Siz de canlıda 0 gecikmeyle kazanmak için:*
+Bota gidin ve /deneme yazarak *3 Günlük Ücretsiz VIP* başlatın:
+🤖 @${botUser}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💎 *Live Bet Mentor Syndicate*`;
+    }
+
+    return `🔥 *DAILY VIP PERFORMANCE RECAP* 🔥
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 *Total Signals:* ${totalSignals} | 🟢 *Won:* ${wonCount}
+🎯 *Net Win Rate:* *${winRate}%*
+
+🏆 *Top Winning Signals Today:*
+${winningList || '  ✅ Algorithmic value signals landed on target!'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👉 *Claim your 3-day free VIP trial now:*
+🤖 @${botUser}`;
 }
 
 export function formatWelcome(lang = 'tr') {
