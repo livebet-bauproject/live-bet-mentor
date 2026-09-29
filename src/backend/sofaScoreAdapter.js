@@ -420,6 +420,7 @@ export const sofaScoreAdapter = {
 
                     if (!detailRes.ok && detailRes.status !== 202) return null;
 
+                    const detail = await detailRes.json();
                     let stats = null;
                     if (statsRes.status === 202) {
                         stats = { status: 'queued' };
@@ -562,6 +563,7 @@ export const sofaScoreAdapter = {
 
         const promise = (async () => {
             try {
+                const apiBase = await resolveBackendUrl();
                 const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/statistics`, {
                     signal: AbortSignal.timeout(5000)
                 });
