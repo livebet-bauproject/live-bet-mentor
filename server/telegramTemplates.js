@@ -876,6 +876,7 @@ export function formatFomoWinningCard(signal, result, finalScore = null, lang = 
     const oddsStr = (!isNaN(numOdds) && numOdds > 1.0) ? numOdds.toFixed(2) : (isTr ? 'Canlı Oran' : isDe ? 'Live-Quote' : 'Live Odds');
     const alertMin = signal.minute ? `${signal.minute}'` : '';
     const scoreStr = finalScore ? (typeof finalScore === 'object' ? `${finalScore.home}-${finalScore.away}` : finalScore) : (signal.resultScore || '');
+    const market = cleanMd(resolveMarketText(signal, lang) || signal.market || (isTr ? 'Tahmin' : isDe ? 'Tipp' : 'Pick'));
 
     if (isTr) {
         return `🎯 *DÜDÜK ÇALDI, KASA KAZANDI!* 🎯
