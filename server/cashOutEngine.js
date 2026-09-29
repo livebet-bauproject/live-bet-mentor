@@ -25,10 +25,16 @@ export class CashOutEngine {
      */
     registerSignal(signal) {
         if (!signal || !signal.id) return;
+        const initialStats = signal.matchId ? this._loadStats(signal.matchId) : { home: {}, away: {} };
+        const initialHomeReds = Number(signal.recommendation?.redCards?.home ?? initialStats.home?.['red cards'] ?? 0);
+        const initialAwayReds = Number(signal.recommendation?.redCards?.away ?? initialStats.away?.['red cards'] ?? 0);
+
         this.monitoredSignals.set(signal.id, {
             ...signal,
             registeredAt: Date.now(),
             registeredMinute: signal.minute || 0,
+            initialHomeReds,
+            initialAwayReds,
             cashOutEvaluated: false
         });
     }
@@ -93,10 +99,12 @@ export class CashOutEngine {
                 away: match.awayScore?.current ?? 0
             };
 
-            const minute = this._parseMinute(match.minute || match.status?.description);
+            const minute = this._parseMinute(match.minute ?? match.time?.currentPeriodStartTimestamp ?? match.status?.description, match);
             const stats = this._loadStats(match.id);
 
-            const targetSide = (sig.market || '').toLowerCase().includes('away') || (sig.market || '').toLowerCase().includes('deplasman') ? 'away' : 'home';
+            const marketText = (sig.market || '').toLowerCase();
+            const isTotalGoalsMarket = marketText.includes('üst') || marketText.includes('over') || marketText.includes('alt') || marketText.includes('under') || marketText.includes('gol');
+            const targetSide = marketText.includes('away') || marketText.includes('deplasman') ? 'away' : 'home';
             const oppSide = targetSide === 'home' ? 'away' : 'home';
 
             const targetTeamName = targetSide === 'home' ? (match.homeTeam?.name || sig.homeTeam) : (match.awayTeam?.name || sig.awayTeam);
@@ -105,10 +113,13 @@ export class CashOutEngine {
             let cashOutReason = null;
             let severity = 'MEDIUM';
 
-            // 1. CRITICAL: Red Card to target team (Alert immediately at ANY minute)
-            const targetReds = Number(stats[targetSide]?.['red cards'] ?? 0);
-            if (targetReds > 0) {
-                cashOutReason = `🚨 ${targetTeamName} kırmızı kart gördü (10 kişi kaldı). Acil kâr al veya riski sınırla!`;
+            // 1. CRITICAL: Red Card to target team (ONLY if a NEW red card occurred AFTER signal registration)
+            // For Total Over Goals, a red card doesn't automatically ruin the bet as defenses open up!
+            const currentTargetReds = Number(stats[targetSide]?.['red cards'] ?? (targetSide === 'home' ? match.homeRedCards : match.awayRedCards) ?? 0);
+            const initialTargetReds = targetSide === 'home' ? (sig.initialHomeReds || 0) : (sig.initialAwayReds || 0);
+
+            if (!isTotalGoalsMarket && currentTargetReds > initialTargetReds) {
+                cashOutReason = `🚨 ${targetTeamName} yeni bir kırmızı kart gördü (10 kişi kaldı). Acil kâr al veya riski sınırla!`;
                 severity = 'HIGH';
             }
 
@@ -146,7 +157,7 @@ export class CashOutEngine {
                     signalId,
                     matchId: match.id,
                     matchTitle: `${match.homeTeam?.name || sig.homeTeam} vs ${match.awayTeam?.name || sig.awayTeam}`,
-                    minute,
+                    minute: minute > 0 ? minute : (sig.minute || 65),
                     score: `${curScore.home} - ${curScore.away}`,
                     market: sig.market,
                     targetTeam: targetTeamName,
@@ -160,11 +171,28 @@ export class CashOutEngine {
         return recommendations;
     }
 
-    _parseMinute(min) {
+    _parseMinute(min, match = null) {
+        if (typeof min === 'number') {
+            if (min > 1000000000 && match?.time?.currentPeriodStartTimestamp) {
+                // It's a timestamp! Calculate elapsed minutes
+                const elapsedSec = (Date.now() / 1000) - match.time.currentPeriodStartTimestamp;
+                const baseMin = (match.status?.description?.includes('2nd') || match.status?.code === 7) ? 45 : 0;
+                return Math.min(90, Math.max(1, baseMin + Math.floor(elapsedSec / 60)));
+            }
+            return min;
+        }
         if (!min) return 0;
-        if (typeof min === 'number') return min;
-        const s = String(min).replace(/[^0-9]/g, '');
-        return parseInt(s) || 0;
+        const s = String(min).trim();
+        if (s.toLowerCase().includes('2nd') || s === '7') {
+            if (match?.time?.currentPeriodStartTimestamp) {
+                const elapsedSec = (Date.now() / 1000) - match.time.currentPeriodStartTimestamp;
+                return Math.min(90, Math.max(46, 45 + Math.floor(elapsedSec / 60)));
+            }
+            return 65; // Safe default for 2nd half
+        }
+        if (s.toLowerCase().includes('half') || s.toLowerCase().includes('ht')) return 45;
+        const digits = s.replace(/[^0-9]/g, '');
+        return parseInt(digits) || 0;
     }
 }
 
