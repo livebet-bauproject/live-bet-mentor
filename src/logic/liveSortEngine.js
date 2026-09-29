@@ -964,11 +964,13 @@ export const getTrendTimelineInfo = (bet, match, lang = 'tr') => {
     }
 
     // 6. Check if it's a "Rest of Match" / Kalan Süre bet
-    const mStr = `${bet.market || ''} ${bet.marketShort || ''} ${bet.outcome || ''}`.toLowerCase();
-    const isRest = mStr.includes('restzeit') || mStr.includes('rest of the game') || mStr.includes('rest of game') || mStr.includes('kalan süre') || mStr.includes('kalan ');
+    const marketLower = `${bet.market || ''} ${bet.marketShort || ''}`.toLowerCase();
+    const outcomeLower = String(bet.outcome || '').toLowerCase();
+    const isRest = marketLower.includes('restzeit') || marketLower.includes('rest of the game') || marketLower.includes('rest of game') || marketLower.includes('kalan süre') || marketLower.includes('kalan ') || outcomeLower.includes('kalan');
 
-    const isUnder = mStr.includes('under') || mStr.includes('unter') || mStr.includes('alt');
-    const thresholdMatch = mStr.match(/(\d+[.,]\d+)/);
+    // IMPORTANT: Check isUnder strictly on outcome, NOT on market (which is literally called "Over/Under")
+    const isUnder = outcomeLower.includes('under') || outcomeLower.includes('unter') || outcomeLower.includes('alt');
+    const thresholdMatch = (outcomeLower + ' ' + marketLower).match(/(\d+[.,]\d+)/);
     const threshold = thresholdMatch ? parseFloat(thresholdMatch[1].replace(',', '.')) : 0.5;
 
     let restGoalsNeeded = 1;
