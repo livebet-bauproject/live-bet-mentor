@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { sofaScoreAdapter } from '../backend/sofaScoreAdapter';
+import { HistoricalPatternCard } from './HistoricalPatternCard';
 
 export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
     if (!match) return null;
@@ -439,6 +440,9 @@ export const MatchLiveStatsCard = ({ match = null, lang = 'tr', t = {} }) => {
                     )}
                 </div>
             )}
+
+            {/* Historical AI Twin Pattern Matcher */}
+            <HistoricalPatternCard match={match} deltaStats={deltaStats} lang={lang} />
         </div>
     );
 };

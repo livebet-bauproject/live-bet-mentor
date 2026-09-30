@@ -317,6 +317,47 @@ class LearningEngine {
     }
 
     /**
+     * Ingests a concluded match with its timeseries to calibrate league weights & pressure conversion
+     */
+    recordArchivedMatchTelemetry(archiveRecord, timeseries) {
+        if (!archiveRecord || !Array.isArray(timeseries) || timeseries.length < 4) return;
+
+        const league = this._cleanLeague(archiveRecord.league);
+        const finalHome = Number(archiveRecord.finalScore?.home ?? 0);
+        const finalAway = Number(archiveRecord.finalScore?.away ?? 0);
+        const finalTotal = finalHome + finalAway;
+
+        // Find high-pressure phases in the match (50'-80' window)
+        const highPressureSnap = timeseries.find(s => {
+            const min = s.minute || 0;
+            const da = (Number(s.stats?.dangerousAttacks?.home) || 0) + (Number(s.stats?.dangerousAttacks?.away) || 0);
+            return min >= 50 && min <= 80 && ((s.pressure && s.pressure >= 68) || da >= 15);
+        });
+
+        if (highPressureSnap) {
+            const snapHome = Number(highPressureSnap.score?.home ?? 0);
+            const snapAway = Number(highPressureSnap.score?.away ?? 0);
+            const snapTotal = snapHome + snapAway;
+
+            // Did a goal occur after this pressure phase?
+            const goalOccurred = finalTotal > snapTotal;
+            const syntheticSignal = {
+                id: `arch_${archiveRecord.id}`,
+                match: `${archiveRecord.homeTeam} vs ${archiveRecord.awayTeam}`,
+                league,
+                minute: highPressureSnap.minute || 65,
+                market: 'OVER_GOALS',
+                scoreAtPrediction: `${snapHome}-${snapAway}`
+            };
+
+            const result = goalOccurred ? 'WON' : 'LOST';
+            const finalScoreStr = `${finalHome}-${finalAway}`;
+            this.recordSignalResult(syntheticSignal, result, finalScoreStr, archiveRecord.totalStats);
+            console.log(`[LEARNING ENGINE] 🎓 Auto-Trained from Concluded Match: ${syntheticSignal.match} (${league}) -> ${result}`);
+        }
+    }
+
+    /**
      * Bootstrap training from historical signals (run once or upon request)
      */
     bootstrapFromHistory() {

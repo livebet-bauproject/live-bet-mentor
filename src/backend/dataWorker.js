@@ -454,7 +454,19 @@ class DataWorker {
             // Manage High-Res History Buffer (Last 60 snapshots ~8 minutes)
             const existing = this.fixtures.find(old => old.id === f.id);
             const history = existing ? [...(existing.history || [])] : [];
-            const minuteHistory = existing ? [...(existing.minuteHistory || [])] : [];
+            
+            // Seed from server-persisted telemetry if local client history is empty or shallow
+            let minuteHistory = existing ? [...(existing.minuteHistory || [])] : [];
+            if (minuteHistory.length < 5 && Array.isArray(f.minuteHistory) && f.minuteHistory.length > 0) {
+                const localTimes = new Set(minuteHistory.map(s => s.timestamp));
+                for (const sSnap of f.minuteHistory) {
+                    if (!localTimes.has(sSnap.timestamp)) {
+                        minuteHistory.push(sSnap);
+                    }
+                }
+                minuteHistory.sort((a, b) => b.timestamp - a.timestamp);
+                if (minuteHistory.length > 60) minuteHistory = minuteHistory.slice(0, 60);
+            }
 
             const dqs = this.calculateDQS(f);
             if (dqs >= CONFIG.DECISION.DQS_THRESHOLD) dqsAbove++;

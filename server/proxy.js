@@ -34,6 +34,7 @@ import {
     initPersistence,
     publishBackendTunnelUrl
 } from './persistenceManager.js';
+import { matchTelemetryRecorder } from './matchTelemetryRecorder.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -797,6 +798,23 @@ app.get('/api/sync/status', (req, res) => {
 });
 
 // 1. Live Events List
+// Helper: record telemetry for all live events and attach rolling minute history
+const enrichEventsWithTelemetry = (events) => {
+    if (!Array.isArray(events) || events.length === 0) return events;
+    try {
+        matchTelemetryRecorder.recordFromLiveEvents(events);
+        return events.map(ev => {
+            const telemetry = matchTelemetryRecorder.getTelemetry(ev.id);
+            if (telemetry && telemetry.length > 0) {
+                return { ...ev, minuteHistory: telemetry };
+            }
+            return ev;
+        });
+    } catch (e) {
+        return events;
+    }
+};
+
 app.get('/api/sofascore/live', async (req, res) => {
     // 1. Check file
     let fileEvents = [];
@@ -833,7 +851,7 @@ app.get('/api/sofascore/live', async (req, res) => {
     if (isMemoryFresh && memoryEvents.length > 0) {
         return res.json({
             ...memoryLiveData,
-            events: memoryEvents
+            events: enrichEventsWithTelemetry(memoryEvents)
         });
     }
 
@@ -842,14 +860,14 @@ app.get('/api/sofascore/live', async (req, res) => {
         memoryLiveData = fileParsed ? { ...fileParsed, events: fileEvents } : { events: fileEvents };
         return res.json({
             ...(fileParsed || {}),
-            events: fileEvents
+            events: enrichEventsWithTelemetry(fileEvents)
         });
     }
 
     if (memoryEvents.length > 0) {
         return res.json({
             ...memoryLiveData,
-            events: memoryEvents
+            events: enrichEventsWithTelemetry(memoryEvents)
         });
     }
 
@@ -857,7 +875,7 @@ app.get('/api/sofascore/live', async (req, res) => {
         memoryLiveData = fileParsed ? { ...fileParsed, events: fileEvents } : { events: fileEvents };
         return res.json({
             ...(fileParsed || {}),
-            events: fileEvents
+            events: enrichEventsWithTelemetry(fileEvents)
         });
     }
 
@@ -867,17 +885,64 @@ app.get('/api/sofascore/live', async (req, res) => {
         if (direct && Array.isArray(direct.events)) {
             const clean = cleanEvents(direct.events);
             if (clean.length > 0) {
-                return res.json({ ...direct, events: clean });
+                return res.json({ ...direct, events: enrichEventsWithTelemetry(clean) });
             }
         }
     } catch(e) {}
 
     // Fallback if memory has any events
     if (memoryEvents.length > 0) {
-        return res.json({ ...memoryLiveData, events: memoryEvents });
+        return res.json({ ...memoryLiveData, events: enrichEventsWithTelemetry(memoryEvents) });
     }
 
     res.status(404).json({ error: 'Data not found yet. Initializing autonomous fetch...' });
+});
+
+// 1.5. Live Telemetry & Historical Timeseries API
+app.get('/api/match/:id/history', (req, res) => {
+    const matchId = req.params.id;
+    const history = matchTelemetryRecorder.getTelemetry(matchId, 90);
+    res.json({
+        matchId,
+        history,
+        count: history.length,
+        hasHistory: history.length > 0
+    });
+});
+
+// 1.6. Match Archive & Historical Data Export Endpoints
+app.get('/api/archive/matches', (req, res) => {
+    const limit = Math.min(200, parseInt(req.query.limit, 10) || 50);
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const list = matchTelemetryRecorder.getArchiveList(limit, offset);
+    res.json({
+        total: matchTelemetryRecorder.archiveIndex.length,
+        limit,
+        offset,
+        matches: list
+    });
+});
+
+app.get('/api/archive/match/:id', (req, res) => {
+    const match = matchTelemetryRecorder.getArchivedMatch(req.params.id);
+    if (!match) return res.status(404).json({ error: 'Archived match not found' });
+    res.json(match);
+});
+
+app.get('/api/archive/stats', (req, res) => {
+    res.json(matchTelemetryRecorder.getStats());
+});
+
+// 1.7. Autonomous Learning Weights & Performance Report
+app.get('/api/learning/weights', (req, res) => {
+    res.json(learningEngine.weights);
+});
+
+app.get('/api/learning/report', (req, res) => {
+    res.json({
+        report: learningEngine.generateReport(),
+        weights: learningEngine.weights
+    });
 });
 
 // 2. Consensus / Radar Data

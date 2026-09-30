@@ -104,6 +104,22 @@ export const sofaScoreAdapter = {
         }
         return null;
     },
+
+    /**
+     * Fetches server-persisted match telemetry history
+     */
+    async fetchMatchHistory(matchId) {
+        if (!matchId) return [];
+        try {
+            const baseUrl = await resolveBackendUrl();
+            const res = await fetch(`${baseUrl}/api/match/${matchId}/history`, { signal: AbortSignal.timeout(3500) });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data.history) ? data.history : [];
+            }
+        } catch(e) {}
+        return [];
+    },
     /**
      * Fetches the match list for the current day.
      */

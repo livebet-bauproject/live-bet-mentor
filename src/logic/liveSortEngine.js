@@ -244,6 +244,10 @@ export const calculateLast20MinMetrics = (match, signal = null, targetMinutes = 
         let bestSnap = null;
         let minDiff = Infinity;
         for (const snap of history) {
+            // Guard: Ignore unpopulated/zero snapshots if match is already in-play (minute >= 15) and current stats exist
+            const snapDA = (Number(snap.stats?.dangerousAttacks?.home) || 0) + (Number(snap.stats?.dangerousAttacks?.away) || 0);
+            if (snapDA === 0 && curDA >= 4 && currentMinute >= 15) continue;
+
             const age = now - snap.timestamp;
             const diff = Math.abs(age - targetMs);
             if (diff < minDiff) {
@@ -277,7 +281,8 @@ export const calculateLast20MinMetrics = (match, signal = null, targetMinutes = 
                 const rawDeltaShots = Math.max(0, (curTotalShots || curSog) - (oldTotalShots || oldSog));
                 const rawDeltaCorners = Math.max(0, curCorners - oldCorners);
 
-                const scale = snapAgeMin < targetMinutes ? (targetMinutes / snapAgeMin) : 1.0;
+                // Dampen scale factor to avoid aggressive multiplier spikes on short windows
+                const scale = snapAgeMin < targetMinutes ? Math.min(1.4, targetMinutes / snapAgeMin) : 1.0;
                 deltaDA = Math.round(rawDeltaDA * scale);
                 deltaShots = Math.round(rawDeltaShots * scale);
                 deltaSog = Math.round(rawDeltaSog * scale);
@@ -285,10 +290,10 @@ export const calculateLast20MinMetrics = (match, signal = null, targetMinutes = 
                 source = 'HISTORY';
 
                 historySnapDeltas = {
-                    deltaDAHome: Math.max(0, curDAHome - oldDAHome),
-                    deltaDAAway: Math.max(0, curDAAway - oldDAAway),
-                    deltaSogHome: Math.max(0, curSogHome - oldSogHome),
-                    deltaSogAway: Math.max(0, curSogAway - oldSogAway)
+                    deltaDAHome: Math.round(Math.max(0, curDAHome - oldDAHome) * scale),
+                    deltaDAAway: Math.round(Math.max(0, curDAAway - oldDAAway) * scale),
+                    deltaSogHome: Math.round(Math.max(0, curSogHome - oldSogHome) * scale),
+                    deltaSogAway: Math.round(Math.max(0, curSogAway - oldSogAway) * scale)
                 };
             }
         }
@@ -351,8 +356,10 @@ export const calculateLast20MinMetrics = (match, signal = null, targetMinutes = 
     }
 
     // CRITICAL HARD CAP: A window delta can NEVER exceed total stats of the match
-    deltaDA = Math.max(0, Math.min(curDA, deltaDA));
-    deltaShots = Math.max(0, Math.min(curTotalShots || curSog, deltaShots));
+    // And for short windows (<= 5 min), cap attacks at a physically realistic ceiling
+    const realisticWindowMaxDA = Math.max(3, Math.round(targetMinutes * 1.1));
+    deltaDA = Math.max(0, Math.min(curDA, deltaDA, realisticWindowMaxDA));
+    deltaShots = Math.max(0, Math.min(curTotalShots || curSog, deltaShots, Math.max(2, Math.round(targetMinutes * 0.4))));
     deltaSog = Math.max(0, Math.min(curSog, deltaSog));
     deltaCorners = Math.max(0, Math.min(curCorners, deltaCorners));
 
@@ -470,6 +477,13 @@ export const calculateLast20MinMetrics = (match, signal = null, targetMinutes = 
     } else if (dominantSide === 'AWAY' && historySnapDeltas && historySnapDeltas.deltaDAAway > 0) {
         teamDeltaDA = historySnapDeltas.deltaDAAway;
     }
+
+    // SANITY GUARD: teamDeltaDA cannot exceed team's match total OR the window deltaDA!
+    const maxTeamDA = dominantSide === 'HOME' ? curDAHome : (dominantSide === 'AWAY' ? curDAAway : curDA);
+    if (maxTeamDA > 0) {
+        teamDeltaDA = Math.min(teamDeltaDA, maxTeamDA);
+    }
+    teamDeltaDA = Math.min(teamDeltaDA, deltaDA);
 
     return {
         surgeScore,

@@ -5,6 +5,7 @@ import { bankrollManager } from '../logic/bankrollManager';
 import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { TradingDesk } from './TradingDesk';
 import { AuditCockpit } from './AuditCockpit';
+import { BacktestLabPanel } from './BacktestLabPanel';
 
 const SupportStaffDesk = ({
     lang = 'tr',
@@ -3154,6 +3155,36 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                     </span>
                 </button>
                 <button
+                    onClick={() => setActiveTab('backtest_lab')}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'backtest_lab' ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.25))' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'backtest_lab' ? '#f59e0b' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'backtest_lab' ? '#f59e0b' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: activeTab === 'backtest_lab' ? '0 0 15px rgba(245, 158, 11, 0.25)' : 'none'
+                    }}
+                >
+                    <span>🏛️</span>
+                    <span>{lang === 'tr' ? 'ARŞİV & BACKTEST LABORATUVARI' : (lang === 'de' ? 'ARCHIV & BACKTEST-LABOR' : 'ARCHIVE & BACKTEST LAB')}</span>
+                    <span style={{
+                        background: '#f59e0b',
+                        color: '#000',
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: '8px',
+                        fontSize: '0.65rem',
+                        fontWeight: 900
+                    }}>
+                        AI
+                    </span>
+                </button>
+                <button
                     onClick={() => setActiveTab('web_analytics')}
                     style={{
                         padding: '0.8rem 1.5rem',
@@ -3336,6 +3367,8 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                     <AnalyticsDashboard lang={lang} />
                 ) : activeTab === 'trading_desk' ? (
                     <TradingDesk lang={lang} />
+                ) : activeTab === 'backtest_lab' ? (
+                    <BacktestLabPanel lang={lang} />
                 ) : activeTab === 'office' ? (
                     <div style={{ maxWidth: '1100px' }}>
                         {/* Header Controls */}

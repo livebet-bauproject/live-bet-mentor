@@ -88,6 +88,13 @@ export const strategyEngine = {
                 }
             }
 
+            // 4. KURU BASKI TUZAĞI VETOSU (Dry Momentum Trap Guard):
+            // Kaleyi bulan şutu (İsabetli Şut) 0 olan takım rakip alanda top çevirse dahi gol üretemez.
+            const dominantSog = pressure.dominantTeam === 'HOME' ? Number(stats.shotsOnGoal?.home || 0) : Number(stats.shotsOnGoal?.away || 0);
+            if (dominantSog === 0 && minute >= 50) {
+                return { active: false }; // Şutsuz sahte baskı vetosu
+            }
+
             const team = pressure.dominantTeam === 'HOME' ? (match.homeTeam || 'Ev Sahibi') : (match.awayTeam || 'Deplasman');
             // Calibrate confidence percentage realistically (55% - 82%)
             const confidence = Math.min(82, Math.max(55, Math.round(55 + (pressure.total - threshold) * 0.4)));
