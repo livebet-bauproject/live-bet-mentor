@@ -5390,12 +5390,16 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             {/* Signal History & Bets Button */}
                             <button
                                 className="icon-ctrl-btn signal-history-btn"
-                                onClick={() => {
-                                    smartAlertService.autoResolveAlerts(matches);
-                                    setAlertHistoryList(smartAlertService.getHistory(50));
-                                    setTrackingStats(predictionTracker.getStats());
-                                    setTrackingActiveTab('ALERTS');
+                                onClick={async () => {
                                     setShowTrackingPanel(true);
+                                    setTrackingActiveTab('ALERTS');
+                                    setTrackingStats(predictionTracker.getStats());
+                                    const vipList = await smartAlertService.fetchVipHistory();
+                                    if (vipList && vipList.length > 0) {
+                                        setAlertHistoryList(vipList);
+                                    } else {
+                                        setAlertHistoryList(smartAlertService.getHistory(50));
+                                    }
                                 }}
                                 title={lang === 'tr' ? 'Sinyal Geçmişi & Tahmin Karnesi' : (lang === 'de' ? 'Signalverlauf & Wett-Historie' : 'Signal History & Bets')}
                             >
@@ -8014,8 +8018,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         transition: 'all 0.2s'
                                     }}
                                 >
-                                    <span>🔔</span>
-                                    <span>{lang === 'tr' ? 'Gelen Sinyal Geçmişi' : (lang === 'de' ? 'Verlauf smarter Signale' : 'Smart Alerts History')}</span>
+                                    <span>💎</span>
+                                    <span>{lang === 'tr' ? 'Doğrulanmış VIP Sinyalleri' : (lang === 'de' ? 'Verifizierte VIP-Signale' : 'Verified VIP Signals')}</span>
                                     {alertHistoryList.length > 0 && (
                                         <span style={{
                                             background: trackingActiveTab === 'ALERTS' ? 'rgba(0,0,0,0.3)' : '#38bdf8',
@@ -8063,40 +8067,59 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 </button>
                             </div>
 
-                            {/* TAB 1: SMART ALERTS HISTORY */}
+                            {/* TAB 1: VERIFIED VIP SIGNALS HISTORY */}
                             {trackingActiveTab === 'ALERTS' && (
                                 <div>
-                                    {/* Alert Stats Summary */}
-                                    <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.8rem', marginBottom: '1.5rem' }}>
-                                        <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'TOPLAM SİNYAL' : (lang === 'de' ? 'SIGNALE GESAMT' : 'TOTAL ALERTS')}</div>
-                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--accent-color)' }}>{alertHistoryList.length}</div>
-                                        </div>
-                                        <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAZANAN' : (lang === 'de' ? 'GEWONNEN' : 'WON')}</div>
-                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#10b981' }}>
-                                                {alertHistoryList.filter(a => a.status === 'WON').length}
+                                    {/* 💎 Institutional VIP Stats Summary */}
+                                    {(() => {
+                                        const wonCount = alertHistoryList.filter(a => a.status === 'WON').length;
+                                        const lostCount = alertHistoryList.filter(a => a.status === 'LOST').length;
+                                        const pendingCount = alertHistoryList.filter(a => a.status === 'PENDING').length;
+                                        const resolvedCount = wonCount + lostCount;
+                                        const winRate = resolvedCount > 0 ? ((wonCount / resolvedCount) * 100).toFixed(1) : '0.0';
+
+                                        return (
+                                            <div className="tracking-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.6rem', marginBottom: '1.2rem' }}>
+                                                <div style={{ background: 'rgba(56, 189, 248, 0.08)', padding: '0.7rem 0.5rem', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                                    <div style={{ fontSize: '0.65rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'TOPLAM VIP' : (lang === 'de' ? 'SIGNALE' : 'TOTAL')}</div>
+                                                    <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--accent-color)' }}>{alertHistoryList.length}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(16, 185, 129, 0.08)', padding: '0.7rem 0.5rem', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                    <div style={{ fontSize: '0.65rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAZANAN' : (lang === 'de' ? 'GEWONNEN' : 'WON')}</div>
+                                                    <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#10b981' }}>{wonCount}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(239, 68, 68, 0.08)', padding: '0.7rem 0.5rem', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                                    <div style={{ fontSize: '0.65rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAYBEDEN' : (lang === 'de' ? 'VERLOREN' : 'LOST')}</div>
+                                                    <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#ef4444' }}>{lostCount}</div>
+                                                </div>
+                                                <div style={{ background: 'rgba(251, 191, 36, 0.08)', padding: '0.7rem 0.5rem', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
+                                                    <div style={{ fontSize: '0.65rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'DEVAM EDEN' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')}</div>
+                                                    <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#fbbf24' }}>{pendingCount}</div>
+                                                </div>
+                                                <div style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(56, 189, 248, 0.15))', padding: '0.7rem 0.5rem', borderRadius: '10px', textAlign: 'center', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
+                                                    <div style={{ fontSize: '0.65rem', opacity: 0.8, marginBottom: '0.2rem', color: '#10b981', fontWeight: 800 }}>{lang === 'tr' ? 'BAŞARI ORANI' : (lang === 'de' ? 'QUOTE' : 'WIN RATE')}</div>
+                                                    <div style={{ fontSize: '1.3rem', fontWeight: 900, color: '#10b981' }}>%{winRate}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'KAYBEDEN' : (lang === 'de' ? 'VERLOREN' : 'LOST')}</div>
-                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#ef4444' }}>
-                                                {alertHistoryList.filter(a => a.status === 'LOST').length}
-                                            </div>
-                                        </div>
-                                        <div style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '0.8rem', borderRadius: '10px', textAlign: 'center' }}>
-                                            <div style={{ fontSize: '0.7rem', opacity: 0.6, marginBottom: '0.2rem' }}>{lang === 'tr' ? 'DEVAM EDEN' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')}</div>
-                                            <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fbbf24' }}>
-                                                {alertHistoryList.filter(a => a.status === 'PENDING').length}
-                                            </div>
-                                        </div>
-                                    </div>
+                                        );
+                                    })()}
 
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                        <div style={{ fontSize: '0.85rem', fontWeight: 700, opacity: 0.8 }}>{lang === 'tr' ? 'Gelen Popup & Bildirim Sinyalleri' : (lang === 'de' ? 'Eingehende Popup- & Benachrichtigungssignale' : 'Incoming Popup & Notification Signals')}</div>
+                                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span>💎</span>
+                                            <span>{lang === 'tr' ? '7/24 Otonom VIP Motoru & Telegram İle Eşzamanlı Doğrulanmış Sinyaller' : (lang === 'de' ? '24/7 Autonomer VIP-Motor & Verifizierte Telegram-Signale' : '24/7 Autonomous VIP Engine & Telegram Verified Signals')}</span>
+                                        </div>
                                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                             <button
-                                                onClick={scanFinishedAlerts}
+                                                onClick={async () => {
+                                                    setIsScanningResults(true);
+                                                    try {
+                                                        const updated = await smartAlertService.fetchVipHistory();
+                                                        if (updated) setAlertHistoryList(updated);
+                                                    } finally {
+                                                        setIsScanningResults(false);
+                                                    }
+                                                }}
                                                 disabled={isScanningResults}
                                                 style={{
                                                     background: isScanningResults ? 'rgba(56, 189, 248, 0.2)' : 'rgba(56, 189, 248, 0.1)',
@@ -8111,10 +8134,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     alignItems: 'center',
                                                     gap: '4px'
                                                 }}
-                                                title={lang === 'tr' ? "Biten maçların skorlarını canlı sorgula ve sonuçlandır" : (lang === 'de' ? "Ergebnisse beendeter Spiele abfragen und auswerten" : "Scan and settle finished matches")}
+                                                title={lang === 'tr' ? "24/7 Sunucudan en son VIP sinyalleri çek ve güncelle" : (lang === 'de' ? "Aktuelle VIP-Signale vom Server abrufen" : "Refresh VIP signals from server")}
                                             >
                                                 <span>{isScanningResults ? '⏳' : '🔄'}</span>
-                                                {isScanningResults ? (lang === 'tr' ? 'Sorgulanıyor...' : (lang === 'de' ? 'Wird abgefragt...' : 'Scanning...')) : (lang === 'tr' ? 'Biten Maçları Sorgula' : 'Settle Finished Matches')}
+                                                {isScanningResults ? (lang === 'tr' ? 'Yenileniyor...' : (lang === 'de' ? 'Wird aktualisiert...' : 'Refreshing...')) : (lang === 'tr' ? 'VIP Sinyalleri Yenile' : 'Refresh VIP Signals')}
                                             </button>
                                             {alertHistoryList.length > 0 && (
                                                 <button
@@ -8163,16 +8186,30 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     }}
                                                 >
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                                                             <span style={{
                                                                 fontSize: '0.65rem',
                                                                 fontWeight: 900,
                                                                 padding: '0.2rem 0.5rem',
                                                                 borderRadius: '6px',
-                                                                background: alert.level === 'ALEV' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                                                background: alert.level === 'ALPHA'
+                                                                    ? 'linear-gradient(135deg, #0ea5e9, #2563eb)'
+                                                                    : (alert.level === 'ALEV' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #f59e0b, #d97706)'),
                                                                 color: '#fff'
                                                             }}>
-                                                                {alert.level === 'ALEV' ? (lang === 'tr' ? '🔥 ALEV' : (lang === 'de' ? '🔥 FEUER' : '🔥 FLAME')) : (lang === 'tr' ? '⚡ SICAK' : '⚡ HOT')}
+                                                                {alert.level === 'ALPHA' ? '💎 VIP ALPHA' : (alert.level === 'ALEV' ? (lang === 'tr' ? '🔥 VIP ALEV' : '🔥 VIP FLAME') : (lang === 'tr' ? '⚡ VIP SICAK' : '⚡ VIP HOT'))}
+                                                            </span>
+                                                            <span style={{
+                                                                fontSize: '0.6rem',
+                                                                padding: '1px 5px',
+                                                                borderRadius: '4px',
+                                                                background: 'rgba(56, 189, 248, 0.12)',
+                                                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                                                color: '#38bdf8',
+                                                                fontWeight: 800,
+                                                                letterSpacing: '0.5px'
+                                                            }}>
+                                                                📱 VIP TELEGRAM
                                                             </span>
                                                             {(alert.league || alert.leagueName) && (
                                                                 <span style={{
@@ -8355,6 +8392,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                                     <div style={{ fontWeight: 800, color: '#10b981', fontSize: '0.95rem' }}>
                                                                         {rec.odds ? `${lang === 'tr' ? 'Oran:' : (lang === 'de' ? 'Quote:' : 'Odds:')} ${Number(rec.odds).toFixed(2)}` : ''}
                                                                     </div>
+                                                                    {rec.isRealOdds && (
+                                                                        <div style={{ fontSize: '0.62rem', color: '#10b981', fontWeight: 700 }}>
+                                                                            🎯 {lang === 'tr' ? 'Canlı Piyasa' : 'Live Market'}
+                                                                        </div>
+                                                                    )}
                                                                     <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>
                                                                         {lang === 'tr' ? `%${rec.confidence || 75} Güven` : (lang === 'de' ? `${rec.confidence || 75}% Konfidenz` : `${rec.confidence || 75}% Confidence`)}
                                                                     </div>
@@ -8470,10 +8512,12 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         })}
 
                                         {alertHistoryList.length === 0 && (
-                                            <div style={{ textAlign: 'center', padding: '3rem 1rem', opacity: 0.5 }}>
-                                                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔔</div>
-                                                <div>{lang === 'tr' ? 'Henüz tetiklenen sinyal bulunmuyor.' : (lang === 'de' ? 'Noch keine Signale ausgelöst.' : 'No alerts triggered yet.')}</div>
-                                                <div style={{ fontSize: '0.75rem', marginTop: '0.4rem' }}>{lang === 'tr' ? 'Canlı maçlarda yüksek baskı veya xG dominasyonu tespit edildiğinde sinyaller burada listelenecektir.' : (lang === 'de' ? 'Signale werden hier gelistet, sobald hoher Spieldruck oder xG-Dominanz erkannt wird.' : 'Alerts will appear here when high pressure or xG dominance is detected in live matches.')}</div>
+                                            <div style={{ textAlign: 'center', padding: '3rem 1rem', opacity: 0.8 }}>
+                                                <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>💎</div>
+                                                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>{lang === 'tr' ? 'Henüz Tetiklenen VIP Sinyal Bulunmuyor' : (lang === 'de' ? 'Noch keine VIP-Signale ausgelöst' : 'No VIP Signals Triggered Yet')}</div>
+                                                <div style={{ fontSize: '0.78rem', marginTop: '0.5rem', opacity: 0.75, maxWidth: '420px', margin: '0.5rem auto 0', lineHeight: 1.5 }}>
+                                                    {lang === 'tr' ? '7/24 Otonom Sunucu Motoru SofaScore canlı maçlarını tarayarak oran, xG ve lig filtresini geçen elit sinyalleri yakaladığında anında burada ve Telegram VIP grubunda listelenecektir.' : (lang === 'de' ? 'Wenn der 24/7 VIP-Motor hochwertige Quoten und xG-Spieldruck erkennt, werden verifizierte Signale hier und im VIP-Telegramm gelistet.' : 'When the 24/7 Autonomous Engine detects high-value signals meeting all odds and xG criteria, they will appear here and in the VIP Telegram.')}
+                                                </div>
                                             </div>
                                         )}
                                     </div>

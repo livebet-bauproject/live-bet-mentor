@@ -1736,6 +1736,89 @@ app.post('/api/telegram/resolve-signal', async (req, res) => {
     }
 });
 
+// ==========================================
+// 💎 VIP / INSTITUTIONAL SIGNAL HISTORY API
+// Syncs web dashboard directly with 24/7 Telegram VIP Autonomous Engine
+// ==========================================
+app.get('/api/signals/vip-history', (req, res) => {
+    try {
+        const today = telegramBot.dailyStats || { won: 0, lost: 0, pending: 0, total: 0, signals: [] };
+        const archive = telegramBot.historyArchive || [];
+
+        const todaySignals = (today.signals || []).map(s => ({ ...s, isToday: true }));
+        const archivedSignals = [];
+        for (const arch of archive) {
+            const archDate = arch.date;
+            const sigs = arch.stats?.signals || arch.signals || [];
+            for (const s of sigs) {
+                archivedSignals.push({ ...s, archiveDate: archDate, isToday: false });
+            }
+        }
+
+        // Merge and sort newest first
+        const allSignals = [...todaySignals, ...archivedSignals].sort((a, b) => {
+            const tA = a.time ? new Date(a.time).getTime() : 0;
+            const tB = b.time ? new Date(b.time).getTime() : 0;
+            return tB - tA;
+        });
+
+        let totalWon = today.won || 0;
+        let totalLost = today.lost || 0;
+        let totalPending = today.pending || 0;
+        let totalSignalsCount = today.total || 0;
+
+        for (const arch of archive) {
+            const s = arch.stats || arch;
+            totalWon += (s.won || 0);
+            totalLost += (s.lost || 0);
+            totalPending += (s.pending || 0);
+            totalSignalsCount += (s.total || 0);
+        }
+
+        const totalResolved = totalWon + totalLost;
+        const overallWinRate = totalResolved > 0 ? parseFloat(((totalWon / totalResolved) * 100).toFixed(1)) : 0;
+
+        const todayResolved = (today.won || 0) + (today.lost || 0);
+        const todayWinRate = todayResolved > 0 ? parseFloat((((today.won || 0) / todayResolved) * 100).toFixed(1)) : 0;
+
+        res.json({
+            success: true,
+            summary: {
+                total: totalSignalsCount,
+                won: totalWon,
+                lost: totalLost,
+                pending: totalPending,
+                winRate: overallWinRate,
+                today: {
+                    total: today.total || 0,
+                    won: today.won || 0,
+                    lost: today.lost || 0,
+                    pending: today.pending || 0,
+                    winRate: todayWinRate
+                }
+            },
+            signals: allSignals
+        });
+    } catch (e) {
+        console.error('[PROXY] Error serving VIP signal history:', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/signals/resolve', async (req, res) => {
+    try {
+        const { id, alertId, matchId, result, score } = req.body || {};
+        if (!result) {
+            return res.status(400).json({ error: 'Result (WON/LOST/VOID) is required' });
+        }
+        const resolved = await telegramBot.resolveSignal({ id, alertId, matchId }, result, score, false);
+        res.json({ success: !!resolved, signal: resolved });
+    } catch (e) {
+        console.error('[PROXY] Error resolving signal:', e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Notify Admin of a new member registration or upgrade request
 app.post('/api/telegram/notify-admin', async (req, res) => {
     try {

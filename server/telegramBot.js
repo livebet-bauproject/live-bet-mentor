@@ -515,6 +515,7 @@ class TelegramBot {
             homeTeam: alert.homeTeam || '',
             awayTeam: alert.awayTeam || '',
             match: `${alert.homeTeam} vs ${alert.awayTeam}`,
+            league: alert.league || alert.tournament?.name || '',
             level: alert.level,
             time: new Date().toISOString(),
             scoreAtPrediction: alert.score || '0-0',

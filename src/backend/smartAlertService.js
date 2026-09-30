@@ -28,6 +28,120 @@ class SmartAlertService {
         this.cooldownMinutes = 15; // Increased cooldown to 15 mins
         this.currentUserId = null;
         this.currentTier = 'trial';
+
+        // 💎 24/7 Autonomous VIP Signals State (Synced with Telegram VIP Bot)
+        this.vipHistory = [];
+        this.vipSummary = null;
+        this.lastVipFetch = 0;
+        try {
+            const rawVip = localStorage.getItem('vip_alert_history');
+            if (rawVip && rawVip !== 'undefined') this.vipHistory = JSON.parse(rawVip);
+            const rawSumm = localStorage.getItem('vip_alert_summary');
+            if (rawSumm && rawSumm !== 'undefined') this.vipSummary = JSON.parse(rawSumm);
+        } catch (e) {
+            this.vipHistory = [];
+            this.vipSummary = null;
+        }
+
+        // Trigger immediate background sync
+        if (typeof window !== 'undefined') {
+            setTimeout(() => this.fetchVipHistory().catch(() => {}), 1500);
+        }
+    }
+
+    /**
+     * Map a raw server VIP signal into the institutional alert structure
+     */
+    mapVipSignalToAlert(sig) {
+        if (!sig) return null;
+        const rec = sig.recommendation || {};
+        const timestamp = sig.time ? new Date(sig.time).getTime() : Date.now();
+        const marketTitle = sig.market || rec.predictionText || rec.marketLabel || 'VIP Sinyal';
+        return {
+            id: sig.id || `vip_${sig.matchId || Date.now()}`,
+            matchId: sig.matchId,
+            timestamp: timestamp,
+            time: sig.time,
+            match: sig.match || `${sig.homeTeam} vs ${sig.awayTeam}`,
+            homeTeam: sig.homeTeam || '',
+            awayTeam: sig.awayTeam || '',
+            league: sig.league || '',
+            leagueName: sig.league || '',
+            minute: sig.minute || 0,
+            score: sig.scoreAtPrediction || sig.score || '0-0',
+            finalScore: sig.resultScore || null,
+            level: sig.level === 'ALPHA' ? 'ALPHA' : (sig.level || 'HOT'),
+            recommendation: {
+                predictionText: marketTitle,
+                marketLabel: marketTitle,
+                marketKey: rec.marketKey || 'market_vip',
+                odds: rec.odds || null,
+                isRealOdds: rec.isRealOdds || false,
+                confidence: rec.confidence || 85,
+                reasoning: rec.reasoning || [],
+                redCards: rec.redCards || { home: 0, away: 0 }
+            },
+            status: sig.status || 'PENDING',
+            isVip: true,
+            source: 'TELEGRAM_VIP',
+            resultScore: sig.resultScore || null,
+            resolvedAt: sig.resolvedAt || null
+        };
+    }
+
+    /**
+     * Fetch institutional VIP signal history directly from 24/7 server
+     */
+    async fetchVipHistory() {
+        try {
+            const proxyBase = getApiBaseUrl();
+            const res = await fetch(`${proxyBase}/api/signals/vip-history`);
+            if (!res.ok) return (this.vipHistory && this.vipHistory.length > 0) ? this.vipHistory : this.alertHistory;
+            const data = await res.json();
+            if (data && data.success && Array.isArray(data.signals)) {
+                this.vipSummary = data.summary;
+                const mapped = data.signals.map(s => this.mapVipSignalToAlert(s)).filter(Boolean);
+
+                // Detect new incoming pending signals to trigger Toast + Audio!
+                const prevKnownIds = new Set(this.vipHistory.map(v => String(v.id)));
+                for (const item of mapped) {
+                    if (!prevKnownIds.has(String(item.id)) && item.status === 'PENDING') {
+                        const ageMs = Date.now() - (item.timestamp || Date.now());
+                        // Only notify if within last 15 minutes
+                        if (ageMs < 15 * 60 * 1000) {
+                            this.notify(item);
+                        }
+                    }
+                }
+
+                this.vipHistory = mapped;
+                try {
+                    localStorage.setItem('vip_alert_history', JSON.stringify(mapped.slice(0, 100)));
+                    if (data.summary) {
+                        localStorage.setItem('vip_alert_summary', JSON.stringify(data.summary));
+                    }
+                } catch (e) {}
+                return mapped;
+            }
+        } catch (e) {
+            console.warn('[SmartAlertService] fetchVipHistory error:', e.message);
+        }
+        return (this.vipHistory && this.vipHistory.length > 0) ? this.vipHistory : this.alertHistory;
+    }
+
+    /**
+     * Get VIP summary scorecard
+     */
+    getVipSummary() {
+        if (this.vipSummary) return this.vipSummary;
+        const list = (this.vipHistory && this.vipHistory.length > 0) ? this.vipHistory : this.alertHistory;
+        const total = list.length;
+        const won = list.filter(s => s.status === 'WON').length;
+        const lost = list.filter(s => s.status === 'LOST').length;
+        const pending = list.filter(s => s.status === 'PENDING').length;
+        const resolved = won + lost;
+        const winRate = resolved > 0 ? parseFloat(((won / resolved) * 100).toFixed(1)) : 0;
+        return { total, won, lost, pending, winRate };
     }
 
     saveLocks() {
@@ -557,6 +671,24 @@ class SmartAlertService {
      */
     checkMatches(matches, signals) {
         const now = Date.now();
+        // Periodically poll 24/7 Autonomous VIP engine
+        if (!this.lastVipFetch || (now - this.lastVipFetch > 25 * 1000)) {
+            this.lastVipFetch = now;
+            this.fetchVipHistory().catch(() => {});
+        }
+
+        // Clean old active alerts (older than 20 mins)
+        this.activeAlerts = this.activeAlerts.filter(a =>
+            (now - a.timestamp) < 20 * 60 * 1000
+        );
+
+        // Strict Institutional Policy: Weak client-side heuristic generation is deactivated.
+        // Signals and alarms are exclusively governed by the 24/7 Autonomous VIP Signal Engine.
+        return [];
+    }
+
+    legacyCheckMatches(matches, signals) {
+        const now = Date.now();
         const newAlerts = [];
 
         matches.forEach(match => {
@@ -707,23 +839,43 @@ class SmartAlertService {
      * Update alert result after match ends
      */
     updateAlertResult(alertId, result, finalScore = null) {
-        const alert = this.alertHistory.find(a => a.id === alertId);
+        let scoreStr = null;
+        if (finalScore) {
+            scoreStr = typeof finalScore === 'object'
+                ? `${finalScore.home ?? 0}-${finalScore.away ?? 0}`
+                : String(finalScore);
+        }
+
+        // 1. Update VIP history
+        const vip = (this.vipHistory || []).find(a => String(a.id) === String(alertId));
+        if (vip) {
+            vip.status = result;
+            if (scoreStr) vip.finalScore = scoreStr;
+            vip.resolvedAt = new Date().toISOString();
+            try {
+                localStorage.setItem('vip_alert_history', JSON.stringify(this.vipHistory.slice(0, 100)));
+            } catch (e) {}
+
+            // Persist to 24/7 server
+            try {
+                const proxyBase = getApiBaseUrl();
+                fetch(`${proxyBase}/api/signals/resolve`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: alertId, result, score: vip.finalScore || scoreStr })
+                }).catch(() => {});
+            } catch (e) {}
+        }
+
+        // 2. Update legacy alert history if present
+        const alert = this.alertHistory.find(a => String(a.id) === String(alertId));
         if (alert) {
             alert.status = result; // 'WON', 'LOST', 'VOID'
             alert.resolvedAt = Date.now();
-            if (finalScore) {
-                alert.finalScore = typeof finalScore === 'object'
-                    ? `${finalScore.home ?? 0}-${finalScore.away ?? 0}`
-                    : String(finalScore);
-            } else if (!alert.finalScore) {
-                alert.finalScore = typeof alert.score === 'object'
-                    ? `${alert.score.home ?? 0}-${alert.score.away ?? 0}`
-                    : (alert.score || null);
-            }
+            if (scoreStr) alert.finalScore = scoreStr;
             try {
                 localStorage.setItem('alert_history', JSON.stringify(this.alertHistory));
             } catch (e) {}
-            // Resolution is handled centrally on the server by autoResolveSignals
         }
     }
 
@@ -731,33 +883,36 @@ class SmartAlertService {
      * Get statistics
      */
     getStats() {
-        const resolved = this.alertHistory.filter(a => a.status !== 'PENDING');
+        const sourceList = (this.vipHistory && this.vipHistory.length > 0) ? this.vipHistory : this.alertHistory;
+        const resolved = sourceList.filter(a => a.status === 'WON' || a.status === 'LOST');
         const won = resolved.filter(a => a.status === 'WON').length;
         const lost = resolved.filter(a => a.status === 'LOST').length;
         const total = won + lost;
 
         const byLevel = {
+            ALPHA: { won: 0, total: 0 },
             ALEV: { won: 0, total: 0 },
             SICAK: { won: 0, total: 0 }
         };
 
         resolved.forEach(a => {
-            if (a.level === 'ALEV' || a.level === 'SICAK') {
-                byLevel[a.level].total++;
-                if (a.status === 'WON') byLevel[a.level].won++;
+            const lvl = a.level === 'ALPHA' ? 'ALPHA' : (a.level === 'ALEV' ? 'ALEV' : 'SICAK');
+            if (byLevel[lvl]) {
+                byLevel[lvl].total++;
+                if (a.status === 'WON') byLevel[lvl].won++;
             }
         });
 
         return {
-            totalAlerts: this.alertHistory.length,
+            totalAlerts: sourceList.length,
             resolved: total,
-            pending: this.alertHistory.filter(a => a.status === 'PENDING').length,
+            pending: sourceList.filter(a => a.status === 'PENDING').length,
             won,
             lost,
             accuracy: total > 0 ? ((won / total) * 100).toFixed(1) : 0,
             byLevel,
-            last7Days: this.alertHistory.filter(a =>
-                (Date.now() - a.timestamp) < 7 * 24 * 60 * 60 * 1000
+            last7Days: sourceList.filter(a =>
+                (Date.now() - (a.timestamp || 0)) < 7 * 24 * 60 * 60 * 1000
             ).length
         };
     }
@@ -770,9 +925,12 @@ class SmartAlertService {
     }
 
     /**
-     * Get recent history (Plan-aware)
+     * Get recent history (prioritizes institutional VIP signals)
      */
     getHistory(limit = 50) {
+        if (this.vipHistory && this.vipHistory.length > 0) {
+            return this.vipHistory.slice(0, limit);
+        }
         return this.alertHistory.slice(0, limit);
     }
 
@@ -781,8 +939,12 @@ class SmartAlertService {
      */
     clearHistory() {
         this.alertHistory = [];
+        this.vipHistory = [];
+        this.vipSummary = null;
         try {
             localStorage.removeItem('alert_history');
+            localStorage.removeItem('vip_alert_history');
+            localStorage.removeItem('vip_alert_summary');
         } catch (e) {}
     }
 
