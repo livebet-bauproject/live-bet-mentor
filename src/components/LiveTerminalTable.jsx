@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo, parseNumericMinute } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
@@ -156,12 +156,54 @@ export const LiveTerminalTable = ({
         });
     }, [matches, sortColumn, sortDirection, signals, opportunitiesMap]);
 
+    // Freeze table row order while a match is expanded to prevent flickering and jumping every 2s
+    const frozenOrderRef = useRef(null);
+
+    useEffect(() => {
+        if (expandedMatchId !== null) {
+            if (!frozenOrderRef.current && matches.length > 0) {
+                frozenOrderRef.current = matches.map(m => String(m.id));
+            }
+        } else {
+            frozenOrderRef.current = null;
+        }
+    }, [expandedMatchId, matches]);
+
+    const displayMatches = useMemo(() => {
+        const baseList = sortedMatches;
+        if (!expandedMatchId || !frozenOrderRef.current || frozenOrderRef.current.length === 0) {
+            return baseList;
+        }
+
+        const matchMap = new Map();
+        baseList.forEach(m => matchMap.set(String(m.id), m));
+
+        const ordered = [];
+        const seen = new Set();
+
+        frozenOrderRef.current.forEach(id => {
+            if (matchMap.has(id)) {
+                ordered.push(matchMap.get(id));
+                seen.add(id);
+            }
+        });
+
+        baseList.forEach(m => {
+            const id = String(m.id);
+            if (!seen.has(id)) {
+                ordered.push(m);
+            }
+        });
+
+        return ordered;
+    }, [sortedMatches, expandedMatchId]);
+
     const handleRowClick = (match, e) => {
         // Prevent accordion trigger when clicking buttons or links
         if (e.target.closest('button') || e.target.closest('.tb-action-ignore')) {
             return;
         }
-        const nextId = expandedMatchId === match.id ? null : match.id;
+        const nextId = String(expandedMatchId) === String(match.id) ? null : match.id;
         setExpandedMatchId(nextId);
         if (nextId && dataWorker && typeof dataWorker.setSelectedMatch === 'function') {
             dataWorker.setSelectedMatch(match.id);
@@ -799,7 +841,7 @@ export const LiveTerminalTable = ({
                                                     </div>
 
                                                     {/* Right: Quick Action & Signal Card */}
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', justifyContent: 'space-between' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                                                         {/* 📊 CANLI PİYASA ORANLARI (Live Market Odds Board) */}
                                                         {(() => {
                                                             const hasAnyOdds = (oddsHome && oddsHome !== '-') || (oddsAway && oddsAway !== '-') || (fullOdds && (
@@ -835,8 +877,8 @@ export const LiveTerminalTable = ({
                                                                     padding: '0.85rem 1rem',
                                                                     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)'
                                                                 }}>
-                                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                                                                        <span style={{ fontSize: '0.76rem', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.3px' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '6px' }}>
+                                                                        <span style={{ fontSize: '0.76rem', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px', letterSpacing: '0.3px', flexShrink: 0 }}>
                                                                             <span>📊</span>
                                                                             <span>{lang === 'tr' ? 'CANLI PİYASA ORANLARI' : (lang === 'de' ? 'LIVE-MARKTQUOTEN' : 'LIVE MARKET ODDS')}</span>
                                                                         </span>
@@ -847,11 +889,12 @@ export const LiveTerminalTable = ({
                                                                             borderRadius: '4px',
                                                                             background: hasAnyOdds ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
                                                                             color: hasAnyOdds ? '#34d399' : 'var(--tb-text-muted)',
-                                                                            border: `1px solid ${hasAnyOdds ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`
+                                                                            border: `1px solid ${hasAnyOdds ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+                                                                            whiteSpace: 'nowrap'
                                                                         }}>
                                                                             {hasAnyOdds 
-                                                                                ? (lang === 'tr' ? '🟢 CANLI PİYASA TAHTASI' : (lang === 'de' ? '🟢 LIVE-TAFEL' : '🟢 LIVE BOARD'))
-                                                                                : (lang === 'tr' ? '⚪ ASKIDA / ORAN YOK' : (lang === 'de' ? '⚪ AUSGESETZT' : '⚪ SUSPENDED'))}
+                                                                                ? (lang === 'tr' ? '🟢 CANLI TAHTA' : (lang === 'de' ? '🟢 LIVE-TAFEL' : '🟢 LIVE BOARD'))
+                                                                                : (lang === 'tr' ? '⚪ ASKIDA' : (lang === 'de' ? '⚪ AUSGESETZT' : '⚪ SUSPENDED'))}
                                                                         </span>
                                                                     </div>
 
@@ -880,9 +923,11 @@ export const LiveTerminalTable = ({
                                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
                                                                             {/* 1X2 Match Winner */}
                                                                             <div>
-                                                                                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                                                                                    <span>{lang === 'tr' ? 'MAÇ SONUCU (1X2)' : (lang === 'de' ? 'SPIELAUSGANG (1X2)' : 'FULL-TIME (1X2)')}</span>
-                                                                                    <span style={{ opacity: 0.7 }}>{m.homeTeam?.slice(0, 10)} - {m.awayTeam?.slice(0, 10)}</span>
+                                                                                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                                                                    <span style={{ flexShrink: 0 }}>{lang === 'tr' ? 'MAÇ SONUCU (1X2)' : (lang === 'de' ? 'SPIELAUSGANG (1X2)' : 'FULL-TIME (1X2)')}</span>
+                                                                                    <span style={{ opacity: 0.75, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }} title={`${m.homeTeam} - ${m.awayTeam}`}>
+                                                                                        {m.homeTeam} - {m.awayTeam}
+                                                                                    </span>
                                                                                 </div>
                                                                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                                                                                     <div style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '6px', padding: '5px 8px', textAlign: 'center' }}>
@@ -1449,7 +1494,7 @@ export const LiveTerminalTable = ({
                                 {renderSortIcon('heat')}
                             </span>
                         </th>
-                        <th style={{ width: '72px', textAlign: 'center' }}>{lang === 'tr' ? '1X2 CANLI' : (lang === 'de' ? '1X2 LIVE' : '1X2 LIVE')}</th>
+                        <th style={{ width: '108px', minWidth: '108px', textAlign: 'center' }}>{lang === 'tr' ? '1X2 CANLI' : (lang === 'de' ? '1X2 LIVE' : '1X2 LIVE')}</th>
                         <th 
                             className={`sortable ${sortColumn === 'pressure' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('pressure')}
@@ -1510,7 +1555,7 @@ export const LiveTerminalTable = ({
                     </tr>
                 </thead>
                 <tbody>
-                    {sortedMatches.length === 0 ? (
+                    {displayMatches.length === 0 ? (
                         <tr>
                             <td colSpan={14} style={{ padding: '0', border: 'none' }}>
                                 {terminalCategoryFilter === 'PINNED' ? (
@@ -1535,9 +1580,9 @@ export const LiveTerminalTable = ({
                             </td>
                         </tr>
                     ) : (
-                        sortedMatches.map(m => {
+                        displayMatches.map(m => {
                             const d = computeMatchData(m);
-                            const isExpanded = expandedMatchId === m.id;
+                            const isExpanded = String(expandedMatchId) === String(m.id);
                             const {
                                 signal, isPinned, rawHeat, heat, opp, heatScore, rawHeatLevel, heatLevel, heatIcon, windowMomentum, last20,
                                 possHome, possAway, sogHome, sogAway, daHome, daAway, daDiff, xgHome, xgAway,
@@ -1700,14 +1745,14 @@ export const LiveTerminalTable = ({
                                         </td>
 
                                         {/* 1X2 Odds */}
-                                        <td className="tb-stat-cell" style={{ fontSize: '0.72rem' }} title={`1X2: ${oddsHome} | ${oddsDraw} | ${oddsAway}`}>
+                                        <td className="tb-stat-cell" style={{ width: '108px', minWidth: '108px', fontSize: '0.72rem', padding: '6px 4px', textAlign: 'center' }} title={`1X2: ${oddsHome} | ${oddsDraw} | ${oddsAway}`}>
                                             {oddsHome !== '-' ? (
-                                                <span style={{ fontWeight: 800, whiteSpace: 'nowrap' }}>
-                                                    <span style={{ color: '#38bdf8' }}>{oddsHome}</span>
-                                                    <span style={{ opacity: 0.35, margin: '0 3px' }}>/</span>
-                                                    <span style={{ color: '#94a3b8' }}>{oddsDraw}</span>
-                                                    <span style={{ opacity: 0.35, margin: '0 3px' }}>/</span>
-                                                    <span style={{ color: '#f43f5e' }}>{oddsAway}</span>
+                                                <span style={{ fontWeight: 800, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
+                                                    <span style={{ color: '#38bdf8', padding: '1px 3px', borderRadius: '3px', background: 'rgba(56, 189, 248, 0.08)' }}>{oddsHome}</span>
+                                                    <span style={{ opacity: 0.35 }}>/</span>
+                                                    <span style={{ color: '#94a3b8', padding: '1px 3px', borderRadius: '3px', background: 'rgba(255, 255, 255, 0.04)' }}>{oddsDraw}</span>
+                                                    <span style={{ opacity: 0.35 }}>/</span>
+                                                    <span style={{ color: '#f43f5e', padding: '1px 3px', borderRadius: '3px', background: 'rgba(244, 63, 94, 0.08)' }}>{oddsAway}</span>
                                                 </span>
                                             ) : (
                                                 <span style={{ color: 'var(--tb-text-muted)' }}>-</span>
@@ -1808,7 +1853,7 @@ export const LiveTerminalTable = ({
 
                                     {/* Inline Accordion Detail Tray */}
                                     {isExpanded && (
-                                        <tr className="tb-expanded-row">
+                                        <tr className="tb-expanded-row" onClick={(e) => e.stopPropagation()}>
                                             <td colSpan={14}>
                                                 {renderExpandedTray(m, d)}
                                             </td>
@@ -1824,7 +1869,7 @@ export const LiveTerminalTable = ({
 
         {/* MOBILE COMPACT TABLE VIEW (Ultra-dense zero-horizontal-scroll live table) */}
         <div className="tb-mobile-compact-view">
-            {sortedMatches.length === 0 ? (
+            {displayMatches.length === 0 ? (
                 terminalCategoryFilter === 'PINNED' ? (
                     <div className="tb-pinned-empty-state">
                         <div className="tb-pinned-empty-icon">⭐</div>
@@ -1873,9 +1918,9 @@ export const LiveTerminalTable = ({
                         </div>
                     </div>
 
-                    {sortedMatches.map(m => {
+                    {displayMatches.map(m => {
                         const d = computeMatchData(m);
-                        const isExpanded = expandedMatchId === m.id;
+                        const isExpanded = String(expandedMatchId) === String(m.id);
                         return (
                             <div
                                 key={`mc-${m.id}`}

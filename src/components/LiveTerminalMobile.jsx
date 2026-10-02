@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
@@ -23,6 +23,12 @@ const StarIcon = ({ filled = false, size = 14 }) => (
         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
 );
+
+const formatOddsVal = (val) => {
+    if (!val || val === '-') return '-';
+    const num = parseFloat(val);
+    return (!isNaN(num) && num > 1.0) ? num.toFixed(2) : '-';
+};
 
 export const LiveTerminalMobile = ({
     matches = [],
@@ -52,11 +58,56 @@ export const LiveTerminalMobile = ({
     const [expandedMatchId, setExpandedMatchId] = useState(null);
     const [trackedMatchIds, setTrackedMatchIds] = useState(() => new Set());
 
+    // Freeze card sequence while a match is expanded to eliminate jumping/closing every 2s
+    const frozenOrderRef = useRef(null);
+
+    useEffect(() => {
+        if (expandedMatchId !== null) {
+            if (!frozenOrderRef.current && matches.length > 0) {
+                frozenOrderRef.current = matches.map(m => String(m.id));
+            }
+        } else {
+            frozenOrderRef.current = null;
+        }
+    }, [expandedMatchId, matches]);
+
+    const displayMatches = useMemo(() => {
+        if (!expandedMatchId || !frozenOrderRef.current || frozenOrderRef.current.length === 0) {
+            return matches;
+        }
+
+        const matchMap = new Map();
+        matches.forEach(m => matchMap.set(String(m.id), m));
+
+        const ordered = [];
+        const seen = new Set();
+
+        frozenOrderRef.current.forEach(id => {
+            if (matchMap.has(id)) {
+                ordered.push(matchMap.get(id));
+                seen.add(id);
+            }
+        });
+
+        matches.forEach(m => {
+            const id = String(m.id);
+            if (!seen.has(id)) {
+                ordered.push(m);
+            }
+        });
+
+        return ordered;
+    }, [matches, expandedMatchId]);
+
     const handleCardClick = (match, e) => {
         if (e.target.closest('button') || e.target.closest('.tb-action-ignore')) {
             return;
         }
-        setExpandedMatchId(prev => prev === match.id ? null : match.id);
+        const nextId = String(expandedMatchId) === String(match.id) ? null : match.id;
+        setExpandedMatchId(nextId);
+        if (nextId && dataWorker && typeof dataWorker.setSelectedMatch === 'function') {
+            dataWorker.setSelectedMatch(match.id);
+        }
     };
 
     const parseScores = (score) => {
@@ -209,8 +260,8 @@ export const LiveTerminalMobile = ({
 
     return (
         <div className={`tb-mobile-stream ${hideInTableMode ? 'hide-in-table-mode' : ''}`}>
-            {matches.map(m => {
-                const isExpanded = expandedMatchId === m.id;
+            {displayMatches.map(m => {
+                const isExpanded = String(expandedMatchId) === String(m.id);
                 const signal = signals[m.id];
                 const isPinned = pinnedMatchIds.has(m.id);
                 const rawHeat = calculateMatchHeatScore(m, signal);
@@ -241,9 +292,13 @@ export const LiveTerminalMobile = ({
                     const yellowHome = Number(m.cards?.home?.yellow || m.stats?.cards?.home?.yellow || 0);
                     const yellowAway = Number(m.cards?.away?.yellow || m.stats?.cards?.away?.yellow || 0);
 
-                    const oddsHome = m.odds?.home || m.liveOdds?.home || '-';
-                    const oddsDraw = m.odds?.draw || m.liveOdds?.draw || '-';
-                    const oddsAway = m.odds?.away || m.liveOdds?.away || '-';
+                    const rawHome = m.odds?.home || m.liveOdds?.home || m.matchedOdds?.home || '-';
+                    const rawDraw = m.odds?.draw || m.liveOdds?.draw || m.matchedOdds?.draw || '-';
+                    const rawAway = m.odds?.away || m.liveOdds?.away || m.matchedOdds?.away || '-';
+                    const oddsHome = formatOddsVal(rawHome);
+                    const oddsDraw = formatOddsVal(rawDraw);
+                    const oddsAway = formatOddsVal(rawAway);
+                    const fullOdds = m.odds || m.liveOdds || m.matchedOdds || null;
                     const hasOdds = oddsHome !== '-' || oddsDraw !== '-' || oddsAway !== '-';
                     const minStr = String(m?.minute || '').trim();
                     const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
@@ -450,13 +505,43 @@ export const LiveTerminalMobile = ({
 
                             {/* Line 4: 1X2 Live Odds Row (If available) */}
                             {hasOdds && (
-                                <div className="tb-m-odds-row">
-                                    <span className="tb-m-odds-label">1X2:</span>
-                                    <span className="tb-m-odds-val">1: <strong>{oddsHome}</strong></span>
-                                    <span className="tb-m-odds-sep">•</span>
-                                    <span className="tb-m-odds-val">X: <strong>{oddsDraw}</strong></span>
-                                    <span className="tb-m-odds-sep">•</span>
-                                    <span className="tb-m-odds-val">2: <strong>{oddsAway}</strong></span>
+                                <div className="tb-m-odds-row" style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    background: 'rgba(15, 23, 42, 0.65)',
+                                    border: '1px solid rgba(56, 189, 248, 0.18)',
+                                    borderRadius: '6px',
+                                    padding: '3px 8px',
+                                    margin: '5px 0',
+                                    fontSize: '0.72rem'
+                                }}>
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.5px' }}>1X2:</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                        <span style={{ color: '#94a3b8', fontSize: '0.62rem' }}>1</span>
+                                        <strong style={{ color: '#38bdf8' }}>{oddsHome}</strong>
+                                    </span>
+                                    <span style={{ color: 'rgba(255, 255, 255, 0.2)' }}>•</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                        <span style={{ color: '#94a3b8', fontSize: '0.62rem' }}>X</span>
+                                        <strong style={{ color: '#f1f5f9' }}>{oddsDraw}</strong>
+                                    </span>
+                                    <span style={{ color: 'rgba(255, 255, 255, 0.2)' }}>•</span>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                        <span style={{ color: '#94a3b8', fontSize: '0.62rem' }}>2</span>
+                                        <strong style={{ color: '#f43f5e' }}>{oddsAway}</strong>
+                                    </span>
+                                    <span style={{
+                                        marginLeft: 'auto',
+                                        fontSize: '0.58rem',
+                                        color: '#34d399',
+                                        background: 'rgba(16, 185, 129, 0.12)',
+                                        padding: '1px 5px',
+                                        borderRadius: '3px',
+                                        fontWeight: 800
+                                    }}>
+                                        {lang === 'tr' ? 'CANLI' : (lang === 'de' ? 'LIVE' : 'LIVE')}
+                                    </span>
                                 </div>
                             )}
 
@@ -557,9 +642,37 @@ export const LiveTerminalMobile = ({
                                     }
 
                                     if (isBetReady) {
+                                        const oppMarket = m.opportunityData?.suggestedMarket;
+                                        const oddsObj = fullOdds || m.odds || m.liveOdds || m.matchedOdds;
+                                        const predOddsRaw = signal.odds || oppMarket?.odds || (
+                                            oddsObj ? (
+                                                (predDisplay.includes(m.homeTeam) || predDisplay.includes('MS 1') || predDisplay.includes('Ev'))
+                                                    ? (oddsObj.nextGoal?.home || oddsObj.home)
+                                                    : (predDisplay.includes(m.awayTeam) || predDisplay.includes('MS 2') || predDisplay.includes('Dep'))
+                                                        ? (oddsObj.nextGoal?.away || oddsObj.away)
+                                                        : (predDisplay.includes('Üst') || predDisplay.includes('Über') || predDisplay.includes('Over'))
+                                                            ? (oddsObj.overUnder?.['2.5']?.over || oddsObj.overUnder?.['1.5']?.over)
+                                                            : null
+                                            ) : null
+                                        );
+                                        const numOdds = parseFloat(predOddsRaw);
+                                        const hasOddsVal = !isNaN(numOdds) && numOdds >= 1.05 && numOdds <= 25.0;
+
                                         return (
-                                            <span className="tb-signal-badge tb-signal-bet" style={{ width: '100%', justifyContent: 'center' }}>
-                                                ✓ {predDisplay}
+                                            <span className="tb-signal-badge tb-signal-bet" style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span>✓ {predDisplay}</span>
+                                                {hasOddsVal && (
+                                                    <span style={{
+                                                        background: 'rgba(0, 0, 0, 0.22)',
+                                                        color: '#fff',
+                                                        padding: '1px 5px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '0.62rem',
+                                                        fontWeight: 800
+                                                    }}>
+                                                        @{numOdds.toFixed(2)}
+                                                    </span>
+                                                )}
                                             </span>
                                         );
                                     }
@@ -641,6 +754,190 @@ export const LiveTerminalMobile = ({
                                             </button>
                                         )}
                                     </div>
+
+                                    {/* 📊 CANLI PİYASA ORANLARI (Mobile Live Market Odds Board) */}
+                                    {(() => {
+                                        const hasAnyOdds = hasOdds || (fullOdds && (
+                                            fullOdds.home || fullOdds.away || fullOdds.draw ||
+                                            fullOdds.doubleChance || fullOdds.overUnder || fullOdds.nextGoal || fullOdds.btts
+                                        ));
+
+                                        const ftHome = formatOddsVal(fullOdds?.home || oddsHome);
+                                        const ftDraw = formatOddsVal(fullOdds?.draw || oddsDraw);
+                                        const ftAway = formatOddsVal(fullOdds?.away || oddsAway);
+
+                                        const ou25 = fullOdds?.overUnder?.['2.5'] || fullOdds?.overUnder?.['1.5'] || fullOdds?.overUnder?.['0.5'] || null;
+                                        const ouLine = fullOdds?.overUnder?.['2.5'] ? '2.5' : (fullOdds?.overUnder?.['1.5'] ? '1.5' : (fullOdds?.overUnder?.['0.5'] ? '0.5' : '2.5'));
+                                        const ouOver = ou25 ? formatOddsVal(ou25.over) : '-';
+                                        const ouUnder = ou25 ? formatOddsVal(ou25.under) : '-';
+
+                                        const dc1X = fullOdds?.doubleChance?.['1X'] ? formatOddsVal(fullOdds.doubleChance['1X']) : '-';
+                                        const dc12 = fullOdds?.doubleChance?.['12'] ? formatOddsVal(fullOdds.doubleChance['12']) : '-';
+                                        const dcX2 = fullOdds?.doubleChance?.['X2'] ? formatOddsVal(fullOdds.doubleChance['X2']) : '-';
+
+                                        const ngHome = fullOdds?.nextGoal?.home ? formatOddsVal(fullOdds.nextGoal.home) : '-';
+                                        const ngNoGoal = fullOdds?.nextGoal?.noGoal ? formatOddsVal(fullOdds.nextGoal.noGoal) : '-';
+                                        const ngAway = fullOdds?.nextGoal?.away ? formatOddsVal(fullOdds.nextGoal.away) : '-';
+
+                                        const bttsYes = fullOdds?.btts?.yes ? formatOddsVal(fullOdds.btts.yes) : '-';
+                                        const bttsNo = fullOdds?.btts?.no ? formatOddsVal(fullOdds.btts.no) : '-';
+
+                                        return (
+                                            <div style={{
+                                                background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.8) 100%)',
+                                                border: '1px solid rgba(56, 189, 248, 0.25)',
+                                                borderRadius: '8px',
+                                                padding: '8px 10px',
+                                                marginTop: '6px'
+                                            }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
+                                                    <span style={{ fontSize: '0.72rem', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                        <span>📊</span>
+                                                        <span>{lang === 'tr' ? 'CANLI PİYASA ORANLARI' : (lang === 'de' ? 'LIVE-MARKTQUOTEN' : 'LIVE MARKET ODDS')}</span>
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: '0.58rem',
+                                                        fontWeight: 800,
+                                                        padding: '1px 6px',
+                                                        borderRadius: '4px',
+                                                        background: hasAnyOdds ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                                        color: hasAnyOdds ? '#34d399' : 'var(--tb-text-muted)',
+                                                        border: `1px solid ${hasAnyOdds ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`,
+                                                        whiteSpace: 'nowrap'
+                                                    }}>
+                                                        {hasAnyOdds 
+                                                            ? (lang === 'tr' ? '🟢 CANLI TAHTA' : (lang === 'de' ? '🟢 LIVE-TAFEL' : '🟢 LIVE BOARD'))
+                                                            : (lang === 'tr' ? '⚪ ASKIDA' : (lang === 'de' ? '⚪ AUSGESETZT' : '⚪ SUSPENDED'))}
+                                                    </span>
+                                                </div>
+
+                                                {!hasAnyOdds ? (
+                                                    <div style={{
+                                                        fontSize: '0.68rem',
+                                                        color: 'var(--tb-text-muted)',
+                                                        background: 'rgba(255, 255, 255, 0.02)',
+                                                        border: '1px dashed rgba(255, 255, 255, 0.1)',
+                                                        borderRadius: '6px',
+                                                        padding: '6px 8px'
+                                                    }}>
+                                                        ⚠️ {lang === 'tr' ? 'Canlı piyasa oranları askıda veya bu karşılaşma için henüz açılmamış.' : 'Live market odds currently suspended.'}
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                                        {/* 1X2 */}
+                                                        <div>
+                                                            <div style={{ fontSize: '0.60rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <span>{lang === 'tr' ? 'MAÇ SONUCU (1X2)' : (lang === 'de' ? 'SPIELAUSGANG (1X2)' : 'FULL-TIME (1X2)')}</span>
+                                                                <span style={{ opacity: 0.75, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                    {m.homeTeam} - {m.awayTeam}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                                                                <div style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '5px', padding: '4px', textAlign: 'center' }}>
+                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>1 (Ev)</div>
+                                                                    <div style={{ fontSize: '0.80rem', fontWeight: 900, color: ftHome !== '-' ? '#38bdf8' : 'var(--tb-text-muted)' }}>{ftHome}</div>
+                                                                </div>
+                                                                <div style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '5px', padding: '4px', textAlign: 'center' }}>
+                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>X (Ber.)</div>
+                                                                    <div style={{ fontSize: '0.80rem', fontWeight: 900, color: ftDraw !== '-' ? '#f1f5f9' : 'var(--tb-text-muted)' }}>{ftDraw}</div>
+                                                                </div>
+                                                                <div style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '5px', padding: '4px', textAlign: 'center' }}>
+                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>2 (Dep)</div>
+                                                                    <div style={{ fontSize: '0.80rem', fontWeight: 900, color: ftAway !== '-' ? '#f43f5e' : 'var(--tb-text-muted)' }}>{ftAway}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Over/Under & BTTS */}
+                                                        {(ouOver !== '-' || bttsYes !== '-') && (
+                                                            <div style={{ display: 'grid', gridTemplateColumns: (ouOver !== '-' && bttsYes !== '-') ? '1fr 1fr' : '1fr', gap: '4px' }}>
+                                                                {ouOver !== '-' && (
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '2px' }}>
+                                                                            {ouLine} {lang === 'tr' ? 'ALT / ÜST' : 'O/U'}
+                                                                        </div>
+                                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px' }}>
+                                                                            <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Üst</div>
+                                                                                <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#34d399' }}>{ouOver}</div>
+                                                                            </div>
+                                                                            <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Alt</div>
+                                                                                <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{ouUnder}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                                {bttsYes !== '-' && (
+                                                                    <div>
+                                                                        <div style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '2px' }}>
+                                                                            {lang === 'tr' ? 'KG VAR / YOK' : 'BTTS'}
+                                                                        </div>
+                                                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px' }}>
+                                                                            <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Var</div>
+                                                                                <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#34d399' }}>{bttsYes}</div>
+                                                                            </div>
+                                                                            <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Yok</div>
+                                                                                <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{bttsNo}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Next Goal */}
+                                                        {ngHome !== '-' && (
+                                                            <div>
+                                                                <div style={{ fontSize: '0.58rem', fontWeight: 800, color: '#38bdf8', marginBottom: '2px' }}>
+                                                                    ⚡ {lang === 'tr' ? 'SIRADAKİ GOL (CANLI)' : 'NEXT GOAL'}
+                                                                </div>
+                                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
+                                                                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>{m.homeTeam?.slice(0, 6)}</div>
+                                                                        <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#38bdf8' }}>{ngHome}</div>
+                                                                    </div>
+                                                                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Gol Yok</div>
+                                                                        <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{ngNoGoal}</div>
+                                                                    </div>
+                                                                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>{m.awayTeam?.slice(0, 6)}</div>
+                                                                        <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f43f5e' }}>{ngAway}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Double Chance */}
+                                                        {(dc1X !== '-' && ngHome === '-') && (
+                                                            <div>
+                                                                <div style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '2px' }}>
+                                                                    {lang === 'tr' ? 'ÇİFTE ŞANS' : 'DOUBLE CHANCE'}
+                                                                </div>
+                                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
+                                                                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>1X</div>
+                                                                        <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{dc1X}</div>
+                                                                    </div>
+                                                                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>12</div>
+                                                                        <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{dc12}</div>
+                                                                    </div>
+                                                                    <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
+                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>X2</div>
+                                                                        <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{dcX2}</div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Dual Colored Momentum Bar (from Classic) */}
                                     {(() => {
