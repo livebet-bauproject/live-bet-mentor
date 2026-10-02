@@ -638,20 +638,27 @@ export const sofaScoreAdapter = {
     /**
      * Fetches live odds (1-X-2) for a specific event directly from SofaScore or Proxy.
      */
-    async fetchEventOdds(eventId) {
+    async fetchEventOdds(eventId, forceDetailed = false) {
         try {
-            // 1. Instant check from central live odds map (prevents 40 redundant HTTP requests)
-            const central = await getLiveOddsMap();
+            // 1. Instant check from central live odds map if detailed not strictly requested
             const strId = String(eventId);
             const numId = Number(eventId);
-            const matchOdds = central[strId] || central[numId] || (central.matches && central.matches.find(m => String(m.id || m.eventId) === strId)?.odds);
-            if (matchOdds && (matchOdds.home !== undefined || matchOdds.away !== undefined)) {
-                return {
-                    home: parseFloat(matchOdds.home) || 0,
-                    draw: parseFloat(matchOdds.draw) || 0,
-                    away: parseFloat(matchOdds.away) || 0,
-                    source: matchOdds.source || 'CENTRAL_ODDS'
-                };
+            if (!forceDetailed) {
+                const central = await getLiveOddsMap();
+                const matchOdds = central[strId] || central[numId] || (central.matches && central.matches.find(m => String(m.id || m.eventId) === strId)?.odds);
+                if (matchOdds && (matchOdds.home !== undefined || matchOdds.away !== undefined)) {
+                    return {
+                        home: parseFloat(matchOdds.home) || 0,
+                        draw: parseFloat(matchOdds.draw) || 0,
+                        away: parseFloat(matchOdds.away) || 0,
+                        doubleChance: matchOdds.doubleChance || null,
+                        btts: matchOdds.btts || null,
+                        overUnder: matchOdds.overUnder || null,
+                        nextGoal: matchOdds.nextGoal || null,
+                        isLive: matchOdds.isLive !== false,
+                        source: matchOdds.source || 'CENTRAL_ODDS'
+                    };
+                }
             }
 
             const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -679,62 +686,132 @@ export const sofaScoreAdapter = {
             if (!data) return null;
 
             // Direct 1-X-2 format (from proxy or live_odds.json)
-            if (data.home !== undefined && data.away !== undefined) {
+            if (data.home !== undefined && data.away !== undefined && !data.markets) {
                 return {
                     home: parseFloat(data.home) || 0,
                     draw: parseFloat(data.draw) || 0,
                     away: parseFloat(data.away) || 0,
+                    isLive: data.isLive !== false,
+                    doubleChance: data.doubleChance || null,
+                    btts: data.btts || null,
+                    overUnder: data.overUnder || null,
+                    nextGoal: data.nextGoal || null,
                     source: data.source || 'LOCAL_PROXY'
                 };
             }
 
-            // SofaScore market structure (Full Time 1X2 market)
-            if (data.markets) {
-                const ftMarket = data.markets.find(m => m.id === 1 || m.marketId === 1 || m.marketName?.toLowerCase() === 'full time' || m.marketGroup === '1X2');
-                if (ftMarket && ftMarket.choices) {
-                    const parseChoice = (c) => {
-                        if (!c) return 0;
-                        for (const k of ['decimalValue', 'value']) {
-                            if (c[k] !== undefined && c[k] !== null) {
-                                const v = parseFloat(c[k]);
-                                if (!isNaN(v) && v > 0) return v;
+            // Live market structure (Prioritize genuine in-play: isLive === true)
+            if (data.markets && Array.isArray(data.markets)) {
+                const parseChoice = (c) => {
+                    if (!c) return null;
+                    for (const k of ['decimalValue', 'value']) {
+                        if (c[k] !== undefined && c[k] !== null) {
+                            const v = parseFloat(c[k]);
+                            if (!isNaN(v) && v > 0) return v;
+                        }
+                    }
+                    const frac = c.fractionalValue || c.initialFractionalValue;
+                    if (frac) {
+                        const parts = String(frac).trim().split('/');
+                        if (parts.length === 2) {
+                            const num = parseFloat(parts[0]);
+                            const den = parseFloat(parts[1]);
+                            if (!isNaN(num) && !isNaN(den) && den > 0) {
+                                return parseFloat(((num / den) + 1.0).toFixed(2));
                             }
                         }
-                        const frac = c.fractionalValue || c.initialFractionalValue;
-                        if (frac) {
-                            const parts = String(frac).trim().split('/');
-                            if (parts.length === 2) {
-                                const num = parseFloat(parts[0]);
-                                const den = parseFloat(parts[1]);
-                                if (!isNaN(num) && !isNaN(den) && den > 0) {
-                                    return parseFloat(((num / den) + 1.0).toFixed(2));
-                                }
-                            }
-                        }
-                        return 0;
-                    };
+                    }
+                    return null;
+                };
 
+                // Priority 1: In-play live markets (isLive: true && !suspended)
+                // Priority 2: Fallback to non-live market only if match not started
+                const liveMarkets = data.markets.filter(m => m.isLive && !m.suspended);
+                const activeMarkets = liveMarkets.length > 0 ? liveMarkets : data.markets.filter(m => !m.suspended);
+
+                // 1. Full Time 1X2
+                const ftMarket = activeMarkets.find(m => m.id === 1 || m.marketId === 1 || m.marketName?.toLowerCase() === 'full time' || m.marketGroup === '1X2');
+                let homeOdds = null, drawOdds = null, awayOdds = null;
+                if (ftMarket && ftMarket.choices) {
                     const homeChoice = ftMarket.choices.find(c => c.name === '1' || c.idx === 1);
                     const drawChoice = ftMarket.choices.find(c => c.name === 'X' || c.idx === 2);
                     const awayChoice = ftMarket.choices.find(c => c.name === '2' || c.idx === 3);
+                    homeOdds = parseChoice(homeChoice);
+                    drawOdds = parseChoice(drawChoice);
+                    awayOdds = parseChoice(awayChoice);
+                }
 
-                    const homeOdds = parseChoice(homeChoice);
-                    const drawOdds = parseChoice(drawChoice);
-                    const awayOdds = parseChoice(awayChoice);
+                // 2. Double Chance (1X, 12, X2)
+                const dcMarket = activeMarkets.find(m => m.id === 2 || m.marketId === 2 || m.marketGroup === 'Double chance' || m.marketName?.toLowerCase() === 'double chance');
+                const doubleChance = {};
+                if (dcMarket && dcMarket.choices) {
+                    dcMarket.choices.forEach(c => {
+                        const name = c.name?.trim();
+                        const val = parseChoice(c);
+                        if (name && val) doubleChance[name] = val;
+                    });
+                }
 
-                    if (homeOdds > 0 || awayOdds > 0) {
-                        return {
-                            home: homeOdds,
-                            draw: drawOdds,
-                            away: awayOdds,
-                            source: 'SOFASCORE_DIRECT'
-                        };
+                // 3. Both Teams to Score (KG Var / Yok)
+                const bttsMarket = activeMarkets.find(m => m.id === 5 || m.marketId === 5 || m.marketGroup === 'Both teams to score' || m.marketName?.toLowerCase() === 'both teams to score');
+                const btts = {};
+                if (bttsMarket && bttsMarket.choices) {
+                    const yesC = bttsMarket.choices.find(c => c.name?.toLowerCase() === 'yes' || c.name?.toLowerCase() === 'evet');
+                    const noC = bttsMarket.choices.find(c => c.name?.toLowerCase() === 'no' || c.name?.toLowerCase() === 'hayır');
+                    if (yesC) btts.yes = parseChoice(yesC);
+                    if (noC) btts.no = parseChoice(noC);
+                }
+
+                // 4. Match Goals (Alt / Üst: 0.5, 1.5, 2.5, 3.5)
+                const overUnder = {};
+                const goalMarkets = activeMarkets.filter(m => m.id === 9 || m.marketId === 9 || m.marketGroup === 'Match goals' || m.marketName?.toLowerCase() === 'match goals');
+                goalMarkets.forEach(gm => {
+                    const line = String(gm.choiceGroup || '').trim();
+                    if (line && gm.choices) {
+                        const overC = gm.choices.find(c => c.name?.toLowerCase() === 'over' || c.name?.toLowerCase() === 'üst');
+                        const underC = gm.choices.find(c => c.name?.toLowerCase() === 'under' || c.name?.toLowerCase() === 'alt');
+                        const oVal = parseChoice(overC);
+                        const uVal = parseChoice(underC);
+                        if (oVal || uVal) {
+                            overUnder[line] = { over: oVal, under: uVal };
+                        }
                     }
+                });
+
+                // 5. Next Goal (Sıradaki Gol)
+                const nextGoal = {};
+                const ngMarket = activeMarkets.find(m => m.id === 8 || m.marketId === 8 || m.marketGroup === 'Next goal' || m.marketName?.toLowerCase() === 'next goal');
+                if (ngMarket && ngMarket.choices) {
+                    ngMarket.choices.forEach((c, idx) => {
+                        const val = parseChoice(c);
+                        const cName = (c.name || '').toLowerCase();
+                        if (cName.includes('no goal') || cName.includes('gol yok') || idx === 1) {
+                            nextGoal.noGoal = val;
+                        } else if (idx === 0) {
+                            nextGoal.home = val;
+                        } else if (idx === 2) {
+                            nextGoal.away = val;
+                        }
+                    });
+                }
+
+                if (homeOdds || awayOdds || Object.keys(overUnder).length > 0) {
+                    return {
+                        home: homeOdds,
+                        draw: drawOdds,
+                        away: awayOdds,
+                        isLive: Boolean(ftMarket?.isLive || activeMarkets[0]?.isLive),
+                        doubleChance: Object.keys(doubleChance).length > 0 ? doubleChance : null,
+                        btts: Object.keys(btts).length > 0 ? btts : null,
+                        overUnder: Object.keys(overUnder).length > 0 ? overUnder : null,
+                        nextGoal: Object.keys(nextGoal).length > 0 ? nextGoal : null,
+                        source: 'LIVE_MARKET'
+                    };
                 }
             }
             return null;
         } catch (error) {
-            console.warn(`[SOFASCORE_ADAPTER] Odds fetch failed for ${eventId}:`, error.message);
+            console.warn(`[DATA_ADAPTER] Odds fetch notice for ${eventId}:`, error.message);
             return null;
         }
     },

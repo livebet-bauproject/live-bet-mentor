@@ -59,7 +59,7 @@ export const AuditCockpit = ({
         btnResume: isTr ? '▶️ SİNYALLERİ BAŞLAT' : isDe ? '▶️ SIGNALE STARTEN' : '▶️ RESUME SIGNALS',
         btnClearLocks: isTr ? '🔄 KİLİTLERİ SIFIRLA' : isDe ? '🔄 SPERREN ZURÜCKSETZEN' : '🔄 RESET LOCKS',
         btnViewAbuse: isTr ? '🛡️ KAÇAK LİSTESİ' : isDe ? '🛡️ MISSBRAUCHS-LOG' : '🛡️ FRAUD LOG',
-        staleAlert: isTr ? '⚠️ KRİTİK VERİ UYARISI: SofaScore veri akışı durdu! Sinyal gönderimi güvenlik amacıyla askıya alındı.' : isDe ? '⚠️ KRITISCHE WARNUNG: SofaScore-Datenfluss gestoppt!' : '⚠️ CRITICAL ALERT: Live data feed stalled! Signal engine safely halted.',
+        staleAlert: isTr ? '⚠️ KRİTİK VERİ UYARISI: Canlı veri akışı durdu! Sinyal gönderimi güvenlik amacıyla askıya alındı.' : isDe ? '⚠️ KRITISCHE WARNUNG: Live-Datenfluss gestoppt!' : '⚠️ CRITICAL ALERT: Live data feed stalled! Signal engine safely halted.',
         haltAlert: isTr ? '🛑 ACİL DURUM FRENİ DEVREDE: Yönetici sinyal üretimini manuel olarak askıya aldı.' : isDe ? '🛑 NOTFALL-STOPP AKTIV: Manuell angehalten.' : '🛑 EMERGENCY HALT ACTIVE: Admin manually suspended signal generation.',
         liveMatches: isTr ? 'Canlı Maç' : isDe ? 'Live-Spiele' : 'Live Matches',
         secondsAgo: isTr ? 'sn önce' : isDe ? 'Sek. her' : 's ago',
@@ -279,7 +279,7 @@ export const AuditCockpit = ({
                     gap: '0.6rem'
                 }}>
                     <span>🚨</span>
-                    <span>{t.staleAlert} (SofaScore: {dataSla.sofascoreAgeSec}s)</span>
+                    <span>{t.staleAlert} (Canlı Akış: {dataSla.sofascoreAgeSec}s)</span>
                 </div>
             )}
 
@@ -528,7 +528,7 @@ export const AuditCockpit = ({
                             ⚡ {t.pillar2}
                         </h4>
                         <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.78rem', color: '#94a3b8', lineHeight: '1.6' }}>
-                            <li>SofaScore Canlı Veri SLA: 180s Donma Koruması</li>
+                            <li>Canlı Veri SLA: 180s Donma Koruması</li>
                             <li>Piyasa Oranları Gecikme SLA: 60s Tarama</li>
                             <li>Karantina Ligleri: Otomatik Düşük ROI Filtresi</li>
                         </ul>

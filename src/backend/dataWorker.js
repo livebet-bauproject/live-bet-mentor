@@ -76,8 +76,21 @@ class DataWorker {
         }
 
         this.selectedMatchId = matchId.toString();
-        // Automatic AI trigger removed to save tokens, now handled by manual button in UI
         console.log('[DATA_WORKER] Match selected:', matchId);
+
+        // Immediate On-Demand Live Odds Fetch so UI updates instantly with zero lag
+        sofaScoreAdapter.fetchEventOdds(matchId, true).then(odds => {
+            if (odds) {
+                this.odds[matchId] = odds;
+                this.odds[String(matchId)] = odds;
+                const match = this.fixtures.find(f => f.id?.toString() === matchId?.toString());
+                if (match) {
+                    match.odds = odds;
+                    match.liveOdds = odds;
+                    match.matchedOdds = odds;
+                }
+            }
+        }).catch(() => {});
     }
 
     async triggerDeepAnalysis(matchId, lang = 'tr') {
@@ -500,7 +513,7 @@ class DataWorker {
             }
 
             const leagueProfile = leagueProfileModule.getProfile(f.league || f.leagueName);
-            const matchedOdds = this.odds[f.id] || null;
+            const matchedOdds = this.odds[f.id] || this.odds[String(f.id)] || this.odds[Number(f.id)] || null;
             let strategySettings = {};
             try {
                 const raw = localStorage.getItem('lbm_strategy_settings');
@@ -525,7 +538,9 @@ class DataWorker {
                 expertAnalysis: analysis, // Keep raw expert analysis for reference
                 activeStrategies: analysis.activeStrategies || [],
                 consensusReport,
-                matchedOdds, 
+                matchedOdds,
+                odds: matchedOdds,
+                liveOdds: matchedOdds,
                 aiSummary: existing?.aiSummary || f.aiSummary 
             };
         });

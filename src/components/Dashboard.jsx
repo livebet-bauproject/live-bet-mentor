@@ -176,7 +176,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     // Bankroll portfolio remote sync and manual settlement handlers
     const handleSyncRemoteResults = async () => {
         setIsSyncingResults(true);
-        setSettlementMessage(lang === 'tr' ? '⏳ SofaScore API üzerinden biten maçlar taranıyor...' : (lang === 'de' ? '⏳ Beendete Spiele werden über SofaScore API gescannt...' : '⏳ Scanning concluded matches via SofaScore API...'));
+        setSettlementMessage(lang === 'tr' ? '⏳ Canlı veri sağlayıcısı üzerinden biten maçlar taranıyor...' : (lang === 'de' ? '⏳ Beendete Spiele werden über Live-Daten gescannt...' : '⏳ Scanning concluded matches via live data...'));
         try {
             const res = await autoSettlementEngine.settleAllOpenBetsWithRemote(matches);
             setBankState(bankrollManager.getState());
@@ -8516,7 +8516,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                 <div style={{ fontSize: '2.5rem', marginBottom: '0.6rem' }}>💎</div>
                                                 <div style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8' }}>{lang === 'tr' ? 'Henüz Tetiklenen VIP Sinyal Bulunmuyor' : (lang === 'de' ? 'Noch keine VIP-Signale ausgelöst' : 'No VIP Signals Triggered Yet')}</div>
                                                 <div style={{ fontSize: '0.78rem', marginTop: '0.5rem', opacity: 0.75, maxWidth: '420px', margin: '0.5rem auto 0', lineHeight: 1.5 }}>
-                                                    {lang === 'tr' ? '7/24 Otonom Sunucu Motoru SofaScore canlı maçlarını tarayarak oran, xG ve lig filtresini geçen elit sinyalleri yakaladığında anında burada ve Telegram VIP grubunda listelenecektir.' : (lang === 'de' ? 'Wenn der 24/7 VIP-Motor hochwertige Quoten und xG-Spieldruck erkennt, werden verifizierte Signale hier und im VIP-Telegramm gelistet.' : 'When the 24/7 Autonomous Engine detects high-value signals meeting all odds and xG criteria, they will appear here and in the VIP Telegram.')}
+                                                    {lang === 'tr' ? '7/24 Otonom Sunucu Motoru canlı futbol maçlarını tarayarak oran, xG ve lig filtresini geçen elit sinyalleri yakaladığında anında burada ve Telegram VIP grubunda listelenecektir.' : (lang === 'de' ? 'Wenn der 24/7 VIP-Motor hochwertige Quoten und xG-Spieldruck erkennt, werden verifizierte Signale hier und im VIP-Telegramm gelistet.' : 'When the 24/7 Autonomous Engine detects high-value signals meeting all odds and xG criteria, they will appear here and in the VIP Telegram.')}
                                                 </div>
                                             </div>
                                         )}

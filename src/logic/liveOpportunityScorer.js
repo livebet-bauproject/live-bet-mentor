@@ -928,12 +928,25 @@ class LiveOpportunityScorer {
      * Handles different naming conventions between OddsPortal and SofaScore.
      */
     _getMatchOdds(match) {
-        // 1. Direct event odds from SofaScore (100% exact match, highest accuracy)
-        if (match.matchedOdds && match.matchedOdds.home) {
+        if (!match) return null;
+        // 1. Direct event odds attached to match
+        if (match.odds && (match.odds.home || match.odds.draw || match.odds.away || match.odds.overUnder)) {
+            return match.odds;
+        }
+        if (match.matchedOdds && (match.matchedOdds.home || match.matchedOdds.draw || match.matchedOdds.away)) {
             return match.matchedOdds;
         }
-        if (match.odds && match.odds.home) {
-            return match.odds;
+        if (match.liveOdds && (match.liveOdds.home || match.liveOdds.draw || match.liveOdds.away)) {
+            return match.liveOdds;
+        }
+
+        // 2. Direct map lookup by eventId
+        const evId = String(match.id || match.eventId || '');
+        if (this.liveOdds && typeof this.liveOdds === 'object' && evId) {
+            const mapOdds = this.liveOdds[evId] || this.liveOdds[Number(evId)];
+            if (mapOdds && (mapOdds.home || mapOdds.away)) {
+                return mapOdds;
+            }
         }
 
         if (!this.liveOdds?.matches) return null;
@@ -1195,9 +1208,9 @@ class LiveOpportunityScorer {
             return (!isNaN(n) && n >= 1.35 && n <= 4.50) ? n : null;
         };
 
-        const liveHomeOdds = parseSanitizedOdds(oddsInfo?.nextGoalHome) || (goalDiff >= 1 ? parseSanitizedOdds(oddsInfo?.home) : null);
-        const liveAwayOdds = parseSanitizedOdds(oddsInfo?.nextGoalAway) || (goalDiff <= -1 ? parseSanitizedOdds(oddsInfo?.away) : null);
-        const liveOverOdds = parseSanitizedOdds(oddsInfo?.over25 || oddsInfo?.over);
+        const liveHomeOdds = parseSanitizedOdds(oddsInfo?.nextGoal?.home || oddsInfo?.nextGoalHome) || parseSanitizedOdds(oddsInfo?.home);
+        const liveAwayOdds = parseSanitizedOdds(oddsInfo?.nextGoal?.away || oddsInfo?.nextGoalAway) || parseSanitizedOdds(oddsInfo?.away);
+        const liveOverOdds = parseSanitizedOdds(oddsInfo?.overUnder?.['2.5']?.over || oddsInfo?.overUnder?.[targetLine]?.over || oddsInfo?.over25 || oddsInfo?.over);
 
         // SCENARIO 0: STOPPAGE TIME / BLOWOUT (Kopmuş Maç) / FINISHED SUPPRESSION
         if (minute >= 82 || minute >= 95 || minute === 999) {
