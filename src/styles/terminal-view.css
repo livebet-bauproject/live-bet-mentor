@@ -583,10 +583,10 @@
   background: #0f172a;
   color: var(--tb-text-muted);
   font-weight: 700;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding: 8px 6px;
+  letter-spacing: 0.3px;
+  padding: 6px 4px;
   border-bottom: 1px solid var(--tb-border);
   position: sticky;
   top: 0;
@@ -640,7 +640,7 @@
 }
 
 .tb-row td {
-  padding: 5px 6px;
+  padding: 5px 4px;
   vertical-align: middle;
   color: var(--tb-text-primary);
 }
@@ -648,34 +648,35 @@
 /* Match Columns Styling */
 .tb-col-min {
   font-weight: 800;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: #34d399;
   white-space: nowrap;
-  width: 50px;
+  width: 44px;
 }
 
 .tb-col-league {
   color: var(--tb-text-muted);
-  font-size: 0.70rem;
+  font-size: 0.67rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 105px;
+  max-width: 85px;
 }
 
 .tb-col-match {
-  min-width: 180px;
+  min-width: 140px;
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .tb-team-name {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 145px;
+  max-width: 110px;
+  font-size: 0.76rem;
 }
 
 .tb-card-badge {
@@ -885,16 +886,31 @@
   border-bottom: 1px solid var(--tb-border);
 }
 
+.tb-expanded-row td {
+  padding: 0 !important;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .tb-expanded-content {
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.tb-expanded-content > * {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1024px) {
   .tb-expanded-content {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

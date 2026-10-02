@@ -5304,7 +5304,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     };
 
     return (
-        <div className={`dashboard-container ${view === 'DASHBOARD' ? 'dashboard-live-mode' : ''}`} style={{ padding: '1.25rem 1rem', maxWidth: '1440px', width: '100%', boxSizing: 'border-box', margin: '0 auto', minHeight: '100vh', overflowX: 'clip', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
+        <div className={`dashboard-container ${view === 'DASHBOARD' ? 'dashboard-live-mode' : ''}`} style={{ padding: view === 'DASHBOARD' ? '1rem 0.75rem' : '1.25rem 1rem', maxWidth: view === 'DASHBOARD' ? '1720px' : '1440px', width: '100%', boxSizing: 'border-box', margin: '0 auto', minHeight: '100vh', overflowX: 'clip', background: 'radial-gradient(circle at top right, #1e293b, #030712)' }}>
 
             {pendingRequest && (
                 <div style={{

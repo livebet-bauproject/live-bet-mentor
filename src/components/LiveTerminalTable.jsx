@@ -753,7 +753,7 @@ export const LiveTerminalTable = ({
                                                     </div>
 
                                                     {/* Left: Momentum Bar & Graph, Live Stats & Incidents */}
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
                                                         {/* Dual Colored Momentum Bar (from Classic) */}
                                                         {(() => {
                                                             const cornersHome = Number(m.stats?.corners?.home || 0);
@@ -841,7 +841,7 @@ export const LiveTerminalTable = ({
                                                     </div>
 
                                                     {/* Right: Quick Action & Signal Card */}
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', minWidth: 0, maxWidth: '100%', boxSizing: 'border-box' }}>
                                                         {/* 📊 CANLI PİYASA ORANLARI (Live Market Odds Board) */}
                                                         {(() => {
                                                             const hasAnyOdds = (oddsHome && oddsHome !== '-') || (oddsAway && oddsAway !== '-') || (fullOdds && (
@@ -1456,13 +1456,13 @@ export const LiveTerminalTable = ({
             <table className="tb-table">
                 <thead>
                     <tr>
-                        <th style={{ width: '36px', textAlign: 'center' }} title={lang === 'tr' ? 'Favoriler' : (lang === 'de' ? 'Favoriten' : 'Favorites')}>
+                        <th style={{ width: '28px', padding: '6px 2px', textAlign: 'center' }} title={lang === 'tr' ? 'Favoriler' : (lang === 'de' ? 'Favoriten' : 'Favorites')}>
                             <StarIcon filled size={13} />
                         </th>
                         <th 
                             className={`sortable ${sortColumn === 'minute' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('minute')}
-                            style={{ width: '48px', cursor: 'pointer' }}
+                            style={{ width: '44px', cursor: 'pointer' }}
                             title={lang === 'tr' ? 'Dakikaya göre sırala' : 'Sort by minute'}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
@@ -1470,12 +1470,12 @@ export const LiveTerminalTable = ({
                                 {renderSortIcon('minute')}
                             </span>
                         </th>
-                        <th style={{ width: '100px' }}>{t?.league_label || (lang === 'tr' ? 'LİG' : (lang === 'de' ? 'LIGA' : 'LEAGUE'))}</th>
-                        <th style={{ minWidth: '170px' }}>{t?.match_label || (lang === 'tr' ? 'MAÇ' : (lang === 'de' ? 'SPIEL' : 'MATCH'))}</th>
+                        <th style={{ width: '82px' }}>{t?.league_label || (lang === 'tr' ? 'LİG' : (lang === 'de' ? 'LIGA' : 'LEAGUE'))}</th>
+                        <th style={{ minWidth: '140px' }}>{t?.match_label || (lang === 'tr' ? 'MAÇ' : (lang === 'de' ? 'SPIEL' : 'MATCH'))}</th>
                         <th 
                             className={`sortable ${sortColumn === 'score' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('score')}
-                            style={{ width: '56px', textAlign: 'center', cursor: 'pointer' }}
+                            style={{ width: '48px', textAlign: 'center', cursor: 'pointer' }}
                             title={lang === 'tr' ? 'Toplam gole göre sırala' : 'Sort by score/goals'}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
@@ -1486,7 +1486,7 @@ export const LiveTerminalTable = ({
                         <th 
                             className={`sortable ${sortColumn === 'heat' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('heat')}
-                            style={{ width: '84px', textAlign: 'center', cursor: 'pointer' }}
+                            style={{ width: '76px', textAlign: 'center', cursor: 'pointer' }}
                             title={lang === 'tr' ? 'Maç Sıcaklığına göre sırala' : 'Sort by match heat'}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
@@ -1494,11 +1494,11 @@ export const LiveTerminalTable = ({
                                 {renderSortIcon('heat')}
                             </span>
                         </th>
-                        <th style={{ width: '108px', minWidth: '108px', textAlign: 'center' }}>{lang === 'tr' ? '1X2 CANLI' : (lang === 'de' ? '1X2 LIVE' : '1X2 LIVE')}</th>
+                        <th style={{ width: '98px', minWidth: '98px', textAlign: 'center' }}>{lang === 'tr' ? '1X2 CANLI' : (lang === 'de' ? '1X2 LIVE' : '1X2 LIVE')}</th>
                         <th 
                             className={`sortable ${sortColumn === 'pressure' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('pressure')}
-                            style={{ width: '68px', textAlign: 'center', cursor: 'pointer' }}
+                            style={{ width: '56px', textAlign: 'center', cursor: 'pointer' }}
                             title={lang === 'tr' ? `Baskı İndeksine göre sırala (${momentumWindow}dk)` : `Sort by pressure (${momentumWindow}m)`}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
@@ -1509,7 +1509,7 @@ export const LiveTerminalTable = ({
                         <th 
                             className={`sortable ${sortColumn === 'possession' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('possession')}
-                            style={{ width: '68px', textAlign: 'center', cursor: 'pointer' }}
+                            style={{ width: '50px', textAlign: 'center', cursor: 'pointer' }}
                             title={lang === 'tr' ? 'Top Hakimiyeti / Baskı Farkına göre sırala' : 'Sort by possession dominance'}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
@@ -1520,7 +1520,7 @@ export const LiveTerminalTable = ({
                         <th 
                             className={`sortable ${sortColumn === 'shots' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('shots')}
-                            style={{ width: '62px', textAlign: 'center', cursor: 'pointer' }}
+                            style={{ width: '48px', textAlign: 'center', cursor: 'pointer' }}
                             title={lang === 'tr' ? 'İsabetli Şut sayısına göre sırala' : 'Sort by shots on goal'}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
@@ -1531,7 +1531,7 @@ export const LiveTerminalTable = ({
                         <th 
                             className={`sortable ${sortColumn === 'da' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('da')}
-                            style={{ width: '58px', textAlign: 'center', cursor: 'pointer' }}
+                            style={{ width: '46px', textAlign: 'center', cursor: 'pointer' }}
                             title={lang === 'tr' ? 'Tehlikeli Atak sayısına göre sırala' : 'Sort by dangerous attacks'}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
@@ -1542,7 +1542,7 @@ export const LiveTerminalTable = ({
                         <th 
                             className={`sortable ${sortColumn === 'xg' ? 'active-sort' : ''}`}
                             onClick={() => handleColumnSort('xg')}
-                            style={{ width: '58px', textAlign: 'center', cursor: 'pointer' }}
+                            style={{ width: '46px', textAlign: 'center', cursor: 'pointer' }}
                             title={lang === 'tr' ? 'Beklenen Gol (xG) değerine göre sırala' : 'Sort by expected goals'}
                         >
                             <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
@@ -1550,8 +1550,8 @@ export const LiveTerminalTable = ({
                                 {renderSortIcon('xg')}
                             </span>
                         </th>
-                        <th style={{ width: '150px', textAlign: 'center' }}>{lang === 'tr' ? 'AI SİNYAL' : (lang === 'de' ? 'KI-SIGNAL' : 'AI SIGNAL')}</th>
-                        <th style={{ width: '36px', textAlign: 'center' }}>{lang === 'tr' ? 'DETAY' : (lang === 'de' ? 'DETAILS' : 'DETAIL')}</th>
+                        <th style={{ width: '130px', textAlign: 'center' }}>{lang === 'tr' ? 'AI SİNYAL' : (lang === 'de' ? 'KI-SIGNAL' : 'AI SIGNAL')}</th>
+                        <th style={{ width: '28px', textAlign: 'center' }}>{lang === 'tr' ? 'DETAY' : (lang === 'de' ? 'DETAILS' : 'DETAIL')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1601,7 +1601,7 @@ export const LiveTerminalTable = ({
                                         onClick={(e) => handleRowClick(m, e)}
                                     >
                                         {/* Pin / Star & Quick VIP Broadcast */}
-                                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }} className="tb-action-ignore">
+                                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '5px 2px' }} className="tb-action-ignore">
                                             <button
                                                 type="button"
                                                 className={`tb-action-ignore tb-fav-btn ${isPinned ? 'pinned' : ''}`}
@@ -1745,7 +1745,7 @@ export const LiveTerminalTable = ({
                                         </td>
 
                                         {/* 1X2 Odds */}
-                                        <td className="tb-stat-cell" style={{ width: '108px', minWidth: '108px', fontSize: '0.72rem', padding: '6px 4px', textAlign: 'center' }} title={`1X2: ${oddsHome} | ${oddsDraw} | ${oddsAway}`}>
+                                        <td className="tb-stat-cell" style={{ width: '98px', minWidth: '98px', fontSize: '0.70rem', padding: '5px 2px', textAlign: 'center' }} title={`1X2: ${oddsHome} | ${oddsDraw} | ${oddsAway}`}>
                                             {oddsHome !== '-' ? (
                                                 <span style={{ fontWeight: 800, whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
                                                     <span style={{ color: '#38bdf8', padding: '1px 3px', borderRadius: '3px', background: 'rgba(56, 189, 248, 0.08)' }}>{oddsHome}</span>
