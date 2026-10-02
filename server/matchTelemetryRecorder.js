@@ -279,11 +279,8 @@ class MatchTelemetryRecorder {
             };
             fs.writeFileSync(fullArchiveFile, JSON.stringify(fullPayload, null, 2), 'utf8');
 
-            // Prepend to index (keep last 500 in quick index)
+            // Prepend to index (preserve historical archive permanently on disk for ML training & backtests)
             this.archiveIndex.unshift(archiveRecord);
-            if (this.archiveIndex.length > 500) {
-                this.archiveIndex.pop();
-            }
             this.saveArchiveIndex();
 
             // Train LearningEngine autonomously on concluded match
@@ -331,6 +328,23 @@ class MatchTelemetryRecorder {
                 this.archiveMatch(matchId, { id: matchId });
             }
         }
+
+        // Cleanup any stale temporary files in TELEMETRY_DIR (older than 4 hours)
+        try {
+            if (fs.existsSync(TELEMETRY_DIR)) {
+                const files = fs.readdirSync(TELEMETRY_DIR);
+                for (const f of files) {
+                    if (!f.endsWith('.json')) continue;
+                    const fPath = path.join(TELEMETRY_DIR, f);
+                    try {
+                        const stats = fs.statSync(fPath);
+                        if (now - stats.mtimeMs > 4 * 3600 * 1000) {
+                            fs.unlinkSync(fPath);
+                        }
+                    } catch (err) {}
+                }
+            }
+        } catch (e) {}
     }
 
     getArchiveList(limit = 100, offset = 0) {

@@ -1100,20 +1100,8 @@ class TelegramBot {
             }
         }
 
-        // 6. Evaluate Cash-Out & Stop-Loss Radar for active signals
-        try {
-            const cashOuts = cashOutEngine.evaluateCashOuts(liveEvents);
-            const activeVips = this.getActiveVipChannels();
-            for (const co of cashOuts) {
-                for (const dest of activeVips) {
-                    const coMsg = formatCashOutAlert(co, dest.lang);
-                    await this.sendMessage(dest.channelId, coMsg);
-                }
-                console.log(`[TELEGRAM] ⚠️ Cash-out alert dispatched for ${co.matchTitle}: ${co.reason}`);
-            }
-        } catch (err) {
-            console.error('[TELEGRAM] Error evaluating cash-outs:', err.message);
-        }
+        // 6. Cash-Out & Stop-Loss Radar (Disabled: prevented contradictory in-play alerts and premature losses)
+        // Signals run naturally until FT resolution.
 
         return resolved;
     }

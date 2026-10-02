@@ -78,6 +78,11 @@ export class CashOutEngine {
      * @returns {Array} - Array of cash-out recommendations
      */
     evaluateCashOuts(liveEvents) {
+        // Disabled: In-play cash-out/stop-loss alerts are turned off to prevent contradictory signals and premature bookmaker losses
+        return [];
+    }
+
+    _disabled_evaluateCashOuts(liveEvents) {
         if (!liveEvents || !Array.isArray(liveEvents) || this.monitoredSignals.size === 0) {
             return [];
         }
