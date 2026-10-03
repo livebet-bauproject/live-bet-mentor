@@ -1,4 +1,4 @@
-import { CONFIG } from '../config';
+import { CONFIG } from '../config.js';
 
 // Verified Top-Flight Global Unique Tournament IDs from live data feeds
 const TIER_1_UNIQUE_IDS = new Set([
