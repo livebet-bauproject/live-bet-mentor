@@ -318,6 +318,11 @@ export const sofaScoreAdapter = {
 
         const homeTeamId = event.homeTeam?.id;
         const awayTeamId = event.awayTeam?.id;
+        const categoryName = event.tournament?.category?.name || '';
+        const uniqueTourn = event.tournament?.uniqueTournament || {};
+        const gender = event.homeTeam?.gender || uniqueTourn.gender || event.tournament?.category?.gender || (
+            (event.tournament?.name?.toLowerCase().includes('women') || categoryName.toLowerCase().includes('women')) ? 'F' : 'M'
+        );
 
         return {
             id: event.id,
@@ -329,7 +334,15 @@ export const sofaScoreAdapter = {
             awayTeamLogo: awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null,
             homeColors: event.homeTeam?.teamColors,
             awayColors: event.awayTeam?.teamColors,
+            league: event.tournament?.name || 'Unknown League',
             leagueName: event.tournament?.name || 'Unknown League',
+            leagueId: event.tournament?.id,
+            category: categoryName,
+            uniqueTournamentId: uniqueTourn.id || null,
+            uniqueTournamentName: uniqueTourn.name || '',
+            userCount: uniqueTourn.userCount || 0,
+            hasPlayerStats: !!uniqueTourn.hasEventPlayerStatistics,
+            gender,
             score: {
                 home: event.homeScore?.current ?? 0,
                 away: event.awayScore?.current ?? 0
@@ -960,6 +973,11 @@ export const sofaScoreAdapter = {
 
         const homeTeamId = event?.homeTeam?.id;
         const awayTeamId = event?.awayTeam?.id;
+        const categoryName = event.tournament?.category?.name || '';
+        const uniqueTourn = event.tournament?.uniqueTournament || {};
+        const gender = event.homeTeam?.gender || uniqueTourn.gender || event.tournament?.category?.gender || (
+            (event.tournament?.name?.toLowerCase().includes('women') || categoryName.toLowerCase().includes('women')) ? 'F' : 'M'
+        );
 
         return {
             id: event.id,
@@ -974,7 +992,12 @@ export const sofaScoreAdapter = {
             league: event.tournament?.name || 'Unknown',
             leagueName: event.tournament?.name || 'Unknown',
             leagueId: event.tournament?.id,
-            category: event.tournament?.category?.name,
+            category: categoryName,
+            uniqueTournamentId: uniqueTourn.id || null,
+            uniqueTournamentName: uniqueTourn.name || '',
+            userCount: uniqueTourn.userCount || 0,
+            hasPlayerStats: !!uniqueTourn.hasEventPlayerStatistics,
+            gender,
             status: event.status?.description,
             minute: this.calculateMinute ? this.calculateMinute(event) : (event.status?.description || '0\''),
             score: {

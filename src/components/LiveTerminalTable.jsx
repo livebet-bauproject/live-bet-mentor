@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo, parseNumericMinute } from '../logic/liveSortEngine';
+import { calculateMatchHeatScore, calculateLast20MinMetrics, formatMarketPrediction, getTrendTimelineInfo, parseNumericMinute, calculateGoalProbability } from '../logic/liveSortEngine';
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { dataWorker } from '../backend/dataWorker';
 import { CONFIG } from '../config';
@@ -143,6 +143,11 @@ export const LiveTerminalTable = ({
                 case 'xg': {
                     valA = (Number(a.stats?.xg?.home) || 0) + (Number(a.stats?.xg?.away) || 0);
                     valB = (Number(b.stats?.xg?.home) || 0) + (Number(b.stats?.xg?.away) || 0);
+                    break;
+                }
+                case 'goalProb': {
+                    valA = calculateGoalProbability(a, signals[a.id]);
+                    valB = calculateGoalProbability(b, signals[b.id]);
                     break;
                 }
                 default:
@@ -1550,6 +1555,17 @@ export const LiveTerminalTable = ({
                                 {renderSortIcon('xg')}
                             </span>
                         </th>
+                        <th 
+                            className={`sortable ${sortColumn === 'goalProb' ? 'active-sort' : ''}`}
+                            onClick={() => handleColumnSort('goalProb')}
+                            style={{ width: '58px', textAlign: 'center', cursor: 'pointer' }}
+                            title={lang === 'tr' ? 'Güncel Gol İhtimaline (Bayesian v2.2) göre sırala' : (lang === 'de' ? 'Nach Torwahrscheinlichkeit (Bayesian) sortieren' : 'Sort by live goal probability (Bayesian)')}
+                        >
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '2px' }}>
+                                {lang === 'tr' ? 'GOL %' : (lang === 'de' ? 'TOR %' : 'GOAL %')}
+                                {renderSortIcon('goalProb')}
+                            </span>
+                        </th>
                         <th style={{ width: '130px', textAlign: 'center' }}>{lang === 'tr' ? 'AI SİNYAL' : (lang === 'de' ? 'KI-SIGNAL' : 'AI SIGNAL')}</th>
                         <th style={{ width: '28px', textAlign: 'center' }}>{lang === 'tr' ? 'DETAY' : (lang === 'de' ? 'DETAILS' : 'DETAIL')}</th>
                     </tr>
@@ -1557,7 +1573,7 @@ export const LiveTerminalTable = ({
                 <tbody>
                     {displayMatches.length === 0 ? (
                         <tr>
-                            <td colSpan={14} style={{ padding: '0', border: 'none' }}>
+                            <td colSpan={15} style={{ padding: '0', border: 'none' }}>
                                 {terminalCategoryFilter === 'PINNED' ? (
                                     <div className="tb-pinned-empty-state">
                                         <div className="tb-pinned-empty-icon">⭐</div>
@@ -1837,6 +1853,28 @@ export const LiveTerminalTable = ({
                                             )}
                                         </td>
 
+                                        {/* Bayesian In-Play Goal Probability */}
+                                        <td className="tb-stat-cell" style={{ textAlign: 'center' }}>
+                                            <span
+                                                style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '2px',
+                                                    fontWeight: 900,
+                                                    fontSize: '0.74rem',
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    background: isDeadMatch ? 'rgba(239, 68, 68, 0.12)' : Number(goalProb) >= 55 ? 'rgba(16, 185, 129, 0.15)' : Number(goalProb) >= 40 ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                                    color: isDeadMatch ? '#f87171' : Number(goalProb) >= 55 ? '#34d399' : Number(goalProb) >= 40 ? '#38bdf8' : '#94a3b8',
+                                                    border: `1px solid ${isDeadMatch ? 'rgba(239, 68, 68, 0.3)' : Number(goalProb) >= 55 ? 'rgba(16, 185, 129, 0.35)' : Number(goalProb) >= 40 ? 'rgba(56, 189, 248, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`
+                                                }}
+                                                title={lang === 'tr' ? `Güncel Gol İhtimali (Bayesian v2.2): %${goalProb}` : (lang === 'de' ? `Torwahrscheinlichkeit (Bayesian v2.2): ${goalProb}%` : `Live Goal Probability (Bayesian v2.2): ${goalProb}%`)}
+                                            >
+                                                %{goalProb}
+                                            </span>
+                                        </td>
+
                                         {/* AI Signal */}
                                         <td style={{ textAlign: 'center' }}>
                                             {renderSignalBadge(m, d)}
@@ -1854,7 +1892,7 @@ export const LiveTerminalTable = ({
                                     {/* Inline Accordion Detail Tray */}
                                     {isExpanded && (
                                         <tr className="tb-expanded-row" onClick={(e) => e.stopPropagation()}>
-                                            <td colSpan={14}>
+                                            <td colSpan={15}>
                                                 {renderExpandedTray(m, d)}
                                             </td>
                                         </tr>

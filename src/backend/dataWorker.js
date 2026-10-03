@@ -258,8 +258,7 @@ class DataWorker {
 
                     // 2. Tier 1 Core matches missing stats: prioritize immediately (up to 8 per cycle)
                     const tier1Missing = rawMatches.filter(rm => {
-                        const leagueName = rm.leagueName || rm.tournament?.name || '';
-                        const isTier1 = leagueProfileModule.getTier(leagueName) === 1;
+                        const isTier1 = leagueProfileModule.getTier(rm) === 1;
                         if (!isTier1) return false;
                         const ex = this.fixtures.find(f => f.id === rm.id);
                         return !ex || !ex.stats || ex.isPartial;
@@ -281,8 +280,7 @@ class DataWorker {
                     // 4. Major Tier 1 & 2 matches that haven't refreshed in > 30s: up to 5 per cycle
                     const staleHighPriority = rawMatches.filter(rm => {
                         if (priorityIds.has(rm.id)) return false;
-                        const leagueName = rm.leagueName || rm.tournament?.name || '';
-                        const isMajor = leagueProfileModule.getTier(leagueName) <= 2;
+                        const isMajor = leagueProfileModule.getTier(rm) <= 2;
                         const lastFetch = this.matchLastStatsFetch.get(rm.id) || 0;
                         return isMajor && (now - lastFetch > 30000);
                     });
@@ -512,7 +510,7 @@ class DataWorker {
                 if (minuteHistory.length > 45) minuteHistory.pop();
             }
 
-            const leagueProfile = leagueProfileModule.getProfile(f.league || f.leagueName);
+            const leagueProfile = leagueProfileModule.getProfile(f);
             const matchedOdds = this.odds[f.id] || this.odds[String(f.id)] || this.odds[Number(f.id)] || null;
             let strategySettings = {};
             try {
@@ -524,12 +522,19 @@ class DataWorker {
             const analysis = analyzeMatch(f, matchedOdds || {}, consensusReport, strategySettings);
 
             // NEW: Multi-Layered Signal Generation (Unified Engine)
-            const finalSignal = this.calculateFinalSignal(f, analysis, dqs);
+            const enrichedFixture = {
+                ...f,
+                tier: leagueProfile.tier,
+                isFriendly: !!leagueProfile.isFriendly,
+                isWomen: !!leagueProfile.isWomen,
+                isYouth: !!leagueProfile.isYouth,
+                leagueProfile
+            };
+            const finalSignal = this.calculateFinalSignal(enrichedFixture, analysis, dqs);
 
             return {
-                ...f,
+                ...enrichedFixture,
                 dqs,
-                tier: leagueProfile.tier,
                 history,
                 minuteHistory,
                 dataQuality: dqs >= 0.8 ? 'TAM' : dqs >= 0.5 ? 'KISITLI' : 'BEKLENİYOR',
@@ -763,6 +768,10 @@ class DataWorker {
             verdict = 'PASS';
             mainReason = `DQS Düşük (${dqs.toFixed(2)})`;
             reasonKey = 'low_dqs';
+        } else if (fixture.isFriendly) {
+            verdict = 'PASS';
+            mainReason = 'Hazırlık Maçı (Bahis Dışı / Taktiksel Belirsizlik)';
+            reasonKey = 'friendly_match_pass';
         } else if (fixture.tier === 3) {
             verdict = 'PASS';
             mainReason = 'Tier 3: Discovery Only (No Bets)';

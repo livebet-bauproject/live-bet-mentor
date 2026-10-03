@@ -210,6 +210,27 @@ class LiveOpportunityScorer {
             }
         }
 
+        // Strict Exclusion 4: Friendly & Exhibition Matches (Uncompetitive / Rotation Heavy)
+        const categoryName = (match.category || match.tournament?.category?.name || '').toLowerCase();
+        const isFriendly = match.isFriendly || 
+                           categoryName.includes('friendly') || 
+                           /friendly|hazırlık|hazirlik|amichevole|freundschaftsspiel|amical|amistoso/i.test(leagueName);
+
+        if (isFriendly) {
+            return this._createEmptyResult('EXCLUDED_FRIENDLY', matchId);
+        }
+
+        const gender = match.gender || match.homeTeam?.gender || '';
+        const isWomen = match.isWomen || 
+                        gender === 'F' || 
+                        categoryName.includes('women') || 
+                        /women|kadın|kadin|femme|frauen|damen|dames|kvinner|feminino|w\.f\.c|wfc|ladies/i.test(leagueName) ||
+                        /women|kadın|kadin/i.test(categoryName);
+
+        const isYouth = match.isYouth || 
+                        categoryName.includes('youth') || 
+                        /\b(u17|u18|u19|u20|u21|u23|reserves|reserve|youth|primavera|copinha)\b/i.test(leagueName);
+
         // Determine if enough stats are available for full analysis (Ready) or pending queue (Radar Active)
         const minMin = thresholds.MIN_MINUTE || 15;
         const isEarlyMinute = !isHalftime && minute < minMin;
@@ -393,6 +414,12 @@ class LiveOpportunityScorer {
                 totalScore = Math.min(64, totalScore);
             }
         }
+
+        // LEAGUE RELIABILITY CEILING:
+        // Women's matches, youth leagues, or Tier 3 discovery matches should not produce unverified 80+ ALEV signals
+        if (isWomen || isYouth || match.tier === 3) {
+            totalScore = Math.min(68, Math.round(totalScore * 0.82));
+        }
         
         totalScore = Math.max(0, Math.min(100, totalScore));
 
@@ -523,6 +550,9 @@ class LiveOpportunityScorer {
             dataDensity: isLowData ? 'LOW' : 'NORMAL',
             isHalftime: !!isHalftime,
             hasHalftimeValue: !!hasHalftimeValue,
+            isWomen: !!isWomen,
+            isYouth: !!isYouth,
+            tier: match.tier || 3,
             components: {
                 dqs: dqsScore,
                 momentum: momentumScore,

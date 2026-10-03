@@ -311,6 +311,16 @@ export class QuantTradingDesk {
             const awayTeam = ev.awayTeam?.name || 'Away';
             const tournament = ev.tournament?.name || 'In-Play';
             const country = ev.tournament?.category?.name || '';
+
+            // Filter out non-competitive fixtures (friendlies, women, youth) from quant trading desk
+            const countryLower = country.toLowerCase();
+            const tournLower = tournament.toLowerCase();
+            const isFriendly = countryLower.includes('friendly') || /friendly|hazırlık|hazirlik|amichevole|freundschaft/i.test(tournLower);
+            const isWomen = ev.homeTeam?.gender === 'F' || countryLower.includes('women') || /women|kadın|kadin|femme|frauen|damen|feminino/i.test(tournLower);
+            const isYouth = countryLower.includes('youth') || /\b(u17|u18|u19|u20|u21|u23|reserves|reserve|youth)\b/i.test(tournLower);
+
+            if (isFriendly || isWomen || isYouth) continue;
+
             const curHome = Number(ev.homeScore?.current ?? 0);
             const curAway = Number(ev.awayScore?.current ?? 0);
             const totalGoals = curHome + curAway;

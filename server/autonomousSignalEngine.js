@@ -249,6 +249,19 @@ export class AutonomousSignalEngine {
         if (!ev || ev.status?.type !== 'inprogress') return null;
         if (ev.tournament?.category?.sport?.id && ev.tournament.category.sport.id !== 1) return null;
 
+        // Strict Exclusion: Autonomous signals require professional, competitive senior matches
+        const catName = (ev.tournament?.category?.name || '').toLowerCase();
+        const tournName = (ev.tournament?.name || '').toLowerCase();
+        const isFriendly = catName.includes('friendly') || 
+                           /friendly|hazırlık|hazirlik|amichevole|freundschaft/i.test(tournName);
+        const isWomen = ev.homeTeam?.gender === 'F' || 
+                        catName.includes('women') || 
+                        /women|kadın|kadin|femme|frauen|damen|feminino/i.test(tournName);
+        const isYouth = catName.includes('youth') || 
+                        /\b(u17|u18|u19|u20|u21|u23|reserves|reserve|youth)\b/i.test(tournName);
+
+        if (isFriendly || isWomen || isYouth) return null;
+
         const minute = this.parseMinute(ev);
         if (!minute || minute < 20 || minute > 78) return null;
 

@@ -6807,7 +6807,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     onChange={(e) => setTerminalSortCriteria(e.target.value)}
                                 >
                                     <option value={SORT_CRITERIA.MOMENTUM}>🔥 {lang === 'tr' ? 'Canlı İvme (Baskı)' : (lang === 'de' ? 'Live-Dynamik (Druck)' : 'Live Momentum')}</option>
-                                    <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali (%55+)' : (lang === 'de' ? 'Torwahrscheinlichkeit (55%+)' : 'Goal Probability')}</option>
+                                    <option value={SORT_CRITERIA.GOAL_PROB}>🧠 {lang === 'tr' ? 'Gol İhtimali (Bayesian %)' : (lang === 'de' ? 'Torwahrscheinlichkeit (Bayesian %)' : 'Goal Probability (Bayesian %)')}</option>
                                     <option value={SORT_CRITERIA.LAST_20_MIN}>⚡ {lang === 'tr' ? 'Son 20 Dk İvmesi' : (lang === 'de' ? 'Dynamik letzte 20 Min.' : 'Last 20m Surge')}</option>
                                     <option value={SORT_CRITERIA.TREND_VOLUME}>📈 {lang === 'tr' ? 'Piyasa Kupon Hacmi' : (lang === 'de' ? 'Markt-Wettscheinvolumen' : 'Market Volume')}</option>
                                     <option value={SORT_CRITERIA.MINUTE_DESC}>⏱️ {lang === 'tr' ? 'Maç Dakikası' : (lang === 'de' ? 'Spielminute' : 'Match Minute')}</option>
