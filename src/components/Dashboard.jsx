@@ -6665,7 +6665,16 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         {['ALL', 1, 2, 3].map(tier => {
                             const count = tier === 'ALL' ? matches.length : matches.filter(m => m.tier === tier).length;
                             const isAll = tier === 'ALL';
-                            const tierSub = tier === 1 ? 'CORE' : tier === 2 ? 'STABLE' : tier === 3 ? 'DISCOVERY' : '';
+                            const tierSub = tier === 1 ? (lang === 'tr' ? 'ELİT' : (lang === 'de' ? 'ELITE' : 'TOP')) :
+                                            tier === 2 ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MID')) :
+                                            tier === 3 ? (lang === 'tr' ? 'RİSKLİ' : (lang === 'de' ? 'RISIKO' : 'RISK')) : '';
+
+                            const shortLabel = isAll ? (lang === 'tr' ? 'TÜMÜ' : (lang === 'de' ? 'ALLE' : 'ALL')) :
+                                               (tier === 1 ? (lang === 'tr' ? 'BÜYÜK' : 'TOP') :
+                                                tier === 2 ? (lang === 'tr' ? 'STANDART' : 'STD') :
+                                                (lang === 'tr' ? 'ALT' : 'LOWER'));
+
+                            const fullLabel = isAll ? (t.tier_filter_all || 'TÜM LİGLER') : (t[`tier_${tier}_label`] || `LİG ${tier}`);
 
                             return (
                                 <button
@@ -6673,14 +6682,15 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     type="button"
                                     onClick={() => setActiveTierFilter(tier)}
                                     className={`tier-btn ${activeTierFilter === tier ? 'active' : ''}`}
+                                    title={isAll ? (lang === 'tr' ? 'Tüm ligler ve maçlar' : 'All matches and leagues') : (t[`tier_${tier}_desc`] || '')}
                                 >
                                     <div className="tier-btn-text">
                                         <span className="tier-btn-main">
-                                            <span className="tier-label-short">{isAll ? (lang === 'tr' ? 'TÜMÜ' : (lang === 'de' ? 'ALLE' : 'ALL')) : `T${tier}`}</span>
-                                            <span className="tier-label-full">{isAll ? (lang === 'tr' ? 'TÜMÜ' : (lang === 'de' ? 'ALLE' : 'ALL')) : `TIER ${tier}`}</span>
+                                            <span className="tier-label-short">{shortLabel}</span>
+                                            <span className="tier-label-full">{fullLabel}</span>
                                         </span>
                                         <span className="tier-btn-desktop-full">
-                                            {isAll ? (t.tier_filter_all || 'TÜM LİGLER') : (t[`tier_${tier}_label`] || `TIER ${tier}`)}
+                                            {fullLabel}
                                         </span>
                                         {tierSub && (
                                             <span className="tier-btn-sub">{tierSub}</span>

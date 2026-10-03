@@ -536,7 +536,11 @@ class TelegramBot {
         const activeVips = this.getActiveVipChannels();
         for (const dest of activeVips) {
             const vipMessage = formatVIPSignal(alert, dest.lang);
-            const res = await this.sendMessage(dest.channelId, vipMessage);
+            const vipBtnText = dest.lang === 'tr' ? '📊 Canlı Terminalde Aç' : dest.lang === 'de' ? '📊 Live-Terminal öffnen' : '📊 Open Live Terminal';
+            const vipKeyboard = [[{ text: vipBtnText, url: WEB_URL }]];
+            const res = await this.sendMessage(dest.channelId, vipMessage, {
+                reply_markup: { inline_keyboard: vipKeyboard }
+            });
             results.vipDeliveries.push({ lang: dest.lang, channelId: dest.channelId, ok: !!res });
             if (!results.vip) results.vip = res;
             console.log(`[TELEGRAM] 💎 VIP signal sent [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} [${alert.level}] -> ${dest.channelId}`);
@@ -551,7 +555,11 @@ class TelegramBot {
                 setTimeout(async () => {
                     for (const dest of activePubs) {
                         const publicMessage = formatPublicTeaser(alert, dest.lang);
-                        const res = await this.sendMessage(dest.channelId, publicMessage);
+                        const teaserBtnText = dest.lang === 'tr' ? '🎁 3 Gün Ücretsiz VIP Başlat (0 TL)' : dest.lang === 'de' ? '🎁 3 Tage Gratis VIP-Pass' : '🎁 Start 3-Day Free VIP';
+                        const teaserKeyboard = [[{ text: teaserBtnText, url: `https://t.me/${this.botUsername}?start=trial` }]];
+                        const res = await this.sendMessage(dest.channelId, publicMessage, {
+                            reply_markup: { inline_keyboard: teaserKeyboard }
+                        });
                         results.publicDeliveries.push({ lang: dest.lang, channelId: dest.channelId, ok: !!res });
                         if (!results.public) results.public = res;
                         console.log(`[TELEGRAM] 📢 Public teaser sent (delayed) [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} -> ${dest.channelId}`);
@@ -575,7 +583,10 @@ class TelegramBot {
         const activeVips = this.getActiveVipChannels();
         for (const dest of activeVips) {
             const message = formatRadarPick(match, dest.lang);
-            const res = await this.sendMessage(dest.channelId, message);
+            const vipBtnText = dest.lang === 'tr' ? '📊 Canlı Terminalde İncele' : dest.lang === 'de' ? '📊 Im Live-Terminal öffnen' : '📊 View in Live Terminal';
+            const res = await this.sendMessage(dest.channelId, message, {
+                reply_markup: { inline_keyboard: [[{ text: vipBtnText, url: WEB_URL }]] }
+            });
             if (!results.vip) results.vip = res;
             console.log(`[TELEGRAM] 🎯 Radar pick sent [${dest.lang.toUpperCase()}] to VIP (${dest.channelId}): ${match.home} vs ${match.away}`);
         }
@@ -586,7 +597,10 @@ class TelegramBot {
             for (const dest of activePubs) {
                 try {
                     const teaser = formatRadarTeaser(match, dest.lang);
-                    const res = await this.sendMessage(dest.channelId, teaser);
+                    const teaserBtnText = dest.lang === 'tr' ? '🎁 3 Gün Ücretsiz VIP Başlat' : dest.lang === 'de' ? '🎁 3-Tage Gratis VIP-Pass' : '🎁 Claim 3-Day Free VIP';
+                    const res = await this.sendMessage(dest.channelId, teaser, {
+                        reply_markup: { inline_keyboard: [[{ text: teaserBtnText, url: `https://t.me/${this.botUsername}?start=trial` }]] }
+                    });
                     if (!results.public) results.public = res;
                     console.log(`[TELEGRAM] 📡 Radar teaser sent [${dest.lang.toUpperCase()}] to Public Channel (${dest.channelId}): ${match.home} vs ${match.away}`);
                 } catch (te) {
@@ -641,7 +655,10 @@ class TelegramBot {
                 const activeVips = this.getActiveVipChannels();
                 for (const dest of activeVips) {
                     const vipMsg = formatRadarPick(match, dest.lang);
-                    const res = await this.sendMessage(dest.channelId, vipMsg);
+                    const vipBtnText = dest.lang === 'tr' ? '📊 Canlı Terminalde İncele' : dest.lang === 'de' ? '📊 Im Live-Terminal öffnen' : '📊 View in Live Terminal';
+                    const res = await this.sendMessage(dest.channelId, vipMsg, {
+                        reply_markup: { inline_keyboard: [[{ text: vipBtnText, url: WEB_URL }]] }
+                    });
                     if (!vipRes) vipRes = res;
                 }
 
@@ -651,7 +668,10 @@ class TelegramBot {
                     const activePubs = this.getActivePublicChannels();
                     for (const dest of activePubs) {
                         const publicMsg = formatRadarTeaser(match, dest.lang);
-                        const res = await this.sendMessage(dest.channelId, publicMsg);
+                        const teaserBtnText = dest.lang === 'tr' ? '🎁 3 Gün Ücretsiz VIP Başlat' : dest.lang === 'de' ? '🎁 3-Tage Gratis VIP-Pass' : '🎁 Claim 3-Day Free VIP';
+                        const res = await this.sendMessage(dest.channelId, publicMsg, {
+                            reply_markup: { inline_keyboard: [[{ text: teaserBtnText, url: `https://t.me/${this.botUsername}?start=trial` }]] }
+                        });
                         if (!pubRes) pubRes = res;
                     }
                 }

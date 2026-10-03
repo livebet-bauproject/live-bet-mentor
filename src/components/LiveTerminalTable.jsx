@@ -1648,9 +1648,14 @@ export const LiveTerminalTable = ({
                                             </span>
                                         </td>
 
-                                        {/* League */}
-                                        <td className="tb-col-league" title={m.league || m.leagueName || 'League'}>
-                                            <span style={{ opacity: 0.6, marginRight: '3px' }}>T{m.tier || 1}</span>
+                                        <td className="tb-col-league" title={`${m.league || m.leagueName || 'League'} (${m.tier === 1 ? (lang === 'tr' ? 'Büyük / Elit Lig' : 'Top League') : m.tier === 2 ? (lang === 'tr' ? 'Standart Lig' : 'Standard League') : (lang === 'tr' ? 'Alt / Diğer Lig' : 'Lower / Other')})`}>
+                                            {m.tier === 1 ? (
+                                                <span style={{ color: '#f59e0b', marginRight: '4px', fontSize: '0.78rem' }} title={lang === 'tr' ? 'Büyük / Elit Lig' : 'Top League'}>⭐</span>
+                                            ) : m.tier === 2 ? (
+                                                <span style={{ opacity: 0.65, marginRight: '4px', fontSize: '0.72rem', fontWeight: 600 }} title={lang === 'tr' ? 'Standart Lig' : 'Standard League'}>[Std]</span>
+                                            ) : (
+                                                <span style={{ color: '#94a3b8', marginRight: '4px', fontSize: '0.72rem' }} title={lang === 'tr' ? 'Alt / Diğer Lig' : 'Lower / Other'}>[Alt]</span>
+                                            )}
                                             {m.league || m.leagueName || 'Futbol'}
                                         </td>
 
@@ -1996,7 +2001,10 @@ export const LiveTerminalTable = ({
                                             {d.yellowAway > 0 && <span className="tb-card-badge tb-card-yellow">{d.yellowAway}</span>}
                                         </div>
                                         <div className="tb-mc-meta-line">
-                                            <span className="tb-mc-league">T{m.tier || 1} {m.league || m.leagueName || 'Futbol'}</span>
+                                            <span className="tb-mc-league">
+                                                {m.tier === 1 ? '⭐ ' : m.tier === 2 ? '[Std] ' : '[Alt] '}
+                                                {m.league || m.leagueName || 'Futbol'}
+                                            </span>
                                             {d.isTrendApproved && (
                                                 <span className="tb-mc-micro-trend approved" title={d.marketPrediction}>
                                                     🟢 {d.marketPrediction} {d.primaryTrend?.odds ? `@${typeof d.primaryTrend.odds === 'number' ? d.primaryTrend.odds.toFixed(2) : d.primaryTrend.odds}` : ''}
