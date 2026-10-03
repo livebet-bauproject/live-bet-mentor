@@ -730,11 +730,15 @@ class TelegramBot {
         this.syncStatsCounters();
         const results = { vip: null, public: null };
 
-        // 1. VIP gets detailed institutional ledger
+        // 1. VIP gets detailed institutional ledger (silent notification so members aren't disturbed at midnight)
         const activeVips = this.getActiveVipChannels();
         for (const dest of activeVips) {
             const report = formatDailyReport(this.dailyStats, dest.lang);
-            const res = await this.sendMessage(dest.channelId, report);
+            const terminalBtnText = dest.lang === 'tr' ? '🌐 Web Terminali' : dest.lang === 'de' ? '🌐 Web-Terminal' : '🌐 Web Terminal';
+            const res = await this.sendMessage(dest.channelId, report, {
+                disable_notification: true,
+                reply_markup: { inline_keyboard: [[{ text: terminalBtnText, url: WEB_URL }]] }
+            });
             if (!results.vip) results.vip = res;
         }
 
@@ -742,7 +746,19 @@ class TelegramBot {
         const activePubs = this.getActivePublicChannels();
         for (const dest of activePubs) {
             const recap = formatPublicDailyRecap(this.dailyStats, dest.lang);
-            const res = await this.sendMessage(dest.channelId, recap);
+            const trialBtnText = dest.lang === 'tr' ? '🎁 3 Gün Ücretsiz VIP Başlat' : dest.lang === 'de' ? '🎁 3-Tage Gratis VIP-Pass' : '🎁 Claim 3-Day Free VIP';
+            const vipBtnText = dest.lang === 'tr' ? '💎 VIP Paketleri İncele' : dest.lang === 'de' ? '💎 VIP-Pakete ansehen' : '💎 Explore VIP Tiers';
+            const res = await this.sendMessage(dest.channelId, recap, {
+                disable_notification: true,
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: trialBtnText, url: `https://t.me/${this.botUsername}?start=trial` },
+                            { text: vipBtnText, url: `https://t.me/${this.botUsername}?start=vip` }
+                        ]
+                    ]
+                }
+            });
             if (!results.public) results.public = res;
         }
 
@@ -845,15 +861,28 @@ class TelegramBot {
                 const activePubs = this.getActivePublicChannels();
 
                 if (result === 'WON') {
-                    // 1. Send institutional confirmation to VIP channels
+                    // 1. Send institutional confirmation to VIP channels with terminal button
                     for (const dest of activeVips) {
                         const message = formatSignalResult(signal, result, score, this.dailyStats, dest.lang);
-                        await this.sendMessage(dest.channelId, message);
+                        const terminalBtn = dest.lang === 'tr' ? '📊 Canlı Terminal' : dest.lang === 'de' ? '📊 Live-Terminal' : '📊 Live Terminal';
+                        await this.sendMessage(dest.channelId, message, {
+                            reply_markup: { inline_keyboard: [[{ text: terminalBtn, url: WEB_URL }]] }
+                        });
                     }
-                    // 2. Send high-converting FOMO social proof card to Public channels
+                    // 2. Send high-converting FOMO social proof card to Public channels with 1-click VIP buttons
                     for (const dest of activePubs) {
                         const message = formatFomoWinningCard(signal, result, score, dest.lang);
-                        await this.sendMessage(dest.channelId, message);
+                        const trialBtn = dest.lang === 'tr' ? '🎁 3 Gün Ücretsiz VIP Başlat' : dest.lang === 'de' ? '🎁 3-Tage Gratis VIP-Pass' : '🎁 Start 3-Day Free VIP';
+                        const vipBtn = dest.lang === 'tr' ? '💎 VIP Paketleri İncele' : dest.lang === 'de' ? '💎 VIP-Pakete ansehen' : '💎 Explore VIP Tiers';
+                        const fomoKeyboard = [
+                            [
+                                { text: trialBtn, url: `https://t.me/${this.botUsername}?start=trial` },
+                                { text: vipBtn, url: `https://t.me/${this.botUsername}?start=vip` }
+                            ]
+                        ];
+                        await this.sendMessage(dest.channelId, message, {
+                            reply_markup: { inline_keyboard: fomoKeyboard }
+                        });
                     }
                     console.log(`[TELEGRAM] 📢 Pazarlamacı: Winning FOMO card dispatched to Public Channel for ${signal.match}`);
                 } else if (result === 'LOST') {
