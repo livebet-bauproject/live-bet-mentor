@@ -456,6 +456,7 @@ export const LiveTerminalTable = ({
         const predText = getPredictionDisplay(m, signal);
         const isBetReady = signal?.verdict === 'BET' && Boolean(predText) && !isLateOrFinished;
         const isHot = heat >= 75;
+        const smartStake = bankrollManager ? bankrollManager.calculateSmartStake(m, signal) : null;
 
         return {
             signal, isPinned, rawHeat, heat, opp, heatScore, rawHeatLevel, heatLevel, heatIcon, windowMomentum, last20,
@@ -465,7 +466,7 @@ export const LiveTerminalTable = ({
             matchTrendingBets, hasTrend, primaryTrend, totalTrendCount, dqsVal, isEarlyMin, isTrendApproved, isTrendTrap,
             marketPrediction, trendInfo, bayesian, heatNorm, rawPosterior, effectivePosterior, goalProb, baseTempo,
             pressureImpact, confidence, confidenceLabel, confidenceColor, latencyMs, dataQuality, pressureTotal,
-            minStr, minNum, isLateOrFinished, predText, isBetReady, isHot
+            minStr, minNum, isLateOrFinished, predText, isBetReady, isHot, smartStake
         };
     };
 
@@ -615,7 +616,7 @@ export const LiveTerminalTable = ({
             matchTrendingBets, hasTrend, primaryTrend, totalTrendCount, dqsVal, isEarlyMin, isTrendApproved, isTrendTrap,
             marketPrediction, trendInfo, bayesian, heatNorm, rawPosterior, effectivePosterior, goalProb, baseTempo,
             pressureImpact, confidence, confidenceLabel, confidenceColor, latencyMs, dataQuality, pressureTotal,
-            minStr, minNum, isLateOrFinished, predText, isBetReady, isHot
+            minStr, minNum, isLateOrFinished, predText, isBetReady, isHot, smartStake
         } = d;
 
         return (
@@ -1414,42 +1415,99 @@ export const LiveTerminalTable = ({
                                                             </div>
                                                         )}
 
-                                                        {/* Sleek Single-Click Portfolio / Slip Tracking Button */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: '0.4rem' }} className="tb-action-ignore">
-                                                            <button
-                                                                type="button"
-                                                                disabled={trackedMatchIds.has(m.id)}
-                                                                onClick={() => {
-                                                                    onApproveBet(m, signal);
-                                                                    setTrackedMatchIds(prev => new Set([...prev, m.id]));
-                                                                }}
-                                                                style={{
-                                                                    background: trackedMatchIds.has(m.id) 
-                                                                        ? 'rgba(16, 185, 129, 0.15)' 
-                                                                        : 'linear-gradient(135deg, #10b981, #059669)',
-                                                                    color: trackedMatchIds.has(m.id) ? '#34d399' : '#000',
-                                                                    border: trackedMatchIds.has(m.id) ? '1px solid rgba(16, 185, 129, 0.4)' : 'none',
-                                                                    padding: '0.65rem 1.25rem',
-                                                                    borderRadius: '8px',
-                                                                    fontWeight: 800,
-                                                                    fontSize: '0.76rem',
-                                                                    cursor: trackedMatchIds.has(m.id) ? 'default' : 'pointer',
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '6px',
-                                                                    boxShadow: trackedMatchIds.has(m.id) ? 'none' : '0 2px 10px rgba(16, 185, 129, 0.3)',
-                                                                    transition: 'all 0.2s'
-                                                                }}
-                                                                title={lang === 'tr' ? 'Bu maçı kişisel tahmin ve kasa takip karnenize kaydedin' : (lang === 'de' ? 'Dieses Spiel im persönlichen Tipp- und Buchungsbuch verfolgen' : 'Track this match in your prediction ledger')}
-                                                            >
-                                                                <span>{trackedMatchIds.has(m.id) ? '✓' : '📌'}</span>
-                                                                <span>
-                                                                    {trackedMatchIds.has(m.id) 
-                                                                        ? (lang === 'tr' ? 'Takip Listenize Eklendi' : (lang === 'de' ? 'Zur Beobachtungsliste hinzugefügt' : 'Added to Watchlist')) 
-                                                                        : (lang === 'de' ? 'Zur Beobachtungsliste hinzufügen' : (lang === 'tr' ? 'Kuponuma / Takibe Ekle' : 'Add to Watchlist'))}
-                                                                </span>
-                                                            </button>
-                                                        </div>
+                                                        {/* Sleek Single-Click 100-Unit Smart Stake & Slip Tracking Button */}
+                                                        {(() => {
+                                                            const isAlreadyOpen = trackedMatchIds.has(m.id) || (smartStake && smartStake.isAlreadyOpen);
+                                                            const isTargetLocked = smartStake?.isTargetLocked;
+                                                            const isStopLoss = smartStake?.isStopLossLocked;
+                                                            const isExposure = smartStake?.isExposureLocked;
+                                                            const isHighRisk = smartStake?.isHighRisk;
+                                                            const isAllowed = smartStake?.allowed && !isAlreadyOpen;
+
+                                                            let btnBg = 'linear-gradient(135deg, #10b981, #059669)';
+                                                            let btnColor = '#000';
+                                                            let btnBorder = 'none';
+                                                            let btnIcon = '⚡';
+                                                            let btnText = smartStake?.allowed 
+                                                                ? `${smartStake.stake.toLocaleString('tr-TR')} ₺ Oyna (${smartStake.units}U)`
+                                                                : (lang === 'tr' ? 'Kuponuma Ekle' : 'Add to Slip');
+                                                            let btnDisabled = false;
+
+                                                            if (isAlreadyOpen) {
+                                                                btnBg = 'rgba(16, 185, 129, 0.15)';
+                                                                btnColor = '#34d399';
+                                                                btnBorder = '1px solid rgba(16, 185, 129, 0.4)';
+                                                                btnIcon = '✓';
+                                                                btnText = lang === 'tr' ? 'Kasa Pozisyonu Açık' : (lang === 'de' ? 'Position offen' : 'Position Open');
+                                                                btnDisabled = true;
+                                                            } else if (isTargetLocked) {
+                                                                btnBg = 'rgba(16, 185, 129, 0.12)';
+                                                                btnColor = '#10b981';
+                                                                btnBorder = '1px solid rgba(16, 185, 129, 0.35)';
+                                                                btnIcon = '🔒';
+                                                                btnText = lang === 'tr' ? 'Hedef Kilitli (+%5 Alındı)' : (lang === 'de' ? 'Tagesziel erreicht (+5%)' : 'Daily Target Locked');
+                                                                btnDisabled = true;
+                                                            } else if (isStopLoss) {
+                                                                btnBg = 'rgba(239, 68, 68, 0.15)';
+                                                                btnColor = '#ef4444';
+                                                                btnBorder = '1px solid rgba(239, 68, 68, 0.4)';
+                                                                btnIcon = '🛑';
+                                                                btnText = lang === 'tr' ? 'Stop-Loss (-%3 Kalkanı)' : (lang === 'de' ? 'Stop-Loss aktiv (-3%)' : 'Stop-Loss Active');
+                                                                btnDisabled = true;
+                                                            } else if (isExposure) {
+                                                                btnBg = 'rgba(245, 158, 11, 0.15)';
+                                                                btnColor = '#fbbf24';
+                                                                btnBorder = '1px solid rgba(245, 158, 11, 0.4)';
+                                                                btnIcon = '⏳';
+                                                                btnText = lang === 'tr' ? 'Masa Riski Dolu (2/2 Açık)' : (lang === 'de' ? 'Maximales Risiko (2/2 offen)' : 'Max Exposure (2/2)');
+                                                                btnDisabled = true;
+                                                            } else if (isHighRisk) {
+                                                                btnBg = 'rgba(148, 163, 184, 0.12)';
+                                                                btnColor = '#94a3b8';
+                                                                btnBorder = '1px solid rgba(148, 163, 184, 0.3)';
+                                                                btnIcon = '⚠️';
+                                                                btnText = smartStake?.label || (lang === 'tr' ? 'Kasa Dışı Lig' : (lang === 'de' ? 'Außerhalb Portfolio' : 'High Risk League'));
+                                                                btnDisabled = true;
+                                                            }
+
+                                                            return (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', marginTop: '0.4rem' }} className="tb-action-ignore">
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={btnDisabled}
+                                                                        onClick={() => {
+                                                                            const stakeToBet = smartStake?.allowed ? smartStake.stake : null;
+                                                                            onApproveBet(m, signal, stakeToBet);
+                                                                            setTrackedMatchIds(prev => new Set([...prev, m.id]));
+                                                                        }}
+                                                                        style={{
+                                                                            background: btnBg,
+                                                                            color: btnColor,
+                                                                            border: btnBorder,
+                                                                            padding: '0.65rem 1.25rem',
+                                                                            borderRadius: '8px',
+                                                                            fontWeight: 800,
+                                                                            fontSize: '0.78rem',
+                                                                            cursor: btnDisabled ? 'default' : 'pointer',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '6px',
+                                                                            boxShadow: btnDisabled ? 'none' : '0 2px 10px rgba(16, 185, 129, 0.3)',
+                                                                            transition: 'all 0.2s'
+                                                                        }}
+                                                                        title={smartStake?.label || ''}
+                                                                    >
+                                                                        <span>{btnIcon}</span>
+                                                                        <span>{btnText}</span>
+                                                                    </button>
+                                                                    {isAllowed && (
+                                                                        <span style={{ fontSize: '0.66rem', color: '#94a3b8', opacity: 0.85 }}>
+                                                                            100-Birim Kasa: 1U = {smartStake.unitSize} ₺ • Kasanın %{smartStake.stakePercent}'i
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
 

@@ -127,7 +127,9 @@ class BankrollManager {
             bankroll_iq: 85,
             badges: ['WELCOME_TRADER'],
             target_daily_profit_pct: 0.05,
-            stop_loss_pct: 0.03
+            stop_loss_pct: 0.03,
+            max_concurrent_bets: 2,
+            auto_pilot_enabled: false
         };
 
         if (saved) {
@@ -144,7 +146,9 @@ class BankrollManager {
                     badges: parsed.badges && parsed.badges.length > 0 ? parsed.badges : defaultState.badges,
                     risk_profile: parsed.risk_profile || defaultState.risk_profile,
                     nickname: parsed.nickname || defaultState.nickname,
-                    bankroll_iq: parsed.bankroll_iq || defaultState.bankroll_iq
+                    bankroll_iq: parsed.bankroll_iq || defaultState.bankroll_iq,
+                    max_concurrent_bets: parsed.max_concurrent_bets !== undefined ? parsed.max_concurrent_bets : 2,
+                    auto_pilot_enabled: Boolean(parsed.auto_pilot_enabled)
                 };
 
                 // Dynamic daily reset
@@ -176,9 +180,13 @@ class BankrollManager {
     }
 
     saveState() {
-        console.log('[BankrollManager] Saving state. Balance:', this.state.current_balance);
         if (typeof localStorage !== 'undefined') {
             localStorage.setItem('lbm_bankroll_state', JSON.stringify(this.state));
+            try {
+                if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent('bankroll_state_changed', { detail: this.state }));
+                }
+            } catch (e) {}
         }
     }
 
@@ -222,6 +230,235 @@ class BankrollManager {
             noBetRate: total > 0 ? (stats.noBetCount / total) * 100 : 0,
             totalAnalysed: total
         };
+    }
+
+    /**
+     * 100-UNIT CALCULATION:
+     * Divides current balance into 100 equal units.
+     * E.g. 2,000 TL balance -> 1 Unit = 20.00 TL.
+     * 10,000 TL balance -> 1 Unit = 100.00 TL.
+     * 500 TL balance -> 1 Unit = 5.00 TL.
+     */
+    getUnitSize() {
+        const bal = Number(this.state.current_balance) || 2000;
+        return Math.max(1, Math.round((bal / 100) * 100) / 100);
+    }
+
+    /**
+     * Gets the list of currently active unsettled bets.
+     */
+    getActiveOpenBets() {
+        return (this.state.ledger || []).filter(l => 
+            (l.status === 'OPEN' || l.type === 'BET_OPEN') && !l.is_settled
+        );
+    }
+
+    getActiveOpenBetsCount() {
+        return this.getActiveOpenBets().length;
+    }
+
+    /**
+     * Check if a match is already actively bet on in open ledger
+     */
+    isMatchOpenInLedger(matchId) {
+        if (!matchId) return false;
+        return this.getActiveOpenBets().some(l => String(l.match_id) === String(matchId));
+    }
+
+    /**
+     * Evaluates daily locks (Target +%5, Stop Loss -%3, Exposure Cap)
+     */
+    getDisciplineStatus() {
+        const starting = Number(this.state.starting_balance) || 2000;
+        const current = Number(this.state.current_balance) || starting;
+        const dailyPL = Number(this.state.daily_pl) || 0;
+        const dailyPLPct = starting > 0 ? (dailyPL / starting) * 100 : 0;
+
+        const profileKey = this.state.risk_profile || 'BALANCED';
+        const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
+        const targetDailyPct = (profile.targetDailyPct || 0.05) * 100; // e.g. 5%
+        const stopLossPct = (profile.stopLossPct || 0.03) * 100;       // e.g. 3%
+
+        const targetCash = Math.round((starting * (targetDailyPct / 100)) * 100) / 100;
+        const stopLossCash = Math.round((starting * (stopLossPct / 100)) * 100) / 100;
+
+        const isTargetLocked = dailyPL >= targetCash;
+        const isStopLossLocked = dailyPL <= -stopLossCash;
+        const activeCount = this.getActiveOpenBetsCount();
+        const maxConcurrent = this.state.max_concurrent_bets || 2;
+        const isExposureLocked = activeCount >= maxConcurrent;
+
+        let statusText = 'NORMAL';
+        let lockReason = null;
+        let badgeColor = '#10b981';
+
+        if (isTargetLocked) {
+            statusText = 'TARGET_LOCKED';
+            lockReason = `GÜNLÜK HEDEF KİLİTLENDİ (+%${targetDailyPct} / +${targetCash.toLocaleString('tr-TR')} ₺)`;
+            badgeColor = '#10b981';
+        } else if (isStopLossLocked) {
+            statusText = 'STOP_LOSS_LOCKED';
+            lockReason = `STOP-LOSS DEVREDE (-%${stopLossPct} / -${stopLossCash.toLocaleString('tr-TR')} ₺)`;
+            badgeColor = '#ef4444';
+        } else if (isExposureLocked) {
+            statusText = 'EXPOSURE_LOCKED';
+            lockReason = `MAKSİMUM RİSK DOLU (${activeCount}/${maxConcurrent} Açık Maç)`;
+            badgeColor = '#f59e0b';
+        }
+
+        return {
+            startingBalance: starting,
+            currentBalance: current,
+            unitSize: this.getUnitSize(),
+            dailyPL,
+            dailyPLPct: parseFloat(dailyPLPct.toFixed(2)),
+            targetDailyPct,
+            targetCash,
+            stopLossPct,
+            stopLossCash,
+            remainingToTarget: Math.max(0, targetCash - dailyPL),
+            isTargetLocked,
+            isStopLossLocked,
+            isExposureLocked,
+            isBettingAllowed: !isTargetLocked && !isStopLossLocked && !isExposureLocked,
+            activeOpenCount: activeCount,
+            maxConcurrent,
+            statusText,
+            lockReason,
+            badgeColor,
+            autoPilotEnabled: !!this.state.auto_pilot_enabled
+        };
+    }
+
+    /**
+     * MASTER 100-UNIT INTELLIGENT STAKE ADVISOR
+     * Calculates the exact dynamic stake (1.0 - 2.5 Units) customized to this user's balance.
+     */
+    calculateSmartStake(fixture, signal) {
+        const discipline = this.getDisciplineStatus();
+        const unitSize = discipline.unitSize;
+        const matchId = fixture?.id;
+
+        // 1. Check if already bet
+        if (this.isMatchOpenInLedger(matchId)) {
+            return {
+                allowed: false,
+                isAlreadyOpen: true,
+                stake: 0,
+                units: 0,
+                unitSize,
+                reason: 'ALREADY_OPEN',
+                label: 'Açık Bahis Devam Ediyor',
+                badgeText: '✓ Kasa Açık'
+            };
+        }
+
+        // 2. Check Daily Target Lock (+%5)
+        if (discipline.isTargetLocked) {
+            return {
+                allowed: false,
+                isTargetLocked: true,
+                stake: 0,
+                units: 0,
+                unitSize,
+                reason: 'TARGET_LOCKED',
+                label: discipline.lockReason,
+                badgeText: '🔒 Hedef Kilitli'
+            };
+        }
+
+        // 3. Check Stop-Loss Lock (-%3)
+        if (discipline.isStopLossLocked) {
+            return {
+                allowed: false,
+                isStopLossLocked: true,
+                stake: 0,
+                units: 0,
+                unitSize,
+                reason: 'STOP_LOSS',
+                label: discipline.lockReason,
+                badgeText: '🛑 Stop-Loss'
+            };
+        }
+
+        // 4. Check Concurrent Exposure (Max 2 open bets)
+        if (discipline.isExposureLocked) {
+            return {
+                allowed: false,
+                isExposureLocked: true,
+                stake: 0,
+                units: 0,
+                unitSize,
+                reason: 'MAX_EXPOSURE',
+                label: discipline.lockReason,
+                badgeText: `⏳ ${discipline.activeOpenCount}/${discipline.maxConcurrent} Risk Dolu`
+            };
+        }
+
+        // 5. Check League / Fixture Quality (Exclude Friendly or Tier 3 from recommended stakes)
+        const isFriendly = fixture?.isFriendly || fixture?.category?.toLowerCase().includes('friendly');
+        const tier = fixture?.tier || 3;
+        if (isFriendly || tier === 3) {
+            return {
+                allowed: false,
+                isHighRisk: true,
+                stake: 0,
+                units: 0,
+                unitSize,
+                reason: 'HIGH_RISK_LEAGUE',
+                label: isFriendly ? 'Hazırlık Maçı (Kasa Dışı)' : 'Alt / Riskli Lig (Sadece Keşif)',
+                badgeText: '⚠️ Riskli Lig'
+            };
+        }
+
+        // 6. Calculate Dynamic Units based on Kelly + Strategy Conviction
+        // Elite strategies (Alfa Kuant, Geç Dakika 75+): 2.0 - 2.5 Units
+        // Solid momentum / surge / comeback: 1.5 - 2.0 Units
+        // Normal positive EV: 1.0 Unit
+        const strat = (signal?.activeStrategies?.[0]?.label || signal?.reason || '').toLowerCase();
+        const confidence = Number(signal?.confidence) || 75;
+        const odds = Number(signal?.odds || signal?.marketOdds || 1.65);
+
+        let units = 1.0;
+        if (strat.includes('alfa') || strat.includes('geç dakika') || confidence >= 85) {
+            units = 2.5; // Max recommended unit
+        } else if (strat.includes('ivme') || strat.includes('abluka') || strat.includes('geri dönüş') || confidence >= 78) {
+            units = 2.0;
+        } else if (confidence >= 70) {
+            units = 1.5;
+        } else {
+            units = 1.0;
+        }
+
+        // Safety cap: Never risk more than remaining cash or 2.5 units
+        const maxUnits = 2.5;
+        units = Math.min(maxUnits, Math.max(0.5, units));
+
+        const rawStake = units * unitSize;
+        const stake = Math.min(discipline.currentBalance, Math.max(5, Math.round(rawStake)));
+
+        return {
+            allowed: true,
+            units,
+            unitSize,
+            stake,
+            stakePercent: parseFloat(((stake / discipline.currentBalance) * 100).toFixed(1)),
+            currentBalance: discipline.currentBalance,
+            odds,
+            reason: 'QUALIFIED',
+            label: `${stake.toLocaleString('tr-TR')} ₺ (${units} Birim)`,
+            badgeText: `⚡ ${stake} ₺ (${units}U)`
+        };
+    }
+
+    toggleAutoPilot(enabled = null) {
+        if (enabled === null) {
+            this.state.auto_pilot_enabled = !this.state.auto_pilot_enabled;
+        } else {
+            this.state.auto_pilot_enabled = Boolean(enabled);
+        }
+        this.saveState();
+        return this.state.auto_pilot_enabled;
     }
 
     /**
@@ -269,24 +506,44 @@ class BankrollManager {
         return Math.round(stake * 100) / 100;
     }
 
-    approveBet(fixture, signal, approvedStake) {
+    approveBet(fixture, signal, approvedStake = null) {
+        if (!fixture) return false;
         if (this.state.current_mode === CONFIG.BANKROLL.HIERARCHY.MODES.NO_BET) {
             return false;
         }
 
-        const balanceBefore = Number(this.state.current_balance);
-        const stake = Number(approvedStake);
+        // Prevent duplicate open bet on the same match
+        if (this.isMatchOpenInLedger(fixture.id)) {
+            console.log('[BankrollManager] Match already has an open bet in ledger:', fixture.id);
+            return false;
+        }
 
-        this.state.current_balance = balanceBefore - stake;
-        console.log(`[BankrollManager] Bet Approved. Balance: ${balanceBefore} -> ${this.state.current_balance}`);
+        const smart = this.calculateSmartStake(fixture, signal);
+        const stake = approvedStake ? Number(approvedStake) : (smart.allowed ? smart.stake : 0);
+
+        if (!stake || stake <= 0 || stake > this.state.current_balance) {
+            console.warn('[BankrollManager] Invalid stake or insufficient balance:', stake, this.state.current_balance);
+            return false;
+        }
+
+        // Discipline lock check (unless explicitly approved by user with custom stake)
+        const discipline = this.getDisciplineStatus();
+        if (!approvedStake && !discipline.isBettingAllowed) {
+            console.warn('[BankrollManager] Bet blocked by discipline lock:', discipline.lockReason);
+            return false;
+        }
+
+        const balanceBefore = Number(this.state.current_balance);
+        this.state.current_balance = Math.max(0, Math.round((balanceBefore - stake) * 100) / 100);
+        console.log(`[BankrollManager] Bet Approved (${stake} ₺). Balance: ${balanceBefore} -> ${this.state.current_balance}`);
 
         // Extract primary strategy info
         const primaryStrat = signal?.activeStrategies?.[0] || {};
         const stratId = primaryStrat.id || 'GENERIC';
-        const stratLabel = primaryStrat.label || signal?.reason || signal?.mainReason || 'Genel Strateji';
+        const stratLabel = primaryStrat.label || signal?.reason || signal?.mainReason || 'Kuant Canlı';
 
-        const rawOdds = signal?.odds || signal?.marketOdds || signal?.bestEV?.marketOdds || fixture.odds?.home;
-        const oddsTaken = (rawOdds && Number(rawOdds) > 1.0) ? Number(rawOdds) : null;
+        const rawOdds = signal?.odds || signal?.marketOdds || signal?.bestEV?.marketOdds || fixture.odds?.over || fixture.odds?.home;
+        const oddsTaken = (rawOdds && Number(rawOdds) > 1.0) ? Number(rawOdds) : 1.70;
         const marketName = signal?.suggestedMarket || signal?.market || primaryStrat.id || 'NEXT_GOAL';
         const scoreAtBet = { home: fixture.score?.home ?? 0, away: fixture.score?.away ?? 0 };
 
@@ -294,13 +551,18 @@ class BankrollManager {
             match_id: fixture.id,
             match_name: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
             match: `${fixture.homeTeam} vs ${fixture.awayTeam}`,
-            league: fixture.leagueName,
-            tier: fixture.tier,
+            homeTeam: fixture.homeTeam,
+            awayTeam: fixture.awayTeam,
+            league: fixture.leagueName || fixture.league,
+            tier: fixture.tier || 1,
             stake_amount: stake,
             stake: stake,
+            units: smart.units || 1.0,
+            unit_size: discipline.unitSize,
             status: 'OPEN',
             balance_before: balanceBefore,
-            reason: signal?.reason || signal?.mainReason,
+            balance_after: this.state.current_balance,
+            reason: signal?.reason || signal?.mainReason || 'Kuant Sinyal Girişi',
             strategy_id: stratId,
             strategy_label: stratLabel,
             market: marketName,
@@ -809,7 +1071,11 @@ class BankrollManager {
     }
 
     getState() {
-        return JSON.parse(JSON.stringify(this.state));
+        const copy = JSON.parse(JSON.stringify(this.state));
+        copy.discipline = this.getDisciplineStatus();
+        copy.unit_size = this.getUnitSize();
+        copy.active_open_bets_count = this.getActiveOpenBetsCount();
+        return copy;
     }
 
     getModeLabel(lang) {
@@ -854,7 +1120,9 @@ class BankrollManager {
             bankroll_iq: 85,
             badges: ['WELCOME_TRADER'],
             target_daily_profit_pct: 0.05,
-            stop_loss_pct: 0.03
+            stop_loss_pct: 0.03,
+            max_concurrent_bets: 2,
+            auto_pilot_enabled: false
         };
         this.state = defaultState;
         this.saveState();

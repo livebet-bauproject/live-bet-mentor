@@ -161,7 +161,7 @@ export const CapitalConfigModal = ({
                     />
 
                     <div style={{ display: 'flex', gap: '0.45rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-                        {[1000, 2000, 5000, 10000, 25000].map(val => (
+                        {[500, 1000, 2000, 5000, 10000, 25000].map(val => (
                             <button
                                 key={val}
                                 onClick={() => setAmount(val)}
@@ -179,6 +179,31 @@ export const CapitalConfigModal = ({
                                 {val.toLocaleString()} ₺
                             </button>
                         ))}
+                    </div>
+
+                    {/* Live Unit & Discipline Preview */}
+                    <div style={{
+                        marginTop: '0.75rem',
+                        padding: '0.6rem 0.8rem',
+                        background: 'rgba(56, 189, 248, 0.06)',
+                        border: '1px solid rgba(56, 189, 248, 0.2)',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '6px',
+                        fontSize: '0.72rem'
+                    }}>
+                        <span style={{ color: '#38bdf8', fontWeight: 800 }}>
+                            🎯 1 Birim (1U): <strong style={{ color: '#fff' }}>{Math.max(1, Math.round(amount / 100))} ₺</strong>
+                        </span>
+                        <span style={{ color: '#10b981', fontWeight: 700 }}>
+                            Hedef (+%5): +{Math.round(amount * 0.05)} ₺
+                        </span>
+                        <span style={{ color: '#ef4444', fontWeight: 700 }}>
+                            Stop-Loss (-%3): -{Math.round(amount * 0.03)} ₺
+                        </span>
                     </div>
                 </div>
 

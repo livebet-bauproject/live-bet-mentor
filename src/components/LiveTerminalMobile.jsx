@@ -1273,32 +1273,101 @@ export const LiveTerminalMobile = ({
                                     )}
 
                                     {/* Quick Actions Bar */}
-                                    <div className="tb-m-quick-actions">
-                                        <button
-                                            type="button"
-                                            className="tb-m-action-btn"
-                                            disabled={trackedMatchIds.has(m.id)}
-                                            style={{
-                                                background: trackedMatchIds.has(m.id) ? 'rgba(16, 185, 129, 0.18)' : '#10b981',
-                                                color: trackedMatchIds.has(m.id) ? '#34d399' : '#000',
-                                                border: trackedMatchIds.has(m.id) ? '1px solid rgba(16, 185, 129, 0.4)' : 'none'
-                                            }}
-                                            onClick={() => {
-                                                onApproveBet(m, signal);
-                                                setTrackedMatchIds(prev => new Set([...prev, m.id]));
-                                            }}
-                                        >
-                                            <span>{trackedMatchIds.has(m.id) ? '✓' : '📌'}</span>
-                                            <span>{trackedMatchIds.has(m.id) ? (lang === 'tr' ? 'Takip Ediliyor' : (lang === 'de' ? 'Wird beobachtet' : 'Tracking')) : (lang === 'tr' ? 'Kupona Ekle' : (lang === 'de' ? 'Zum Schein' : 'Add to Slip'))}</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="tb-m-action-btn secondary"
-                                            onClick={() => setExpandedMatchId(null)}
-                                        >
-                                            <span>▲</span>
-                                            <span>{lang === 'tr' ? 'Detayları Kapat' : (lang === 'de' ? 'Details schließen' : 'Close Details')}</span>
-                                        </button>
+                                    <div className="tb-m-quick-actions" style={{ flexDirection: 'column', gap: '8px' }}>
+                                        {(() => {
+                                            const smartStake = bankrollManager ? bankrollManager.calculateSmartStake(m, signal) : null;
+                                            const isAlreadyOpen = trackedMatchIds.has(m.id) || (smartStake && smartStake.isAlreadyOpen);
+                                            const isTargetLocked = smartStake?.isTargetLocked;
+                                            const isStopLoss = smartStake?.isStopLossLocked;
+                                            const isExposure = smartStake?.isExposureLocked;
+                                            const isHighRisk = smartStake?.isHighRisk;
+                                            const isAllowed = smartStake?.allowed && !isAlreadyOpen;
+
+                                            let btnBg = '#10b981';
+                                            let btnColor = '#000';
+                                            let btnBorder = 'none';
+                                            let btnIcon = '⚡';
+                                            let btnText = smartStake?.allowed 
+                                                ? `${smartStake.stake.toLocaleString('tr-TR')} ₺ Oyna (${smartStake.units}U)`
+                                                : (lang === 'tr' ? 'Kupona Ekle' : 'Add to Slip');
+                                            let btnDisabled = false;
+
+                                            if (isAlreadyOpen) {
+                                                btnBg = 'rgba(16, 185, 129, 0.18)';
+                                                btnColor = '#34d399';
+                                                btnBorder = '1px solid rgba(16, 185, 129, 0.4)';
+                                                btnIcon = '✓';
+                                                btnText = lang === 'tr' ? 'Kasa Pozisyonu Açık' : 'Position Open';
+                                                btnDisabled = true;
+                                            } else if (isTargetLocked) {
+                                                btnBg = 'rgba(16, 185, 129, 0.12)';
+                                                btnColor = '#10b981';
+                                                btnBorder = '1px solid rgba(16, 185, 129, 0.35)';
+                                                btnIcon = '🔒';
+                                                btnText = lang === 'tr' ? 'Hedef Kilitli (+%5 Alındı)' : 'Target Locked (+5%)';
+                                                btnDisabled = true;
+                                            } else if (isStopLoss) {
+                                                btnBg = 'rgba(239, 68, 68, 0.15)';
+                                                btnColor = '#ef4444';
+                                                btnBorder = '1px solid rgba(239, 68, 68, 0.4)';
+                                                btnIcon = '🛑';
+                                                btnText = lang === 'tr' ? 'Stop-Loss (-%3)' : 'Stop-Loss Active';
+                                                btnDisabled = true;
+                                            } else if (isExposure) {
+                                                btnBg = 'rgba(245, 158, 11, 0.15)';
+                                                btnColor = '#fbbf24';
+                                                btnBorder = '1px solid rgba(245, 158, 11, 0.4)';
+                                                btnIcon = '⏳';
+                                                btnText = lang === 'tr' ? 'Masa Riski Dolu (2/2)' : 'Max Exposure (2/2)';
+                                                btnDisabled = true;
+                                            } else if (isHighRisk) {
+                                                btnBg = 'rgba(148, 163, 184, 0.12)';
+                                                btnColor = '#94a3b8';
+                                                btnBorder = '1px solid rgba(148, 163, 184, 0.3)';
+                                                btnIcon = '⚠️';
+                                                btnText = smartStake?.label || (lang === 'tr' ? 'Kasa Dışı Lig' : 'High Risk');
+                                                btnDisabled = true;
+                                            }
+
+                                            return (
+                                                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                                                        <button
+                                                            type="button"
+                                                            className="tb-m-action-btn"
+                                                            disabled={btnDisabled}
+                                                            style={{
+                                                                background: btnBg,
+                                                                color: btnColor,
+                                                                border: btnBorder,
+                                                                flex: 1
+                                                            }}
+                                                            onClick={() => {
+                                                                const stakeToBet = smartStake?.allowed ? smartStake.stake : null;
+                                                                onApproveBet(m, signal, stakeToBet);
+                                                                setTrackedMatchIds(prev => new Set([...prev, m.id]));
+                                                            }}
+                                                        >
+                                                            <span>{btnIcon}</span>
+                                                            <span>{btnText}</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="tb-m-action-btn secondary"
+                                                            style={{ width: 'auto', padding: '0 1rem' }}
+                                                            onClick={() => setExpandedMatchId(null)}
+                                                        >
+                                                            <span>▲</span>
+                                                        </button>
+                                                    </div>
+                                                    {isAllowed && (
+                                                        <div style={{ fontSize: '0.66rem', color: '#94a3b8', textAlign: 'center', opacity: 0.85 }}>
+                                                            100-Birim Kasa: 1U = {smartStake.unitSize} ₺ • Kasanın %{smartStake.stakePercent}'i
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
                             )}

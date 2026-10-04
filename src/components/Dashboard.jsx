@@ -205,6 +205,26 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         }
     };
 
+    // Keep React state in sync with Bankroll Manager event broadcasts
+    useEffect(() => {
+        const handleBankrollChange = () => {
+            setBankState(bankrollManager.getState());
+        };
+        window.addEventListener('bankroll_state_changed', handleBankrollChange);
+        return () => window.removeEventListener('bankroll_state_changed', handleBankrollChange);
+    }, []);
+
+    const handleToggleAutoPilot = () => {
+        const next = bankrollManager.toggleAutoPilot();
+        setBankState(bankrollManager.getState());
+        setSettlementMessage(
+            next
+                ? (lang === 'tr' ? '🤖 Otonom Robot Aktif: Disiplin kuralları dahilinde uygun sinyallere otomatik giriş yapacak.' : (lang === 'de' ? '🤖 Auto-Pilot Aktiviert.' : '🤖 Auto-Pilot Activated.'))
+                : (lang === 'tr' ? '⏸️ Otonom Robot Devre Dışı.' : (lang === 'de' ? '⏸️ Auto-Pilot Deaktiviert.' : '⏸️ Auto-Pilot Paused.'))
+        );
+        setTimeout(() => setSettlementMessage(''), 4500);
+    };
+
     const handleResetBankroll = () => {
         const curStart = bankState.starting_balance || 2000;
         const confirmText = lang === 'tr' 
@@ -2637,7 +2657,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
     const filterByTier = (m) => activeTierFilter === 'ALL' || m.tier === activeTierFilter;
 
-    const handleTerminalApproveBet = (match, signal) => {
+    const handleTerminalApproveBet = (match, signal, customStake = null) => {
         if (!match) return;
         const strat = signal?.activeStrategies?.[0];
         const predText = strat?.label || signal?.prediction || signal?.reason || match?.opportunityData?.suggestedMarket?.label || (lang === 'tr' ? 'Canlı Takip' : (lang === 'de' ? 'Live-Tipp' : 'Live Pick'));
@@ -2669,9 +2689,18 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
         // 2. Also register in bankroll ledger if manager active
         if (bankrollManager) {
-            const stake = bankrollManager.calculateRecommendedStake(match, signal) || 100;
-            bankrollManager.approveBet(match, signal, stake);
-            setBankState(bankrollManager.getState());
+            const smart = bankrollManager.calculateSmartStake(match, signal);
+            const stake = customStake ? Number(customStake) : (smart?.allowed ? smart.stake : (bankrollManager.calculateRecommendedStake(match, signal) || 100));
+            const approved = bankrollManager.approveBet(match, signal, stake);
+            if (approved) {
+                setBankState(bankrollManager.getState());
+                setSettlementMessage(
+                    lang === 'tr' 
+                        ? `⚡ Kasa İşlemi Açıldı: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString('tr-TR')} ₺ - ${smart?.units || 1}U)` 
+                        : (lang === 'de' ? `⚡ Position eröffnet: ${stake} ₺` : `⚡ Position Opened: ${stake} ₺`)
+                );
+                setTimeout(() => setSettlementMessage(''), 4500);
+            }
         }
     };
 
@@ -2798,6 +2827,35 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         const opps = liveOpportunityScorer.getOpportunities(oppMatches, signals, momentumWindow);
         return betBuilderEngine.generateGoldenCombo(opps, oppMatches, lang);
     }, [enforcedMatches, activeTierFilter, signals, momentumWindow, lang]);
+
+    // Auto-Pilot execution hook for 100-Unit Disciplined Staking
+    const autoPilotProcessedRef = useRef(new Set());
+    useEffect(() => {
+        if (!bankState?.auto_pilot_enabled) return;
+
+        const disc = bankrollManager.getDisciplineStatus();
+        if (!disc.isBettingAllowed) return;
+
+        // Scan processed matches with live BET signals
+        for (const m of processedTerminalMatches) {
+            if (autoPilotProcessedRef.current.has(m.id)) continue;
+            if (bankrollManager.isMatchOpenInLedger(m.id)) {
+                autoPilotProcessedRef.current.add(m.id);
+                continue;
+            }
+
+            const sig = signals[m.id];
+            if (!sig || sig.verdict !== 'BET') continue;
+
+            const smart = bankrollManager.calculateSmartStake(m, sig);
+            if (smart && smart.allowed && (sig.confidence >= 80 || (m.opportunityData?.score >= 80))) {
+                autoPilotProcessedRef.current.add(m.id);
+                handleTerminalApproveBet(m, sig, smart.stake);
+                console.log(`[AutoPilot] Automatically placed disciplined bet on ${m.homeTeam} vs ${m.awayTeam}: ${smart.stake} ₺ (${smart.units}U)`);
+                break; // 1 at a time to prevent race conditions
+            }
+        }
+    }, [bankState?.auto_pilot_enabled, processedTerminalMatches, signals]);
 
     const handleGenerateGlobalReport = async (type) => {
         // Enforce AI Usage Limits
@@ -6828,6 +6886,173 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     </div>
 
                     <section className="dashboard-section terminal-cockpit-section" style={{ marginBottom: '3rem' }}>
+                            {/* ==================== 100-BİRİM AKILLI KASA & DİSİPLİN KOKPİTİ ==================== */}
+                            <div className="bankroll-discipline-cockpit" style={{
+                                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(3, 7, 18, 0.95) 100%)',
+                                border: '1px solid rgba(56, 189, 248, 0.22)',
+                                borderRadius: '14px',
+                                padding: '0.85rem 1.25rem',
+                                marginBottom: '1.25rem',
+                                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.45)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: '12px'
+                            }}>
+                                {/* Left Block: Capital & 1-Unit Size */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ fontSize: '1.4rem' }}>💰</span>
+                                        <div>
+                                            <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                {lang === 'tr' ? 'CANLI KASA' : 'LIVE BANKROLL'}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.3px' }}>
+                                                    {(bankState.current_balance || 2000).toLocaleString('tr-TR')} ₺
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsCapitalModalOpen(true)}
+                                                    style={{
+                                                        background: 'rgba(56, 189, 248, 0.12)',
+                                                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                                                        color: '#38bdf8',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.68rem',
+                                                        fontWeight: 800,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                    title={lang === 'tr' ? 'Kasa ve risk profilini ayarla' : 'Configure Bankroll'}
+                                                >
+                                                    ⚙️ {lang === 'tr' ? 'Kasa Ayarla' : 'Configure'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 1 Unit Value Badge */}
+                                    <div style={{
+                                        background: 'rgba(56, 189, 248, 0.08)',
+                                        border: '1px solid rgba(56, 189, 248, 0.2)',
+                                        borderRadius: '8px',
+                                        padding: '4px 10px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <span style={{ fontSize: '0.64rem', color: '#38bdf8', fontWeight: 800 }}>🎯 1 BİRİM (1U)</span>
+                                        <span style={{ fontSize: '0.95rem', fontWeight: 900, color: '#fff' }}>
+                                            {Math.max(1, Math.round((bankState.current_balance || 2000) / 100))} ₺
+                                            <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 600, marginLeft: '4px' }}>(%1)</span>
+                                        </span>
+                                    </div>
+
+                                    {/* Daily P/L & Target Progress */}
+                                    {(() => {
+                                        const disc = bankrollManager ? bankrollManager.getDisciplineStatus() : null;
+                                        const dailyPL = disc ? disc.dailyPL : (bankState.daily_pl || 0);
+                                        const isProfit = dailyPL >= 0;
+                                        const isTargetLocked = disc?.isTargetLocked;
+                                        const isStopLossLocked = disc?.isStopLossLocked;
+
+                                        return (
+                                            <div style={{
+                                                background: isTargetLocked ? 'rgba(16, 185, 129, 0.12)' : isStopLossLocked ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                                                border: `1px solid ${isTargetLocked ? 'rgba(16, 185, 129, 0.4)' : isStopLossLocked ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                                                borderRadius: '8px',
+                                                padding: '4px 10px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <span style={{ fontSize: '0.64rem', color: isProfit ? '#34d399' : '#f87171', fontWeight: 800 }}>
+                                                    {isTargetLocked ? '🔒 HEDEF KİLİTLİ (+%5)' : isStopLossLocked ? '🛑 STOP-LOSS DEVREDE' : '📊 GÜNLÜK K/Z'}
+                                                </span>
+                                                <span style={{ fontSize: '0.95rem', fontWeight: 900, color: isProfit ? '#34d399' : '#f87171' }}>
+                                                    {isProfit ? '+' : ''}{dailyPL.toLocaleString('tr-TR')} ₺
+                                                    <span style={{ fontSize: '0.64rem', opacity: 0.85, marginLeft: '4px' }}>
+                                                        ({disc ? disc.dailyPLPct : 0}%)
+                                                    </span>
+                                                    {!isTargetLocked && !isStopLossLocked && disc?.remainingToTarget > 0 && (
+                                                        <span style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: 600, marginLeft: '6px' }}>
+                                                            [Hedefe: {disc.remainingToTarget} ₺]
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </div>
+                                        );
+                                    })()}
+
+                                    {/* Concurrent Exposure (Max 2 Open Bets) */}
+                                    {(() => {
+                                        const activeCount = bankrollManager ? bankrollManager.getActiveOpenBetsCount() : 0;
+                                        const maxAllowed = 2;
+                                        const isMax = activeCount >= maxAllowed;
+
+                                        return (
+                                            <div style={{
+                                                background: isMax ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                                                border: `1px solid ${isMax ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                                                borderRadius: '8px',
+                                                padding: '4px 10px',
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                justifyContent: 'center'
+                                            }}
+                                            title={lang === 'tr' ? 'Masa Riski: Kasa güvenliği için aynı anda en fazla 2 maç açık olabilir.' : 'Exposure Cap: Max 2 concurrent open bets allowed.'}
+                                            >
+                                                <span style={{ fontSize: '0.64rem', color: isMax ? '#fbbf24' : '#94a3b8', fontWeight: 800 }}>🛡️ MASA RİSKİ</span>
+                                                <span style={{ fontSize: '0.95rem', fontWeight: 900, color: isMax ? '#fbbf24' : '#fff' }}>
+                                                    {activeCount} / {maxAllowed} {lang === 'tr' ? 'Açık' : 'Open'}
+                                                    <span style={{ fontSize: '0.62rem', marginLeft: '4px', color: activeCount === 0 ? '#34d399' : isMax ? '#f59e0b' : '#38bdf8' }}>
+                                                        {activeCount === 0 ? '🟢' : isMax ? '🟡 Dolu' : '🔵'}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        );
+                                    })()}
+                                </div>
+
+                                {/* Right Block: Auto-Pilot Robot Toggle */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button
+                                        type="button"
+                                        onClick={handleToggleAutoPilot}
+                                        style={{
+                                            background: bankState.auto_pilot_enabled 
+                                                ? 'linear-gradient(135deg, #10b981, #059669)' 
+                                                : 'rgba(255, 255, 255, 0.05)',
+                                            color: bankState.auto_pilot_enabled ? '#000' : '#94a3b8',
+                                            border: bankState.auto_pilot_enabled ? 'none' : '1px solid rgba(255, 255, 255, 0.15)',
+                                            padding: '0.55rem 1rem',
+                                            borderRadius: '8px',
+                                            fontWeight: 900,
+                                            fontSize: '0.74rem',
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            boxShadow: bankState.auto_pilot_enabled ? '0 0 14px rgba(16, 185, 129, 0.35)' : 'none',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        title={lang === 'tr' ? 'Otonom Robot: Belirlediğiniz kasa ve kurallara göre uygun elit sinyalleri otomatik onaylar.' : 'Autonomous Auto-Pilot Staking'}
+                                    >
+                                        <span style={{ fontSize: '0.9rem' }}>🤖</span>
+                                        <span>
+                                            {lang === 'tr' 
+                                                ? (bankState.auto_pilot_enabled ? 'Otonom Robot: AÇIK' : 'Otonom Robot: KAPALI') 
+                                                : (bankState.auto_pilot_enabled ? 'Auto-Pilot: ON' : 'Auto-Pilot: OFF')}
+                                        </span>
+                                    </button>
+                                </div>
+                            </div>
+
                             {/* GÜNÜN CANLI ALTIN İKİLİSİ (CANLI KUPON SİHİRBAZI v4.0) */}
                             {terminalGoldenCombo ? (
                                 <div className="golden-combo-ticket" style={{ marginBottom: '1.25rem' }}>
