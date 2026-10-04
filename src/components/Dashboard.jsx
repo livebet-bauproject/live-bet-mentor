@@ -31,6 +31,7 @@ import { AnalystLeaderboard } from './portfolio/AnalystLeaderboard';
 import { CompoundSimulator } from './portfolio/CompoundSimulator';
 import { CapitalConfigModal } from './portfolio/CapitalConfigModal';
 import { ShareCardModal } from './portfolio/ShareCardModal';
+import { BankrollGuideModal } from './portfolio/BankrollGuideModal';
 import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, isMatchBlowout, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import { trackPageView, trackAnalyticsEvent } from '../utils/analyticsTracker';
 import { getAdminHeaders } from '../utils/adminAuth';
@@ -114,6 +115,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const [portfolioTab, setPortfolioTab] = useState('cockpit'); // 'cockpit', 'leaderboard', 'simulator', 'journal'
     const [isCapitalModalOpen, setIsCapitalModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isBankrollGuideOpen, setIsBankrollGuideOpen] = useState(false);
     const [lastFetchSeconds, setLastFetchSeconds] = useState(0);
     const [healthStats, setHealthStats] = useState(dataWorker.healthStats);
     const [selectedMatch, setSelectedMatch] = useState(null);
@@ -6928,9 +6930,29 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         alignItems: 'center',
                                                         gap: '4px'
                                                     }}
-                                                    title={lang === 'tr' ? 'Kasa ve risk profilini ayarla' : 'Configure Bankroll'}
+                                                    title={lang === 'tr' ? 'Kasa ve risk profilini ayarla' : (lang === 'de' ? 'Bankroll & Risikoprofil einstellen' : 'Configure Bankroll')}
                                                 >
-                                                    ⚙️ {lang === 'tr' ? 'Kasa Ayarla' : 'Configure'}
+                                                    ⚙️ {lang === 'tr' ? 'Kasa Ayarla' : (lang === 'de' ? 'Einstellen' : 'Configure')}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setIsBankrollGuideOpen(true)}
+                                                    style={{
+                                                        background: 'rgba(16, 185, 129, 0.12)',
+                                                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                        color: '#34d399',
+                                                        padding: '2px 8px',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.68rem',
+                                                        fontWeight: 800,
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '4px'
+                                                    }}
+                                                    title={lang === 'tr' ? '100-Birim Kasa Yönetimi Nasıl Çalışır?' : (lang === 'de' ? 'Wie funktioniert das 100-Einheiten-System?' : 'How does the 100-Unit System work?')}
+                                                >
+                                                    📖 {lang === 'tr' ? 'Nasıl Çalışır?' : (lang === 'de' ? 'Wie funktioniert es?' : 'How It Works?')}
                                                 </button>
                                             </div>
                                         </div>
@@ -9228,6 +9250,22 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             <LegalModal
                 isOpen={isLegalModalOpen}
                 onClose={() => setIsLegalModalOpen(false)}
+                lang={lang}
+            />
+
+            <CapitalConfigModal
+                isOpen={isCapitalModalOpen}
+                onClose={() => setIsCapitalModalOpen(false)}
+                currentCapital={bankState.starting_balance || bankState.current_balance || 2000}
+                currentProfile={bankState.risk_profile || 'BALANCED'}
+                onSave={handleSaveCapital}
+                lang={lang}
+            />
+
+            <BankrollGuideModal
+                isOpen={isBankrollGuideOpen}
+                onClose={() => setIsBankrollGuideOpen(false)}
+                currentCapital={bankState.current_balance || 2000}
                 lang={lang}
             />
 
