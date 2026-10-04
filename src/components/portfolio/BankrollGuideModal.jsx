@@ -38,16 +38,16 @@ const GUIDE_TEXTS = {
         // Tab 3: Calculator
         calcHeader: 'CANLI KASA & BİLEŞİK BÜYÜME SİMÜLATÖRÜ',
         calcSub: 'Kendi sermaye miktarınızı seçin, sistemin sizin için hesapladığı mermileri ve hedefleri anında görün.',
-        calcInputLabel: 'KASA BAKİYENİZİ BELİRLEYİN (₺):',
+        calcInputLabel: 'KASA BAKİYENİZİ BELİRLEYİN ({currency}):',
         statUnit: '1 Birim (1U) Değeriniz:',
         statElite: 'Elit Maç Atışı (2.5U):',
         statTarget: 'Günlük Kâr Hedefiniz (+%5):',
         statStop: 'Günlük Stop-Loss Limiti (-%3):',
         compoundHeader: '📈 30 GÜNLÜK BİLEŞİK DİSİPLİN PROJEKSİYONU',
         compoundDesc: 'Günde sadece +%5 hedef alıp masadan kalkan bir analistin 30 günlük simülasyonu:',
-        day10: '10. Gün (Kasa: ~{val10} ₺)',
-        day20: '20. Gün (Kasa: ~{val20} ₺)',
-        day30: '30. Gün (Kasa: ~{val30} ₺)',
+        day10: '10. Gün (Kasa: ~{val10} {currency})',
+        day20: '20. Gün (Kasa: ~{val20} {currency})',
+        day30: '30. Gün (Kasa: ~{val30} {currency})',
         compoundNote: '* Bileşik büyüme hesabı kârın kasada kalıp birim boyutunu dinamik büyütmesi esasına dayanır. Gerçekçi piyasa koşullarında disipline uymak kasanızı katlamanın en güvenli yoludur.',
 
         // Tab 4: Telegram & WhatsApp Share
@@ -63,12 +63,12 @@ Neden her seferinde kasanız sıfırlanıyor?
 
 ⚡ 100-BİRİM KASA SİSTEMİ NEDİR?
 1️⃣ Kasa Kaç Paraysa 100 Eşit Mermiye Bölünür (1 Birim = Kasanın %1'i).
-   Örn: 2.000 ₺ Kasa = 1 Birim 20 ₺'dir.
+   Örn: {amount} {currency} Kasa = 1 Birim {unit} {currency}'dir.
 
 2️⃣ Sinyalin Gücüne Göre Oynanır:
-   • Standart Fırsat: 1.0 Birim (20 ₺)
-   • Yüksek İvme / Abluka: 2.0 Birim (40 ₺)
-   • Alfa Kuant / 75+ Banko: 2.5 Birim (50 ₺)
+   • Standart Fırsat: 1.0 Birim ({unit} {currency})
+   • Yüksek İvme / Abluka: 2.0 Birim ({unit2} {currency})
+   • Alfa Kuant / 75+ Banko: 2.5 Birim ({unit25} {currency})
 
 3️⃣ Masa Riski Kuralı:
    Aynı anda en fazla 2 maç açık olabilir! 3. maça izin verilmez. Sermaye asla dağılmaz.
@@ -93,19 +93,19 @@ Neden her seferinde kasanız sıfırlanıyor?
         rulesHeader: 'THE 4 GOLDEN RULES TO PREVENT CAPITAL DRAWDOWN',
         rulesSub: 'Bettors do not lose because of poor predictions; they lose due to lack of bankroll management and stopping discipline.',
         step1Title: '1. Divide Your Bankroll into 100 Equal Units (1U Standard)',
-        step1Desc: 'Whatever your balance is, the system automatically divides it into 100 equal units (1 Unit = 1%). For example, on a 2,000 ₺ bankroll, 1 Unit = 20 ₺. Gone are the days of reckless all-ins.',
+        step1Desc: 'Whatever your balance is, the system automatically divides it into 100 equal units (1 Unit = 1%). For example, on a $1,000 bankroll, 1 Unit = $10. Gone are the days of reckless all-ins.',
         step2Title: '2. Conviction-Based Dynamic Staking (1.0 - 2.5 Units)',
-        step2Desc: 'Do not bet the same amount on every game. Standard positive EV signals get 1.0 Unit (20 ₺), momentum siege games get 2.0 Units (40 ₺), and Alpha Quant / 75+ Late Goal signals receive 2.5 Units (50 ₺).',
+        step2Desc: 'Do not bet the same amount on every game. Standard positive EV signals get 1.0 Unit ($10), momentum siege games get 2.0 Units ($20), and Alpha Quant / 75+ Late Goal signals receive 2.5 Units ($25).',
         step3Title: '3. Exposure Cap (Maximum 2 Concurrent Matches)',
         step3Desc: 'Never hold positions on 4-5 games simultaneously. Maximum 2 active open positions are permitted at any time. Capital stays concentrated and risk remains capped.',
         step4Title: '4. Walk-Away Discipline (+5% Profit Lock & -3% Stop-Loss)',
-        step4Desc: 'Reaching +5% daily profit (e.g., +100 ₺ on 2,000 ₺) locks out further bets to bank the day\'s win. On an adverse day, hitting a -3% stop-loss (-60 ₺) halts trading, safeguarding 97% of your capital.',
+        step4Desc: 'Reaching +5% daily profit (e.g., +$50 on $1,000) locks out further bets to bank the day\'s win. On an adverse day, hitting a -3% stop-loss (-$30) halts trading, safeguarding 97% of your capital.',
 
         // Tab 2: Comparison
         vsHeader: 'WHY MOST PEOPLE GO BROKE (MINDSET CONTRAST)',
         vsBadTitle: '❌ THE TYPICAL GAMBLER (WHY THEY BUST)',
         vsGoodTitle: '✅ LIVEBET QUANT TRADER (HOW THEY COMPOUND)',
-        vsRow1Bad: 'Stakes random amounts (200, 1,000 ₺); burns half their bankroll on a single match.',
+        vsRow1Bad: 'Stakes random amounts ($100, $500); burns half their bankroll on a single match.',
         vsRow1Good: 'Strictly allocates 100 equal units, risking at most 2.5 units on top-tier signals.',
         vsRow2Bad: 'Chases losses aggressively after a bad beat (tilts and busts).',
         vsRow2Good: 'Halts immediately at -3% daily stop-loss, preserving 97% of capital for tomorrow.',
@@ -117,16 +117,16 @@ Neden her seferinde kasanız sıfırlanıyor?
         // Tab 3: Calculator
         calcHeader: 'LIVE BANKROLL & COMPOUND GROWTH CALCULATOR',
         calcSub: 'Set your capital and instantly view your personalized units, daily targets, and 30-day projection.',
-        calcInputLabel: 'SPECIFY YOUR STARTING CAPITAL (₺ / € / $):',
+        calcInputLabel: 'SPECIFY YOUR STARTING CAPITAL ({currency}):',
         statUnit: '1 Unit (1U) Size:',
         statElite: 'Elite Conviction Stake (2.5U):',
         statTarget: 'Daily Target (+5%):',
         statStop: 'Daily Stop-Loss (-3%):',
         compoundHeader: '📈 30-DAY COMPOUND DISCIPLINE PROJECTION',
         compoundDesc: 'Projection of taking a disciplined +5% daily target and compounding profits:',
-        day10: 'Day 10 (Bankroll: ~{val10} ₺)',
-        day20: 'Day 20 (Bankroll: ~{val20} ₺)',
-        day30: 'Day 30 (Bankroll: ~{val30} ₺)',
+        day10: 'Day 10 (Bankroll: ~{val10} {currency})',
+        day20: 'Day 20 (Bankroll: ~{val20} {currency})',
+        day30: 'Day 30 (Bankroll: ~{val30} {currency})',
         compoundNote: '* Compounding assumes profits are reinvested to scale unit sizes. In real market conditions, strict walk-away discipline is the only reliable path to long-term profitability.',
 
         // Tab 4: Telegram Share
@@ -142,12 +142,12 @@ Not because they cannot pick a winner; but because they have zero bankroll manag
 
 ⚡ WHAT IS THE 100-UNIT BANKROLL SYSTEM?
 1️⃣ Bankroll Divided into 100 Equal Units (1 Unit = 1% of Capital).
-   E.g., 2,000 ₺ Capital = 1 Unit is 20 ₺.
+   E.g., {amount} {currency} Capital = 1 Unit is {unit} {currency}.
 
 2️⃣ Conviction-Based Dynamic Staking:
-   • Standard Edge: 1.0 Unit (20 ₺)
-   • Pressure Surge / Momentum: 2.0 Units (40 ₺)
-   • Alpha Quant / 75+ Conviction: 2.5 Units (50 ₺)
+   • Standard Edge: 1.0 Unit ({unit} {currency})
+   • Pressure Surge / Momentum: 2.0 Units ({unit2} {currency})
+   • Alpha Quant / 75+ Conviction: 2.5 Units ({unit25} {currency})
 
 3️⃣ Maximum Table Exposure:
    Max 2 open matches concurrently! Never spread capital across 5 games at once.
@@ -172,19 +172,19 @@ Not because they cannot pick a winner; but because they have zero bankroll manag
         rulesHeader: 'DIE 4 GOLDENEN REGELN GEGEN KAPITALVERLUST',
         rulesSub: 'Wettende verlieren nicht wegen falscher Tipps; sie verlieren wegen fehlendem Moneymanagement und mangelnder Stopp-Disziplin.',
         step1Title: '1. Kapital in 100 gleiche Einheiten teilen (1U-Standard)',
-        step1Desc: 'Wie hoch Ihr Guthaben auch ist: Das System teilt es automatisch in 100 Einheiten (1U = 1%). Bei 2.000 ₺ entspricht 1U = 20 ₺. Schluss mit unüberlegten All-Ins.',
+        step1Desc: 'Wie hoch Ihr Guthaben auch ist: Das System teilt es automatisch in 100 Einheiten (1U = 1%). Bei 1.000 € entspricht 1U = 10 € (oder 5 € bei 500 €). Schluss mit unüberlegten All-Ins.',
         step2Title: '2. Dynamische Einsätze nach Signalstärke (1,0 - 2,5 Units)',
-        step2Desc: 'Setzen Sie nicht auf jedes Spiel denselben Betrag. Standard-Werte erhalten 1,0U (20 ₺), hohe Belagerungsphasen 2,0U (40 ₺), Alpha-Quant- und 75+-Signale erhalten 2,5U (50 ₺).',
+        step2Desc: 'Setzen Sie nicht auf jedes Spiel denselben Betrag. Standard-Werte erhalten 1,0U (10 €), hohe Belagerungsphasen 2,0U (20 €), Alpha-Quant- und 75+-Signale erhalten 2,5U (25 €).',
         step3Title: '3. Maximal 2 offene Spiele gleichzeitig',
         step3Desc: 'Niemals auf 4-5 Spiele gleichzeitig setzen. Maximal 2 aktive Positionen sind erlaubt. Das Kapital bleibt fokussiert und das Risiko begrenzt.',
         step4Title: '4. Aufhör-Disziplin (+5% Tagesziel-Sperre & -3% Stop-Loss)',
-        step4Desc: 'Sobald +5% Tagesgewinn erreicht sind (z. B. +100 ₺ bei 2.000 ₺), sperrt das System weitere Einsätze: Gewinne einstreichen und Tisch verlassen! Bei -3% greift der Stop-Loss: 97% des Kapitals sind gerettet.',
+        step4Desc: 'Sobald +5% Tagesgewinn erreicht sind (z. B. +50 € bei 1.000 €), sperrt das System weitere Einsätze: Gewinne einstreichen und Tisch verlassen! Bei -3% (-30 €) greift der Stop-Loss: 97% des Kapitals sind gerettet.',
 
         // Tab 2: Comparison
         vsHeader: 'WARUM DIE MEISTEN VERLIEREN (MINDSET-VERGLEICH)',
         vsBadTitle: '❌ DER TYPISCHE ZOCKER (WARUM ER SCHEITERT)',
         vsGoodTitle: '✅ LIVEBET-ANALYST (WIE ER KAPITAL VERVIELFACHT)',
-        vsRow1Bad: 'Setzt planlos mal 200, mal 1.000 ₺; verbrennt in einem einzigen Spiel die halbe Bankroll.',
+        vsRow1Bad: 'Setzt planlos mal 100, mal 500 €; verbrennt in einem einzigen Spiel die halbe Bankroll.',
         vsRow1Good: 'Hält sich strikt an 100 Einheiten; riskiert selbst bei Elitesignalen maximal 2,5 Einheiten.',
         vsRow2Bad: 'Versucht Verluste mit Frust-Einsätzen sofort zurückzuholen (Tilt und Ruin).',
         vsRow2Good: 'Stoppt konsequent bei -3% Tages-Stop-Loss und rettet 97% des Kapitals für den nächsten Tag.',
@@ -196,16 +196,16 @@ Not because they cannot pick a winner; but because they have zero bankroll manag
         // Tab 3: Calculator
         calcHeader: 'LIVE-BANKROLL- & ZINSESZINS-RECHNER',
         calcSub: 'Wählen Sie Ihr Kapital und sehen Sie sofort Ihre persönlichen Einheiten, Tagesziele und 30-Tage-Projektion.',
-        calcInputLabel: 'STARTKAPITAL FESTLEGEN (₺ / € / $):',
+        calcInputLabel: 'STARTKAPITAL FESTLEGEN ({currency}):',
         statUnit: '1 Einheit (1U) Wert:',
         statElite: 'Elite-Einsatz (2,5U):',
         statTarget: 'Tagesgewinnziel (+5%):',
         statStop: 'Tages-Stop-Loss (-3%):',
         compoundHeader: '📈 30-TAGE ZINSESZINS-PROJEKTION',
         compoundDesc: 'Projektion bei täglicher Erreichung des +5%-Tagesziels und diszipliniertem Aufhören:',
-        day10: 'Tag 10 (Kapital: ~{val10} ₺)',
-        day20: 'Tag 20 (Kapital: ~{val20} ₺)',
-        day30: 'Tag 30 (Kapital: ~{val30} ₺)',
+        day10: 'Tag 10 (Kapital: ~{val10} {currency})',
+        day20: 'Tag 20 (Kapital: ~{val20} {currency})',
+        day30: 'Tag 30 (Kapital: ~{val30} {currency})',
         compoundNote: '* Zinseszins-Berechnung basiert auf der Reinvestition von Gewinnen. Diszipliniertes Aufhören ist der einzige mathematisch verlässliche Weg zum dauerhaften Erfolg.',
 
         // Tab 4: Telegram Share
@@ -221,12 +221,12 @@ Nicht wegen schlechter Tipps, sondern wegen fehlendem Risikomanagement und FEHLE
 
 ⚡ WAS IST DAS 100-EINHEITEN-SYSTEM?
 1️⃣ Kapital in 100 gleiche Teile aufgeteilt (1 Einheit = 1% des Kapitals).
-   Z. B. 2.000 ₺ Kapital = 1 Einheit ist 20 ₺.
+   Z. B. {amount} {currency} Kapital = 1 Einheit ist {unit} {currency}.
 
 2️⃣ Einsätze nach Überzeugung:
-   • Standard-Chance: 1,0 Unit (20 ₺)
-   • Druckphase / Momentum: 2,0 Units (40 ₺)
-   • Alpha-Quant / 75+ Banko: 2,5 Units (50 ₺)
+   • Standard-Chance: 1,0 Unit ({unit} {currency})
+   • Druckphase / Momentum: 2,0 Units ({unit2} {currency})
+   • Alpha-Quant / 75+ Banko: 2,5 Units ({unit25} {currency})
 
 3️⃣ Maximal 2 offene Spiele gleichzeitig!
    Niemals das Geld auf 5 Spiele gleichzeitig streuen.
@@ -274,6 +274,11 @@ export const BankrollGuideModal = ({
 
     // Dynamic Share Template with selected currency and numbers
     const dynamicSharePost = loc.postTemplate
+        .replace(/\{amount\}/g, calcAmount.toLocaleString())
+        .replace(/\{currency\}/g, currency)
+        .replace(/\{unit\}/g, String(unitSize))
+        .replace(/\{unit2\}/g, String(unitSize * 2))
+        .replace(/\{unit25\}/g, String(eliteStake))
         .replace(/₺/g, currency)
         .replace(/2\.000/g, calcAmount.toLocaleString())
         .replace(/2,000/g, calcAmount.toLocaleString())
@@ -442,7 +447,7 @@ export const BankrollGuideModal = ({
                                             {step.title}
                                         </div>
                                         <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '4px', lineHeight: 1.5 }}>
-                                            {step.desc}
+                                            {step.desc.replace(/₺/g, currency).replace(/\$/g, currency).replace(/€/g, currency)}
                                         </div>
                                     </div>
                                 </div>
@@ -478,7 +483,7 @@ export const BankrollGuideModal = ({
                                     {[loc.vsRow1Bad, loc.vsRow2Bad, loc.vsRow3Bad, loc.vsRow4Bad].map((text, i) => (
                                         <div key={i} style={{ fontSize: '0.72rem', color: '#fca5a5', lineHeight: 1.4, display: 'flex', gap: '6px' }}>
                                             <span>❌</span>
-                                            <span>{text}</span>
+                                            <span>{text.replace(/₺/g, currency).replace(/\$/g, currency).replace(/€/g, currency)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -499,7 +504,7 @@ export const BankrollGuideModal = ({
                                     {[loc.vsRow1Good, loc.vsRow2Good, loc.vsRow3Good, loc.vsRow4Good].map((text, i) => (
                                         <div key={i} style={{ fontSize: '0.72rem', color: '#86efac', lineHeight: 1.4, display: 'flex', gap: '6px' }}>
                                             <span>✓</span>
-                                            <span>{text}</span>
+                                            <span>{text.replace(/₺/g, currency).replace(/\$/g, currency).replace(/€/g, currency)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -578,7 +583,7 @@ export const BankrollGuideModal = ({
                                 padding: '1rem'
                             }}>
                                 <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', display: 'block', marginBottom: '0.5rem' }}>
-                                    {loc.calcInputLabel.replace(/₺/g, currency)}
+                                    {loc.calcInputLabel.replace(/\{currency\}/g, currency).replace(/₺/g, currency)}
                                 </label>
                                 <input
                                     type="number"
@@ -673,13 +678,13 @@ export const BankrollGuideModal = ({
                                     flexWrap: 'wrap'
                                 }}>
                                     <span style={{ fontSize: '0.74rem', color: '#f8fafc', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px' }}>
-                                        {loc.day10.replace(/₺/g, currency).replace('{val10}', val10.toLocaleString())}
+                                        {loc.day10.replace(/\{currency\}/g, currency).replace(/₺/g, currency).replace('{val10}', val10.toLocaleString())}
                                     </span>
                                     <span style={{ fontSize: '0.74rem', color: '#f8fafc', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px' }}>
-                                        {loc.day20.replace(/₺/g, currency).replace('{val20}', val20.toLocaleString())}
+                                        {loc.day20.replace(/\{currency\}/g, currency).replace(/₺/g, currency).replace('{val20}', val20.toLocaleString())}
                                     </span>
                                     <span style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: 800, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', padding: '4px 8px', borderRadius: '6px' }}>
-                                        {loc.day30.replace(/₺/g, currency).replace('{val30}', val30.toLocaleString())}
+                                        {loc.day30.replace(/\{currency\}/g, currency).replace(/₺/g, currency).replace('{val30}', val30.toLocaleString())}
                                     </span>
                                 </div>
 
