@@ -84,6 +84,7 @@ export const PortfolioCockpit = ({
     const curBal = bankrollState.current_balance || 2000;
     const realizedProfit = curBal - startBal;
     const roi = startBal > 0 ? (realizedProfit / startBal) * 100 : 0;
+    const currency = bankrollState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
 
     const settled = (bankrollState.ledger || []).filter(l => l.is_settled);
     const wins = settled.filter(l => l.status === 'WIN' || l.outcome === 'WON').length;
@@ -278,7 +279,7 @@ export const PortfolioCockpit = ({
                             fontWeight: 900,
                             color: dailyProgress.dailyPL >= 0 ? '#10b981' : '#ef4444'
                         }}>
-                            {dailyProgress.dailyPL >= 0 ? '+' : ''}{dailyProgress.dailyPL.toFixed(2)} ₺ ({dailyProgress.dailyPLPct >= 0 ? '+' : ''}{dailyProgress.dailyPLPct}%)
+                            {dailyProgress.dailyPL >= 0 ? '+' : ''}{dailyProgress.dailyPL.toFixed(2)} {currency} ({dailyProgress.dailyPLPct >= 0 ? '+' : ''}{dailyProgress.dailyPLPct}%)
                         </div>
                         <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
                             {lang === 'tr' ? 'Bugünkü Net Simülasyon Hareketi' : (lang === 'de' ? 'Heutige Netto-Entwicklung' : 'Today Net Simulation P/L')}
@@ -329,7 +330,7 @@ export const PortfolioCockpit = ({
                         {lang === 'tr' ? 'TOPLAM KÂR / ZARAR (P/L)' : (lang === 'de' ? 'GESAMT GEWINN/VERLUST (G/V)' : 'NET REALIZED P/L')}
                     </div>
                     <div style={{ fontSize: '1.45rem', fontWeight: 900, color: realizedProfit >= 0 ? '#10b981' : '#ef4444', margin: '0.4rem 0' }}>
-                        {realizedProfit >= 0 ? '+' : ''}{realizedProfit.toFixed(2)} ₺
+                        {realizedProfit >= 0 ? '+' : ''}{realizedProfit.toFixed(2)} {currency}
                     </div>
                     <div style={{ fontSize: '0.72rem', fontWeight: 800, color: realizedProfit >= 0 ? '#10b981' : '#ef4444' }}>
                         {realizedProfit >= 0 ? '↑' : '↓'} {roi.toFixed(1)}% ROI ({settled.length} {lang === 'tr' ? 'İşlem' : (lang === 'de' ? 'Wetten' : 'Bets')})
@@ -355,10 +356,10 @@ export const PortfolioCockpit = ({
                         {lang === 'tr' ? 'GÜNCEL SANAL BAKİYE' : (lang === 'de' ? 'AKTUELLES VIRTUELLES KAPITAL' : 'VIRTUAL CAPITAL')}
                     </div>
                     <div style={{ fontSize: '1.45rem', fontWeight: 900, color: '#f8fafc', margin: '0.4rem 0' }}>
-                        {curBal.toFixed(2)} ₺
+                        {curBal.toFixed(2)} {currency}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        {lang === 'tr' ? 'Başlangıç' : (lang === 'de' ? 'Startkapital' : 'Initial')}: {startBal.toLocaleString()} ₺ {activeExposure > 0 ? `(${activeExposure.toFixed(0)} ₺ ${lang === 'tr' ? 'Riskte' : (lang === 'de' ? 'im Risiko' : 'at Risk')})` : ''}
+                        {lang === 'tr' ? 'Başlangıç' : (lang === 'de' ? 'Startkapital' : 'Initial')}: {startBal.toLocaleString()} {currency} {activeExposure > 0 ? `(${activeExposure.toFixed(0)} ${currency} ${lang === 'tr' ? 'Riskte' : (lang === 'de' ? 'im Risiko' : 'at Risk')})` : ''}
                     </div>
                 </div>
 

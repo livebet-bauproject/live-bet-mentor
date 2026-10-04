@@ -1429,8 +1429,8 @@ export const LiveTerminalTable = ({
                                                             let btnBorder = 'none';
                                                             let btnIcon = '⚡';
                                                             let btnText = smartStake?.allowed 
-                                                                ? `${smartStake.stake.toLocaleString('tr-TR')} ₺ Oyna (${smartStake.units}U)`
-                                                                : (lang === 'tr' ? 'Kuponuma Ekle' : 'Add to Slip');
+                                                                ? `${smartStake.stake.toLocaleString()} ${smartStake.currency || '₺'} ${lang === 'tr' ? 'Oyna' : (lang === 'de' ? 'Setzen' : 'Play')} (${smartStake.units}U)`
+                                                                : (lang === 'tr' ? 'Kuponuma Ekle' : (lang === 'de' ? 'Zum Wettschein' : 'Add to Slip'));
                                                             let btnDisabled = false;
 
                                                             if (isAlreadyOpen) {
@@ -1502,7 +1502,11 @@ export const LiveTerminalTable = ({
                                                                     </button>
                                                                     {isAllowed && (
                                                                         <span style={{ fontSize: '0.66rem', color: '#94a3b8', opacity: 0.85 }}>
-                                                                            100-Birim Kasa: 1U = {smartStake.unitSize} ₺ • Kasanın %{smartStake.stakePercent}'i
+                                                                            {lang === 'tr' 
+                                                                                ? `100-Birim Kasa: 1U = ${smartStake.unitSize} ${smartStake.currency || '₺'} • Kasanın %${smartStake.stakePercent}'i`
+                                                                                : (lang === 'de' 
+                                                                                    ? `100-Einheiten: 1U = ${smartStake.unitSize} ${smartStake.currency || '₺'} • ${smartStake.stakePercent}% d. Bankrolls`
+                                                                                    : `100-Unit: 1U = ${smartStake.unitSize} ${smartStake.currency || '₺'} • ${smartStake.stakePercent}% of Bankroll`)}
                                                                         </span>
                                                                     )}
                                                                 </div>

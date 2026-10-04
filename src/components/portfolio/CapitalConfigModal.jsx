@@ -60,20 +60,28 @@ export const CapitalConfigModal = ({
     onClose,
     currentCapital,
     currentProfile,
+    currentCurrency,
     onSave,
     lang = 'tr'
 }) => {
     if (!isOpen) return null;
 
-    const [amount, setAmount] = useState(currentCapital || 2000);
+    const defaultCurrency = currentCurrency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
+    const [currency, setCurrencyState] = useState(defaultCurrency);
+    const [amount, setAmount] = useState(() => {
+        if (currentCapital) return currentCapital;
+        return (defaultCurrency === '€' || defaultCurrency === '$' || defaultCurrency === '£') ? 500 : 2000;
+    });
     const [selectedProfile, setSelectedProfile] = useState(currentProfile || 'BALANCED');
 
     const handleSave = () => {
-        onSave(amount, selectedProfile);
+        onSave(amount, selectedProfile, currency);
         onClose();
     };
 
     const loc = TEXTS[lang] || TEXTS.tr;
+    const isWesternCurrency = currency === '€' || currency === '$' || currency === '£';
+    const presets = isWesternCurrency ? [50, 100, 250, 500, 1000, 2500] : [500, 1000, 2000, 5000, 10000, 25000];
 
     return (
         <div style={{
@@ -122,7 +130,7 @@ export const CapitalConfigModal = ({
                 </button>
 
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
                     <span style={{ fontSize: '1.8rem' }}>⚙️</span>
                     <div>
                         <h3 style={{ fontSize: '1.2rem', fontWeight: 900, margin: 0, color: '#f8fafc' }}>
@@ -134,16 +142,59 @@ export const CapitalConfigModal = ({
                     </div>
                 </div>
 
+                {/* Currency Selector */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ fontSize: '0.74rem', fontWeight: 800, color: '#38bdf8', display: 'block', marginBottom: '0.45rem' }}>
+                        {lang === 'tr' ? 'PARA BİRİMİ SEÇİMİ' : (lang === 'de' ? 'WÄHRUNG WÄHLEN' : 'SELECT CURRENCY')}
+                    </label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {[
+                            { id: '₺', label: '₺ TRY' },
+                            { id: '€', label: '€ EUR' },
+                            { id: '$', label: '$ USD' },
+                            { id: '£', label: '£ GBP' }
+                        ].map(c => (
+                            <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => {
+                                    setCurrencyState(c.id);
+                                    if (c.id === '€' || c.id === '$' || c.id === '£') {
+                                        if (amount > 5000) setAmount(1000);
+                                        else if (amount >= 2000) setAmount(500);
+                                    } else if (c.id === '₺' && amount < 500) {
+                                        setAmount(2000);
+                                    }
+                                }}
+                                style={{
+                                    flex: 1,
+                                    background: currency === c.id ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.04)',
+                                    border: `1px solid ${currency === c.id ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}`,
+                                    color: currency === c.id ? '#38bdf8' : '#cbd5e1',
+                                    padding: '0.45rem 0.25rem',
+                                    borderRadius: '8px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 900,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                {c.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Capital Input & Presets */}
                 <div style={{ marginBottom: '1.5rem' }}>
                     <label style={{ fontSize: '0.78rem', fontWeight: 800, color: '#38bdf8', display: 'block', marginBottom: '0.45rem' }}>
-                        {loc.capLabel}
+                        {loc.capLabel} ({currency})
                     </label>
                     <input
                         type="number"
-                        min={100}
-                        max={100000}
-                        step={100}
+                        min={10}
+                        max={500000}
+                        step={isWesternCurrency ? 10 : 100}
                         value={amount}
                         onChange={(e) => setAmount(Number(e.target.value))}
                         style={{
@@ -161,9 +212,10 @@ export const CapitalConfigModal = ({
                     />
 
                     <div style={{ display: 'flex', gap: '0.45rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-                        {[500, 1000, 2000, 5000, 10000, 25000].map(val => (
+                        {presets.map(val => (
                             <button
                                 key={val}
+                                type="button"
                                 onClick={() => setAmount(val)}
                                 style={{
                                     background: amount === val ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.04)',
@@ -176,7 +228,7 @@ export const CapitalConfigModal = ({
                                     cursor: 'pointer'
                                 }}
                             >
-                                {val.toLocaleString()} ₺
+                                {val.toLocaleString()} {currency}
                             </button>
                         ))}
                     </div>
@@ -196,13 +248,13 @@ export const CapitalConfigModal = ({
                         fontSize: '0.72rem'
                     }}>
                         <span style={{ color: '#38bdf8', fontWeight: 800 }}>
-                            🎯 1 Birim (1U): <strong style={{ color: '#fff' }}>{Math.max(1, Math.round(amount / 100))} ₺</strong>
+                            🎯 1 Birim (1U): <strong style={{ color: '#fff' }}>{Math.max(1, Math.round(amount / 100))} {currency}</strong>
                         </span>
                         <span style={{ color: '#10b981', fontWeight: 700 }}>
-                            Hedef (+%5): +{Math.round(amount * 0.05)} ₺
+                            Hedef (+%5): +{Math.round(amount * 0.05)} {currency}
                         </span>
                         <span style={{ color: '#ef4444', fontWeight: 700 }}>
-                            Stop-Loss (-%3): -{Math.round(amount * 0.03)} ₺
+                            Stop-Loss (-%3): -{Math.round(amount * 0.03)} {currency}
                         </span>
                     </div>
                 </div>

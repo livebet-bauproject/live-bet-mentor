@@ -129,7 +129,8 @@ class BankrollManager {
             target_daily_profit_pct: 0.05,
             stop_loss_pct: 0.03,
             max_concurrent_bets: 2,
-            auto_pilot_enabled: false
+            auto_pilot_enabled: false,
+            currency: '₺'
         };
 
         if (saved) {
@@ -148,7 +149,8 @@ class BankrollManager {
                     nickname: parsed.nickname || defaultState.nickname,
                     bankroll_iq: parsed.bankroll_iq || defaultState.bankroll_iq,
                     max_concurrent_bets: parsed.max_concurrent_bets !== undefined ? parsed.max_concurrent_bets : 2,
-                    auto_pilot_enabled: Boolean(parsed.auto_pilot_enabled)
+                    auto_pilot_enabled: Boolean(parsed.auto_pilot_enabled),
+                    currency: parsed.currency || defaultState.currency
                 };
 
                 // Dynamic daily reset
@@ -287,6 +289,7 @@ class BankrollManager {
         const activeCount = this.getActiveOpenBetsCount();
         const maxConcurrent = this.state.max_concurrent_bets || 2;
         const isExposureLocked = activeCount >= maxConcurrent;
+        const currency = this.state.currency || '₺';
 
         let statusText = 'NORMAL';
         let lockReason = null;
@@ -294,11 +297,11 @@ class BankrollManager {
 
         if (isTargetLocked) {
             statusText = 'TARGET_LOCKED';
-            lockReason = `GÜNLÜK HEDEF KİLİTLENDİ (+%${targetDailyPct} / +${targetCash.toLocaleString('tr-TR')} ₺)`;
+            lockReason = `GÜNLÜK HEDEF KİLİTLENDİ (+%${targetDailyPct} / +${targetCash.toLocaleString('tr-TR')} ${currency})`;
             badgeColor = '#10b981';
         } else if (isStopLossLocked) {
             statusText = 'STOP_LOSS_LOCKED';
-            lockReason = `STOP-LOSS DEVREDE (-%${stopLossPct} / -${stopLossCash.toLocaleString('tr-TR')} ₺)`;
+            lockReason = `STOP-LOSS DEVREDE (-%${stopLossPct} / -${stopLossCash.toLocaleString('tr-TR')} ${currency})`;
             badgeColor = '#ef4444';
         } else if (isExposureLocked) {
             statusText = 'EXPOSURE_LOCKED';
@@ -326,7 +329,8 @@ class BankrollManager {
             statusText,
             lockReason,
             badgeColor,
-            autoPilotEnabled: !!this.state.auto_pilot_enabled
+            autoPilotEnabled: !!this.state.auto_pilot_enabled,
+            currency
         };
     }
 
@@ -435,7 +439,8 @@ class BankrollManager {
         units = Math.min(maxUnits, Math.max(0.5, units));
 
         const rawStake = units * unitSize;
-        const stake = Math.min(discipline.currentBalance, Math.max(5, Math.round(rawStake)));
+        const stake = Math.min(discipline.currentBalance, Math.max(1, Math.round(rawStake)));
+        const curr = discipline.currency || '₺';
 
         return {
             allowed: true,
@@ -446,8 +451,9 @@ class BankrollManager {
             currentBalance: discipline.currentBalance,
             odds,
             reason: 'QUALIFIED',
-            label: `${stake.toLocaleString('tr-TR')} ₺ (${units} Birim)`,
-            badgeText: `⚡ ${stake} ₺ (${units}U)`
+            currency: curr,
+            label: `${stake.toLocaleString('tr-TR')} ${curr} (${units} Birim)`,
+            badgeText: `⚡ ${stake} ${curr} (${units}U)`
         };
     }
 
@@ -1035,8 +1041,8 @@ class BankrollManager {
     /**
      * Custom Starting Capital and Risk Profile configuration
      */
-    setInitialCapital(amount, profile = 'BALANCED') {
-        const numAmount = Math.max(100, Number(amount) || 2000);
+    setInitialCapital(amount, profile = 'BALANCED', currency = null) {
+        const numAmount = Math.max(10, Number(amount) || 2000);
         this.state.starting_balance = numAmount;
         this.state.current_balance = numAmount;
         this.state.max_balance_seen = numAmount;
@@ -1045,13 +1051,25 @@ class BankrollManager {
         this.state.loss_streak = 0;
         this.state.current_mode = CONFIG.BANKROLL.HIERARCHY.MODES.NORMAL;
         this.state.risk_profile = profile;
+        if (currency) {
+            this.state.currency = currency;
+        }
         this.saveState();
         this.addToLedger('CAPITAL_CONFIGURED', {
             starting_balance: numAmount,
             profile,
+            currency: this.state.currency,
             reason: 'Kullanıcı sanal sermaye ve risk profili ataması'
         });
         return this.getState();
+    }
+
+    setCurrency(currency) {
+        if (currency && typeof currency === 'string') {
+            this.state.currency = currency;
+            this.saveState();
+        }
+        return this.state.currency;
     }
 
     setRiskProfile(profile) {
@@ -1075,6 +1093,7 @@ class BankrollManager {
         copy.discipline = this.getDisciplineStatus();
         copy.unit_size = this.getUnitSize();
         copy.active_open_bets_count = this.getActiveOpenBetsCount();
+        copy.currency = this.state.currency || '₺';
         return copy;
     }
 
@@ -1087,10 +1106,11 @@ class BankrollManager {
         return mode;
     }
 
-    reset(startingBalance = null) {
+    reset(startingBalance = null, currency = null) {
         const profile = this.state?.risk_profile || 'BALANCED';
         const nickname = this.state?.nickname || ('Analist_' + Math.floor(1000 + Math.random() * 9000));
         const balance = startingBalance || this.state?.starting_balance || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 2000;
+        const curr = currency || this.state?.currency || '₺';
 
         if (typeof localStorage !== 'undefined') {
             localStorage.removeItem('lbm_bankroll_state');
@@ -1122,7 +1142,8 @@ class BankrollManager {
             target_daily_profit_pct: 0.05,
             stop_loss_pct: 0.03,
             max_concurrent_bets: 2,
-            auto_pilot_enabled: false
+            auto_pilot_enabled: false,
+            currency: curr
         };
         this.state = defaultState;
         this.saveState();

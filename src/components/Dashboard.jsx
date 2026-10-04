@@ -229,24 +229,27 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
     const handleResetBankroll = () => {
         const curStart = bankState.starting_balance || 2000;
+        const curCurrency = bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
         const confirmText = lang === 'tr' 
-            ? `Sanal portföyü sıfırlamak ve ${curStart.toLocaleString()} ₺ başlangıç bakiyesine dönmek istiyor musunuz? Eski takılı kalmış tüm test işlemleri temizlenecektir.` 
+            ? `Sanal portföyü sıfırlamak ve ${curStart.toLocaleString()} ${curCurrency} başlangıç bakiyesine dönmek istiyor musunuz? Eski takılı kalmış tüm test işlemleri temizlenecektir.` 
             : (lang === 'de'
-                ? `Möchten Sie das Portfolio auf ${curStart.toLocaleString()} ₺ zurücksetzen? Alle alten Testwetten werden gelöscht.`
-                : `Do you want to reset bankroll to ${curStart} ₺? All pending bets will be cleared.`);
+                ? `Möchten Sie das Portfolio auf ${curStart.toLocaleString()} ${curCurrency} zurücksetzen? Alle alten Testwetten werden gelöscht.`
+                : `Do you want to reset bankroll to ${curStart.toLocaleString()} ${curCurrency}? All pending bets will be cleared.`);
         if (window.confirm(confirmText)) {
             bankrollManager.reset(curStart);
             autoSettlementEngine.settledCache.clear();
             setBankState(bankrollManager.getState());
-            setSettlementMessage(lang === 'tr' ? `✅ Portföy ${curStart.toLocaleString()} ₺ olarak sıfırlandı.` : (lang === 'de' ? `✅ Portfolio auf ${curStart.toLocaleString()} ₺ zurückgesetzt.` : `✅ Bankroll reset to ${curStart} ₺.`));
+            setSettlementMessage(lang === 'tr' ? `✅ Portföy ${curStart.toLocaleString()} ${curCurrency} olarak sıfırlandı.` : (lang === 'de' ? `✅ Portfolio auf ${curStart.toLocaleString()} ${curCurrency} zurückgesetzt.` : `✅ Bankroll reset to ${curStart.toLocaleString()} ${curCurrency}.`));
             setTimeout(() => setSettlementMessage(''), 5000);
         }
     };
 
-    const handleSaveCapital = (amount, profile) => {
-        bankrollManager.setInitialCapital(amount, profile);
-        setBankState(bankrollManager.getState());
-        setSettlementMessage(lang === 'tr' ? `✅ Sanal portföy ${Number(amount).toLocaleString()} ₺ olarak güncellendi.` : (lang === 'de' ? `✅ Virtuelles Portfolio auf ${Number(amount).toLocaleString()} ₺ aktualisiert.` : `✅ Portfolio updated to ${amount} ₺.`));
+    const handleSaveCapital = (amount, profile, currency) => {
+        bankrollManager.setInitialCapital(amount, profile, currency);
+        const updated = bankrollManager.getState();
+        setBankState(updated);
+        const curCurrency = updated.currency || currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
+        setSettlementMessage(lang === 'tr' ? `✅ Sanal portföy ${Number(amount).toLocaleString()} ${curCurrency} olarak güncellendi.` : (lang === 'de' ? `✅ Virtuelles Portfolio auf ${Number(amount).toLocaleString()} ${curCurrency} aktualisiert.` : `✅ Portfolio updated to ${Number(amount).toLocaleString()} ${curCurrency}.`));
         setTimeout(() => setSettlementMessage(''), 4000);
     };
 
@@ -6912,7 +6915,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.3px' }}>
-                                                    {(bankState.current_balance || 2000).toLocaleString('tr-TR')} ₺
+                                                    {(bankState.current_balance || 2000).toLocaleString()} {bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}
                                                 </span>
                                                 <button
                                                     type="button"
@@ -6968,9 +6971,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         flexDirection: 'column',
                                         justifyContent: 'center'
                                     }}>
-                                        <span style={{ fontSize: '0.64rem', color: '#38bdf8', fontWeight: 800 }}>🎯 1 BİRİM (1U)</span>
+                                        <span style={{ fontSize: '0.64rem', color: '#38bdf8', fontWeight: 800 }}>
+                                            {lang === 'tr' ? '🎯 1 BİRİM (1U)' : (lang === 'de' ? '🎯 1 EINHEIT (1U)' : '🎯 1 UNIT (1U)')}
+                                        </span>
                                         <span style={{ fontSize: '0.95rem', fontWeight: 900, color: '#fff' }}>
-                                            {Math.max(1, Math.round((bankState.current_balance || 2000) / 100))} ₺
+                                            {Math.max(1, Math.round((bankState.current_balance || 2000) / 100)).toLocaleString()} {bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}
                                             <span style={{ fontSize: '0.62rem', color: '#94a3b8', fontWeight: 600, marginLeft: '4px' }}>(%1)</span>
                                         </span>
                                     </div>
@@ -6994,16 +6999,20 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                 justifyContent: 'center'
                                             }}>
                                                 <span style={{ fontSize: '0.64rem', color: isProfit ? '#34d399' : '#f87171', fontWeight: 800 }}>
-                                                    {isTargetLocked ? '🔒 HEDEF KİLİTLİ (+%5)' : isStopLossLocked ? '🛑 STOP-LOSS DEVREDE' : '📊 GÜNLÜK K/Z'}
+                                                    {isTargetLocked 
+                                                        ? (lang === 'tr' ? '🔒 HEDEF KİLİTLİ (+%5)' : (lang === 'de' ? '🔒 ZIEL ERREICHT (+5%)' : '🔒 TARGET LOCKED (+5%)')) 
+                                                        : isStopLossLocked 
+                                                            ? (lang === 'tr' ? '🛑 STOP-LOSS DEVREDE' : (lang === 'de' ? '🛑 STOP-LOSS AKTIV' : '🛑 STOP-LOSS ACTIVE')) 
+                                                            : (lang === 'tr' ? '📊 GÜNLÜK K/Z' : (lang === 'de' ? '📊 TAGES-G/V' : '📊 DAILY P/L'))}
                                                 </span>
                                                 <span style={{ fontSize: '0.95rem', fontWeight: 900, color: isProfit ? '#34d399' : '#f87171' }}>
-                                                    {isProfit ? '+' : ''}{dailyPL.toLocaleString('tr-TR')} ₺
+                                                    {isProfit ? '+' : ''}{dailyPL.toLocaleString()} {bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}
                                                     <span style={{ fontSize: '0.64rem', opacity: 0.85, marginLeft: '4px' }}>
                                                         ({disc ? disc.dailyPLPct : 0}%)
                                                     </span>
                                                     {!isTargetLocked && !isStopLossLocked && disc?.remainingToTarget > 0 && (
                                                         <span style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: 600, marginLeft: '6px' }}>
-                                                            [Hedefe: {disc.remainingToTarget} ₺]
+                                                            [{lang === 'tr' ? 'Hedefe:' : (lang === 'de' ? 'Zum Ziel:' : 'Target:')} {disc.remainingToTarget.toLocaleString()} {bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}]
                                                         </span>
                                                     )}
                                                 </span>
@@ -9258,6 +9267,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 onClose={() => setIsCapitalModalOpen(false)}
                 currentCapital={bankState.starting_balance || bankState.current_balance || 2000}
                 currentProfile={bankState.risk_profile || 'BALANCED'}
+                currentCurrency={bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}
                 onSave={handleSaveCapital}
                 lang={lang}
             />
@@ -9266,6 +9276,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 isOpen={isBankrollGuideOpen}
                 onClose={() => setIsBankrollGuideOpen(false)}
                 currentCapital={bankState.current_balance || 2000}
+                currentCurrency={bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}
                 lang={lang}
             />
 

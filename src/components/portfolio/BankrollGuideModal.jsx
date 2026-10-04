@@ -243,15 +243,23 @@ export const BankrollGuideModal = ({
     isOpen,
     onClose,
     currentCapital = 2000,
+    currentCurrency,
     lang = 'tr'
 }) => {
     if (!isOpen) return null;
 
+    const defaultCurrency = currentCurrency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
+    const [currency, setCurrencyState] = useState(defaultCurrency);
     const [activeTab, setActiveTab] = useState('rules'); // 'rules', 'vs', 'calc', 'share'
-    const [calcAmount, setCalcAmount] = useState(currentCapital || 2000);
+    const [calcAmount, setCalcAmount] = useState(() => {
+        if (currentCapital) return currentCapital;
+        return (defaultCurrency === '€' || defaultCurrency === '$' || defaultCurrency === '£') ? 500 : 2000;
+    });
     const [copied, setCopied] = useState(false);
 
     const loc = GUIDE_TEXTS[lang] || GUIDE_TEXTS.tr;
+    const isWesternCurrency = currency === '€' || currency === '$' || currency === '£';
+    const presets = isWesternCurrency ? [50, 100, 250, 500, 1000, 2500] : [500, 1000, 2000, 5000, 10000, 20000];
 
     // Calculator values
     const unitSize = Math.max(1, Math.round(calcAmount / 100));
@@ -264,8 +272,17 @@ export const BankrollGuideModal = ({
     const val20 = Math.round(calcAmount * Math.pow(1.05, 14));
     const val30 = Math.round(calcAmount * Math.pow(1.05, 20));
 
+    // Dynamic Share Template with selected currency and numbers
+    const dynamicSharePost = loc.postTemplate
+        .replace(/₺/g, currency)
+        .replace(/2\.000/g, calcAmount.toLocaleString())
+        .replace(/2,000/g, calcAmount.toLocaleString())
+        .replace(/20/g, String(unitSize))
+        .replace(/40/g, String(unitSize * 2))
+        .replace(/50/g, String(eliteStake));
+
     const handleCopy = () => {
-        navigator.clipboard.writeText(loc.postTemplate).then(() => {
+        navigator.clipboard.writeText(dynamicSharePost).then(() => {
             setCopied(true);
             setTimeout(() => setCopied(false), 3500);
         });
@@ -502,6 +519,57 @@ export const BankrollGuideModal = ({
                                 </div>
                             </div>
 
+                            {/* Currency Selector */}
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                background: 'rgba(255, 255, 255, 0.03)',
+                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '10px',
+                                padding: '0.6rem 0.85rem',
+                                flexWrap: 'wrap',
+                                gap: '8px'
+                            }}>
+                                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#94a3b8' }}>
+                                    {lang === 'tr' ? 'Para Birimi Seçimi:' : (lang === 'de' ? 'Währung wählen:' : 'Select Currency:')}
+                                </span>
+                                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                    {[
+                                        { id: '₺', label: '₺ TRY' },
+                                        { id: '€', label: '€ EUR' },
+                                        { id: '$', label: '$ USD' },
+                                        { id: '£', label: '£ GBP' }
+                                    ].map(c => (
+                                        <button
+                                            key={c.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setCurrencyState(c.id);
+                                                if (c.id === '€' || c.id === '$' || c.id === '£') {
+                                                    if (calcAmount > 5000) setCalcAmount(1000);
+                                                    else if (calcAmount >= 2000) setCalcAmount(500);
+                                                } else if (c.id === '₺' && calcAmount < 500) {
+                                                    setCalcAmount(2000);
+                                                }
+                                            }}
+                                            style={{
+                                                background: currency === c.id ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                                                border: `1px solid ${currency === c.id ? '#38bdf8' : 'rgba(255, 255, 255, 0.1)'}`,
+                                                color: currency === c.id ? '#38bdf8' : '#cbd5e1',
+                                                padding: '0.25rem 0.6rem',
+                                                borderRadius: '6px',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 800,
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            {c.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             {/* Preset Buttons & Input */}
                             <div style={{
                                 background: 'rgba(15, 23, 42, 0.8)',
@@ -510,15 +578,15 @@ export const BankrollGuideModal = ({
                                 padding: '1rem'
                             }}>
                                 <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', display: 'block', marginBottom: '0.5rem' }}>
-                                    {loc.calcInputLabel}
+                                    {loc.calcInputLabel.replace(/₺/g, currency)}
                                 </label>
                                 <input
                                     type="number"
-                                    min={100}
-                                    max={100000}
-                                    step={100}
+                                    min={isWesternCurrency ? 10 : 100}
+                                    max={1000000}
+                                    step={isWesternCurrency ? 10 : 100}
                                     value={calcAmount}
-                                    onChange={(e) => setCalcAmount(Math.max(100, Number(e.target.value) || 0))}
+                                    onChange={(e) => setCalcAmount(Math.max(10, Number(e.target.value) || 0))}
                                     style={{
                                         width: '100%',
                                         background: '#030712',
@@ -534,7 +602,7 @@ export const BankrollGuideModal = ({
                                 />
 
                                 <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-                                    {[500, 1000, 2000, 5000, 10000, 20000].map(val => (
+                                    {presets.map(val => (
                                         <button
                                             key={val}
                                             type="button"
@@ -550,7 +618,7 @@ export const BankrollGuideModal = ({
                                                 cursor: 'pointer'
                                             }}
                                         >
-                                            {val.toLocaleString()} ₺
+                                            {val.toLocaleString()} {currency}
                                         </button>
                                     ))}
                                 </div>
@@ -564,22 +632,22 @@ export const BankrollGuideModal = ({
                             }}>
                                 <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
                                     <div style={{ fontSize: '0.66rem', color: '#38bdf8', fontWeight: 800 }}>{loc.statUnit}</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', marginTop: '3px' }}>{unitSize.toLocaleString()} ₺</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', marginTop: '3px' }}>{unitSize.toLocaleString()} {currency}</div>
                                 </div>
 
                                 <div style={{ background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251, 191, 36, 0.25)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
                                     <div style={{ fontSize: '0.66rem', color: '#fbbf24', fontWeight: 800 }}>{loc.statElite}</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', marginTop: '3px' }}>{eliteStake.toLocaleString()} ₺</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff', marginTop: '3px' }}>{eliteStake.toLocaleString()} {currency}</div>
                                 </div>
 
                                 <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
                                     <div style={{ fontSize: '0.66rem', color: '#34d399', fontWeight: 800 }}>{loc.statTarget}</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#34d399', marginTop: '3px' }}>+{targetProfit.toLocaleString()} ₺</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#34d399', marginTop: '3px' }}>+{targetProfit.toLocaleString()} {currency}</div>
                                 </div>
 
                                 <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
                                     <div style={{ fontSize: '0.66rem', color: '#f87171', fontWeight: 800 }}>{loc.statStop}</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f87171', marginTop: '3px' }}>-{stopLoss.toLocaleString()} ₺</div>
+                                    <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#f87171', marginTop: '3px' }}>-{stopLoss.toLocaleString()} {currency}</div>
                                 </div>
                             </div>
 
@@ -605,13 +673,13 @@ export const BankrollGuideModal = ({
                                     flexWrap: 'wrap'
                                 }}>
                                     <span style={{ fontSize: '0.74rem', color: '#f8fafc', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px' }}>
-                                        {loc.day10.replace('{val10}', val10.toLocaleString())}
+                                        {loc.day10.replace(/₺/g, currency).replace('{val10}', val10.toLocaleString())}
                                     </span>
                                     <span style={{ fontSize: '0.74rem', color: '#f8fafc', background: 'rgba(255,255,255,0.05)', padding: '4px 8px', borderRadius: '6px' }}>
-                                        {loc.day20.replace('{val20}', val20.toLocaleString())}
+                                        {loc.day20.replace(/₺/g, currency).replace('{val20}', val20.toLocaleString())}
                                     </span>
                                     <span style={{ fontSize: '0.74rem', color: '#34d399', fontWeight: 800, background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', padding: '4px 8px', borderRadius: '6px' }}>
-                                        {loc.day30.replace('{val30}', val30.toLocaleString())}
+                                        {loc.day30.replace(/₺/g, currency).replace('{val30}', val30.toLocaleString())}
                                     </span>
                                 </div>
 
@@ -679,7 +747,7 @@ export const BankrollGuideModal = ({
                                 maxHeight: '280px',
                                 overflowY: 'auto'
                             }}>
-                                {loc.postTemplate}
+                                {dynamicSharePost}
                             </div>
                         </div>
                     )}

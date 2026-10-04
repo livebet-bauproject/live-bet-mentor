@@ -1288,8 +1288,8 @@ export const LiveTerminalMobile = ({
                                             let btnBorder = 'none';
                                             let btnIcon = '⚡';
                                             let btnText = smartStake?.allowed 
-                                                ? `${smartStake.stake.toLocaleString('tr-TR')} ₺ Oyna (${smartStake.units}U)`
-                                                : (lang === 'tr' ? 'Kupona Ekle' : 'Add to Slip');
+                                                ? `${smartStake.stake.toLocaleString()} ${smartStake.currency || '₺'} ${lang === 'tr' ? 'Oyna' : (lang === 'de' ? 'Setzen' : 'Play')} (${smartStake.units}U)`
+                                                : (lang === 'tr' ? 'Kupona Ekle' : (lang === 'de' ? 'Zum Wettschein' : 'Add to Slip'));
                                             let btnDisabled = false;
 
                                             if (isAlreadyOpen) {
@@ -1297,35 +1297,35 @@ export const LiveTerminalMobile = ({
                                                 btnColor = '#34d399';
                                                 btnBorder = '1px solid rgba(16, 185, 129, 0.4)';
                                                 btnIcon = '✓';
-                                                btnText = lang === 'tr' ? 'Kasa Pozisyonu Açık' : 'Position Open';
+                                                btnText = lang === 'tr' ? 'Kasa Pozisyonu Açık' : (lang === 'de' ? 'Position offen' : 'Position Open');
                                                 btnDisabled = true;
                                             } else if (isTargetLocked) {
                                                 btnBg = 'rgba(16, 185, 129, 0.12)';
                                                 btnColor = '#10b981';
                                                 btnBorder = '1px solid rgba(16, 185, 129, 0.35)';
                                                 btnIcon = '🔒';
-                                                btnText = lang === 'tr' ? 'Hedef Kilitli (+%5 Alındı)' : 'Target Locked (+5%)';
+                                                btnText = lang === 'tr' ? 'Hedef Kilitli (+%5 Alındı)' : (lang === 'de' ? 'Tagesziel erreicht (+5%)' : 'Target Locked (+5%)');
                                                 btnDisabled = true;
                                             } else if (isStopLoss) {
                                                 btnBg = 'rgba(239, 68, 68, 0.15)';
                                                 btnColor = '#ef4444';
                                                 btnBorder = '1px solid rgba(239, 68, 68, 0.4)';
                                                 btnIcon = '🛑';
-                                                btnText = lang === 'tr' ? 'Stop-Loss (-%3)' : 'Stop-Loss Active';
+                                                btnText = lang === 'tr' ? 'Stop-Loss (-%3)' : (lang === 'de' ? 'Stop-Loss aktiv (-3%)' : 'Stop-Loss Active');
                                                 btnDisabled = true;
                                             } else if (isExposure) {
                                                 btnBg = 'rgba(245, 158, 11, 0.15)';
                                                 btnColor = '#fbbf24';
                                                 btnBorder = '1px solid rgba(245, 158, 11, 0.4)';
                                                 btnIcon = '⏳';
-                                                btnText = lang === 'tr' ? 'Masa Riski Dolu (2/2)' : 'Max Exposure (2/2)';
+                                                btnText = lang === 'tr' ? 'Masa Riski Dolu (2/2)' : (lang === 'de' ? 'Maximales Risiko (2/2)' : 'Max Exposure (2/2)');
                                                 btnDisabled = true;
                                             } else if (isHighRisk) {
                                                 btnBg = 'rgba(148, 163, 184, 0.12)';
                                                 btnColor = '#94a3b8';
                                                 btnBorder = '1px solid rgba(148, 163, 184, 0.3)';
                                                 btnIcon = '⚠️';
-                                                btnText = smartStake?.label || (lang === 'tr' ? 'Kasa Dışı Lig' : 'High Risk');
+                                                btnText = smartStake?.label || (lang === 'tr' ? 'Kasa Dışı Lig' : (lang === 'de' ? 'Außerhalb Portfolio' : 'High Risk'));
                                                 btnDisabled = true;
                                             }
 
@@ -1362,7 +1362,11 @@ export const LiveTerminalMobile = ({
                                                     </div>
                                                     {isAllowed && (
                                                         <div style={{ fontSize: '0.66rem', color: '#94a3b8', textAlign: 'center', opacity: 0.85 }}>
-                                                            100-Birim Kasa: 1U = {smartStake.unitSize} ₺ • Kasanın %{smartStake.stakePercent}'i
+                                                            {lang === 'tr' 
+                                                                ? `100-Birim Kasa: 1U = ${smartStake.unitSize} ${smartStake.currency || '₺'} • Kasanın %${smartStake.stakePercent}'i`
+                                                                : (lang === 'de'
+                                                                    ? `100-Einheiten: 1U = ${smartStake.unitSize} ${smartStake.currency || '₺'} • ${smartStake.stakePercent}% d. Bankrolls`
+                                                                    : `100-Unit: 1U = ${smartStake.unitSize} ${smartStake.currency || '₺'} • ${smartStake.stakePercent}% of Bankroll`)}
                                                         </div>
                                                     )}
                                                 </div>
