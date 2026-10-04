@@ -2698,11 +2698,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             const stake = customStake ? Number(customStake) : (smart?.allowed ? smart.stake : (bankrollManager.calculateRecommendedStake(match, signal) || 100));
             const approved = bankrollManager.approveBet(match, signal, stake);
             if (approved) {
-                setBankState(bankrollManager.getState());
+                const updatedState = bankrollManager.getState();
+                setBankState(updatedState);
+                const curr = updatedState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
                 setSettlementMessage(
                     lang === 'tr' 
-                        ? `⚡ Kasa İşlemi Açıldı: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString('tr-TR')} ₺ - ${smart?.units || 1}U)` 
-                        : (lang === 'de' ? `⚡ Position eröffnet: ${stake} ₺` : `⚡ Position Opened: ${stake} ₺`)
+                        ? `⚡ Kasa İşlemi Açıldı: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString()} ${curr} - ${smart?.units || 1}U)` 
+                        : (lang === 'de' ? `⚡ Position eröffnet: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString()} ${curr} - ${smart?.units || 1}U)` : `⚡ Position Opened: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString()} ${curr} - ${smart?.units || 1}U)`)
                 );
                 setTimeout(() => setSettlementMessage(''), 4500);
             }
@@ -2856,7 +2858,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             if (smart && smart.allowed && (sig.confidence >= 80 || (m.opportunityData?.score >= 80))) {
                 autoPilotProcessedRef.current.add(m.id);
                 handleTerminalApproveBet(m, sig, smart.stake);
-                console.log(`[AutoPilot] Automatically placed disciplined bet on ${m.homeTeam} vs ${m.awayTeam}: ${smart.stake} ₺ (${smart.units}U)`);
+                const curr = bankrollManager?.getState()?.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
+                console.log(`[AutoPilot] Automatically placed disciplined bet on ${m.homeTeam} vs ${m.awayTeam}: ${smart.stake} ${curr} (${smart.units}U)`);
                 break; // 1 at a time to prevent race conditions
             }
         }
