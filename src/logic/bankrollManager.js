@@ -92,6 +92,17 @@ export const RISK_PROFILES = {
         color: '#f59e0b',
         icon: '⚡',
         description: 'Yüksek xG ve momentum fırsatlarına odaklı dinamik simülasyon.'
+    },
+    CUSTOM: {
+        id: 'CUSTOM',
+        label: 'Özel Risk Modu',
+        maxStakePct: 0.025, // %2.5 (Ayarlanabilir)
+        kellyMultiplier: 0.25,
+        targetDailyPct: 0.05, // %5 (Ayarlanabilir)
+        stopLossPct: 0.03, // %3 (Ayarlanabilir)
+        color: '#a855f7',
+        icon: '🛠️',
+        description: 'Kendi kural ve disiplin limitlerinizi belirleyin.'
     }
 };
 
@@ -130,7 +141,14 @@ class BankrollManager {
             stop_loss_pct: 0.03,
             max_concurrent_bets: 2,
             auto_pilot_enabled: false,
-            currency: '₺'
+            currency: '₺',
+            custom_rules: {
+                target_daily_pct: 5,
+                stop_loss_pct: 3,
+                max_concurrent: 2,
+                max_stake_units: 2.5,
+                auto_pilot_min_conf: 80
+            }
         };
 
         if (saved) {
@@ -150,7 +168,8 @@ class BankrollManager {
                     bankroll_iq: parsed.bankroll_iq || defaultState.bankroll_iq,
                     max_concurrent_bets: parsed.max_concurrent_bets !== undefined ? parsed.max_concurrent_bets : 2,
                     auto_pilot_enabled: Boolean(parsed.auto_pilot_enabled),
-                    currency: parsed.currency || defaultState.currency
+                    currency: parsed.currency || defaultState.currency,
+                    custom_rules: parsed.custom_rules ? { ...defaultState.custom_rules, ...parsed.custom_rules } : defaultState.custom_rules
                 };
 
                 // Dynamic daily reset
@@ -268,6 +287,60 @@ class BankrollManager {
     }
 
     /**
+     * Resolves active risk settings either from preset RISK_PROFILES or custom_rules.
+     */
+    getEffectiveRiskSettings() {
+        const profileKey = this.state.risk_profile || 'BALANCED';
+        const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
+        const custom = this.state.custom_rules || {
+            target_daily_pct: 5,
+            stop_loss_pct: 3,
+            max_concurrent: 2,
+            max_stake_units: 2.5,
+            auto_pilot_min_conf: 80
+        };
+
+        if (profileKey === 'CUSTOM') {
+            const targetPct = Number(custom.target_daily_pct) || 5;
+            const stopLossPct = Number(custom.stop_loss_pct) || 3;
+            const maxConcurrent = Math.max(1, Math.min(5, Number(custom.max_concurrent) || 2));
+            const maxUnits = Math.max(1.0, Math.min(4.0, Number(custom.max_stake_units) || 2.5));
+            const autoPilotMinConf = Math.max(70, Math.min(95, Number(custom.auto_pilot_min_conf) || 80));
+
+            return {
+                id: 'CUSTOM',
+                label: 'Özel Risk Modu',
+                icon: '🛠️',
+                targetDailyPct: targetPct / 100,
+                targetDailyPctDisplay: targetPct,
+                stopLossPct: stopLossPct / 100,
+                stopLossPctDisplay: stopLossPct,
+                maxStakePct: (maxUnits / 100),
+                maxConcurrent,
+                maxUnits,
+                autoPilotMinConf,
+                isCustom: true
+            };
+        }
+
+        const maxUnits = profileKey === 'CONSERVATIVE' ? 1.5 : (profileKey === 'DYNAMIC' ? 3.5 : 2.5);
+        return {
+            id: profile.id,
+            label: profile.label,
+            icon: profile.icon,
+            targetDailyPct: profile.targetDailyPct || 0.05,
+            targetDailyPctDisplay: Math.round((profile.targetDailyPct || 0.05) * 100),
+            stopLossPct: profile.stopLossPct || 0.03,
+            stopLossPctDisplay: Math.round((profile.stopLossPct || 0.03) * 100),
+            maxStakePct: profile.maxStakePct || 0.025,
+            maxConcurrent: Number(this.state.max_concurrent_bets) || 2,
+            maxUnits,
+            autoPilotMinConf: 80,
+            isCustom: false
+        };
+    }
+
+    /**
      * Evaluates daily locks (Target +%5, Stop Loss -%3, Exposure Cap)
      */
     getDisciplineStatus() {
@@ -276,18 +349,17 @@ class BankrollManager {
         const dailyPL = Number(this.state.daily_pl) || 0;
         const dailyPLPct = starting > 0 ? (dailyPL / starting) * 100 : 0;
 
-        const profileKey = this.state.risk_profile || 'BALANCED';
-        const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
-        const targetDailyPct = (profile.targetDailyPct || 0.05) * 100; // e.g. 5%
-        const stopLossPct = (profile.stopLossPct || 0.03) * 100;       // e.g. 3%
+        const eff = this.getEffectiveRiskSettings();
+        const targetDailyPct = eff.targetDailyPctDisplay; // e.g. 5%
+        const stopLossPct = eff.stopLossPctDisplay;       // e.g. 3%
 
-        const targetCash = Math.round((starting * (targetDailyPct / 100)) * 100) / 100;
-        const stopLossCash = Math.round((starting * (stopLossPct / 100)) * 100) / 100;
+        const targetCash = Math.round((starting * (eff.targetDailyPct)) * 100) / 100;
+        const stopLossCash = Math.round((starting * (eff.stopLossPct)) * 100) / 100;
 
         const isTargetLocked = dailyPL >= targetCash;
         const isStopLossLocked = dailyPL <= -stopLossCash;
         const activeCount = this.getActiveOpenBetsCount();
-        const maxConcurrent = this.state.max_concurrent_bets || 2;
+        const maxConcurrent = eff.maxConcurrent || 2;
         const isExposureLocked = activeCount >= maxConcurrent;
         const currency = this.state.currency || '₺';
 
@@ -330,7 +402,8 @@ class BankrollManager {
             lockReason,
             badgeColor,
             autoPilotEnabled: !!this.state.auto_pilot_enabled,
-            currency
+            currency,
+            effectiveSettings: eff
         };
     }
 
@@ -434,8 +507,8 @@ class BankrollManager {
             units = 1.0;
         }
 
-        // Safety cap: Never risk more than remaining cash or 2.5 units
-        const maxUnits = 2.5;
+        // Safety cap: Never risk more than remaining cash or maxUnits (configured in profile/custom rules)
+        const maxUnits = discipline.effectiveSettings?.maxUnits || 2.5;
         units = Math.min(maxUnits, Math.max(0.5, units));
 
         const rawStake = units * unitSize;
@@ -790,10 +863,9 @@ class BankrollManager {
         const prevMode = this.state.current_mode;
         let newMode = h.MODES.NORMAL;
 
-        const profileKey = this.state.risk_profile || 'BALANCED';
-        const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
-        const targetDailyPct = profile.targetDailyPct || 0.05;
-        const stopLossPct = profile.stopLossPct || 0.03;
+        const eff = this.getEffectiveRiskSettings();
+        const targetDailyPct = eff.targetDailyPct;
+        const stopLossPct = eff.stopLossPct;
 
         // EXPERT DISCIPLINE: Stop-Loss & Target Profit
         const dailyProfitPercent = (this.state.daily_pl / (this.state.starting_balance || 2000));
@@ -813,8 +885,8 @@ class BankrollManager {
         if (newMode !== prevMode) {
             this.state.current_mode = newMode;
             let reasonKey = 'stop_rules_reason';
-            if (targetReached) reasonKey = `Hedef Kilitlendi: Günlük %${(targetDailyPct * 100).toFixed(0)} kâr hedefine ulaşıldı. Kasa koruma kalkanı aktif.`;
-            else if (stopLossReached) reasonKey = `Disiplin Molası: Günlük %${(stopLossPct * 100).toFixed(0)} zarar sınırına ulaşıldı. Risk durduruldu.`;
+            if (targetReached) reasonKey = `Hedef Kilitlendi: Günlük %${eff.targetDailyPctDisplay} kâr hedefine ulaşıldı. Kasa koruma kalkanı aktif.`;
+            else if (stopLossReached) reasonKey = `Disiplin Molası: Günlük %${eff.stopLossPctDisplay} zarar sınırına ulaşıldı. Risk durduruldu.`;
 
             this.addToLedger('MODE_CHANGE', {
                 from: prevMode,
@@ -929,16 +1001,17 @@ class BankrollManager {
     }
 
     /**
-     * Returns daily progress towards %5 target and %3 stop loss
+     * Returns daily progress towards target and stop loss
      */
     getDailyProgress() {
         const starting = this.state.starting_balance || 2000;
         const dailyPL = this.state.daily_pl || 0;
         const dailyPLPct = (dailyPL / starting) * 100;
+        const eff = this.getEffectiveRiskSettings();
+        const targetPct = eff.targetDailyPctDisplay;
+        const stopLossPct = eff.stopLossPctDisplay;
         const profileKey = this.state.risk_profile || 'BALANCED';
         const profile = RISK_PROFILES[profileKey] || RISK_PROFILES.BALANCED;
-        const targetPct = (profile.targetDailyPct || 0.05) * 100;
-        const stopLossPct = (profile.stopLossPct || 0.03) * 100;
 
         let progressPct = 0;
         if (dailyPLPct > 0) {
@@ -956,7 +1029,8 @@ class BankrollManager {
             progressPct: parseFloat(progressPct.toFixed(1)),
             isTargetReached,
             isStopLossReached,
-            profile
+            profile,
+            effectiveSettings: eff
         };
     }
 
@@ -1041,7 +1115,7 @@ class BankrollManager {
     /**
      * Custom Starting Capital and Risk Profile configuration
      */
-    setInitialCapital(amount, profile = 'BALANCED', currency = null) {
+    setInitialCapital(amount, profile = 'BALANCED', currency = null, customRules = null) {
         const numAmount = Math.max(10, Number(amount) || 2000);
         this.state.starting_balance = numAmount;
         this.state.current_balance = numAmount;
@@ -1054,14 +1128,40 @@ class BankrollManager {
         if (currency) {
             this.state.currency = currency;
         }
+        if (customRules && typeof customRules === 'object') {
+            this.state.custom_rules = {
+                target_daily_pct: Math.max(1, Math.min(20, Number(customRules.target_daily_pct) || 5)),
+                stop_loss_pct: Math.max(1, Math.min(20, Number(customRules.stop_loss_pct) || 3)),
+                max_concurrent: Math.max(1, Math.min(5, Number(customRules.max_concurrent) || 2)),
+                max_stake_units: Math.max(1.0, Math.min(4.0, Number(customRules.max_stake_units) || 2.5)),
+                auto_pilot_min_conf: Math.max(70, Math.min(95, Number(customRules.auto_pilot_min_conf) || 80))
+            };
+            this.state.max_concurrent_bets = this.state.custom_rules.max_concurrent;
+        }
         this.saveState();
         this.addToLedger('CAPITAL_CONFIGURED', {
             starting_balance: numAmount,
             profile,
             currency: this.state.currency,
+            custom_rules: this.state.custom_rules,
             reason: 'Kullanıcı sanal sermaye ve risk profili ataması'
         });
         return this.getState();
+    }
+
+    setCustomRules(customRules) {
+        if (customRules && typeof customRules === 'object') {
+            this.state.custom_rules = {
+                target_daily_pct: Math.max(1, Math.min(20, Number(customRules.target_daily_pct) || 5)),
+                stop_loss_pct: Math.max(1, Math.min(20, Number(customRules.stop_loss_pct) || 3)),
+                max_concurrent: Math.max(1, Math.min(5, Number(customRules.max_concurrent) || 2)),
+                max_stake_units: Math.max(1.0, Math.min(4.0, Number(customRules.max_stake_units) || 2.5)),
+                auto_pilot_min_conf: Math.max(70, Math.min(95, Number(customRules.auto_pilot_min_conf) || 80))
+            };
+            this.state.max_concurrent_bets = this.state.custom_rules.max_concurrent;
+            this.saveState();
+        }
+        return this.state.custom_rules;
     }
 
     setCurrency(currency) {
@@ -1094,6 +1194,7 @@ class BankrollManager {
         copy.unit_size = this.getUnitSize();
         copy.active_open_bets_count = this.getActiveOpenBetsCount();
         copy.currency = this.state.currency || '₺';
+        copy.effective_risk = this.getEffectiveRiskSettings();
         return copy;
     }
 

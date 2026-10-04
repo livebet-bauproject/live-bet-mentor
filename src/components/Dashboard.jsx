@@ -244,12 +244,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         }
     };
 
-    const handleSaveCapital = (amount, profile, currency) => {
-        bankrollManager.setInitialCapital(amount, profile, currency);
+    const handleSaveCapital = (amount, profile, currency, customRules = null) => {
+        bankrollManager.setInitialCapital(amount, profile, currency, customRules);
         const updated = bankrollManager.getState();
         setBankState(updated);
         const curCurrency = updated.currency || currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
-        setSettlementMessage(lang === 'tr' ? `✅ Sanal portföy ${Number(amount).toLocaleString()} ${curCurrency} olarak güncellendi.` : (lang === 'de' ? `✅ Virtuelles Portfolio auf ${Number(amount).toLocaleString()} ${curCurrency} aktualisiert.` : `✅ Portfolio updated to ${Number(amount).toLocaleString()} ${curCurrency}.`));
+        const profileLabel = profile === 'CUSTOM' ? (lang === 'tr' ? 'Özel Risk' : (lang === 'de' ? 'Benutzerdefiniert' : 'Custom Risk')) : profile;
+        setSettlementMessage(lang === 'tr' ? `✅ Sanal portföy ${Number(amount).toLocaleString()} ${curCurrency} (${profileLabel}) olarak güncellendi.` : (lang === 'de' ? `✅ Virtuelles Portfolio auf ${Number(amount).toLocaleString()} ${curCurrency} (${profileLabel}) aktualisiert.` : `✅ Portfolio updated to ${Number(amount).toLocaleString()} ${curCurrency} (${profileLabel}).`));
         setTimeout(() => setSettlementMessage(''), 4000);
     };
 
@@ -2855,7 +2856,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             if (!sig || sig.verdict !== 'BET') continue;
 
             const smart = bankrollManager.calculateSmartStake(m, sig);
-            if (smart && smart.allowed && (sig.confidence >= 80 || (m.opportunityData?.score >= 80))) {
+            const eff = bankrollManager.getEffectiveRiskSettings?.() || { autoPilotMinConf: 80 };
+            const minConf = eff.autoPilotMinConf || 80;
+            if (smart && smart.allowed && (sig.confidence >= minConf || (m.opportunityData?.score >= minConf))) {
                 autoPilotProcessedRef.current.add(m.id);
                 handleTerminalApproveBet(m, sig, smart.stake);
                 const curr = bankrollManager?.getState()?.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
@@ -3793,6 +3796,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     onClose={() => setIsCapitalModalOpen(false)}
                     currentCapital={initialBalance}
                     currentProfile={state.risk_profile || 'BALANCED'}
+                    currentCurrency={state.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}
+                    currentCustomRules={state.custom_rules}
                     onSave={handleSaveCapital}
                     lang={lang}
                 />
@@ -9271,6 +9276,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 currentCapital={bankState.starting_balance || bankState.current_balance || 2000}
                 currentProfile={bankState.risk_profile || 'BALANCED'}
                 currentCurrency={bankState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}
+                currentCustomRules={bankState.custom_rules}
                 onSave={handleSaveCapital}
                 lang={lang}
             />

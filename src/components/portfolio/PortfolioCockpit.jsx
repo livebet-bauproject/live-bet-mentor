@@ -55,6 +55,11 @@ const RISK_PROFILE_TRANSLATIONS = {
         tr: { label: 'Dinamik Fırsat', desc: 'Yüksek xG ve momentum fırsatlarına odaklı dinamik simülasyon.' },
         en: { label: 'Dynamic Opportunity', desc: 'Momentum and high-xG offensive trading simulation.' },
         de: { label: 'Dynamische Chance', desc: 'Fokus auf hohes xG-Momentum und offensive Chancen.' }
+    },
+    CUSTOM: {
+        tr: { label: 'Özel Risk Modu', desc: 'Kullanıcı tanımlı kâr hedefi, stop-loss ve masa riski kuralları.' },
+        en: { label: 'Custom Risk Mode', desc: 'User-defined profit target, stop-loss limits, and exposure rules.' },
+        de: { label: 'Benutzerdefinierter Modus', desc: 'Individuelle Gewinnziele, Stop-Loss-Grenzen und Tischrisiko-Regeln.' }
     }
 };
 
