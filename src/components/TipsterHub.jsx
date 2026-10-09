@@ -15,7 +15,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
     const [filterConfidence, setFilterConfidence] = useState('ALL'); // 'ALL' | '10' | '9_PLUS'
     const [filterSport, setFilterSport] = useState('ALL');
     const [filterOddsRange, setFilterOddsRange] = useState('ALL'); // 'ALL' | 'LOW' (1.40-1.85) | 'MED' (1.85-2.40) | 'HIGH' (2.40+)
-    const [sortBy, setSortBy] = useState('NEWEST'); // Default: 'NEWEST' (en son gelene göre) | 'ODDS_DESC' | 'ODDS_ASC' | 'STAKE_DESC' | 'ANALYST'
+    const [sortBy, setSortBy] = useState('NEWEST'); // Default: 'NEWEST' (en son gelene göre) | 'OLDEST' | 'ODDS_DESC' | 'ODDS_ASC' | 'STAKE_DESC' | 'ANALYST'
 
     // Interactive expansion states for Combos & Analysis Notes
     const [expandedCombos, setExpandedCombos] = useState({});
@@ -38,19 +38,20 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 viewCards: '🗂️ Kartlar',
                 searchPlaceholder: '🔍 Takım, Lig, Analist veya Seçim ara...',
                 filterStatus: 'DURUM:',
+                filterSportTitle: 'SPOR:',
                 filterAll: 'Tümü',
-                filterLiveOnly: '🔴 Sadece Canlı',
+                filterLiveOnly: '🔴 Canlı',
                 filterPrematch: '📅 Maç Önü',
                 filterCombos: '🎯 Kombineler',
                 filterConfTitle: 'GÜVEN:',
                 filterConfAll: 'Tümü (8+)',
                 filterConf10: '⭐ 10/10 Maksimum',
-                filterConf9: '⚡ 9+ Yüksek Güven',
+                filterConf9: '⚡ 9+ Yüksek',
                 filterOddsTitle: 'ORAN:',
                 filterOddsAll: 'Tümü',
-                filterOddsLow: '1.40 - 1.85 (Dengeli)',
-                filterOddsMed: '1.85 - 2.40 (Değerli)',
-                filterOddsHigh: '2.40+ (Yüksek)',
+                filterOddsLow: '1.40 - 1.85',
+                filterOddsMed: '1.85 - 2.40',
+                filterOddsHigh: '2.40+',
                 sortByLabel: 'SIRALAMA:',
                 sortNewest: '🕒 En Son Gelen (Varsayılan)',
                 sortOddsDesc: '📈 En Yüksek Oran',
@@ -65,17 +66,17 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 colOdds: 'PİYASA ORANI',
                 colConfidence: 'GÜVEN (STAKE)',
                 colActions: 'KASA / İŞLEMLER',
-                addToBankroll: 'Kasa / Portföye Ekle',
-                inBankroll: 'Kasada Açık (Görüntüle)',
+                addToBankroll: 'Kasaya Ekle',
+                inBankroll: 'Kasada Açık',
                 trackRadar: 'Takip',
                 analysisNote: 'Analiz',
                 details: 'Detaylar',
-                close: 'Kapat',
+                closeDetails: 'Kapat',
                 dualConsensus: 'ÇİFTE ONAY',
                 resetFilters: 'Filtreleri Temizle',
                 showingCount: (shown, total) => `${shown} / ${total} tahmin listeleniyor`,
                 noResults: 'Arama ve filtre kriterlerinize uygun tahmin bulunamadı.',
-                noResultsTip: 'Filtreleri sıfırlayarak tüm bağımsız analist sinyallerini görüntüleyebilirsiniz.',
+                noResultsTip: 'Filtreleri temizleyerek tüm bağımsız analist sinyallerini görüntüleyebilirsiniz.',
                 emptyFeed: 'Kriterlere Uygun Yeni Sinyal Aranıyor',
                 emptyFeedDesc: 'Analist motoru arka planda 24/7 akışı takip ediyor. Filtre kriterlerini genişletebilir veya yenile butonuna basabilirsiniz.',
                 comboTitle: (n) => `🎯 ${n}'Lİ KOMBİNE KUPON DETAYLARI:`,
@@ -84,7 +85,8 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 toastAlreadyIn: '⚠️ Bu tahmin zaten kasanızda açık işlem olarak bulunuyor.',
                 toastSaved: 'Kupon kasanıza kaydedildi.',
                 toastRadar: (name) => `📡 "${name}" canlı radarda takibe alındı!`,
-                singlePickTitle: 'UZMAN SEÇİMİ'
+                singlePickTitle: 'UZMAN SEÇİMİ',
+                comboMatchLabel: (n) => `🎯 Çoklu Karşılaşma (${n} Maç)`
             },
             en: {
                 activePicks: 'ACTIVE PICKS',
@@ -97,19 +99,20 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 viewCards: '🗂️ Cards',
                 searchPlaceholder: '🔍 Search match, league, analyst or pick...',
                 filterStatus: 'STATUS:',
+                filterSportTitle: 'SPORT:',
                 filterAll: 'All',
-                filterLiveOnly: '🔴 Live Only',
+                filterLiveOnly: '🔴 Live',
                 filterPrematch: '📅 Pre-Match',
                 filterCombos: '🎯 Combos',
                 filterConfTitle: 'CONFIDENCE:',
                 filterConfAll: 'All (8+)',
-                filterConf10: '⭐ 10/10 Max Stake',
-                filterConf9: '⚡ 9+ High Stake',
+                filterConf10: '⭐ 10/10 Max',
+                filterConf9: '⚡ 9+ High',
                 filterOddsTitle: 'ODDS:',
                 filterOddsAll: 'All',
-                filterOddsLow: '1.40 - 1.85 (Balanced)',
-                filterOddsMed: '1.85 - 2.40 (Value)',
-                filterOddsHigh: '2.40+ (High Odds)',
+                filterOddsLow: '1.40 - 1.85',
+                filterOddsMed: '1.85 - 2.40',
+                filterOddsHigh: '2.40+',
                 sortByLabel: 'SORT BY:',
                 sortNewest: '🕒 Newest First (Default)',
                 sortOddsDesc: '📈 Highest Odds',
@@ -125,11 +128,11 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 colConfidence: 'STAKE / CONFIDENCE',
                 colActions: 'BANKROLL / ACTIONS',
                 addToBankroll: 'Add to Bankroll',
-                inBankroll: 'In Bankroll (View)',
+                inBankroll: 'In Bankroll',
                 trackRadar: 'Track',
                 analysisNote: 'Analysis',
                 details: 'Details',
-                close: 'Close',
+                closeDetails: 'Close',
                 dualConsensus: 'DUAL CONSENSUS',
                 resetFilters: 'Reset Filters',
                 showingCount: (shown, total) => `Showing ${shown} of ${total} picks`,
@@ -143,7 +146,8 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 toastAlreadyIn: '⚠️ This pick is already open in your bankroll ledger.',
                 toastSaved: 'Pick saved to bankroll.',
                 toastRadar: (name) => `📡 "${name}" pinned to live tracking!`,
-                singlePickTitle: 'EXPERT PICK'
+                singlePickTitle: 'EXPERT PICK',
+                comboMatchLabel: (n) => `🎯 Multi-Event Acca (${n} Legs)`
             },
             de: {
                 activePicks: 'AKTIVE TIPPS',
@@ -156,19 +160,20 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 viewCards: '🗂️ Karten',
                 searchPlaceholder: '🔍 Spiel, Liga, Analyst oder Tipp suchen...',
                 filterStatus: 'STATUS:',
+                filterSportTitle: 'SPORT:',
                 filterAll: 'Alle',
                 filterLiveOnly: '🔴 Nur Live',
                 filterPrematch: '📅 Vor dem Spiel',
                 filterCombos: '🎯 Kombis',
                 filterConfTitle: 'VERTRAUEN:',
                 filterConfAll: 'Alle (8+)',
-                filterConf10: '⭐ 10/10 Max Einsatz',
-                filterConf9: '⚡ 9+ Hohes Vertrauen',
+                filterConf10: '⭐ 10/10 Max',
+                filterConf9: '⚡ 9+ Hoch',
                 filterOddsTitle: 'QUOTE:',
                 filterOddsAll: 'Alle',
-                filterOddsLow: '1.40 - 1.85 (Ausgeglichen)',
-                filterOddsMed: '1.85 - 2.40 (Wert)',
-                filterOddsHigh: '2.40+ (Hohe Quoten)',
+                filterOddsLow: '1.40 - 1.85',
+                filterOddsMed: '1.85 - 2.40',
+                filterOddsHigh: '2.40+',
                 sortByLabel: 'SORTIEREN:',
                 sortNewest: '🕒 Neueste zuerst (Standard)',
                 sortOddsDesc: '📈 Höchste Quoten',
@@ -183,12 +188,12 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 colOdds: 'MARKTQUOTE',
                 colConfidence: 'VERTRAUEN (EINSATZ)',
                 colActions: 'DEPOT / AKTIONEN',
-                addToBankroll: 'Zum Depot hinzufügen',
-                inBankroll: 'Im Depot (Öffnen)',
+                addToBankroll: 'Zum Depot',
+                inBankroll: 'Im Depot',
                 trackRadar: 'Verfolgen',
                 analysisNote: 'Analyse',
                 details: 'Details',
-                close: 'Schließen',
+                closeDetails: 'Schließen',
                 dualConsensus: 'DOPPELTER KONSENS',
                 resetFilters: 'Filter zurücksetzen',
                 showingCount: (shown, total) => `${shown} von ${total} Tipps angezeigt`,
@@ -202,7 +207,8 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 toastAlreadyIn: '⚠️ Diese Wette ist bereits im Depot geöffnet.',
                 toastSaved: 'Wette zum Depot hinzugefügt.',
                 toastRadar: (name) => `📡 "${name}" zur Live-Verfolgung angeheftet!`,
-                singlePickTitle: 'EXPERTENTIPP'
+                singlePickTitle: 'EXPERTENTIPP',
+                comboMatchLabel: (n) => `🎯 Mehrfach-Kombi (${n} Spiele)`
             }
         };
         return dict[lang] || dict.tr;
@@ -313,16 +319,54 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
         return Array.from(sports);
     }, [feedData.picks]);
 
-    // Helper timestamp extractor for strict chronological sorting
+    // Robust age extraction from ageText string or explicit ageMinutes
+    const parseAgeMinutes = (pick) => {
+        if (typeof pick.ageMinutes === 'number' && !isNaN(pick.ageMinutes) && pick.ageMinutes >= 0) {
+            return pick.ageMinutes;
+        }
+
+        const text = (pick.ageText || '').toLowerCase().trim();
+        if (!text || text === 'yeni' || text === 'az önce' || text === 'just now') {
+            return 0;
+        }
+
+        const numMatch = text.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 1;
+
+        if (text.includes('sn') || text.includes('sec')) return num / 60;
+        if (text.includes('dk') || text.includes('min')) return num;
+        if (text.includes('sa') || text.includes('hour') || text.includes('std')) return num * 60;
+        if (text.includes('gün') || text.includes('day') || text.includes('tag')) return num * 1440;
+        if (text.includes('dün') || text.includes('yesterday') || text.includes('gestern')) return 1440;
+
+        if (typeof pick.postedAt === 'number' && !isNaN(pick.postedAt) && pick.postedAt > 0) {
+            return Math.max(0, (Date.now() - pick.postedAt) / (60 * 1000));
+        }
+
+        return 999999;
+    };
+
+    // Helper timestamp extractor strictly honoring exact relative age
     const getPickTimestamp = (p) => {
-        if (typeof p.postedAt === 'number' && !isNaN(p.postedAt)) return p.postedAt;
+        // In-play live picks always stay at the absolute top
+        if (p.isLive) {
+            return Date.now() + 1000000;
+        }
+
+        const ageMins = parseAgeMinutes(p);
+        if (ageMins !== 999999) {
+            return Date.now() - (ageMins * 60 * 1000);
+        }
+
+        if (typeof p.postedAt === 'number' && !isNaN(p.postedAt) && p.postedAt > 0) {
+            return p.postedAt;
+        }
+
         if (p.createdAt) {
             const parsed = new Date(p.createdAt).getTime();
             if (!isNaN(parsed)) return parsed;
         }
-        if (typeof p.ageMinutes === 'number' && !isNaN(p.ageMinutes)) {
-            return Date.now() - (p.ageMinutes * 60 * 1000);
-        }
+
         return 0;
     };
 
@@ -373,6 +417,12 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                 const timeA = getPickTimestamp(a);
                 const timeB = getPickTimestamp(b);
                 if (timeB !== timeA) return timeB - timeA;
+                return 0;
+            }
+            if (sortBy === 'OLDEST') {
+                const timeA = getPickTimestamp(a);
+                const timeB = getPickTimestamp(b);
+                if (timeA !== timeB) return timeA - timeB;
                 return 0;
             }
             if (sortBy === 'ODDS_DESC') {
@@ -427,7 +477,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
 
     return (
         <div className="tipster-hub-container" style={{
-            maxWidth: '1420px',
+            maxWidth: '1440px',
             margin: '1.25rem auto 3.5rem',
             padding: '0 1rem',
             color: '#f8fafc',
@@ -620,7 +670,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                         flexDirection: 'column',
                         gap: '0.85rem'
                     }}>
-                        {/* Top Filter Row: Search Input + View Mode Toggle + Sort Selector */}
+                        {/* Row 1: Search Input + View Mode Toggle + Sort Selector */}
                         <div style={{
                             display: 'flex',
                             gap: '0.85rem',
@@ -745,17 +795,17 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                             </div>
                         </div>
 
-                        {/* Middle Filter Row: Status Pills, Confidence, Odds Range, Sport */}
+                        {/* Row 2: Unified Filter Bar (Status, Sport, Confidence, Odds) */}
                         <div style={{
                             display: 'flex',
-                            gap: '0.75rem',
+                            gap: '0.65rem 0.85rem',
                             alignItems: 'center',
                             flexWrap: 'wrap',
-                            paddingTop: '0.6rem',
+                            paddingTop: '0.65rem',
                             borderTop: '1px solid rgba(255, 255, 255, 0.05)'
                         }}>
                             {/* Status Filter */}
-                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
                                 <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterStatus}</span>
                                 {[
                                     { id: 'ALL', label: t.filterAll },
@@ -767,12 +817,12 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                         key={btn.id}
                                         onClick={() => setFilterStatus(btn.id)}
                                         style={{
-                                            padding: '0.35rem 0.65rem',
+                                            padding: '0.35rem 0.6rem',
                                             borderRadius: '6px',
                                             border: filterStatus === btn.id ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
                                             background: filterStatus === btn.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.02)',
                                             color: filterStatus === btn.id ? '#38bdf8' : '#94a3b8',
-                                            fontSize: '0.75rem',
+                                            fontSize: '0.74rem',
                                             fontWeight: 700,
                                             cursor: 'pointer'
                                         }}
@@ -783,75 +833,19 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                             </div>
 
                             <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
-
-                            {/* Confidence Filter */}
-                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterConfTitle}</span>
-                                {[
-                                    { id: 'ALL', label: t.filterConfAll },
-                                    { id: '10', label: t.filterConf10 },
-                                    { id: '9_PLUS', label: t.filterConf9 }
-                                ].map(btn => (
-                                    <button
-                                        key={btn.id}
-                                        onClick={() => setFilterConfidence(btn.id)}
-                                        style={{
-                                            padding: '0.35rem 0.65rem',
-                                            borderRadius: '6px',
-                                            border: filterConfidence === btn.id ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.08)',
-                                            background: filterConfidence === btn.id ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.02)',
-                                            color: filterConfidence === btn.id ? '#fbbf24' : '#94a3b8',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {btn.label}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
-
-                            {/* Odds Range Filter */}
-                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterOddsTitle}</span>
-                                {[
-                                    { id: 'ALL', label: t.filterOddsAll },
-                                    { id: 'LOW', label: '1.40-1.85' },
-                                    { id: 'MED', label: '1.85-2.40' },
-                                    { id: 'HIGH', label: '2.40+' }
-                                ].map(btn => (
-                                    <button
-                                        key={btn.id}
-                                        onClick={() => setFilterOddsRange(btn.id)}
-                                        style={{
-                                            padding: '0.35rem 0.65rem',
-                                            borderRadius: '6px',
-                                            border: filterOddsRange === btn.id ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
-                                            background: filterOddsRange === btn.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.02)',
-                                            color: filterOddsRange === btn.id ? '#10b981' : '#94a3b8',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {btn.label}
-                                    </button>
-                                ))}
-                            </div>
 
                             {/* Sport Filter */}
-                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', marginLeft: 'auto' }}>
+                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterSportTitle}</span>
                                 <button
                                     onClick={() => setFilterSport('ALL')}
                                     style={{
-                                        padding: '0.35rem 0.65rem',
+                                        padding: '0.35rem 0.6rem',
                                         borderRadius: '6px',
-                                        border: filterSport === 'ALL' ? '1px solid #38bdf8' : '1px solid transparent',
-                                        background: filterSport === 'ALL' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                                        color: filterSport === 'ALL' ? '#38bdf8' : '#64748b',
-                                        fontSize: '0.75rem',
+                                        border: filterSport === 'ALL' ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                                        background: filterSport === 'ALL' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.02)',
+                                        color: filterSport === 'ALL' ? '#38bdf8' : '#94a3b8',
+                                        fontSize: '0.74rem',
                                         fontWeight: 700,
                                         cursor: 'pointer'
                                     }}
@@ -863,12 +857,12 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                         key={sp}
                                         onClick={() => setFilterSport(sp)}
                                         style={{
-                                            padding: '0.35rem 0.65rem',
+                                            padding: '0.35rem 0.6rem',
                                             borderRadius: '6px',
-                                            border: filterSport === sp ? '1px solid #38bdf8' : '1px solid transparent',
-                                            background: filterSport === sp ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                                            color: filterSport === sp ? '#38bdf8' : '#64748b',
-                                            fontSize: '0.75rem',
+                                            border: filterSport === sp ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                                            background: filterSport === sp ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255,255,255,0.02)',
+                                            color: filterSport === sp ? '#38bdf8' : '#94a3b8',
+                                            fontSize: '0.74rem',
                                             fontWeight: 700,
                                             cursor: 'pointer',
                                             display: 'flex',
@@ -881,9 +875,68 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                     </button>
                                 ))}
                             </div>
+
+                            <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
+
+                            {/* Confidence Filter */}
+                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterConfTitle}</span>
+                                {[
+                                    { id: 'ALL', label: t.filterConfAll },
+                                    { id: '10', label: t.filterConf10 },
+                                    { id: '9_PLUS', label: t.filterConf9 }
+                                ].map(btn => (
+                                    <button
+                                        key={btn.id}
+                                        onClick={() => setFilterConfidence(btn.id)}
+                                        style={{
+                                            padding: '0.35rem 0.6rem',
+                                            borderRadius: '6px',
+                                            border: filterConfidence === btn.id ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.08)',
+                                            background: filterConfidence === btn.id ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.02)',
+                                            color: filterConfidence === btn.id ? '#fbbf24' : '#94a3b8',
+                                            fontSize: '0.74rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {btn.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
+
+                            {/* Odds Range Filter */}
+                            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterOddsTitle}</span>
+                                {[
+                                    { id: 'ALL', label: t.filterOddsAll },
+                                    { id: 'LOW', label: t.filterOddsLow },
+                                    { id: 'MED', label: t.filterOddsMed },
+                                    { id: 'HIGH', label: t.filterOddsHigh }
+                                ].map(btn => (
+                                    <button
+                                        key={btn.id}
+                                        onClick={() => setFilterOddsRange(btn.id)}
+                                        style={{
+                                            padding: '0.35rem 0.6rem',
+                                            borderRadius: '6px',
+                                            border: filterOddsRange === btn.id ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
+                                            background: filterOddsRange === btn.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.02)',
+                                            color: filterOddsRange === btn.id ? '#10b981' : '#94a3b8',
+                                            fontSize: '0.74rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {btn.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        {/* Bottom Information Row: Result Count and Reset Button */}
+                        {/* Row 3: Result Count and Reset Button */}
                         <div style={{
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -1019,23 +1072,30 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                             <th
                                                 onClick={() => setSortBy(sortBy === 'NEWEST' ? 'OLDEST' : 'NEWEST')}
                                                 style={{ padding: '0.85rem 1rem', cursor: 'pointer', userSelect: 'none' }}
-                                                title="Zamana göre sırala"
+                                                title="Zamana göre sırala (En Yeni / En Eski)"
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <span>{t.colTime}</span>
-                                                    <span style={{ color: sortBy === 'NEWEST' ? '#38bdf8' : '#64748b' }}>▼</span>
+                                                    <span style={{ color: sortBy === 'NEWEST' || sortBy === 'OLDEST' ? '#38bdf8' : '#94a3b8' }}>
+                                                        {t.colTime}
+                                                    </span>
+                                                    {sortBy === 'NEWEST' && <span style={{ color: '#38bdf8', fontWeight: 900 }}>▼</span>}
+                                                    {sortBy === 'OLDEST' && <span style={{ color: '#38bdf8', fontWeight: 900 }}>▲</span>}
+                                                    {sortBy !== 'NEWEST' && sortBy !== 'OLDEST' && <span style={{ opacity: 0.25 }}>↕</span>}
                                                 </div>
                                             </th>
 
                                             {/* PRO ANALİST */}
                                             <th
-                                                onClick={() => setSortBy('ANALYST')}
+                                                onClick={() => setSortBy(sortBy === 'ANALYST' ? 'NEWEST' : 'ANALYST')}
                                                 style={{ padding: '0.85rem 0.9rem', cursor: 'pointer', userSelect: 'none' }}
-                                                title="Analist ismine göre sırala"
+                                                title="Analist ismine göre alfabetik sırala"
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                    <span>{t.colAnalyst}</span>
-                                                    <span style={{ color: sortBy === 'ANALYST' ? '#38bdf8' : '#64748b' }}>▲</span>
+                                                    <span style={{ color: sortBy === 'ANALYST' ? '#38bdf8' : '#94a3b8' }}>
+                                                        {t.colAnalyst}
+                                                    </span>
+                                                    {sortBy === 'ANALYST' && <span style={{ color: '#38bdf8', fontWeight: 900 }}>▲</span>}
+                                                    {sortBy !== 'ANALYST' && <span style={{ opacity: 0.25 }}>↕</span>}
                                                 </div>
                                             </th>
 
@@ -1052,25 +1112,30 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                             <th
                                                 onClick={() => setSortBy(sortBy === 'ODDS_DESC' ? 'ODDS_ASC' : 'ODDS_DESC')}
                                                 style={{ padding: '0.85rem 0.9rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
-                                                title="Orana göre sırala"
+                                                title="Orana göre sırala (Yüksek / Düşük)"
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                                                    <span>{t.colOdds}</span>
-                                                    <span style={{ color: sortBy.startsWith('ODDS') ? '#10b981' : '#64748b' }}>
-                                                        {sortBy === 'ODDS_ASC' ? '▲' : '▼'}
+                                                    <span style={{ color: sortBy.startsWith('ODDS') ? '#10b981' : '#94a3b8' }}>
+                                                        {t.colOdds}
                                                     </span>
+                                                    {sortBy === 'ODDS_DESC' && <span style={{ color: '#10b981', fontWeight: 900 }}>▼</span>}
+                                                    {sortBy === 'ODDS_ASC' && <span style={{ color: '#10b981', fontWeight: 900 }}>▲</span>}
+                                                    {!sortBy.startsWith('ODDS') && <span style={{ opacity: 0.25 }}>↕</span>}
                                                 </div>
                                             </th>
 
                                             {/* GÜVEN (STAKE) */}
                                             <th
-                                                onClick={() => setSortBy('STAKE_DESC')}
+                                                onClick={() => setSortBy(sortBy === 'STAKE_DESC' ? 'NEWEST' : 'STAKE_DESC')}
                                                 style={{ padding: '0.85rem 0.9rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
-                                                title="Güven seviyesine göre sırala"
+                                                title="Güven derecesine göre sırala"
                                             >
                                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                                                    <span>{t.colConfidence}</span>
-                                                    <span style={{ color: sortBy === 'STAKE_DESC' ? '#fbbf24' : '#64748b' }}>▼</span>
+                                                    <span style={{ color: sortBy === 'STAKE_DESC' ? '#fbbf24' : '#94a3b8' }}>
+                                                        {t.colConfidence}
+                                                    </span>
+                                                    {sortBy === 'STAKE_DESC' && <span style={{ color: '#fbbf24', fontWeight: 900 }}>▼</span>}
+                                                    {sortBy !== 'STAKE_DESC' && <span style={{ opacity: 0.25 }}>↕</span>}
                                                 </div>
                                             </th>
 
@@ -1114,11 +1179,11 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                                         gap: '4px',
                                                                         width: 'fit-content'
                                                                     }}>
-                                                                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }}></span>
+                                                                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ef4444' }}></span>
                                                                         CANLI
                                                                     </span>
                                                                 ) : (
-                                                                    <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 600, fontFamily: 'monospace' }}>
+                                                                    <span style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: 700, fontFamily: 'monospace' }}>
                                                                         🕒 {pick.ageText || 'Az önce'}
                                                                     </span>
                                                                 )}
@@ -1169,25 +1234,40 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                         </td>
 
                                                         {/* COL 3: SPOR & LİG */}
-                                                        <td style={{ padding: '0.9rem 0.9rem', whiteSpace: 'nowrap' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                                <span style={{ fontSize: '1rem' }}>{getSportEmoji(pick.sport)}</span>
-                                                                <span style={{ color: '#94a3b8', fontSize: '0.78rem', fontWeight: 600, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                                    {pick.sportDetails || pick.sport}
-                                                                </span>
+                                                        <td style={{ padding: '0.9rem 0.9rem' }}>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', color: '#e2e8f0', fontWeight: 800 }}>
+                                                                    <span>{getSportEmoji(pick.sport)}</span>
+                                                                    <span>{pick.sport}</span>
+                                                                </div>
+                                                                <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 500, lineHeight: 1.25 }}>
+                                                                    {pick.sportDetails || '-'}
+                                                                </div>
                                                             </div>
                                                         </td>
 
                                                         {/* COL 4: KARŞILAŞMA */}
                                                         <td style={{ padding: '0.9rem 1rem' }}>
-                                                            <div style={{
-                                                                fontWeight: 800,
-                                                                color: '#ffffff',
-                                                                fontSize: '0.88rem',
-                                                                lineHeight: 1.3
-                                                            }}>
-                                                                {pick.matchName}
-                                                            </div>
+                                                            {pick.isCombo ? (
+                                                                <div>
+                                                                    <div style={{ color: '#fbbf24', fontWeight: 900, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                        <span>🎯</span>
+                                                                        <span>{t.comboMatchLabel(pick.comboLegs?.length || 2)}</span>
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: 600, marginTop: '3px', lineHeight: 1.3 }}>
+                                                                        {pick.matchName.replace(/^2'li Kombine:\s*/i, '').replace(/^[0-9]+'li Kombine:\s*/i, '')}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{
+                                                                    fontWeight: 800,
+                                                                    color: '#ffffff',
+                                                                    fontSize: '0.88rem',
+                                                                    lineHeight: 1.3
+                                                                }}>
+                                                                    {pick.matchName}
+                                                                </div>
+                                                            )}
                                                         </td>
 
                                                         {/* COL 5: UZMAN SEÇİMİ */}
@@ -1196,10 +1276,10 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                                 <button
                                                                     onClick={() => toggleCombo(pick.id)}
                                                                     style={{
-                                                                        background: 'rgba(245, 158, 11, 0.15)',
-                                                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                                                        background: isComboExpanded ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.12)',
+                                                                        border: isComboExpanded ? '1px solid #f59e0b' : '1px solid rgba(245, 158, 11, 0.4)',
                                                                         color: '#fbbf24',
-                                                                        padding: '0.35rem 0.7rem',
+                                                                        padding: '0.35rem 0.75rem',
                                                                         borderRadius: '8px',
                                                                         fontSize: '0.78rem',
                                                                         fontWeight: 900,
@@ -1210,24 +1290,23 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                                     }}
                                                                 >
                                                                     <span>🎯 {pick.comboLegs.length}'li Kombine</span>
-                                                                    <span style={{ fontSize: '0.68rem', color: '#f59e0b' }}>
-                                                                        {isComboExpanded ? '▲' : '▼'}
+                                                                    <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>
+                                                                        {isComboExpanded ? `▲ ${t.closeDetails}` : `▼ ${t.details}`}
                                                                     </span>
                                                                 </button>
                                                             ) : (
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                                    <span style={{
-                                                                        color: '#38bdf8',
-                                                                        fontWeight: 900,
-                                                                        fontSize: '0.86rem',
-                                                                        background: 'rgba(56, 189, 248, 0.1)',
-                                                                        border: '1px solid rgba(56, 189, 248, 0.25)',
-                                                                        padding: '2px 8px',
-                                                                        borderRadius: '6px'
-                                                                    }}>
-                                                                        {pick.selection || 'Karşılaşma Seçimi'}
-                                                                    </span>
-                                                                </div>
+                                                                <span style={{
+                                                                    color: '#38bdf8',
+                                                                    fontWeight: 800,
+                                                                    fontSize: '0.86rem',
+                                                                    background: 'rgba(56, 189, 248, 0.08)',
+                                                                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                                                                    padding: '3px 8px',
+                                                                    borderRadius: '6px',
+                                                                    display: 'inline-block'
+                                                                }}>
+                                                                    {pick.selection || 'Seçim'}
+                                                                </span>
                                                             )}
                                                         </td>
 
@@ -1305,17 +1384,17 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                                     style={{
                                                                         background: inPortfolio 
                                                                             ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.4))' 
-                                                                            : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25))',
-                                                                        border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.8)' : '1px solid rgba(16, 185, 129, 0.4)',
+                                                                            : 'linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.22))',
+                                                                        border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.8)' : '1px solid rgba(16, 185, 129, 0.35)',
                                                                         color: inPortfolio ? '#34d399' : '#10b981',
                                                                         padding: '0.45rem 0.75rem',
                                                                         borderRadius: '8px',
                                                                         fontWeight: 800,
                                                                         fontSize: '0.75rem',
                                                                         cursor: 'pointer',
-                                                                        display: 'flex',
+                                                                        display: 'inline-flex',
                                                                         alignItems: 'center',
-                                                                        gap: '0.3rem',
+                                                                        gap: '0.35rem',
                                                                         boxShadow: inPortfolio ? '0 0 10px rgba(16, 185, 129, 0.3)' : 'none',
                                                                         whiteSpace: 'nowrap'
                                                                     }}
@@ -1553,7 +1632,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                             CANLI
                                                         </span>
                                                     ) : (
-                                                        <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
+                                                        <span style={{ fontSize: '0.74rem', color: '#cbd5e1', fontWeight: 700, fontFamily: 'monospace' }}>
                                                             🕒 {pick.ageText || 'Az önce'}
                                                         </span>
                                                     )}
@@ -1674,8 +1753,8 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                     flex: 1,
                                                     background: inPortfolio 
                                                         ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.4))' 
-                                                        : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25))',
-                                                    border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.7)' : '1px solid rgba(16, 185, 129, 0.4)',
+                                                        : 'linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.22))',
+                                                    border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.8)' : '1px solid rgba(16, 185, 129, 0.35)',
                                                     color: inPortfolio ? '#34d399' : '#10b981',
                                                     padding: '0.65rem 0.8rem',
                                                     borderRadius: '10px',
