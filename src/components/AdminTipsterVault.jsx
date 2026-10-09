@@ -232,9 +232,9 @@ export const AdminTipsterVault = ({ lang = 'tr', proxyBase, getAdminHeaders }) =
                 </div>
 
                 <div style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '14px', padding: '1.1rem' }}>
-                    <div style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700 }}>BELLEKTEKİ TAHMİNLER</div>
+                    <div style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700 }}>KALICI ARŞİV TAHMİNLERİ</div>
                     <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#38bdf8', marginTop: '0.2rem' }}>
-                        {data.totalPicksInCache || 0}
+                        {data.totalArchivedPicks || data.totalPicksInCache || 0}
                     </div>
                 </div>
 

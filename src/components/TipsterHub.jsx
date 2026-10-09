@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getApiBaseUrl, initBackendDiscovery } from '../config.js';
 import { bankrollManager } from '../logic/bankrollManager.js';
 
-export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, onFocusMatch }) => {
+export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, onFocusMatch, onNavigatePortfolio }) => {
     const [feedData, setFeedData] = useState({ picks: [], leaderboard: [], total: 0 });
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -10,13 +10,29 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
     const [filterLive, setFilterLive] = useState(false);
     const [filterHighConf, setFilterHighConf] = useState(false);
     const [filterSport, setFilterSport] = useState('ALL');
-    const [toastMessage, setToastMessage] = useState(null);
+    const [toastData, setToastData] = useState(null);
+    const [, setBankrollUpdateKey] = useState(0);
 
     const isVip = userProfile?.plan === 'vip' || userProfile?.plan === 'pro' || userProfile?.role === 'admin';
 
-    const showToast = (msg) => {
-        setToastMessage(msg);
-        setTimeout(() => setToastMessage(null), 3000);
+    // Listen for bankroll state changes to refresh "in portfolio" badge
+    useEffect(() => {
+        const handleBankUpdate = () => setBankrollUpdateKey(k => k + 1);
+        window.addEventListener('bankroll_state_changed', handleBankUpdate);
+        return () => window.removeEventListener('bankroll_state_changed', handleBankUpdate);
+    }, []);
+
+    const showToast = (msg, canGoToPortfolio = false) => {
+        setToastData({
+            message: msg,
+            showPortfolioBtn: canGoToPortfolio && typeof onNavigatePortfolio === 'function'
+        });
+        setTimeout(() => setToastData(null), 4500);
+    };
+
+    const isAlreadyInPortfolio = (pickId) => {
+        if (!bankrollManager || typeof bankrollManager.isMatchOpenInLedger !== 'function') return false;
+        return bankrollManager.isMatchOpenInLedger(pickId) || bankrollManager.isMatchOpenInLedger(`tip-${pickId}`);
     };
 
     const fetchFeed = async (forceRefresh = false) => {
@@ -55,24 +71,37 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
     const handleAddToPortfolio = (pick) => {
         try {
             const betItem = {
-                id: `tip-${pick.id}-${Date.now()}`,
+                id: `tip-${pick.id}`,
                 match_id: pick.id,
                 match_name: pick.matchName,
                 selection: pick.selection,
                 odds: pick.odds,
-                stake: Math.max(10, Math.round((pick.stake || 5) * 20)), // 5/10 -> 100 ₺
+                stake: Math.max(10, Math.round((pick.stake || 5) * 20)), // 8/10 -> 160 ₺
                 status: 'OPEN',
-                market_type: pick.sport,
+                sport: pick.sport,
+                sportDetails: pick.sportDetails,
                 created_at: new Date().toISOString(),
-                source: `Uzman Analist (${pick.analyst?.name || 'Sistem'})`
+                source: `Uzman Analist (${pick.analyst?.name || 'Sistem'})`,
+                analyst: pick.analyst,
+                comboLegs: pick.comboLegs || null
             };
             if (bankrollManager && typeof bankrollManager.addCustomBet === 'function') {
-                bankrollManager.addCustomBet(betItem);
+                const res = bankrollManager.addCustomBet(betItem);
+                if (res === false) {
+                    showToast(lang === 'tr' 
+                        ? `⚠️ Bu tahmin zaten kasanızda açık işlem olarak bulunuyor.` 
+                        : (lang === 'de' ? `⚠️ Diese Wette ist bereits im Portfolio geöffnet.` : `⚠️ This bet is already open in your portfolio.`));
+                    return;
+                }
             }
-            showToast(lang === 'tr' 
-                ? `💼 "${pick.matchName}" kasanıza eklendi!` 
-                : (lang === 'de' ? `💼 Wette zum Depot hinzugefügt!` : `💼 Bet added to your portfolio!`));
+            showToast(
+                lang === 'tr' 
+                    ? `💼 "${pick.matchName}" kasanıza eklendi!` 
+                    : (lang === 'de' ? `💼 Wette zum Depot hinzugefügt!` : `💼 Bet added to your portfolio!`),
+                true
+            );
         } catch (e) {
+            console.error('Error adding to portfolio:', e);
             showToast(lang === 'tr' ? 'Kupon kasanıza kaydedildi.' : 'Saved to portfolio.');
         }
     };
@@ -95,22 +124,51 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
             fontFamily: 'Inter, system-ui, sans-serif'
         }}>
             {/* Toast notification */}
-            {toastMessage && (
+            {toastData && (
                 <div style={{
                     position: 'fixed',
                     bottom: '2rem',
                     right: '2rem',
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+                    border: '1px solid rgba(16, 185, 129, 0.5)',
                     color: '#fff',
-                    padding: '0.85rem 1.4rem',
-                    borderRadius: '12px',
+                    padding: '0.85rem 1.3rem',
+                    borderRadius: '14px',
                     fontWeight: 800,
-                    fontSize: '0.9rem',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                    fontSize: '0.88rem',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.6)',
                     zIndex: 9999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '1rem',
                     animation: 'fadeIn 0.2s ease-out'
                 }}>
-                    {toastMessage}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '1.2rem' }}>💼</span>
+                        <span>{toastData.message}</span>
+                    </div>
+                    {toastData.showPortfolioBtn && (
+                        <button
+                            onClick={() => {
+                                setToastData(null);
+                                onNavigatePortfolio();
+                            }}
+                            style={{
+                                background: 'linear-gradient(135deg, #10b981, #059669)',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '0.45rem 0.9rem',
+                                borderRadius: '8px',
+                                fontSize: '0.78rem',
+                                fontWeight: 900,
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)'
+                            }}
+                        >
+                            {lang === 'tr' ? 'Kasayı Aç ➔' : (lang === 'de' ? 'Depot öffnen ➔' : 'View Portfolio ➔')}
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -590,53 +648,64 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                         </div>
 
                                         {/* In-House Action Buttons (NO EXTERNAL LINKS) */}
-                                        {!isLocked && (
-                                            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                                <button
-                                                    onClick={() => handleAddToPortfolio(pick)}
-                                                    style={{
-                                                        flex: 1,
-                                                        background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25))',
-                                                        border: '1px solid rgba(16, 185, 129, 0.4)',
-                                                        color: '#10b981',
-                                                        padding: '0.65rem 0.8rem',
-                                                        borderRadius: '10px',
-                                                        fontWeight: 800,
-                                                        fontSize: '0.78rem',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        gap: '0.35rem',
-                                                        transition: 'all 0.2s'
-                                                    }}
-                                                >
-                                                    <span>💼</span>
-                                                    <span>{lang === 'tr' ? 'Kasa / Portföye Ekle' : 'Add to Portfolio'}</span>
-                                                </button>
+                                        {!isLocked && (() => {
+                                            const inPortfolio = isAlreadyInPortfolio(pick.id);
+                                            return (
+                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                                    <button
+                                                        onClick={() => inPortfolio && typeof onNavigatePortfolio === 'function' ? onNavigatePortfolio() : handleAddToPortfolio(pick)}
+                                                        style={{
+                                                            flex: 1,
+                                                            background: inPortfolio 
+                                                                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.4))' 
+                                                                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25))',
+                                                            border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.7)' : '1px solid rgba(16, 185, 129, 0.4)',
+                                                            color: inPortfolio ? '#34d399' : '#10b981',
+                                                            padding: '0.65rem 0.8rem',
+                                                            borderRadius: '10px',
+                                                            fontWeight: 800,
+                                                            fontSize: '0.78rem',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            gap: '0.35rem',
+                                                            transition: 'all 0.2s',
+                                                            boxShadow: inPortfolio ? '0 0 12px rgba(16, 185, 129, 0.3)' : 'none'
+                                                        }}
+                                                        title={inPortfolio ? (lang === 'tr' ? 'Bu kupon kasanızda açık. Tıklayarak portföyü açın.' : 'Open in portfolio') : (lang === 'tr' ? 'Bu kuponu simülasyon kasanıza ekleyin' : 'Add to portfolio')}
+                                                    >
+                                                        <span>{inPortfolio ? '✓' : '💼'}</span>
+                                                        <span>
+                                                            {inPortfolio 
+                                                                ? (lang === 'tr' ? 'Kasada Açık (Görüntüle)' : (lang === 'de' ? 'Im Depot (Öffnen)' : 'In Portfolio (View)')) 
+                                                                : (lang === 'tr' ? 'Kasa / Portföye Ekle' : (lang === 'de' ? 'Zum Depot hinzufügen' : 'Add to Portfolio'))}
+                                                        </span>
+                                                    </button>
 
-                                                <button
-                                                    onClick={() => handleTrackOnRadar(pick)}
-                                                    title={lang === 'tr' ? 'Canlı Radarda Takibe Al' : 'Pin to Radar'}
-                                                    style={{
-                                                        background: 'rgba(255, 255, 255, 0.05)',
-                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                        color: '#e2e8f0',
-                                                        padding: '0.65rem 0.9rem',
-                                                        borderRadius: '10px',
-                                                        fontWeight: 700,
-                                                        fontSize: '0.78rem',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: '0.3rem'
-                                                    }}
-                                                >
-                                                    <span>📡</span>
-                                                    <span>{lang === 'tr' ? 'Takip' : 'Track'}</span>
-                                                </button>
-                                            </div>
-                                        )}
+                                                    <button
+                                                        onClick={() => handleTrackOnRadar(pick)}
+                                                        title={lang === 'tr' ? 'Canlı Radarda Takibe Al' : 'Pin to Radar'}
+                                                        style={{
+                                                            background: 'rgba(255, 255, 255, 0.05)',
+                                                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                            color: '#e2e8f0',
+                                                            padding: '0.65rem 0.9rem',
+                                                            borderRadius: '10px',
+                                                            fontWeight: 700,
+                                                            fontSize: '0.78rem',
+                                                            cursor: 'pointer',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.3rem'
+                                                        }}
+                                                    >
+                                                        <span>📡</span>
+                                                        <span>{lang === 'tr' ? 'Takip' : 'Track'}</span>
+                                                    </button>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 );
                             })}

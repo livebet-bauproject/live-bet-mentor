@@ -283,7 +283,9 @@ class BankrollManager {
      */
     isMatchOpenInLedger(matchId) {
         if (!matchId) return false;
-        return this.getActiveOpenBets().some(l => String(l.match_id) === String(matchId));
+        return this.getActiveOpenBets().some(l => 
+            String(l.match_id) === String(matchId) || String(l.id) === String(matchId)
+        );
     }
 
     /**
@@ -675,6 +677,97 @@ class BankrollManager {
 
         this.saveState(); // Explict save after ledger
         return true;
+    }
+
+    /**
+     * Adds an analyst pick or custom prediction directly to the active bankroll portfolio.
+     */
+    addCustomBet(customBet) {
+        if (!customBet) return false;
+
+        const matchId = customBet.match_id || customBet.id || `custom-${Date.now()}`;
+        if (this.isMatchOpenInLedger(matchId)) {
+            console.warn('[BankrollManager] Bet already open in ledger:', matchId);
+            return false;
+        }
+
+        const unitSize = this.getUnitSize();
+        const balanceBefore = Number(this.state.current_balance) || 2000;
+
+        // Determine stake: if provided use it, else calculate from units (e.g. 1.5 units)
+        let stake = Number(customBet.stake);
+        if (!stake || isNaN(stake) || stake <= 0) {
+            stake = Math.round(unitSize * 1.5);
+        }
+        // Safety cap: don't exceed current balance
+        if (stake > balanceBefore) {
+            stake = Math.max(1, balanceBefore);
+        }
+
+        const odds = (customBet.odds && Number(customBet.odds) > 1.0) ? Number(customBet.odds) : 1.80;
+        const matchName = customBet.match_name || customBet.match || 'Uzman Analist Karşılaşması';
+        const selection = customBet.selection || customBet.prediction || 'Piyasa Seçimi';
+        const stratLabel = customBet.source || (customBet.analyst?.name ? `Uzman Analist (${customBet.analyst.name})` : 'Uzman Analist Masası');
+        const stratId = 'TIPSTER_HUB';
+
+        // Deduct stake from current balance
+        this.state.current_balance = Math.max(0, Math.round((balanceBefore - stake) * 100) / 100);
+
+        const entry = {
+            id: customBet.id || `tip-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            match_id: matchId,
+            match_name: matchName,
+            match: matchName,
+            homeTeam: customBet.homeTeam || matchName.split(' vs ')[0]?.split(' - ')[0]?.trim() || matchName,
+            awayTeam: customBet.awayTeam || matchName.split(' vs ')[1]?.split(' - ')[1]?.trim() || '',
+            league: customBet.league || customBet.sportDetails || (customBet.sport ? `${customBet.sport} Ligi` : ''),
+            selection: selection,
+            prediction: selection,
+            market_label: selection,
+            reason: selection,
+            stake: stake,
+            stake_amount: stake,
+            units: Math.round((stake / unitSize) * 10) / 10,
+            unit_size: unitSize,
+            odds: odds,
+            odds_taken: odds,
+            status: 'OPEN',
+            outcome: 'PENDING',
+            type: 'BET_OPEN',
+            strategy_id: stratId,
+            strategy_label: stratLabel,
+            balance_before: balanceBefore,
+            balance_after: this.state.current_balance,
+            source: stratLabel,
+            sport: customBet.sport || customBet.market_type || 'Futbol',
+            is_settled: false,
+            created_at: customBet.created_at || new Date().toISOString(),
+            analyst: customBet.analyst || null,
+            comboLegs: customBet.comboLegs || null
+        };
+
+        this.addToLedger('BET_OPEN', entry);
+
+        // Initialize / update strategy stats bucket
+        if (!this.state.strategyStats) this.state.strategyStats = {};
+        if (!this.state.strategyStats[stratId]) {
+            this.state.strategyStats[stratId] = {
+                id: stratId,
+                label: 'Uzman Analist Masası',
+                icon: '👑',
+                totalBets: 0,
+                wins: 0,
+                losses: 0,
+                staked: 0,
+                returned: 0,
+                profit: 0
+            };
+        }
+        this.state.strategyStats[stratId].totalBets++;
+        this.state.strategyStats[stratId].staked += stake;
+
+        this.saveState();
+        return entry;
     }
 
     processResult(matchIdOrBetId, isWin, stake, odds = 2.0, clv = 0) {

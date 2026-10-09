@@ -50,7 +50,8 @@ class TipsterEngine {
         };
         this.vault = {
             tipsters: {}, // realUsername -> { maskedName, badge, specialty, avatarIndex, isActive, realYield, realPicksCount, winRate, simulatedRoi }
-            settings: this.settings
+            settings: this.settings,
+            archivedPicks: [] // Persistent storage of all verified high-stake picks
         };
         this.isFetching = false;
         this.initVault();
@@ -61,9 +62,17 @@ class TipsterEngine {
             if (fs.existsSync(VAULT_FILE)) {
                 const data = JSON.parse(fs.readFileSync(VAULT_FILE, 'utf8'));
                 if (data && data.tipsters) {
-                    this.vault = data;
+                    this.vault = {
+                        ...this.vault,
+                        ...data,
+                        archivedPicks: data.archivedPicks || []
+                    };
                     if (data.settings) {
                         this.settings = { ...this.settings, ...data.settings };
+                    }
+                    if (Array.isArray(this.vault.archivedPicks) && this.vault.archivedPicks.length > 0) {
+                        this.cache.picks = [...this.vault.archivedPicks];
+                        console.log(`[TIPSTER_ENGINE] Restored ${this.cache.picks.length} archived picks from vault.`);
                     }
                 }
             } else {
@@ -317,10 +326,57 @@ class TipsterEngine {
                 if (html && html.length > 500) {
                     const parsed = this.parseFeedHtml(html);
                     if (parsed.length > 0) {
-                        this.cache.picks = parsed;
+                        if (!Array.isArray(this.vault.archivedPicks)) {
+                            this.vault.archivedPicks = [];
+                        }
+
+                        // Map existing picks by id
+                        const existingMap = new Map();
+                        for (const p of this.vault.archivedPicks) {
+                            if (p && p.id) existingMap.set(p.id, p);
+                        }
+
+                        // Upsert parsed picks
+                        for (const p of parsed) {
+                            if (existingMap.has(p.id)) {
+                                const old = existingMap.get(p.id);
+                                existingMap.set(p.id, {
+                                    ...old,
+                                    ...p,
+                                    createdAt: old.createdAt || p.createdAt
+                                });
+                            } else {
+                                existingMap.set(p.id, p);
+                            }
+                        }
+
+                        let merged = Array.from(existingMap.values());
+
+                        // Retention policy: Keep up to 200 picks or picks from the last 72 hours
+                        const maxAgeMs = 72 * 60 * 60 * 1000;
+                        const now = Date.now();
+                        merged = merged.filter(p => {
+                            const pTime = p.createdAt ? new Date(p.createdAt).getTime() : now;
+                            return (now - pTime) < maxAgeMs;
+                        });
+
+                        // Sort newest first
+                        merged.sort((a, b) => {
+                            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                            return timeB - timeA;
+                        });
+
+                        if (merged.length > 200) {
+                            merged = merged.slice(0, 200);
+                        }
+
+                        this.vault.archivedPicks = merged;
+                        this.cache.picks = merged;
                         this.cache.lastFetched = Date.now();
+                        this.saveVault();
                         this.rebuildLeaderboard();
-                        console.log(`[TIPSTER_ENGINE] Updated feed with ${parsed.length} active picks.`);
+                        console.log(`[TIPSTER_ENGINE] Merged feed: ${parsed.length} newly fetched, total archived picks: ${merged.length}.`);
                     }
                 }
             } catch (e) {
@@ -394,7 +450,8 @@ class TipsterEngine {
             tipsters: Object.values(this.vault.tipsters),
             settings: this.settings,
             activeCount: Object.values(this.vault.tipsters).filter(t => t.isActive).length,
-            totalPicksInCache: this.cache.picks.length
+            totalPicksInCache: this.cache.picks.length,
+            totalArchivedPicks: (this.vault.archivedPicks || []).length
         };
     }
 

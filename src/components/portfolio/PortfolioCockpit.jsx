@@ -83,7 +83,8 @@ export const PortfolioCockpit = ({
     settlementMessage,
     onOpenShareModal,
     lang = 'tr',
-    onSelectTab
+    onSelectTab,
+    onManualSettle
 }) => {
     const startBal = bankrollState.starting_balance || 2000;
     const curBal = bankrollState.current_balance || 2000;
@@ -397,6 +398,207 @@ export const PortfolioCockpit = ({
                         {iqLabel}
                     </div>
                 </div>
+            </div>
+
+            {/* 3.5. Aktif Açık Pozisyonlar (Active In-Play Bets) */}
+            <div style={{
+                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.85))',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '16px',
+                padding: '1.25rem 1.5rem',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.6rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <span style={{ fontSize: '1.2rem' }}>⚡</span>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#f8fafc' }}>
+                            {lang === 'tr' ? 'Açık Simülasyon Pozisyonları' : (lang === 'de' ? 'Aktive Simulations-Positionen' : 'Active Simulation Positions')}
+                        </div>
+                        <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 900,
+                            padding: '2px 8px',
+                            borderRadius: '20px',
+                            background: openBets.length > 0 ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                            color: openBets.length > 0 ? '#38bdf8' : '#94a3b8',
+                            border: `1px solid ${openBets.length > 0 ? 'rgba(56, 189, 248, 0.4)' : 'rgba(255, 255, 255, 0.1)'}`
+                        }}>
+                            {openBets.length} {lang === 'tr' ? 'AÇIK MAÇ' : 'OPEN'}
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {openBets.length > 0 && (
+                            <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: 800 }}>
+                                🔒 {activeExposure.toLocaleString('tr-TR')} {currency} {lang === 'tr' ? 'Toplam Riskte' : 'Total at Risk'}
+                            </span>
+                        )}
+                        {typeof onSelectTab === 'function' && (
+                            <button
+                                onClick={() => onSelectTab('journal')}
+                                style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#38bdf8',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    padding: '0.2rem 0.5rem'
+                                }}
+                            >
+                                {lang === 'tr' ? 'Tüm Geçmiş Defteri ➔' : 'View Full Journal ➔'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {openBets.length === 0 ? (
+                    <div style={{
+                        padding: '1.5rem',
+                        textAlign: 'center',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        borderRadius: '12px',
+                        border: '1px dashed rgba(255, 255, 255, 0.08)'
+                    }}>
+                        <div style={{ fontSize: '1.6rem', marginBottom: '0.3rem' }}>💼</div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f1f5f9' }}>
+                            {lang === 'tr' ? 'Şu Anda Açık Kasa İşlemi Bulunmuyor' : (lang === 'de' ? 'Zurzeit keine aktiven Wetten' : 'No Open Bets Currently')}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                            {lang === 'tr'
+                                ? '👑 "Pro Analistler" masasından beğendiğiniz kuponları veya ⚡ "Canlı Radar" sinyallerini "Kasaya Ekle" butonuna basarak buraya ekleyebilirsiniz.'
+                                : 'Add expert picks from the Pro Analysts Board or Live Terminal signals to track them here.'}
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+                        {openBets.map((bet, idx) => {
+                            const matchTitle = bet.match_name || bet.match || 'Canlı Bahis';
+                            const sel = bet.selection || bet.prediction || bet.market_label || 'Piyasa Seçimi';
+                            const odds = bet.odds_taken || bet.odds || 1.80;
+                            const stakeVal = bet.stake || bet.stake_amount || 0;
+                            const source = bet.source || bet.strategy_label || 'Uzman Analist';
+
+                            return (
+                                <div key={bet.id || idx} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                                    borderRadius: '12px',
+                                    padding: '0.85rem 1.1rem',
+                                    flexWrap: 'wrap',
+                                    gap: '0.75rem'
+                                }}>
+                                    <div style={{ flex: '1 1 240px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#f8fafc' }}>
+                                                {matchTitle}
+                                            </span>
+                                            {bet.comboLegs && bet.comboLegs.length > 0 && (
+                                                <span style={{
+                                                    fontSize: '0.62rem',
+                                                    padding: '1px 6px',
+                                                    borderRadius: '4px',
+                                                    background: 'rgba(245, 158, 11, 0.15)',
+                                                    color: '#fbbf24',
+                                                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                                                    fontWeight: 800
+                                                }}>
+                                                    🎯 {bet.comboLegs.length}'li Kombine
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.3rem', flexWrap: 'wrap' }}>
+                                            <span style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 800 }}>
+                                                🎯 {sel}
+                                            </span>
+                                            <span style={{
+                                                fontSize: '0.7rem',
+                                                background: 'rgba(251, 191, 36, 0.15)',
+                                                color: '#fbbf24',
+                                                border: '1px solid rgba(251, 191, 36, 0.35)',
+                                                padding: '1px 6px',
+                                                borderRadius: '4px',
+                                                fontWeight: 800
+                                            }}>
+                                                @{Number(odds).toFixed(2)}
+                                            </span>
+                                            <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                                • {source}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontSize: '0.92rem', fontWeight: 900, color: '#10b981' }}>
+                                                {stakeVal.toLocaleString('tr-TR')} {currency}
+                                            </div>
+                                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                                {bet.units ? `${bet.units} Birim (U)` : 'Açık Pozisyon'}
+                                            </div>
+                                        </div>
+
+                                        {typeof onManualSettle === 'function' && (
+                                            <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                                <button
+                                                    onClick={() => onManualSettle(bet.id || bet.match_id, 'WIN')}
+                                                    style={{
+                                                        background: 'rgba(16, 185, 129, 0.2)',
+                                                        border: '1px solid rgba(16, 185, 129, 0.5)',
+                                                        color: '#10b981',
+                                                        padding: '0.35rem 0.65rem',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 900,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    title={lang === 'tr' ? 'Kazandı olarak sonuçlandır' : 'Mark as Won'}
+                                                >
+                                                    ✅ {lang === 'tr' ? 'Kazan' : 'Won'}
+                                                </button>
+                                                <button
+                                                    onClick={() => onManualSettle(bet.id || bet.match_id, 'LOSS')}
+                                                    style={{
+                                                        background: 'rgba(239, 68, 68, 0.2)',
+                                                        border: '1px solid rgba(239, 68, 68, 0.5)',
+                                                        color: '#ef4444',
+                                                        padding: '0.35rem 0.65rem',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 900,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    title={lang === 'tr' ? 'Kaybetti olarak sonuçlandır' : 'Mark as Lost'}
+                                                >
+                                                    ❌ {lang === 'tr' ? 'Kaybet' : 'Lost'}
+                                                </button>
+                                                <button
+                                                    onClick={() => onManualSettle(bet.id || bet.match_id, 'VOID')}
+                                                    style={{
+                                                        background: 'rgba(148, 163, 184, 0.15)',
+                                                        border: '1px solid rgba(148, 163, 184, 0.4)',
+                                                        color: '#cbd5e1',
+                                                        padding: '0.35rem 0.65rem',
+                                                        borderRadius: '6px',
+                                                        fontSize: '0.72rem',
+                                                        fontWeight: 900,
+                                                        cursor: 'pointer'
+                                                    }}
+                                                    title={lang === 'tr' ? 'Bahsi iptal et ve tutarı iade et' : 'Void and refund'}
+                                                >
+                                                    ↩️ {lang === 'tr' ? 'İade' : 'Void'}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* 4. Başarı Rozetleri (Badges Gallery) */}

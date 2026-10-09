@@ -3503,6 +3503,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             onOpenShareModal={() => setIsShareModalOpen(true)}
                             lang={lang}
                             onSelectTab={setPortfolioTab}
+                            onManualSettle={handleManualSettle}
                         />
 
                         {/* Algorithmic Strategy Scorecard (Transparency & Confidence) */}
@@ -5996,6 +5997,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         if (typeof setTerminalSearchQuery === 'function') {
                             setTerminalSearchQuery(mName.split('-')[0].trim());
                         }
+                    }}
+                    onNavigatePortfolio={() => {
+                        setView('PORTFOLIO');
+                        setPortfolioTab('journal');
                     }}
                 />
             ) : view === 'ADMIN' ? (
