@@ -1477,7 +1477,24 @@ export const LiveTerminalTable = ({
                                                                         disabled={btnDisabled}
                                                                         onClick={() => {
                                                                             const stakeToBet = smartStake?.allowed ? smartStake.stake : null;
-                                                                            onApproveBet(m, signal, stakeToBet);
+                                                                            const predVal = marketPrediction || predText || opp?.suggestedMarket?.label || (signal?.reason && !signal.reason.includes('Bulunamadı') ? signal.reason : null) || 'Canlı Piyasa Bahsi';
+                                                                            const marketVal = primaryTrend?.market || opp?.suggestedMarket?.market || signal?.market || 'Canlı Bahis';
+                                                                            const oddsVal = Number(primaryTrend?.odds || opp?.suggestedMarket?.odds || signal?.odds || 1.80);
+                                                                            const enrichedSig = {
+                                                                                ...(signal || {}),
+                                                                                prediction: predVal,
+                                                                                market: marketVal,
+                                                                                marketLabel: predVal,
+                                                                                odds: oddsVal,
+                                                                                reason: marketPrediction ? `${marketPrediction} (@${primaryTrend?.odds || oddsVal})` : (predText || predVal),
+                                                                                score_at_bet: {
+                                                                                    home: parsedHomeScore,
+                                                                                    away: parsedAwayScore,
+                                                                                    period: trendInfo?.entryMinStr || m.minute || 'Canlı'
+                                                                                },
+                                                                                trendInfo: trendInfo || null
+                                                                            };
+                                                                            onApproveBet(m, enrichedSig, stakeToBet);
                                                                             setTrackedMatchIds(prev => new Set([...prev, m.id]));
                                                                         }}
                                                                         style={{

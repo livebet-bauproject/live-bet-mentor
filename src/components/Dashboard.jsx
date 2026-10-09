@@ -2669,12 +2669,26 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const handleTerminalApproveBet = (match, signal, customStake = null) => {
         if (!match) return;
         const strat = signal?.activeStrategies?.[0];
-        const predText = strat?.label || signal?.prediction || signal?.reason || match?.opportunityData?.suggestedMarket?.label || (lang === 'tr' ? 'Canlı Takip' : (lang === 'de' ? 'Live-Tipp' : 'Live Pick'));
-        const scoreObj = (match.score && typeof match.score === 'object')
+        const rawReason = signal?.reason || signal?.mainReason;
+        const isValidReason = rawReason && !rawReason.includes('Bulunamadı');
+        const predText = signal?.prediction || signal?.marketLabel || strat?.label || (isValidReason ? rawReason : null) || match?.opportunityData?.suggestedMarket?.label || (lang === 'tr' ? 'Canlı Takip' : (lang === 'de' ? 'Live-Tipp' : 'Live Pick'));
+        const marketName = signal?.market || signal?.suggestedMarket || match?.opportunityData?.suggestedMarket?.market || 'Canlı Bahis';
+        const oddsVal = Number(signal?.odds || match?.opportunityData?.suggestedMarket?.odds || 1.80);
+        const scoreObj = signal?.score_at_bet || ((match.score && typeof match.score === 'object')
             ? match.score
             : (typeof match.score === 'string' && match.score.includes('-'))
                 ? { home: parseInt(match.score.split('-')[0]) || 0, away: parseInt(match.score.split('-')[1]) || 0 }
-                : { home: match.homeScore || 0, away: match.awayScore || 0 };
+                : { home: match.homeScore || 0, away: match.awayScore || 0 });
+
+        const enrichedSig = {
+            ...(signal || {}),
+            prediction: predText,
+            market: marketName,
+            marketLabel: predText,
+            odds: oddsVal,
+            reason: predText,
+            score_at_bet: scoreObj
+        };
 
         // 1. Record directly in Prediction Tracker & Watchlist
         predictionTracker.recordPrediction({
@@ -2684,8 +2698,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             awayTeam: match.awayTeam,
             minute: match.minute,
             score: scoreObj,
-            market: signal?.market || signal?.suggestedMarket || 'Canlı Bahis',
+            market: marketName,
             prediction: predText,
+            odds: oddsVal,
             confidence: signal?.confidence || Math.round(match.opportunityData?.score || 75),
             source: 'LIVE_TERMINAL',
             dqs: match.dqs,
@@ -2698,17 +2713,18 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
         // 2. Also register in bankroll ledger if manager active
         if (bankrollManager) {
-            const smart = bankrollManager.calculateSmartStake(match, signal);
-            const stake = customStake ? Number(customStake) : (smart?.allowed ? smart.stake : (bankrollManager.calculateRecommendedStake(match, signal) || 100));
-            const approved = bankrollManager.approveBet(match, signal, stake);
+            const smart = bankrollManager.calculateSmartStake(match, enrichedSig);
+            const stake = customStake ? Number(customStake) : (smart?.allowed ? smart.stake : (bankrollManager.calculateRecommendedStake(match, enrichedSig) || 100));
+            const approved = bankrollManager.approveBet(match, enrichedSig, stake);
             if (approved) {
                 const updatedState = bankrollManager.getState();
                 setBankState(updatedState);
                 const curr = updatedState.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
+                const oddsTag = oddsVal && oddsVal > 1.0 ? ` @${oddsVal.toFixed(2)}` : '';
                 setSettlementMessage(
                     lang === 'tr' 
-                        ? `⚡ Kasa İşlemi Açıldı: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString()} ${curr} - ${smart?.units || 1}U)` 
-                        : (lang === 'de' ? `⚡ Position eröffnet: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString()} ${curr} - ${smart?.units || 1}U)` : `⚡ Position Opened: ${match.homeTeam} vs ${match.awayTeam} (${stake.toLocaleString()} ${curr} - ${smart?.units || 1}U)`)
+                        ? `⚡ Kasa İşlemi Açıldı: ${match.homeTeam} vs ${match.awayTeam} [${predText}${oddsTag}] • ${stake.toLocaleString()} ${curr} (${smart?.units || 1}U)` 
+                        : (lang === 'de' ? `⚡ Position eröffnet: ${match.homeTeam} vs ${match.awayTeam} [${predText}${oddsTag}] • ${stake.toLocaleString()} ${curr} (${smart?.units || 1}U)` : `⚡ Position Opened: ${match.homeTeam} vs ${match.awayTeam} [${predText}${oddsTag}] • ${stake.toLocaleString()} ${curr} (${smart?.units || 1}U)`)
                 );
                 setTimeout(() => setSettlementMessage(''), 4500);
             }
@@ -3628,7 +3644,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <div className="portfolio-list-panel glass-panel" style={{ padding: '0' }}>
                             <div className="portfolio-row" style={{ borderBottom: '1px solid var(--glass-border)', opacity: 0.5, fontSize: '0.7rem', fontWeight: 800 }}>
                                 <span>{t.match_score}</span>
-                                <span>{t.recom_stake_short}</span>
+                                <span>{lang === 'tr' ? 'OYNANAN BAHİS & TUTAR' : (lang === 'de' ? 'WETTE & EINSATZ' : 'BET & STAKE')}</span>
                                 <span>{t.status}</span>
                                 <span>{lang === 'tr' ? 'NET KÂR/ZARAR' : (lang === 'de' ? 'NETTO G/V' : 'NET P/L')}</span>
                                 <span>{lang === 'tr' ? 'ZAMAN' : (lang === 'de' ? 'ZEIT' : 'TIME')}</span>
@@ -3706,75 +3722,139 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     const matchTitle = isInit 
                                         ? (lang === 'tr' ? 'Sistem Kasa Başlangıcı' : (lang === 'de' ? 'System-Startkapital' : 'System Bankroll Init')) 
                                         : (l.match_name || l.match || (lang === 'tr' ? 'Canlı Bahis' : (lang === 'de' ? 'Live-Wette' : 'Live Bet')));
+
+                                    const liveMatch = matches.find(m => String(m.id) === String(l.match_id) || (m.homeTeam && l.homeTeam && m.homeTeam === l.homeTeam));
+
+                                    // Resolve live trend if needed
+                                    const matchTrend = (trendingBets || []).find(tb => 
+                                        consensusAdapter._isFuzzyMatch(tb.home, tb.away, l.homeTeam || l.match_name, l.awayTeam || l.match_name) ||
+                                        consensusAdapter._isFuzzyMatch(tb.away, tb.home, l.homeTeam || l.match_name, l.awayTeam || l.match_name) ||
+                                        (l.match_name && tb.home && l.match_name.toLowerCase().includes(String(tb.home).toLowerCase()))
+                                    );
+
+                                    // Resolve clean prediction text
+                                    let cleanPred = l.prediction || l.market_label || l.marketLabel;
+                                    if (!cleanPred || cleanPred.includes('Bulunamadı') || cleanPred === 'NEXT_GOAL' || cleanPred === 'Canlı Bahis' || cleanPred === 'GENERIC') {
+                                        if (matchTrend) {
+                                            cleanPred = formatMarketPrediction(matchTrend, lang);
+                                        } else if (l.strategy_label && !l.strategy_label.includes('Bulunamadı') && l.strategy_label !== 'GENERIC') {
+                                            cleanPred = l.strategy_label;
+                                        } else if (l.reason && !l.reason.includes('Bulunamadı')) {
+                                            cleanPred = l.reason;
+                                        } else if (liveMatch) {
+                                            if (liveMatch.opportunityData?.suggestedMarket?.label) {
+                                                cleanPred = liveMatch.opportunityData.suggestedMarket.label;
+                                            } else {
+                                                cleanPred = lang === 'tr' ? 'Canlı Piyasa Bahsi' : 'Live Market Pick';
+                                            }
+                                        } else {
+                                            cleanPred = lang === 'tr' ? 'Canlı Piyasa Bahsi' : 'Live Market Pick';
+                                        }
+                                    }
+
+                                    const oddsTaken = l.odds_taken || l.odds || matchTrend?.odds || (liveMatch?.opportunityData?.suggestedMarket?.odds) || null;
+                                    const oddsDisplay = oddsTaken && Number(oddsTaken) > 1.0 ? `@${Number(oddsTaken).toFixed(2)}` : '';
+
+                                    const scoreAtBet = l.score_at_bet;
+                                    const scoreAtBetStr = scoreAtBet ? `${scoreAtBet.home}-${scoreAtBet.away}${scoreAtBet.period ? ` (${scoreAtBet.period})` : ''}` : null;
+                                    const leagueText = l.league || liveMatch?.leagueName || liveMatch?.league || '';
+                                    const matchContext = [leagueText, scoreAtBetStr ? `${lang === 'tr' ? 'Giriş Skoru:' : 'Giriş:'} ${scoreAtBetStr}` : null].filter(Boolean).join(' • ');
+
                                     const subText = isInit 
                                         ? (lang === 'tr' ? `${(initialBalance).toLocaleString('tr-TR')} ₺ Sanal Bakiye Tahsis Edildi` : (lang === 'de' ? `${initialBalance} ₺ Virtuelles Startkapital zugewiesen` : `${initialBalance} ₺ Balance Allocated`))
-                                        : (l.strategy_label || l.reason || l.market || (lang === 'tr' ? 'Kuant Analizi' : (lang === 'de' ? 'Quant-Analyse' : 'Quant Analysis')));
-                                    const stakeText = isInit ? '-' : `${(l.stake || l.stake_amount || 0)} ₺`;
+                                        : matchContext || (cleanPred ? `Piyasa: ${cleanPred}` : (lang === 'tr' ? 'Canlı Kuant İşlemi' : 'Live Quant Order'));
+
+                                    const stakeText = isInit ? '-' : `${(l.stake || l.stake_amount || 0).toLocaleString()} ₺`;
 
                                     return (
                                         <div key={i} className="portfolio-row" style={{ borderBottom: i < deduplicatedEntries.length - 1 ? '1px solid var(--glass-border)' : 'none', padding: '0.85rem 1.2rem' }}>
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                 <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{matchTitle}</span>
-                                                <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>{subText}</span>
+                                                <span style={{ fontSize: '0.65rem', opacity: 0.7, color: '#94a3b8', marginTop: '2px' }}>{subText}</span>
                                                 {isOpen && (
                                                     <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.45rem', flexWrap: 'wrap' }}>
                                                         <button
-                                                            onClick={() => handleManualSettle(l.id || l.match_id, 'WIN')}
-                                                            style={{
-                                                                background: 'rgba(16, 185, 129, 0.2)',
-                                                                border: '1px solid rgba(16, 185, 129, 0.5)',
-                                                                color: '#10b981',
-                                                                padding: '0.2rem 0.5rem',
-                                                                borderRadius: '5px',
-                                                                fontSize: '0.65rem',
-                                                                fontWeight: 800,
-                                                                cursor: 'pointer'
-                                                            }}
-                                                            title={lang === 'tr' ? 'Kazandı olarak işaretle' : (lang === 'de' ? 'Als gewonnen markieren' : 'Mark as Won')}
-                                                        >
-                                                            ✅ {lang === 'tr' ? 'Kazan' : (lang === 'de' ? 'Sieg' : 'Won')}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleManualSettle(l.id || l.match_id, 'LOSS')}
-                                                            style={{
-                                                                background: 'rgba(239, 68, 68, 0.2)',
-                                                                border: '1px solid rgba(239, 68, 68, 0.5)',
-                                                                color: '#ef4444',
-                                                                padding: '0.2rem 0.5rem',
-                                                                borderRadius: '5px',
-                                                                fontSize: '0.65rem',
-                                                                fontWeight: 800,
-                                                                cursor: 'pointer'
-                                                            }}
-                                                            title={lang === 'tr' ? 'Kaybetti olarak işaretle' : (lang === 'de' ? 'Als verloren markieren' : 'Mark as Lost')}
-                                                        >
-                                                            ❌ {lang === 'tr' ? 'Kaybet' : (lang === 'de' ? 'Verloren' : 'Lost')}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleManualSettle(l.id || l.match_id, 'VOID')}
-                                                            style={{
-                                                                background: 'rgba(148, 163, 184, 0.15)',
-                                                                border: '1px solid rgba(148, 163, 184, 0.4)',
-                                                                color: '#cbd5e1',
-                                                                padding: '0.2rem 0.5rem',
-                                                                borderRadius: '5px',
-                                                                fontSize: '0.65rem',
-                                                                fontWeight: 800,
-                                                                cursor: 'pointer'
-                                                            }}
-                                                            title={lang === 'tr' ? 'Bahsi iptal et / Tutarı kasaya iade et' : (lang === 'de' ? 'Wette stornieren / Einsatz rückerstatten' : 'Void bet / Refund stake')}
-                                                        >
-                                                            ↩️ {lang === 'tr' ? 'İptal / İade' : (lang === 'de' ? 'Storno' : 'Void')}
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <span style={{ color: 'var(--accent-color)', fontWeight: 800 }}>{stakeText}</span>
-                                            <span>
-                                                <span className={`status-pill ${statusClass}`} style={statusStyle}>
-                                                    {statusText}
-                                                </span>
-                                            </span>
+                                                             onClick={() => handleManualSettle(l.id || l.match_id, 'WIN')}
+                                                             style={{
+                                                                 background: 'rgba(16, 185, 129, 0.2)',
+                                                                 border: '1px solid rgba(16, 185, 129, 0.5)',
+                                                                 color: '#10b981',
+                                                                 padding: '0.2rem 0.5rem',
+                                                                 borderRadius: '5px',
+                                                                 fontSize: '0.65rem',
+                                                                 fontWeight: 800,
+                                                                 cursor: 'pointer'
+                                                             }}
+                                                             title={lang === 'tr' ? 'Kazandı olarak işaretle' : (lang === 'de' ? 'Als gewonnen markieren' : 'Mark as Won')}
+                                                         >
+                                                             ✅ {lang === 'tr' ? 'Kazan' : (lang === 'de' ? 'Sieg' : 'Won')}
+                                                         </button>
+                                                         <button
+                                                             onClick={() => handleManualSettle(l.id || l.match_id, 'LOSS')}
+                                                             style={{
+                                                                 background: 'rgba(239, 68, 68, 0.2)',
+                                                                 border: '1px solid rgba(239, 68, 68, 0.5)',
+                                                                 color: '#ef4444',
+                                                                 padding: '0.2rem 0.5rem',
+                                                                 borderRadius: '5px',
+                                                                 fontSize: '0.65rem',
+                                                                 fontWeight: 800,
+                                                                 cursor: 'pointer'
+                                                             }}
+                                                             title={lang === 'tr' ? 'Kaybetti olarak işaretle' : (lang === 'de' ? 'Als verloren markieren' : 'Mark as Lost')}
+                                                         >
+                                                             ❌ {lang === 'tr' ? 'Kaybet' : (lang === 'de' ? 'Verloren' : 'Lost')}
+                                                         </button>
+                                                         <button
+                                                             onClick={() => handleManualSettle(l.id || l.match_id, 'VOID')}
+                                                             style={{
+                                                                 background: 'rgba(148, 163, 184, 0.15)',
+                                                                 border: '1px solid rgba(148, 163, 184, 0.4)',
+                                                                 color: '#cbd5e1',
+                                                                 padding: '0.2rem 0.5rem',
+                                                                 borderRadius: '5px',
+                                                                 fontSize: '0.65rem',
+                                                                 fontWeight: 800,
+                                                                 cursor: 'pointer'
+                                                             }}
+                                                             title={lang === 'tr' ? 'Bahsi iptal et / Tutarı kasaya iade et' : (lang === 'de' ? 'Wette stornieren / Einsatz rückerstatten' : 'Void bet / Refund stake')}
+                                                         >
+                                                             ↩️ {lang === 'tr' ? 'İptal / İade' : (lang === 'de' ? 'Storno' : 'Void')}
+                                                         </button>
+                                                     </div>
+                                                 )}
+                                             </div>
+                                             {isInit ? (
+                                                 <span style={{ color: '#94a3b8' }}>-</span>
+                                             ) : (
+                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                                         <span style={{ fontSize: '0.84rem', fontWeight: 900, color: '#38bdf8' }}>
+                                                             🎯 {cleanPred}
+                                                         </span>
+                                                         {oddsDisplay && (
+                                                             <span style={{ fontSize: '0.72rem', background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.35)', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                                                                 {oddsDisplay}
+                                                             </span>
+                                                         )}
+                                                     </div>
+                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                         <span style={{ fontSize: '0.78rem', color: '#10b981', fontWeight: 900 }}>
+                                                             {stakeText}
+                                                         </span>
+                                                         {l.units ? (
+                                                             <span style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 700 }}>
+                                                                 ({l.units}U)
+                                                             </span>
+                                                         ) : null}
+                                                     </div>
+                                                 </div>
+                                             )}
+                                             <span>
+                                                 <span className={`status-pill ${statusClass}`} style={statusStyle}>
+                                                     {statusText}
+                                                 </span>
+                                             </span>
                                             <span style={{ 
                                                 color: isWin ? 'var(--success-color)' : isLoss ? 'var(--danger-color)' : 'var(--text-muted)', 
                                                 fontWeight: 800 

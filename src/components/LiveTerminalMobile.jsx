@@ -1344,7 +1344,25 @@ export const LiveTerminalMobile = ({
                                                             }}
                                                             onClick={() => {
                                                                 const stakeToBet = smartStake?.allowed ? smartStake.stake : null;
-                                                                onApproveBet(m, signal, stakeToBet);
+                                                                const predVal = (hasTrend && marketPrediction) ? marketPrediction : (m.opportunityData?.suggestedMarket?.label || (signal?.reason && !signal.reason.includes('Bulunamadı') ? signal.reason : null) || 'Canlı Piyasa Bahsi');
+                                                                const marketVal = (hasTrend && primaryTrend?.market) ? primaryTrend.market : (m.opportunityData?.suggestedMarket?.market || signal?.market || 'Canlı Bahis');
+                                                                const oddsVal = Number((hasTrend && primaryTrend?.odds) || m.opportunityData?.suggestedMarket?.odds || signal?.odds || 1.80);
+                                                                const scoreObj = (m.score && typeof m.score === 'object') ? m.score : { home: m.homeScore || 0, away: m.awayScore || 0 };
+                                                                const enrichedSig = {
+                                                                    ...(signal || {}),
+                                                                    prediction: predVal,
+                                                                    market: marketVal,
+                                                                    marketLabel: predVal,
+                                                                    odds: oddsVal,
+                                                                    reason: (hasTrend && marketPrediction) ? `${marketPrediction} (@${primaryTrend?.odds || oddsVal})` : predVal,
+                                                                    score_at_bet: {
+                                                                        home: Number(scoreObj.home) || 0,
+                                                                        away: Number(scoreObj.away) || 0,
+                                                                        period: trendInfo?.entryMinStr || m.minute || 'Canlı'
+                                                                    },
+                                                                    trendInfo: trendInfo || null
+                                                                };
+                                                                onApproveBet(m, enrichedSig, stakeToBet);
                                                                 setTrackedMatchIds(prev => new Set([...prev, m.id]));
                                                             }}
                                                         >

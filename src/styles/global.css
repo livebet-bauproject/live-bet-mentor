@@ -1659,7 +1659,7 @@ body {
 
 .portfolio-row {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr 1fr 1.5fr;
+  grid-template-columns: 1.4fr 1.5fr 0.9fr 0.9fr 1.1fr;
   align-items: center;
   padding: 1rem 1.5rem;
   font-size: 0.85rem;

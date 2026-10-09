@@ -75,6 +75,21 @@ export class AutoSettlementEngine {
         const marketId = (market || openEntry.market || openEntry.strategy_id || '').toUpperCase();
         const recText = (openEntry.prediction || openEntry.reason || openEntry.selection || openEntry.strategy_label || '').toLowerCase();
 
+        // 0. Rest of Match Goals (Kalan Süre Golleri - Örn: Kalan 1.5 Üst, Rest of the game)
+        if (marketId.includes('REST') || recText.includes('kalan') || recText.includes('rest of the game')) {
+            const goalsAfterBet = Math.max(0, ftTotal - totalAtBet);
+            if (marketId.includes('0.5') || recText.includes('0.5 üst') || recText.includes('over 0.5')) {
+                return goalsAfterBet >= 1;
+            }
+            if (marketId.includes('1.5') || recText.includes('1.5 üst') || recText.includes('over 1.5')) {
+                return goalsAfterBet >= 2;
+            }
+            if (marketId.includes('2.5') || recText.includes('2.5 üst') || recText.includes('over 2.5')) {
+                return goalsAfterBet >= 3;
+            }
+            return goalsAfterBet >= 1;
+        }
+
         // 1. First Half Over 0.5 (FHG)
         if (marketId.includes('FH') || marketId === 'FHG') {
             const htHome = Number(match.score?.period1Home ?? match.homeScore?.period1 ?? ftHome);

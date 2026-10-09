@@ -616,15 +616,17 @@ class BankrollManager {
         this.state.current_balance = Math.max(0, Math.round((balanceBefore - stake) * 100) / 100);
         console.log(`[BankrollManager] Bet Approved (${stake} ₺). Balance: ${balanceBefore} -> ${this.state.current_balance}`);
 
-        // Extract primary strategy info
+        // Extract primary strategy / prediction info
         const primaryStrat = signal?.activeStrategies?.[0] || {};
-        const stratId = primaryStrat.id || 'GENERIC';
-        const stratLabel = primaryStrat.label || signal?.reason || signal?.mainReason || 'Kuant Canlı';
+        const stratId = signal?.strategy_id || primaryStrat.id || 'GENERIC';
+        const rawReason = signal?.reason || signal?.mainReason;
+        const isValidReason = rawReason && !rawReason.includes('Bulunamadı');
+        const stratLabel = signal?.prediction || signal?.marketLabel || primaryStrat.label || (isValidReason ? rawReason : null) || fixture?.opportunityData?.suggestedMarket?.label || 'Canlı Piyasa Bahsi';
 
         const rawOdds = signal?.odds || signal?.marketOdds || signal?.bestEV?.marketOdds || fixture.odds?.over || fixture.odds?.home;
         const oddsTaken = (rawOdds && Number(rawOdds) > 1.0) ? Number(rawOdds) : 1.70;
-        const marketName = signal?.suggestedMarket || signal?.market || primaryStrat.id || 'NEXT_GOAL';
-        const scoreAtBet = { home: fixture.score?.home ?? 0, away: fixture.score?.away ?? 0 };
+        const marketName = signal?.market || signal?.suggestedMarket || fixture?.opportunityData?.suggestedMarket?.market || primaryStrat.id || 'Canlı Bahis';
+        const scoreAtBet = signal?.score_at_bet || { home: fixture.score?.home ?? 0, away: fixture.score?.away ?? 0 };
 
         this.addToLedger('BET_OPEN', {
             match_id: fixture.id,
@@ -641,10 +643,13 @@ class BankrollManager {
             status: 'OPEN',
             balance_before: balanceBefore,
             balance_after: this.state.current_balance,
-            reason: signal?.reason || signal?.mainReason || 'Kuant Sinyal Girişi',
+            prediction: stratLabel,
+            market: marketName,
+            market_label: stratLabel,
+            reason: stratLabel,
             strategy_id: stratId,
             strategy_label: stratLabel,
-            market: marketName,
+            odds: oddsTaken,
             odds_taken: oddsTaken,
             score_at_bet: scoreAtBet,
             is_settled: false
