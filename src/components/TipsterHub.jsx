@@ -346,7 +346,8 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                             gap: '1.25rem'
                         }}>
                             {feedData.picks.map((pick) => {
-                                const isLocked = pick.isVipOnly && !isVip;
+                                // All picks are completely open as requested by user
+                                const isLocked = false;
 
                                 return (
                                     <div

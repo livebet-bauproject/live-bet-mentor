@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const VAULT_FILE = path.join(__dirname, 'tipster_vault.json');
 
-// Pool of prestigious and professional analyst personas
+// Pool of prestigious and professional analyst personas (24 unique identities)
 const PERSONA_POOL = [
     { name: 'Alpha Stratejist', badge: '🔥 6/6 Formda', avatarIndex: 1, specialty: 'Canlı Baskı & Gol Hacmi' },
     { name: 'Kıdemli Oran Avcısı', badge: '🎯 %84 İsabet', avatarIndex: 2, specialty: 'Değerli Piyasa Oranları' },
@@ -17,7 +17,23 @@ const PERSONA_POOL = [
     { name: 'Piyasa Taktisyeni', badge: '🛡️ Defansif Açıklar', avatarIndex: 5, specialty: 'Handikap & Çifte Şans' },
     { name: 'Radar Gözlemcisi', badge: '🔭 Erken Sinyal', avatarIndex: 6, specialty: 'Canlı Konsensüs' },
     { name: 'Elit Portföy Lideri', badge: '👑 +%28 Aylık ROI', avatarIndex: 7, specialty: 'Kasa Disiplini & Kelly' },
-    { name: 'Alt/Üst Uzmanı', badge: '⚽ Gol Patlaması', avatarIndex: 8, specialty: 'Toplam Gol Çizgisi' }
+    { name: 'Alt/Üst Uzmanı', badge: '⚽ Gol Patlaması', avatarIndex: 8, specialty: 'Toplam Gol Çizgisi' },
+    { name: 'Asya Handikap Mimarı', badge: '📐 %82 İsabet', avatarIndex: 1, specialty: 'Asya Çizgi Analizleri' },
+    { name: 'Dakika 75 Avcısı', badge: '⏱️ Canlı Seri', avatarIndex: 2, specialty: 'Geç Dakika Gol Dinamiği' },
+    { name: 'İlk Yarı Taktisyeni', badge: '⚡ İY Uzmanı', avatarIndex: 3, specialty: 'İlk Yarı Gol & Korner' },
+    { name: 'Değer Dedektifi', badge: '🔍 Değer Avı', avatarIndex: 4, specialty: 'Piyasa Fiyatlama Hataları' },
+    { name: 'Baskı Endeksi Modeli', badge: '📊 %79 İsabet', avatarIndex: 5, specialty: 'Topa Sahip Olma & Şut' },
+    { name: 'Kontra Atak Stratejisi', badge: '🏃 Hızlı Geçiş', avatarIndex: 6, specialty: 'Geçiş Hücumu Dinamikleri' },
+    { name: 'Kasa Disiplini Koçu', badge: '🛡️ Güvenli Büyüme', avatarIndex: 7, specialty: 'Sabit Stake Yönetimi' },
+    { name: 'Skor ve Sonuç Mimarı', badge: '🎯 Net Çizgiler', avatarIndex: 8, specialty: 'Maç Sonu ve Çifte Şans' },
+    { name: 'Avrupa Ligi Mühendisi', badge: '🏆 Kupa Uzmanı', avatarIndex: 1, specialty: 'Kıta Kupaları & Elemeler' },
+    { name: 'Derinlik Algoritması', badge: '🤖 Yapay Sentez', avatarIndex: 2, specialty: 'Gelişmiş xG Algoritmaları' },
+    { name: 'Korner & Kart Analisti', badge: '🚩 Yan Marketler', avatarIndex: 3, specialty: 'Özel Pazar Fırsatları' },
+    { name: 'İkinci Yarı Golcüsü', badge: '🔥 Son 20dk Baskı', avatarIndex: 4, specialty: '2. Devre Gol Beklentisi' },
+    { name: 'Yüksek Oran Avcısı', badge: '💎 Değerli Sinyal', avatarIndex: 5, specialty: 'Sürpriz ve Değer Odaklı' },
+    { name: 'Bölgesel Lig Taktisyeni', badge: '🌍 Niş Ligler', avatarIndex: 6, specialty: 'Alt Lig İncelemeleri' },
+    { name: 'Tempo & Pres Analisti', badge: '⚡ Yüksek Tempo', avatarIndex: 7, specialty: 'Topsuz Alan Baskısı' },
+    { name: 'Defans Hattı Gözlemcisi', badge: '🛡️ Temiz Sayfa', avatarIndex: 8, specialty: 'Karşılıklı Gol Yok / Alt' }
 ];
 
 class TipsterEngine {
@@ -79,13 +95,11 @@ class TipsterEngine {
         const count = Object.keys(this.vault.tipsters).length;
         const poolIndex = count % PERSONA_POOL.length;
         const basePersona = PERSONA_POOL[poolIndex];
-        const cycleNum = Math.floor(count / PERSONA_POOL.length) + 1;
-        const suffix = cycleNum > 1 ? ` #${cycleNum}` : '';
 
         const newPersona = {
             realUsername: realUsername,
             profileUrl: `https://${realUsername}.blogabet.com`,
-            maskedName: `${basePersona.name}${suffix}`,
+            maskedName: basePersona.name,
             badge: basePersona.badge,
             specialty: basePersona.specialty,
             avatarIndex: (poolIndex % 8) + 1,
@@ -231,7 +245,7 @@ class TipsterEngine {
                 // Stake filtering rule
                 if (stake < this.settings.minStake) continue;
 
-                const isVipOnly = stake >= this.settings.vipThresholdStake;
+                const isVipOnly = false; // All picks are completely open
                 // Dual Consensus: High confidence (>=8/10) with solid odds (1.50 - 2.40)
                 const isDualConsensus = stake >= 8 && odds >= 1.50 && odds <= 2.40;
 
