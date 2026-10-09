@@ -200,6 +200,30 @@ class TipsterEngine {
                     .replace(/\(To Win Match\)/gi, '(Maç Sonu)')
                     .trim();
 
+                // Check for combo pick and extract individual legs
+                const isComboRaw = content.toLowerCase().includes('combo-table') || matchName.toLowerCase().includes('combo');
+                let comboLegs = [];
+                if (isComboRaw) {
+                    const comboTableMatch = content.match(/<table[^>]*class="[^"]*combo-table[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
+                    if (comboTableMatch) {
+                        const rows = [...comboTableMatch[1].matchAll(/<tr>\s*<td[^>]*>[\s\S]*?<\/td>\s*<td>([\s\S]*?)<\/td>\s*<td>([\s\S]*?)<\/td>\s*<td>([0-9\.]+)<\/td>/gi)];
+                        for (const r of rows) {
+                            comboLegs.push({
+                                event: r[1].replace(/<[^>]+>/g, '').trim(),
+                                selection: r[2].replace(/<[^>]+>/g, '').replace(/\(Fight Lines\)/gi, '').trim(),
+                                odds: parseFloat(r[3])
+                            });
+                        }
+                    }
+                    if (comboLegs.length > 0) {
+                        matchName = `🎯 ${comboLegs.length}'li Kombine: ` + comboLegs.map(l => l.event).join(' & ');
+                        selection = comboLegs.map(l => `${l.event}: ${l.selection} (@${l.odds})`).join('  •  ');
+                    } else if (matchName.toLowerCase().includes('combo')) {
+                        matchName = '🎯 Çoklu Kombine Kupon';
+                        if (!selection) selection = 'Kombine Bahis Seçimleri';
+                    }
+                }
+
                 // Stake
                 const stakeMatch = content.match(/<span class="label label-default">([0-9]+(?:\.[0-9]+)?)\s*\/\s*10<\/span>/i);
                 const stake = stakeMatch ? parseFloat(stakeMatch[1]) : 5;
@@ -263,6 +287,8 @@ class TipsterEngine {
                     analysis: analysis || null,
                     isVipOnly,
                     isDualConsensus,
+                    isCombo: comboLegs.length > 0,
+                    comboLegs,
                     analyst: {
                         name: persona.maskedName,
                         badge: persona.badge,

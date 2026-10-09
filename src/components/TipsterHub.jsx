@@ -492,8 +492,37 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                         💎 {lang === 'tr' ? 'VIP İle Kilidi Aç' : 'Unlock With VIP'}
                                                     </button>
                                                 </div>
+                                            ) : pick.isCombo && pick.comboLegs && pick.comboLegs.length > 0 ? (
+                                                <div style={{
+                                                    background: 'rgba(15, 23, 42, 0.75)',
+                                                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                                                    borderRadius: '12px',
+                                                    padding: '0.85rem 1rem',
+                                                    marginBottom: '0.9rem'
+                                                }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.35rem' }}>
+                                                        <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 900 }}>
+                                                            🎯 {pick.comboLegs.length}'Lİ KOMBİNE SEÇİMLERİ:
+                                                        </span>
+                                                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                                                            Toplam Oran: <b style={{ color: '#10b981', fontSize: '0.95rem' }}>{typeof pick.odds === 'number' ? pick.odds.toFixed(2) : pick.odds}</b>
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                                        {pick.comboLegs.map((leg, lIdx) => (
+                                                            <div key={lIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem', background: 'rgba(255,255,255,0.02)', padding: '4px 8px', borderRadius: '6px' }}>
+                                                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '8px' }}>
+                                                                    <span style={{ color: '#e2e8f0', fontWeight: 700 }}>{leg.event}: </span>
+                                                                    <span style={{ color: '#38bdf8', fontWeight: 800 }}>{leg.selection}</span>
+                                                                </div>
+                                                                <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.78rem', flexShrink: 0 }}>
+                                                                    @{leg.odds}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             ) : (
-                                                /* Selection & Odds Box */
                                                 <div style={{
                                                     background: 'rgba(15, 23, 42, 0.65)',
                                                     border: '1px solid rgba(255, 255, 255, 0.06)',
@@ -509,7 +538,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                             {lang === 'tr' ? 'UZMAN SEÇİMİ' : 'EXPERT PICK'}
                                                         </div>
                                                         <div style={{ fontSize: '0.98rem', fontWeight: 900, color: '#38bdf8' }}>
-                                                            {pick.selection}
+                                                            {pick.selection || (lang === 'tr' ? 'Karşılaşma Analiz Seçimi' : 'Match Selection')}
                                                         </div>
                                                     </div>
                                                     <div style={{ textAlign: 'right' }}>
