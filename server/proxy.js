@@ -14,8 +14,8 @@ import { autonomousSignalEngine } from './autonomousSignalEngine.js';
 import { autonomousOffice } from './autonomousOffice.js';
 import { quantTradingDesk } from './quantTradingDesk.js';
 import { geminiTradingBridge } from './geminiTradingBridge.js';
-import { supportChatService } from './supportChatService.js';
 import { sharpPicksEngine } from './sharpPicksEngine.js';
+import { tipsterEngine } from './tipsterEngine.js';
 import { 
     hashPassword, 
     verifyPassword, 
@@ -1012,6 +1012,82 @@ app.get('/api/sharp-picks', async (req, res) => {
         today_picks: [],
         yesterday_summary: { total: 0, won: 0, lost: 0, pending: 0, win_rate: 0.0, avg_odds: 0.0, picks: [] }
     });
+});
+
+// 2b-2. Elite Verified Tipsters Feed & Leaderboard (Masked Public Endpoints)
+app.get('/api/tipsters/feed', async (req, res) => {
+    try {
+        if (req.query.refresh === '1' || req.query.refresh === 'true') {
+            await tipsterEngine.updateFeed();
+        }
+        const onlyLive = req.query.live === 'true' || req.query.live === '1';
+        const onlyHighConfidence = req.query.high_conf === 'true' || req.query.high_conf === '1';
+        const sport = req.query.sport || 'ALL';
+
+        const feed = tipsterEngine.getPublicFeed({ onlyLive, onlyHighConfidence, sport });
+        res.json(feed);
+    } catch (err) {
+        console.error('[PROXY] Tipster feed error:', err.message);
+        res.status(500).json({ error: 'Tipster feed could not be fetched', picks: [] });
+    }
+});
+
+app.get('/api/tipsters/leaderboard', (req, res) => {
+    try {
+        const feed = tipsterEngine.getPublicFeed();
+        res.json({ leaderboard: feed.leaderboard || [] });
+    } catch (err) {
+        console.error('[PROXY] Tipster leaderboard error:', err.message);
+        res.status(500).json({ error: 'Leaderboard could not be fetched', leaderboard: [] });
+    }
+});
+
+// 2b-3. Admin Tipster Management (Real names, Persona mapping & toggles)
+app.get('/api/admin/tipsters', (req, res) => {
+    if (!isAdminRequest(req)) {
+        return res.status(403).json({ error: 'Yetkisiz erişim. Admin girişi gereklidir.' });
+    }
+    try {
+        const data = tipsterEngine.getAdminTipsters();
+        res.json(data);
+    } catch (err) {
+        console.error('[PROXY] Admin tipster list error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/tipsters/update', express.json(), (req, res) => {
+    if (!isAdminRequest(req)) {
+        return res.status(403).json({ error: 'Yetkisiz erişim. Admin girişi gereklidir.' });
+    }
+    try {
+        const { realUsername, updates } = req.body;
+        if (!realUsername) {
+            return res.status(400).json({ error: 'realUsername parametresi zorunludur.' });
+        }
+        const success = tipsterEngine.updateTipster(realUsername, updates || {});
+        if (success) {
+            res.json({ success: true, message: 'Tipster başarıyla güncellendi.' });
+        } else {
+            res.status(404).json({ error: 'Tipster bulunamadı.' });
+        }
+    } catch (err) {
+        console.error('[PROXY] Admin tipster update error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/admin/tipsters/settings', express.json(), (req, res) => {
+    if (!isAdminRequest(req)) {
+        return res.status(403).json({ error: 'Yetkisiz erişim. Admin girişi gereklidir.' });
+    }
+    try {
+        const updated = tipsterEngine.updateSettings(req.body || {});
+        res.json({ success: true, settings: updated });
+    } catch (err) {
+        console.error('[PROXY] Admin tipster settings error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // 2c. Betano Acca & Sentiment Radar

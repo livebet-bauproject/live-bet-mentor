@@ -26,6 +26,7 @@ import { LegalModal } from './LegalModal';
 import { LiveSupportChat } from './LiveSupportChat';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
+import { TipsterHub } from './TipsterHub';
 import { PortfolioCockpit } from './portfolio/PortfolioCockpit';
 import { AnalystLeaderboard } from './portfolio/AnalystLeaderboard';
 import { CompoundSimulator } from './portfolio/CompoundSimulator';
@@ -5775,6 +5776,22 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span className="tab-live-count count-hot">HOT</span>
                         </button>
 
+                        {/* 5b. Pro Analistler & Tahmin Masası */}
+                        <button
+                            className={`unified-tab-btn tab-tipsters ${view === 'TIPSTERS' ? 'active' : ''}`}
+                            onClick={() => setView('TIPSTERS')}
+                            title={lang === 'tr' ? 'Doğrulanmış Pro Analistler Masası' : (lang === 'de' ? 'Verifizierte Pro-Analysten' : 'Verified Pro Analysts')}
+                        >
+                            <span className="tab-icon">👑</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'PRO ANALİSTLER' : (lang === 'de' ? 'PRO-ANALYSTEN' : 'PRO ANALYSTS')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'ANALİST' : (lang === 'de' ? 'TIPPER' : 'TIPSTERS')}</span>
+                            </span>
+                            <span className="tab-live-count count-tipster" style={{ background: '#38bdf8', color: '#000', fontWeight: 900 }}>
+                                PRO
+                            </span>
+                        </button>
+
                         {/* 6. Kasa & Portföy */}
                         <button
                             className={`unified-tab-btn tab-portfolio ${view === 'PORTFOLIO' ? 'active' : ''}`}
@@ -5969,6 +5986,18 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 renderPortfolio()
             ) : view === 'TRENDING' ? (
                 renderTrending()
+            ) : view === 'TIPSTERS' ? (
+                <TipsterHub
+                    lang={lang}
+                    userProfile={userProfile}
+                    onOpenVipModal={() => setIsSupportChatOpen(true)}
+                    onFocusMatch={(mName) => {
+                        setView('DASHBOARD');
+                        if (typeof setTerminalSearchQuery === 'function') {
+                            setTerminalSearchQuery(mName.split('-')[0].trim());
+                        }
+                    }}
+                />
             ) : view === 'ADMIN' ? (
                 <AdminPanel
                     lang={lang}
@@ -9472,6 +9501,19 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">Hot Picks <span className="sheet-badge-hot">HOT</span></div>
                                     <div className="mobile-sheet-sub">{lang === 'tr' ? 'Günün sıcak fırsatları & trend seçimler' : (lang === 'de' ? 'Heiße Picks & Trend-Wetten' : 'Hot market picks & trends')}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className={`mobile-sheet-item ${view === 'TIPSTERS' ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setView('TIPSTERS'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>👑</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Pro Analistler Masası' : 'Pro Analysts Board'} <span style={{ background: '#38bdf8', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>PRO</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Doğrulanmış uzman tahminleri & ligi' : 'Verified analyst picks & leaderboard'}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>

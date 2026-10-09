@@ -6,6 +6,7 @@ import { AnalyticsDashboard } from './AnalyticsDashboard';
 import { TradingDesk } from './TradingDesk';
 import { AuditCockpit } from './AuditCockpit';
 import { BacktestLabPanel } from './BacktestLabPanel';
+import { AdminTipsterVault } from './AdminTipsterVault';
 
 const SupportStaffDesk = ({
     lang = 'tr',
@@ -3282,6 +3283,36 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         CANLI
                     </span>
                 </button>
+                <button
+                    onClick={() => setActiveTab('tipster_vault')}
+                    style={{
+                        padding: '0.8rem 1.5rem',
+                        background: activeTab === 'tipster_vault' ? 'linear-gradient(135deg, rgba(56, 189, 248, 0.3), rgba(37, 99, 235, 0.25))' : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${activeTab === 'tipster_vault' ? '#38bdf8' : 'var(--glass-border)'}`,
+                        borderRadius: '10px',
+                        color: activeTab === 'tipster_vault' ? '#38bdf8' : '#94a3b8',
+                        cursor: 'pointer',
+                        fontWeight: 800,
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        boxShadow: activeTab === 'tipster_vault' ? '0 0 15px rgba(56, 189, 248, 0.3)' : 'none'
+                    }}
+                >
+                    <span>👑</span>
+                    <span>{lang === 'tr' ? 'TİPSTER YÖNETİMİ & MASKELEME' : 'TIPSTER VAULT & MASKS'}</span>
+                    <span style={{
+                        background: '#38bdf8',
+                        color: '#000',
+                        padding: '0.1rem 0.45rem',
+                        borderRadius: '8px',
+                        fontSize: '0.65rem',
+                        fontWeight: 900
+                    }}>
+                        PRO
+                    </span>
+                </button>
             </div>
 
             {/* Content Section */}
@@ -3362,6 +3393,12 @@ export const AdminPanel = ({ lang = 'tr', initialTab, initialSessionId }) => {
                         getAdminHeaders={getAdminHeaders}
                         onRefreshRequest={fetchProfiles}
                         mode="full"
+                    />
+                ) : activeTab === 'tipster_vault' ? (
+                    <AdminTipsterVault
+                        lang={lang}
+                        proxyBase={getProxyBase()}
+                        getAdminHeaders={getAdminHeaders}
                     />
                 ) : activeTab === 'web_analytics' ? (
                     <AnalyticsDashboard lang={lang} />
