@@ -3081,6 +3081,202 @@ html, body {
     box-shadow: 0 0 6px rgba(239, 68, 68, 0.6) !important;
   }
 
+  /* Mobile More Actions Bottom Sheet Drawer */
+  .mobile-more-backdrop {
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(2, 6, 23, 0.72) !important;
+    backdrop-filter: blur(6px) !important;
+    -webkit-backdrop-filter: blur(6px) !important;
+    z-index: 8400 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    animation: fadeInBackdrop 0.2s ease-out !important;
+  }
+
+  @keyframes fadeInBackdrop {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .mobile-more-sheet {
+    background: linear-gradient(180deg, #0d1527 0%, #080d19 100%) !important;
+    border-top: 1px solid rgba(56, 189, 248, 0.3) !important;
+    border-radius: 22px 22px 0 0 !important;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.8), 0 -1px 15px rgba(56, 189, 248, 0.15) !important;
+    padding: 0.75rem 1rem calc(68px + env(safe-area-inset-bottom, 0px)) 1rem !important;
+    max-height: 82vh !important;
+    overflow-y: auto !important;
+    animation: slideUpSheet 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  @keyframes slideUpSheet {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .mobile-sheet-handle {
+    width: 38px !important;
+    height: 4px !important;
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-radius: 3px !important;
+    margin: 0 auto 0.85rem auto !important;
+  }
+
+  .mobile-sheet-header {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 0.85rem !important;
+    padding-bottom: 0.55rem !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .mobile-sheet-title {
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    color: #f8fafc !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    letter-spacing: -0.2px !important;
+  }
+
+  .mobile-sheet-close {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #94a3b8 !important;
+    font-size: 0.82rem !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+  }
+
+  .mobile-sheet-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.55rem !important;
+  }
+
+  .mobile-sheet-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    padding: 0.75rem 0.85rem !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-radius: 14px !important;
+    color: #f1f5f9 !important;
+    text-align: left !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .mobile-sheet-item:active {
+    background: rgba(56, 189, 248, 0.1) !important;
+    border-color: rgba(56, 189, 248, 0.3) !important;
+    transform: scale(0.985) !important;
+  }
+
+  .mobile-sheet-item.hot {
+    border-left: 3px solid #f97316 !important;
+  }
+
+  .mobile-sheet-item.active {
+    border-left: 3px solid #38bdf8 !important;
+    background: rgba(56, 189, 248, 0.08) !important;
+  }
+
+  .mobile-sheet-item.admin {
+    border-left: 3px solid #f59e0b !important;
+  }
+
+  .mobile-sheet-icon-wrap {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 11px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.25rem !important;
+    flex-shrink: 0 !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  }
+
+  .mobile-sheet-icon-wrap.hot {
+    background: rgba(249, 115, 22, 0.15) !important;
+    border-color: rgba(249, 115, 22, 0.3) !important;
+  }
+
+  .mobile-sheet-icon-wrap.radar {
+    background: rgba(56, 189, 248, 0.15) !important;
+    border-color: rgba(56, 189, 248, 0.3) !important;
+  }
+
+  .mobile-sheet-icon-wrap.support {
+    background: rgba(16, 185, 129, 0.15) !important;
+    border-color: rgba(16, 185, 129, 0.3) !important;
+  }
+
+  .mobile-sheet-icon-wrap.admin {
+    background: rgba(245, 158, 11, 0.15) !important;
+    border-color: rgba(245, 158, 11, 0.3) !important;
+  }
+
+  .mobile-sheet-icon-wrap.legal {
+    background: rgba(148, 163, 184, 0.12) !important;
+    border-color: rgba(148, 163, 184, 0.25) !important;
+  }
+
+  .mobile-sheet-info {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .mobile-sheet-name {
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    color: #f8fafc !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    margin-bottom: 2px !important;
+  }
+
+  .sheet-badge-hot {
+    background: #f97316 !important;
+    color: #000 !important;
+    font-size: 0.58rem !important;
+    font-weight: 900 !important;
+    padding: 1px 4px !important;
+    border-radius: 4px !important;
+    letter-spacing: 0.3px !important;
+  }
+
+  .mobile-sheet-sub {
+    font-size: 0.70rem !important;
+    color: #94a3b8 !important;
+    line-height: 1.25 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .mobile-sheet-arrow {
+    font-size: 1.15rem !important;
+    color: #64748b !important;
+    font-weight: 300 !important;
+    padding-right: 2px !important;
+  }
+
   /* Top Terminal Header - Sleek Institutional Mobile Redesign */
   .terminal-header {
     padding: 0.55rem 0.75rem !important;
@@ -5573,19 +5769,27 @@ input[type="checkbox"] {
 /* Mobile Fullscreen Layout */
 @media (max-width: 640px) {
   .support-chat-launcher-btn {
-    bottom: 4.8rem !important; /* Above mobile bottom nav */
-    right: 0.85rem !important;
+    bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important; /* Above mobile bottom nav */
+    right: 0.75rem !important;
     padding: 0 !important;
-    width: 44px !important;
-    height: 44px !important;
-    min-width: 44px !important;
-    min-height: 44px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
     border-radius: 50% !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(56, 189, 248, 0.4) !important;
-    z-index: 999 !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(56, 189, 248, 0.35) !important;
+    z-index: 7800 !important;
+    opacity: 0.88 !important;
+    backdrop-filter: blur(8px) !important;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+  }
+
+  .support-chat-launcher-btn:active {
+    transform: scale(0.92) !important;
+    opacity: 1 !important;
   }
 
   .support-chat-launcher-btn .support-launcher-text {
@@ -5593,7 +5797,7 @@ input[type="checkbox"] {
   }
 
   .support-chat-launcher-btn .support-launcher-icon {
-    font-size: 1.25rem !important;
+    font-size: 1.15rem !important;
     margin: 0 !important;
   }
 

@@ -112,6 +112,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const [matches, setMatches] = useState([]);
     const [signals, setSignals] = useState({});
     const [bankState, setBankState] = useState(bankrollManager.getState());
+    const autoPilotProcessedRef = useRef(new Set());
     const [portfolioTab, setPortfolioTab] = useState('cockpit'); // 'cockpit', 'leaderboard', 'simulator', 'journal'
     const [isCapitalModalOpen, setIsCapitalModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -238,6 +239,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         if (window.confirm(confirmText)) {
             bankrollManager.reset(curStart);
             autoSettlementEngine.settledCache.clear();
+            autoPilotProcessedRef.current.clear();
             setBankState(bankrollManager.getState());
             setSettlementMessage(lang === 'tr' ? `✅ Portföy ${curStart.toLocaleString()} ${curCurrency} olarak sıfırlandı.` : (lang === 'de' ? `✅ Portfolio auf ${curStart.toLocaleString()} ${curCurrency} zurückgesetzt.` : `✅ Bankroll reset to ${curStart.toLocaleString()} ${curCurrency}.`));
             setTimeout(() => setSettlementMessage(''), 5000);
@@ -659,6 +661,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const [showStakingCalc, setShowStakingCalc] = useState(false);
     const [showSharpPicks, setShowSharpPicks] = useState(false);
     const [showBetanoRadar, setShowBetanoRadar] = useState(false);
+    const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
     const [sharpSubTab, setSharpSubTab] = useState('MENTOR'); // 'MENTOR' | 'BETANO'
     const [liveOpportunitiesLimit, setLiveOpportunitiesLimit] = useState(5);
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
@@ -2837,28 +2840,35 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     }, [enforcedMatches, activeTierFilter, signals, momentumWindow, lang]);
 
     // Auto-Pilot execution hook for 100-Unit Disciplined Staking
-    const autoPilotProcessedRef = useRef(new Set());
     useEffect(() => {
         if (!bankState?.auto_pilot_enabled) return;
 
         const disc = bankrollManager.getDisciplineStatus();
         if (!disc.isBettingAllowed) return;
 
-        // Scan processed matches with live BET signals
-        for (const m of processedTerminalMatches) {
+        // Scan all live matches for disciplined BET signals and elite opportunities
+        for (const m of (enforcedMatches || [])) {
             if (autoPilotProcessedRef.current.has(m.id)) continue;
             if (bankrollManager.isMatchOpenInLedger(m.id)) {
                 autoPilotProcessedRef.current.add(m.id);
                 continue;
             }
 
-            const sig = signals[m.id];
-            if (!sig || sig.verdict !== 'BET') continue;
-
-            const smart = bankrollManager.calculateSmartStake(m, sig);
+            const sig = signals[m.id] || m.signal;
+            const oppScore = Number(m.opportunityData?.score) || 0;
             const eff = bankrollManager.getEffectiveRiskSettings?.() || { autoPilotMinConf: 80 };
             const minConf = eff.autoPilotMinConf || 80;
-            if (smart && smart.allowed && (sig.confidence >= minConf || (m.opportunityData?.score >= minConf))) {
+
+            // Must have either an explicit 'BET' verdict OR be an Elite Fire opportunity (score >= minConf in Tier 1/2)
+            const isBetSignal = sig?.verdict === 'BET';
+            const isEliteOpp = oppScore >= minConf && (m.tier || 3) <= 2 && !m.isFriendly;
+            if (!isBetSignal && !isEliteOpp) continue;
+
+            const smart = bankrollManager.calculateSmartStake(m, sig);
+            if (!smart || !smart.allowed) continue;
+
+            const sigConf = Number(sig?.confidence) || oppScore;
+            if (sigConf >= minConf || oppScore >= minConf) {
                 autoPilotProcessedRef.current.add(m.id);
                 handleTerminalApproveBet(m, sig, smart.stake);
                 const curr = bankrollManager?.getState()?.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
@@ -2866,7 +2876,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 break; // 1 at a time to prevent race conditions
             }
         }
-    }, [bankState?.auto_pilot_enabled, processedTerminalMatches, signals]);
+    }, [bankState?.auto_pilot_enabled, enforcedMatches, signals]);
 
     const handleGenerateGlobalReport = async (type) => {
         // Enforce AI Usage Limits
@@ -9299,11 +9309,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 apiBase={proxyBase}
             />
 
-            {/* Mobile Bottom Navigation Bar (Sticky app-like navigation on screens <= 768px) */}
+            {/* Mobile Bottom Navigation Bar (Ultra-clean 5-item app navigation on screens <= 768px) */}
             <nav className="mobile-bottom-nav" aria-label="Mobil Navigasyon">
                 <button
-                    className={`mobile-nav-item ${view === 'DASHBOARD' ? 'active' : ''}`}
-                    onClick={() => { setView('DASHBOARD'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className={`mobile-nav-item ${view === 'DASHBOARD' && !showMobileMoreMenu ? 'active' : ''}`}
+                    onClick={() => { setShowMobileMoreMenu(false); setView('DASHBOARD'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     type="button"
                 >
                     <span className="mobile-nav-icon">⚡</span>
@@ -9311,8 +9321,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     {matches.length > 0 && <span className="mobile-nav-badge">{matches.length}</span>}
                 </button>
                 <button
-                    className={`mobile-nav-item trending ${view === 'TRENDING' ? 'active' : ''}`}
-                    onClick={() => { setView('TRENDING'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className={`mobile-nav-item trending ${view === 'TRENDING' && !showMobileMoreMenu ? 'active' : ''}`}
+                    onClick={() => { setShowMobileMoreMenu(false); setView('TRENDING'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     type="button"
                 >
                     <span className="mobile-nav-icon">🔥</span>
@@ -9323,53 +9333,126 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     })()}
                 </button>
                 <button
-                    className={`mobile-nav-item ${view === 'RADAR' ? 'active' : ''}`}
-                    onClick={() => { setView('RADAR'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    className={`mobile-nav-item ${view === 'SHARP_PICKS' && !showMobileMoreMenu ? 'active' : ''}`}
+                    onClick={() => { setShowMobileMoreMenu(false); setView('SHARP_PICKS'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     type="button"
-                >
-                    <span className="mobile-nav-icon">🎯</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Günlük' : (lang === 'de' ? 'Täglich' : 'Daily')}</span>
-                </button>
-                <button
-                    className={`mobile-nav-item ${view === 'SHARP_PICKS' ? 'active' : ''}`}
-                    onClick={() => { setView('SHARP_PICKS'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    type="button"
-                    style={{ color: view === 'SHARP_PICKS' ? '#38bdf8' : undefined }}
+                    style={{ color: (view === 'SHARP_PICKS' && !showMobileMoreMenu) ? '#38bdf8' : undefined }}
                 >
                     <span className="mobile-nav-icon">⭐</span>
                     <span className="mobile-nav-label">{lang === 'tr' ? 'Keskin 10' : (lang === 'de' ? 'Sharp 10' : 'Sharp 10')}</span>
                     <span className="mobile-nav-badge" style={{ background: '#0284c7', color: '#fff' }}>10</span>
                 </button>
                 <button
-                    className="mobile-nav-item"
-                    onClick={() => setShowBetanoRadar(true)}
+                    className={`mobile-nav-item ${view === 'PORTFOLIO' && !showMobileMoreMenu ? 'active' : ''}`}
+                    onClick={() => { setShowMobileMoreMenu(false); setView('PORTFOLIO'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     type="button"
-                    style={{ color: '#f97316' }}
-                >
-                    <span className="mobile-nav-icon">🔥</span>
-                    <span className="mobile-nav-label">Hot Picks</span>
-                    <span className="mobile-nav-badge" style={{ background: '#f97316', color: '#000', fontWeight: 900 }}>HOT</span>
-                </button>
-                <button
-                    className={`mobile-nav-item ${view === 'PORTFOLIO' ? 'active' : ''}`}
-                    onClick={() => { setView('PORTFOLIO'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    type="button"
-                    style={{ color: view === 'PORTFOLIO' ? '#10b981' : undefined }}
+                    style={{ color: (view === 'PORTFOLIO' && !showMobileMoreMenu) ? '#10b981' : undefined }}
                 >
                     <span className="mobile-nav-icon">💼</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Kasa & Portföy' : (lang === 'de' ? 'Kassa' : 'Bankroll')}</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Kasa' : (lang === 'de' ? 'Kassa' : 'Bankroll')}</span>
                 </button>
-                {(isAdmin || userProfile?.plan === 'admin') && (
-                    <button
-                        className={`mobile-nav-item admin ${view === 'ADMIN' ? 'active' : ''}`}
-                        onClick={() => { setView('ADMIN'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                        type="button"
-                    >
-                        <span className="mobile-nav-icon">🛡️</span>
-                        <span className="mobile-nav-label">Admin</span>
-                    </button>
-                )}
+                <button
+                    className={`mobile-nav-item ${(showMobileMoreMenu || view === 'RADAR' || view === 'ADMIN') ? 'active' : ''}`}
+                    onClick={() => setShowMobileMoreMenu(prev => !prev)}
+                    type="button"
+                >
+                    <span className="mobile-nav-icon">{showMobileMoreMenu ? '✕' : '☰'}</span>
+                    <span className="mobile-nav-label">{lang === 'tr' ? 'Menü' : (lang === 'de' ? 'Menü' : 'Menu')}</span>
+                    {(isAdmin || userProfile?.plan === 'admin') && (
+                        <span className="mobile-nav-badge" style={{ background: '#f59e0b', color: '#000', fontWeight: 900, minWidth: '7px', height: '7px', padding: 0, top: '4px', right: 'calc(50% - 13px)' }} />
+                    )}
+                </button>
             </nav>
+
+            {/* Mobile More Actions Bottom Sheet Drawer */}
+            {showMobileMoreMenu && (
+                <div className="mobile-more-backdrop" onClick={() => setShowMobileMoreMenu(false)}>
+                    <div className="mobile-more-sheet" onClick={(e) => e.stopPropagation()}>
+                        <div className="mobile-sheet-handle" />
+                        <div className="mobile-sheet-header">
+                            <div className="mobile-sheet-title">
+                                <span>📱</span> {lang === 'tr' ? 'Hızlı Menü & Araçlar' : (lang === 'de' ? 'Schnellmenü & Tools' : 'Quick Menu & Tools')}
+                            </div>
+                            <button
+                                type="button"
+                                className="mobile-sheet-close"
+                                onClick={() => setShowMobileMoreMenu(false)}
+                                aria-label="Kapat"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="mobile-sheet-grid">
+                            <button
+                                type="button"
+                                className="mobile-sheet-item hot"
+                                onClick={() => { setShowMobileMoreMenu(false); setShowBetanoRadar(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap hot">🔥</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">Hot Picks <span className="sheet-badge-hot">HOT</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Günün sıcak fırsatları & trend seçimler' : (lang === 'de' ? 'Heiße Picks & Trend-Wetten' : 'Hot market picks & trends')}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className={`mobile-sheet-item ${view === 'RADAR' ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setView('RADAR'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap radar">🎯</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Günlük Radar Analizi' : (lang === 'de' ? 'Täglicher Radar' : 'Daily Radar Analysis')}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Tüm günün algoritmik maç taraması' : (lang === 'de' ? 'Ganztägige Spielanalyse' : 'Full-day algorithmic scan')}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className="mobile-sheet-item support"
+                                onClick={() => { setShowMobileMoreMenu(false); setIsSupportChatOpen(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap support">💬</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Canlı Destek Masası' : (lang === 'de' ? 'Live-Support-Desk' : 'Live Support Desk')}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7/24 AI ve Operatör Destek Hattı' : (lang === 'de' ? '24/7 KI- und Live-Support' : '24/7 AI and human operator')}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            {(isAdmin || userProfile?.plan === 'admin') && (
+                                <button
+                                    type="button"
+                                    className={`mobile-sheet-item admin ${view === 'ADMIN' ? 'active' : ''}`}
+                                    onClick={() => { setShowMobileMoreMenu(false); setView('ADMIN'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                >
+                                    <div className="mobile-sheet-icon-wrap admin">🛡️</div>
+                                    <div className="mobile-sheet-info">
+                                        <div className="mobile-sheet-name">{lang === 'tr' ? 'Admin Kontrol Paneli' : (lang === 'de' ? 'Admin-Panel' : 'Admin Control Panel')}</div>
+                                        <div className="mobile-sheet-sub">{lang === 'tr' ? 'Sistem, kullanıcı ve lisans yönetimi' : (lang === 'de' ? 'System- & Nutzerverwaltung' : 'System & user management')}</div>
+                                    </div>
+                                    <span className="mobile-sheet-arrow">›</span>
+                                </button>
+                            )}
+
+                            <button
+                                type="button"
+                                className="mobile-sheet-item legal"
+                                onClick={() => { setShowMobileMoreMenu(false); setIsLegalModalOpen(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap legal">⚖️</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Yasal Bilgi & Şartlar' : (lang === 'de' ? 'Rechtliche Hinweise' : 'Legal & Terms')}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Sorumlu oyun & kullanım kuralları' : (lang === 'de' ? 'Verantwortungsvolles Spielen' : 'Responsible gaming & terms')}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };
