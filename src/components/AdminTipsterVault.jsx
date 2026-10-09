@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
 export const AdminTipsterVault = ({ lang = 'tr', proxyBase, getAdminHeaders }) => {
-    const [data, setData] = useState({ tipsters: [], settings: { minStake: 5, vipThresholdStake: 9 }, activeCount: 0, totalPicksInCache: 0 });
+    const [data, setData] = useState({ tipsters: [], settings: { minStake: 8, vipThresholdStake: 9 }, activeCount: 0, totalPicksInCache: 0 });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [refreshingFeed, setRefreshingFeed] = useState(false);
     const [editingState, setEditingState] = useState({});
-    const [settingsState, setSettingsState] = useState({ minStake: 5, vipThresholdStake: 9 });
+    const [settingsState, setSettingsState] = useState({ minStake: 8, vipThresholdStake: 9 });
     const [statusMsg, setStatusMsg] = useState(null);
 
     const showMsg = (text, type = 'success') => {

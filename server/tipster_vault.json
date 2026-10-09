@@ -156,7 +156,7 @@
     }
   },
   "settings": {
-    "minStake": 1,
+    "minStake": 8,
     "vipThresholdStake": 9,
     "onlyVerified": false
   }

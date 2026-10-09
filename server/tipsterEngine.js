@@ -28,7 +28,7 @@ class TipsterEngine {
             lastFetched: 0
         };
         this.settings = {
-            minStake: 5, // Default: show picks with stake >= 5/10
+            minStake: 8, // Strictly publish only high confidence picks (>= 8/10)
             vipThresholdStake: 9, // 9/10 and 10/10 picks get VIP exclusive badge
             onlyVerified: false
         };
@@ -318,6 +318,10 @@ class TipsterEngine {
     // Public API for site users (Strictly no real identities)
     getPublicFeed(options = {}) {
         let list = [...this.cache.picks];
+
+        // Enforce minimum stake threshold (strictly only >= minStake, default 8)
+        const requiredStake = Math.max(8, this.settings.minStake || 8);
+        list = list.filter(p => p.stake >= requiredStake);
 
         if (options.onlyLive) {
             list = list.filter(p => p.isLive);

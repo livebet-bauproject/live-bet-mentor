@@ -33,7 +33,9 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
             if (res.ok) {
                 const json = await res.json();
                 if (json && Array.isArray(json.picks)) {
-                    setFeedData(json);
+                    // Strictly enforce threshold: Only 8/10 and above are displayed
+                    const highConfidenceOnly = json.picks.filter(p => (p.stake || 0) >= 8);
+                    setFeedData({ ...json, picks: highConfidenceOnly });
                 }
             }
         } catch (err) {
