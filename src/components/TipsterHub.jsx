@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { getApiBaseUrl, initBackendDiscovery } from '../config.js';
 import { bankrollManager } from '../logic/bankrollManager.js';
 
@@ -7,13 +7,206 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState('FEED'); // 'FEED' | 'LEADERBOARD'
-    const [filterLive, setFilterLive] = useState(false);
-    const [filterHighConf, setFilterHighConf] = useState(false);
+
+    // View & Filter States (Default: Bloomberg-style high-density Terminal Table)
+    const [viewMode, setViewMode] = useState('TERMINAL'); // 'TERMINAL' | 'CARDS'
+    const [searchQuery, setSearchQuery] = useState('');
+    const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'LIVE' | 'PREMATCH' | 'COMBO'
+    const [filterConfidence, setFilterConfidence] = useState('ALL'); // 'ALL' | '10' | '9_PLUS'
     const [filterSport, setFilterSport] = useState('ALL');
+    const [filterOddsRange, setFilterOddsRange] = useState('ALL'); // 'ALL' | 'LOW' (1.40-1.85) | 'MED' (1.85-2.40) | 'HIGH' (2.40+)
+    const [sortBy, setSortBy] = useState('NEWEST'); // Default: 'NEWEST' (en son gelene göre) | 'ODDS_DESC' | 'ODDS_ASC' | 'STAKE_DESC' | 'ANALYST'
+
+    // Interactive expansion states for Combos & Analysis Notes
+    const [expandedCombos, setExpandedCombos] = useState({});
+    const [expandedNotes, setExpandedNotes] = useState({});
+
     const [toastData, setToastData] = useState(null);
     const [, setBankrollUpdateKey] = useState(0);
 
-    const isVip = userProfile?.plan === 'vip' || userProfile?.plan === 'pro' || userProfile?.role === 'admin';
+    // Multi-language UI text dictionaries
+    const t = useMemo(() => {
+        const dict = {
+            tr: {
+                activePicks: 'AKTİF TAHMİN',
+                desc: 'Doğrulanmış istatistik geçmişine sahip bağımsız piyasa analistlerinin yüksek güvenli tahminleri.',
+                refresh: 'Yenile',
+                refreshing: 'Güncelleniyor...',
+                livePicks: 'Canlı & Sıcak Tahminler',
+                leaderboard: 'Pro Analist Sıralaması (Ligi)',
+                viewTerminal: '📊 Terminal (Tablo)',
+                viewCards: '🗂️ Kartlar',
+                searchPlaceholder: '🔍 Takım, Lig, Analist veya Seçim ara...',
+                filterStatus: 'DURUM:',
+                filterAll: 'Tümü',
+                filterLiveOnly: '🔴 Sadece Canlı',
+                filterPrematch: '📅 Maç Önü',
+                filterCombos: '🎯 Kombineler',
+                filterConfTitle: 'GÜVEN:',
+                filterConfAll: 'Tümü (8+)',
+                filterConf10: '⭐ 10/10 Maksimum',
+                filterConf9: '⚡ 9+ Yüksek Güven',
+                filterOddsTitle: 'ORAN:',
+                filterOddsAll: 'Tümü',
+                filterOddsLow: '1.40 - 1.85 (Dengeli)',
+                filterOddsMed: '1.85 - 2.40 (Değerli)',
+                filterOddsHigh: '2.40+ (Yüksek)',
+                sortByLabel: 'SIRALAMA:',
+                sortNewest: '🕒 En Son Gelen (Varsayılan)',
+                sortOddsDesc: '📈 En Yüksek Oran',
+                sortOddsAsc: '📉 En Düşük Oran',
+                sortStakeDesc: '⭐ En Yüksek Güven',
+                sortAnalyst: '👤 Analist (A-Z)',
+                colTime: 'ZAMAN / TÜR',
+                colAnalyst: 'PRO ANALİST',
+                colSport: 'SPOR & LİG',
+                colMatch: 'KARŞILAŞMA',
+                colPick: 'UZMAN SEÇİMİ',
+                colOdds: 'PİYASA ORANI',
+                colConfidence: 'GÜVEN (STAKE)',
+                colActions: 'KASA / İŞLEMLER',
+                addToBankroll: 'Kasa / Portföye Ekle',
+                inBankroll: 'Kasada Açık (Görüntüle)',
+                trackRadar: 'Takip',
+                analysisNote: 'Analiz',
+                details: 'Detaylar',
+                close: 'Kapat',
+                dualConsensus: 'ÇİFTE ONAY',
+                resetFilters: 'Filtreleri Temizle',
+                showingCount: (shown, total) => `${shown} / ${total} tahmin listeleniyor`,
+                noResults: 'Arama ve filtre kriterlerinize uygun tahmin bulunamadı.',
+                noResultsTip: 'Filtreleri sıfırlayarak tüm bağımsız analist sinyallerini görüntüleyebilirsiniz.',
+                emptyFeed: 'Kriterlere Uygun Yeni Sinyal Aranıyor',
+                emptyFeedDesc: 'Analist motoru arka planda 24/7 akışı takip ediyor. Filtre kriterlerini genişletebilir veya yenile butonuna basabilirsiniz.',
+                comboTitle: (n) => `🎯 ${n}'Lİ KOMBİNE KUPON DETAYLARI:`,
+                comboTotalOdds: 'Bileşik Toplam Oran:',
+                toastAdded: (name) => `💼 "${name}" kasanıza eklendi!`,
+                toastAlreadyIn: '⚠️ Bu tahmin zaten kasanızda açık işlem olarak bulunuyor.',
+                toastSaved: 'Kupon kasanıza kaydedildi.',
+                toastRadar: (name) => `📡 "${name}" canlı radarda takibe alındı!`,
+                singlePickTitle: 'UZMAN SEÇİMİ'
+            },
+            en: {
+                activePicks: 'ACTIVE PICKS',
+                desc: 'High-confidence market picks from independently verified expert analysts with audited records.',
+                refresh: 'Refresh',
+                refreshing: 'Refreshing...',
+                livePicks: 'Live & Hot Picks',
+                leaderboard: 'Pro Analyst Leaderboard',
+                viewTerminal: '📊 Terminal (Table)',
+                viewCards: '🗂️ Cards',
+                searchPlaceholder: '🔍 Search match, league, analyst or pick...',
+                filterStatus: 'STATUS:',
+                filterAll: 'All',
+                filterLiveOnly: '🔴 Live Only',
+                filterPrematch: '📅 Pre-Match',
+                filterCombos: '🎯 Combos',
+                filterConfTitle: 'CONFIDENCE:',
+                filterConfAll: 'All (8+)',
+                filterConf10: '⭐ 10/10 Max Stake',
+                filterConf9: '⚡ 9+ High Stake',
+                filterOddsTitle: 'ODDS:',
+                filterOddsAll: 'All',
+                filterOddsLow: '1.40 - 1.85 (Balanced)',
+                filterOddsMed: '1.85 - 2.40 (Value)',
+                filterOddsHigh: '2.40+ (High Odds)',
+                sortByLabel: 'SORT BY:',
+                sortNewest: '🕒 Newest First (Default)',
+                sortOddsDesc: '📈 Highest Odds',
+                sortOddsAsc: '📉 Lowest Odds',
+                sortStakeDesc: '⭐ Highest Confidence',
+                sortAnalyst: '👤 Analyst (A-Z)',
+                colTime: 'TIME / TYPE',
+                colAnalyst: 'PRO ANALYST',
+                colSport: 'SPORT & LEAGUE',
+                colMatch: 'MATCH',
+                colPick: 'EXPERT PICK',
+                colOdds: 'MARKET ODDS',
+                colConfidence: 'STAKE / CONFIDENCE',
+                colActions: 'BANKROLL / ACTIONS',
+                addToBankroll: 'Add to Bankroll',
+                inBankroll: 'In Bankroll (View)',
+                trackRadar: 'Track',
+                analysisNote: 'Analysis',
+                details: 'Details',
+                close: 'Close',
+                dualConsensus: 'DUAL CONSENSUS',
+                resetFilters: 'Reset Filters',
+                showingCount: (shown, total) => `Showing ${shown} of ${total} picks`,
+                noResults: 'No picks match your search and filter criteria.',
+                noResultsTip: 'Reset filters to view all available verified picks.',
+                emptyFeed: 'Searching for Qualifying Signals',
+                emptyFeedDesc: 'The analyst engine monitors feeds 24/7. Broaden filters or click refresh.',
+                comboTitle: (n) => `🎯 ${n}-LEG COMBO DETAILS:`,
+                comboTotalOdds: 'Total Acca Odds:',
+                toastAdded: (name) => `💼 "${name}" added to bankroll!`,
+                toastAlreadyIn: '⚠️ This pick is already open in your bankroll ledger.',
+                toastSaved: 'Pick saved to bankroll.',
+                toastRadar: (name) => `📡 "${name}" pinned to live tracking!`,
+                singlePickTitle: 'EXPERT PICK'
+            },
+            de: {
+                activePicks: 'AKTIVE TIPPS',
+                desc: 'Verifizierte Experten-Tipps von unabhängigen Analysten mit geprüfter Rendite.',
+                refresh: 'Aktualisieren',
+                refreshing: 'Wird aktualisiert...',
+                livePicks: 'Live & Heiße Tipps',
+                leaderboard: 'Profi-Analysten Rangliste',
+                viewTerminal: '📊 Terminal (Tabelle)',
+                viewCards: '🗂️ Karten',
+                searchPlaceholder: '🔍 Spiel, Liga, Analyst oder Tipp suchen...',
+                filterStatus: 'STATUS:',
+                filterAll: 'Alle',
+                filterLiveOnly: '🔴 Nur Live',
+                filterPrematch: '📅 Vor dem Spiel',
+                filterCombos: '🎯 Kombis',
+                filterConfTitle: 'VERTRAUEN:',
+                filterConfAll: 'Alle (8+)',
+                filterConf10: '⭐ 10/10 Max Einsatz',
+                filterConf9: '⚡ 9+ Hohes Vertrauen',
+                filterOddsTitle: 'QUOTE:',
+                filterOddsAll: 'Alle',
+                filterOddsLow: '1.40 - 1.85 (Ausgeglichen)',
+                filterOddsMed: '1.85 - 2.40 (Wert)',
+                filterOddsHigh: '2.40+ (Hohe Quoten)',
+                sortByLabel: 'SORTIEREN:',
+                sortNewest: '🕒 Neueste zuerst (Standard)',
+                sortOddsDesc: '📈 Höchste Quoten',
+                sortOddsAsc: '📉 Niedrigste Quoten',
+                sortStakeDesc: '⭐ Höchstes Vertrauen',
+                sortAnalyst: '👤 Analyst (A-Z)',
+                colTime: 'ZEIT / TYP',
+                colAnalyst: 'PROFI-ANALYST',
+                colSport: 'SPORT & LIGA',
+                colMatch: 'BEGEGNUNG',
+                colPick: 'EXPERTENTIPP',
+                colOdds: 'MARKTQUOTE',
+                colConfidence: 'VERTRAUEN (EINSATZ)',
+                colActions: 'DEPOT / AKTIONEN',
+                addToBankroll: 'Zum Depot hinzufügen',
+                inBankroll: 'Im Depot (Öffnen)',
+                trackRadar: 'Verfolgen',
+                analysisNote: 'Analyse',
+                details: 'Details',
+                close: 'Schließen',
+                dualConsensus: 'DOPPELTER KONSENS',
+                resetFilters: 'Filter zurücksetzen',
+                showingCount: (shown, total) => `${shown} von ${total} Tipps angezeigt`,
+                noResults: 'Keine Tipps entsprechen den Filterkriterien.',
+                noResultsTip: 'Filter zurücksetzen, um alle geprüften Tipps anzuzeigen.',
+                emptyFeed: 'Suche nach qualifizierten Signalen',
+                emptyFeedDesc: 'Das Analysten-System überwacht Feeds 24/7. Erweitern Sie die Filter oder aktualisieren Sie.',
+                comboTitle: (n) => `🎯 ${n}ER-KOMBI DETAILS:`,
+                comboTotalOdds: 'Kombinierte Gesamtquote:',
+                toastAdded: (name) => `💼 "${name}" zum Depot hinzugefügt!`,
+                toastAlreadyIn: '⚠️ Diese Wette ist bereits im Depot geöffnet.',
+                toastSaved: 'Wette zum Depot hinzugefügt.',
+                toastRadar: (name) => `📡 "${name}" zur Live-Verfolgung angeheftet!`,
+                singlePickTitle: 'EXPERTENTIPP'
+            }
+        };
+        return dict[lang] || dict.tr;
+    }, [lang]);
 
     // Listen for bankroll state changes to refresh "in portfolio" badge
     useEffect(() => {
@@ -41,15 +234,12 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
             const proxyBase = await initBackendDiscovery() || getApiBaseUrl();
             const params = new URLSearchParams();
             if (forceRefresh) params.append('refresh', '1');
-            if (filterLive) params.append('live', '1');
-            if (filterHighConf) params.append('high_conf', '1');
-            if (filterSport !== 'ALL') params.append('sport', filterSport);
 
             const res = await fetch(`${proxyBase}/api/tipsters/feed?${params.toString()}`);
             if (res.ok) {
                 const json = await res.json();
                 if (json && Array.isArray(json.picks)) {
-                    // Strictly enforce threshold: Only 8/10 and above are displayed
+                    // Strictly enforce minimum confidence: 8/10 and above are displayed
                     const highConfidenceOnly = json.picks.filter(p => (p.stake || 0) >= 8);
                     setFeedData({ ...json, picks: highConfidenceOnly });
                 }
@@ -66,7 +256,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
         fetchFeed();
         const timer = setInterval(() => fetchFeed(false), 30000); // 30 sec auto-refresh
         return () => clearInterval(timer);
-    }, [filterLive, filterHighConf, filterSport]);
+    }, []);
 
     const handleAddToPortfolio = (pick) => {
         try {
@@ -88,21 +278,14 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
             if (bankrollManager && typeof bankrollManager.addCustomBet === 'function') {
                 const res = bankrollManager.addCustomBet(betItem);
                 if (res === false) {
-                    showToast(lang === 'tr' 
-                        ? `⚠️ Bu tahmin zaten kasanızda açık işlem olarak bulunuyor.` 
-                        : (lang === 'de' ? `⚠️ Diese Wette ist bereits im Portfolio geöffnet.` : `⚠️ This bet is already open in your portfolio.`));
+                    showToast(t.toastAlreadyIn);
                     return;
                 }
             }
-            showToast(
-                lang === 'tr' 
-                    ? `💼 "${pick.matchName}" kasanıza eklendi!` 
-                    : (lang === 'de' ? `💼 Wette zum Depot hinzugefügt!` : `💼 Bet added to your portfolio!`),
-                true
-            );
+            showToast(t.toastAdded(pick.matchName), true);
         } catch (e) {
             console.error('Error adding to portfolio:', e);
-            showToast(lang === 'tr' ? 'Kupon kasanıza kaydedildi.' : 'Saved to portfolio.');
+            showToast(t.toastSaved);
         }
     };
 
@@ -110,18 +293,145 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
         if (typeof onFocusMatch === 'function') {
             onFocusMatch(pick.matchName);
         }
-        showToast(lang === 'tr' 
-            ? `📡 "${pick.matchName}" canlı radarda takibe alındı!` 
-            : `📡 Match pinned to live tracking!`);
+        showToast(t.toastRadar(pick.matchName));
+    };
+
+    const toggleCombo = (id) => {
+        setExpandedCombos(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const toggleNote = (id) => {
+        setExpandedNotes(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // Extract all unique sports present in current picks
+    const availableSports = useMemo(() => {
+        const sports = new Set();
+        (feedData.picks || []).forEach(p => {
+            if (p.sport) sports.add(p.sport);
+        });
+        return Array.from(sports);
+    }, [feedData.picks]);
+
+    // Helper timestamp extractor for strict chronological sorting
+    const getPickTimestamp = (p) => {
+        if (typeof p.postedAt === 'number' && !isNaN(p.postedAt)) return p.postedAt;
+        if (p.createdAt) {
+            const parsed = new Date(p.createdAt).getTime();
+            if (!isNaN(parsed)) return parsed;
+        }
+        if (typeof p.ageMinutes === 'number' && !isNaN(p.ageMinutes)) {
+            return Date.now() - (p.ageMinutes * 60 * 1000);
+        }
+        return 0;
+    };
+
+    // Filter & Sort picks with strict "En Son Gelene Göre" default
+    const filteredAndSortedPicks = useMemo(() => {
+        if (!feedData.picks || !Array.isArray(feedData.picks)) return [];
+
+        let list = feedData.picks.filter(p => {
+            // Search query filter
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase().trim();
+                const matchNameMatch = (p.matchName || '').toLowerCase().includes(q);
+                const analystMatch = (p.analyst?.name || '').toLowerCase().includes(q);
+                const sportMatch = (p.sportDetails || p.sport || '').toLowerCase().includes(q);
+                const selectionMatch = (p.selection || '').toLowerCase().includes(q);
+                const comboMatch = p.isCombo && Array.isArray(p.comboLegs) && p.comboLegs.some(leg =>
+                    (leg.event || '').toLowerCase().includes(q) || (leg.selection || '').toLowerCase().includes(q)
+                );
+                if (!matchNameMatch && !analystMatch && !sportMatch && !selectionMatch && !comboMatch) {
+                    return false;
+                }
+            }
+
+            // Status filter
+            if (filterStatus === 'LIVE' && !p.isLive) return false;
+            if (filterStatus === 'PREMATCH' && p.isLive) return false;
+            if (filterStatus === 'COMBO' && !p.isCombo) return false;
+
+            // Confidence filter
+            if (filterConfidence === '10' && (p.stake || 0) < 10) return false;
+            if (filterConfidence === '9_PLUS' && (p.stake || 0) < 9) return false;
+
+            // Sport filter
+            if (filterSport !== 'ALL' && (p.sport || '') !== filterSport) return false;
+
+            // Odds range filter
+            const oddsVal = typeof p.odds === 'number' ? p.odds : parseFloat(p.odds) || 0;
+            if (filterOddsRange === 'LOW' && (oddsVal < 1.40 || oddsVal >= 1.85)) return false;
+            if (filterOddsRange === 'MED' && (oddsVal < 1.85 || oddsVal > 2.40)) return false;
+            if (filterOddsRange === 'HIGH' && oddsVal <= 2.40) return false;
+
+            return true;
+        });
+
+        // Strict Sorting: En Son Gelene Göre (Newest first) by default
+        list.sort((a, b) => {
+            if (sortBy === 'NEWEST') {
+                const timeA = getPickTimestamp(a);
+                const timeB = getPickTimestamp(b);
+                if (timeB !== timeA) return timeB - timeA;
+                return 0;
+            }
+            if (sortBy === 'ODDS_DESC') {
+                return (b.odds || 0) - (a.odds || 0);
+            }
+            if (sortBy === 'ODDS_ASC') {
+                return (a.odds || 0) - (b.odds || 0);
+            }
+            if (sortBy === 'STAKE_DESC') {
+                return (b.stake || 0) - (a.stake || 0);
+            }
+            if (sortBy === 'ANALYST') {
+                return (a.analyst?.name || '').localeCompare(b.analyst?.name || '');
+            }
+            return 0;
+        });
+
+        return list;
+    }, [feedData.picks, searchQuery, filterStatus, filterConfidence, filterSport, filterOddsRange, sortBy]);
+
+    // Check if any filter is active
+    const isAnyFilterActive = Boolean(
+        searchQuery.trim() ||
+        filterStatus !== 'ALL' ||
+        filterConfidence !== 'ALL' ||
+        filterSport !== 'ALL' ||
+        filterOddsRange !== 'ALL' ||
+        sortBy !== 'NEWEST'
+    );
+
+    const resetFilters = () => {
+        setSearchQuery('');
+        setFilterStatus('ALL');
+        setFilterConfidence('ALL');
+        setFilterSport('ALL');
+        setFilterOddsRange('ALL');
+        setSortBy('NEWEST');
+    };
+
+    // Sport emoji helper
+    const getSportEmoji = (sportStr) => {
+        const s = (sportStr || '').toLowerCase();
+        if (s.includes('futbol') || s.includes('football') || s.includes('soccer')) return '⚽';
+        if (s.includes('basket')) return '🏀';
+        if (s.includes('tenis') || s.includes('tennis')) return '🎾';
+        if (s.includes('buz') || s.includes('ice') || s.includes('hockey')) return '🏒';
+        if (s.includes('voleybol') || s.includes('volley')) return '🏐';
+        if (s.includes('hentbol') || s.includes('handball')) return '🤾';
+        if (s.includes('beyzbol') || s.includes('baseball')) return '⚾';
+        return '🎯';
     };
 
     return (
         <div className="tipster-hub-container" style={{
-            maxWidth: '1360px',
-            margin: '1.25rem auto 3rem',
+            maxWidth: '1420px',
+            margin: '1.25rem auto 3.5rem',
             padding: '0 1rem',
             color: '#f8fafc',
-            fontFamily: 'Inter, system-ui, sans-serif'
+            fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
         }}>
             {/* Toast notification */}
             {toastData && (
@@ -159,55 +469,63 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                 border: 'none',
                                 padding: '0.45rem 0.9rem',
                                 borderRadius: '8px',
+                                fontWeight: 800,
                                 fontSize: '0.78rem',
-                                fontWeight: 900,
                                 cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)'
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
                             }}
                         >
-                            {lang === 'tr' ? 'Kasayı Aç ➔' : (lang === 'de' ? 'Depot öffnen ➔' : 'View Portfolio ➔')}
+                            <span>{lang === 'tr' ? 'Kasaya Git' : 'Open Portfolio'}</span>
+                            <span>➔</span>
                         </button>
                     )}
                 </div>
             )}
 
-            {/* Header Strip */}
+            {/* Top Bar / Header */}
             <div style={{
-                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95))',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '16px',
-                padding: '1.5rem 1.75rem',
-                marginBottom: '1.5rem',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '1rem'
+                gap: '1rem',
+                marginBottom: '1.25rem',
+                paddingBottom: '1rem',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)'
             }}>
                 <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.35rem' }}>
-                        <span style={{ fontSize: '1.6rem' }}>👑</span>
-                        <h2 style={{ fontSize: '1.45rem', fontWeight: 900, margin: 0, letterSpacing: '-0.5px' }}>
-                            {lang === 'tr' ? 'Doğrulanmış Pro Analistler Masası' : (lang === 'de' ? 'Verifizierte Pro-Analysten' : 'Verified Pro Analysts Board')}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.3rem' }}>
+                        <h2 style={{
+                            margin: 0,
+                            fontSize: '1.65rem',
+                            fontWeight: 900,
+                            letterSpacing: '-0.5px',
+                            background: 'linear-gradient(135deg, #38bdf8, #60a5fa, #c084fc)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.6rem'
+                        }}>
+                            <span>📡</span>
+                            <span>PRO ANALYSTS HUB</span>
                         </h2>
                         <span style={{
-                            fontSize: '0.7rem',
                             background: 'rgba(56, 189, 248, 0.15)',
                             color: '#38bdf8',
-                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            fontSize: '0.72rem',
                             padding: '3px 8px',
                             borderRadius: '20px',
                             fontWeight: 800
                         }}>
-                            {feedData.picks.length} {lang === 'tr' ? 'AKTİF TAHMİN' : 'ACTIVE PICKS'}
+                            {feedData.picks.length} {t.activePicks}
                         </span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
-                        {lang === 'tr' 
-                            ? 'Doğrulanmış istatistik geçmişine sahip bağımsız piyasa analistlerinin yüksek güvenli tahminleri.' 
-                            : 'High-confidence market picks from independently verified expert analysts with audited yield records.'}
+                        {t.desc}
                     </p>
                 </div>
 
@@ -230,7 +548,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                         }}
                     >
                         <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(180deg)' : 'none', transition: 'all 0.4s' }}>🔄</span>
-                        <span>{refreshing ? (lang === 'tr' ? 'Güncelleniyor...' : 'Refreshing...') : (lang === 'tr' ? 'Yenile' : 'Refresh')}</span>
+                        <span>{refreshing ? t.refreshing : t.refresh}</span>
                     </button>
                 </div>
             </div>
@@ -254,7 +572,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                     }}
                 >
                     <span>⚡</span>
-                    <span>{lang === 'tr' ? 'Canlı & Sıcak Tahminler' : 'Live & Hot Picks'}</span>
+                    <span>{t.livePicks}</span>
                     <span style={{
                         background: activeTab === 'FEED' ? '#38bdf8' : 'rgba(255,255,255,0.1)',
                         color: activeTab === 'FEED' ? '#000' : '#fff',
@@ -283,94 +601,334 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                     }}
                 >
                     <span>🏆</span>
-                    <span>{lang === 'tr' ? 'Pro Analist Sıralaması (Ligi)' : 'Pro Analyst Leaderboard'}</span>
+                    <span>{t.leaderboard}</span>
                 </button>
             </div>
 
             {/* TAB 1: PICKS FEED */}
             {activeTab === 'FEED' && (
                 <div>
-                    {/* Filters Strip */}
+                    {/* RICH FILTER & TERMINAL CONTROL PANEL */}
                     <div style={{
-                        display: 'flex',
-                        gap: '0.6rem',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
+                        background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.85), rgba(10, 15, 26, 0.95))',
+                        border: '1px solid rgba(56, 189, 248, 0.2)',
+                        borderRadius: '14px',
+                        padding: '1rem 1.25rem',
                         marginBottom: '1.25rem',
-                        background: 'rgba(15, 23, 42, 0.6)',
-                        padding: '0.75rem 1rem',
-                        borderRadius: '12px',
-                        border: '1px solid rgba(255, 255, 255, 0.05)'
+                        boxShadow: '0 8px 30px rgba(0, 0, 0, 0.35)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.85rem'
                     }}>
-                        <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>{lang === 'tr' ? 'FİLTRE:' : 'FILTER:'}</span>
-
-                        <button
-                            onClick={() => setFilterLive(!filterLive)}
-                            style={{
-                                padding: '0.45rem 0.9rem',
-                                borderRadius: '8px',
-                                border: filterLive ? '1px solid #ef4444' : '1px solid rgba(255,255,255,0.08)',
-                                background: filterLive ? 'rgba(239, 68, 68, 0.2)' : 'transparent',
-                                color: filterLive ? '#ef4444' : '#94a3b8',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.35rem'
-                            }}
-                        >
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
-                            <span>{lang === 'tr' ? 'Sadece Canlı' : 'Live Only'}</span>
-                        </button>
-
-                        <button
-                            onClick={() => setFilterHighConf(!filterHighConf)}
-                            style={{
-                                padding: '0.45rem 0.9rem',
-                                borderRadius: '8px',
-                                border: filterHighConf ? '1px solid #eab308' : '1px solid rgba(255,255,255,0.08)',
-                                background: filterHighConf ? 'rgba(234, 179, 8, 0.2)' : 'transparent',
-                                color: filterHighConf ? '#eab308' : '#94a3b8',
-                                fontSize: '0.8rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.35rem'
-                            }}
-                        >
-                            <span>⭐</span>
-                            <span>{lang === 'tr' ? '10/10 Maksimum Güven' : '10/10 Max Stake'}</span>
-                        </button>
-
-                        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem' }}>
-                            {['ALL', 'Futbol', 'Basketbol', 'Tenis'].map(sp => (
-                                <button
-                                    key={sp}
-                                    onClick={() => setFilterSport(sp)}
+                        {/* Top Filter Row: Search Input + View Mode Toggle + Sort Selector */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '0.85rem',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            justifyContent: 'space-between'
+                        }}>
+                            {/* Search Field */}
+                            <div style={{
+                                position: 'relative',
+                                flex: '1 1 320px',
+                                minWidth: '240px'
+                            }}>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    placeholder={t.searchPlaceholder}
                                     style={{
-                                        padding: '0.4rem 0.8rem',
+                                        width: '100%',
+                                        background: 'rgba(0, 0, 0, 0.45)',
+                                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                                        borderRadius: '10px',
+                                        padding: '0.65rem 2.2rem 0.65rem 0.9rem',
+                                        color: '#f8fafc',
+                                        fontSize: '0.85rem',
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        style={{
+                                            position: 'absolute',
+                                            right: '8px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            background: 'none',
+                                            border: 'none',
+                                            color: '#94a3b8',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                        title={t.resetFilters}
+                                    >
+                                        ✕
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* View Mode Toggle: Terminal vs Cards */}
+                            <div style={{
+                                display: 'inline-flex',
+                                background: 'rgba(0, 0, 0, 0.4)',
+                                padding: '3px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}>
+                                <button
+                                    onClick={() => setViewMode('TERMINAL')}
+                                    style={{
+                                        padding: '0.5rem 0.9rem',
                                         borderRadius: '8px',
-                                        border: filterSport === sp ? '1px solid #38bdf8' : '1px solid transparent',
-                                        background: filterSport === sp ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                                        color: filterSport === sp ? '#38bdf8' : '#64748b',
-                                        fontSize: '0.78rem',
+                                        border: 'none',
+                                        background: viewMode === 'TERMINAL' ? 'linear-gradient(135deg, #0284c7, #2563eb)' : 'transparent',
+                                        color: viewMode === 'TERMINAL' ? '#ffffff' : '#94a3b8',
+                                        fontWeight: 800,
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem'
+                                    }}
+                                >
+                                    <span>{t.viewTerminal}</span>
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('CARDS')}
+                                    style={{
+                                        padding: '0.5rem 0.9rem',
+                                        borderRadius: '8px',
+                                        border: 'none',
+                                        background: viewMode === 'CARDS' ? 'linear-gradient(135deg, #0284c7, #2563eb)' : 'transparent',
+                                        color: viewMode === 'CARDS' ? '#ffffff' : '#94a3b8',
+                                        fontWeight: 800,
+                                        fontSize: '0.8rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem'
+                                    }}
+                                >
+                                    <span>{t.viewCards}</span>
+                                </button>
+                            </div>
+
+                            {/* Sort Selector Dropdown */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 800 }}>{t.sortByLabel}</span>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    style={{
+                                        background: 'rgba(0, 0, 0, 0.45)',
+                                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                                        borderRadius: '8px',
+                                        color: '#38bdf8',
+                                        padding: '0.55rem 0.8rem',
+                                        fontSize: '0.8rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        outline: 'none'
+                                    }}
+                                >
+                                    <option value="NEWEST" style={{ background: '#0f172a', color: '#fff' }}>{t.sortNewest}</option>
+                                    <option value="ODDS_DESC" style={{ background: '#0f172a', color: '#fff' }}>{t.sortOddsDesc}</option>
+                                    <option value="ODDS_ASC" style={{ background: '#0f172a', color: '#fff' }}>{t.sortOddsAsc}</option>
+                                    <option value="STAKE_DESC" style={{ background: '#0f172a', color: '#fff' }}>{t.sortStakeDesc}</option>
+                                    <option value="ANALYST" style={{ background: '#0f172a', color: '#fff' }}>{t.sortAnalyst}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Middle Filter Row: Status Pills, Confidence, Odds Range, Sport */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '0.75rem',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            paddingTop: '0.6rem',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.05)'
+                        }}>
+                            {/* Status Filter */}
+                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterStatus}</span>
+                                {[
+                                    { id: 'ALL', label: t.filterAll },
+                                    { id: 'LIVE', label: t.filterLiveOnly },
+                                    { id: 'PREMATCH', label: t.filterPrematch },
+                                    { id: 'COMBO', label: t.filterCombos }
+                                ].map(btn => (
+                                    <button
+                                        key={btn.id}
+                                        onClick={() => setFilterStatus(btn.id)}
+                                        style={{
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '6px',
+                                            border: filterStatus === btn.id ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
+                                            background: filterStatus === btn.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255,255,255,0.02)',
+                                            color: filterStatus === btn.id ? '#38bdf8' : '#94a3b8',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {btn.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
+
+                            {/* Confidence Filter */}
+                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterConfTitle}</span>
+                                {[
+                                    { id: 'ALL', label: t.filterConfAll },
+                                    { id: '10', label: t.filterConf10 },
+                                    { id: '9_PLUS', label: t.filterConf9 }
+                                ].map(btn => (
+                                    <button
+                                        key={btn.id}
+                                        onClick={() => setFilterConfidence(btn.id)}
+                                        style={{
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '6px',
+                                            border: filterConfidence === btn.id ? '1px solid #fbbf24' : '1px solid rgba(255,255,255,0.08)',
+                                            background: filterConfidence === btn.id ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255,255,255,0.02)',
+                                            color: filterConfidence === btn.id ? '#fbbf24' : '#94a3b8',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {btn.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <span style={{ color: 'rgba(255,255,255,0.1)' }}>|</span>
+
+                            {/* Odds Range Filter */}
+                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 800, marginRight: '2px' }}>{t.filterOddsTitle}</span>
+                                {[
+                                    { id: 'ALL', label: t.filterOddsAll },
+                                    { id: 'LOW', label: '1.40-1.85' },
+                                    { id: 'MED', label: '1.85-2.40' },
+                                    { id: 'HIGH', label: '2.40+' }
+                                ].map(btn => (
+                                    <button
+                                        key={btn.id}
+                                        onClick={() => setFilterOddsRange(btn.id)}
+                                        style={{
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '6px',
+                                            border: filterOddsRange === btn.id ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.08)',
+                                            background: filterOddsRange === btn.id ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255,255,255,0.02)',
+                                            color: filterOddsRange === btn.id ? '#10b981' : '#94a3b8',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {btn.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Sport Filter */}
+                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center', marginLeft: 'auto' }}>
+                                <button
+                                    onClick={() => setFilterSport('ALL')}
+                                    style={{
+                                        padding: '0.35rem 0.65rem',
+                                        borderRadius: '6px',
+                                        border: filterSport === 'ALL' ? '1px solid #38bdf8' : '1px solid transparent',
+                                        background: filterSport === 'ALL' ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                        color: filterSport === 'ALL' ? '#38bdf8' : '#64748b',
+                                        fontSize: '0.75rem',
                                         fontWeight: 700,
                                         cursor: 'pointer'
                                     }}
                                 >
-                                    {sp === 'ALL' ? (lang === 'tr' ? 'Tüm Sporlar' : 'All Sports') : sp}
+                                    {t.filterAll}
                                 </button>
-                            ))}
+                                {availableSports.map(sp => (
+                                    <button
+                                        key={sp}
+                                        onClick={() => setFilterSport(sp)}
+                                        style={{
+                                            padding: '0.35rem 0.65rem',
+                                            borderRadius: '6px',
+                                            border: filterSport === sp ? '1px solid #38bdf8' : '1px solid transparent',
+                                            background: filterSport === sp ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                            color: filterSport === sp ? '#38bdf8' : '#64748b',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '3px'
+                                        }}
+                                    >
+                                        <span>{getSportEmoji(sp)}</span>
+                                        <span>{sp}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Bottom Information Row: Result Count and Reset Button */}
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '0.76rem',
+                            color: '#94a3b8',
+                            paddingTop: '0.4rem',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.04)'
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ color: '#38bdf8', fontWeight: 900 }}>●</span>
+                                <span>{t.showingCount(filteredAndSortedPicks.length, feedData.picks.length)}</span>
+                            </div>
+
+                            {isAnyFilterActive && (
+                                <button
+                                    onClick={resetFilters}
+                                    style={{
+                                        background: 'rgba(239, 68, 68, 0.15)',
+                                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                                        color: '#ef4444',
+                                        padding: '0.25rem 0.65rem',
+                                        borderRadius: '6px',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 800,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}
+                                >
+                                    <span>✕</span>
+                                    <span>{t.resetFilters}</span>
+                                </button>
+                            )}
                         </div>
                     </div>
 
                     {/* Loading State */}
                     {loading && (
                         <div style={{ textAlign: 'center', padding: '4rem 1rem', color: '#94a3b8' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '0.8rem' }}>🔄</div>
-                            <div>{lang === 'tr' ? 'Doğrulanmış piyasa sinyalleri taranıyor...' : 'Scanning verified market signals...'}</div>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '0.8rem' }}>🔄</div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 700 }}>
+                                {lang === 'tr' ? 'Doğrulanmış piyasa sinyalleri taranıyor...' : 'Scanning verified market signals...'}
+                            </div>
                         </div>
                     )}
 
@@ -386,26 +944,521 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                         }}>
                             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📡</div>
                             <h3 style={{ fontSize: '1.2rem', color: '#f8fafc', marginBottom: '0.5rem' }}>
-                                {lang === 'tr' ? 'Kriterlere Uygun Yeni Sinyal Aranıyor' : 'Searching for qualifying signals'}
+                                {t.emptyFeed}
                             </h3>
-                            <p style={{ maxWidth: '500px', margin: '0 auto', fontSize: '0.85rem' }}>
-                                {lang === 'tr' 
-                                    ? 'Analist motoru arka planda 24/7 akışı takip ediyor. Filtre kriterlerini genişletebilir veya yenile butonuna basabilirsiniz.'
-                                    : 'The engine continuously monitors live feeds. You can broaden filter criteria or refresh.'}
+                            <p style={{ maxWidth: '520px', margin: '0 auto', fontSize: '0.85rem' }}>
+                                {t.emptyFeedDesc}
                             </p>
                         </div>
                     )}
 
-                    {/* Cards Grid */}
-                    {!loading && feedData.picks.length > 0 && (
+                    {/* No Filter Results State */}
+                    {!loading && feedData.picks.length > 0 && filteredAndSortedPicks.length === 0 && (
+                        <div style={{
+                            textAlign: 'center',
+                            padding: '3.5rem 2rem',
+                            background: 'rgba(15, 23, 42, 0.5)',
+                            borderRadius: '14px',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            color: '#94a3b8'
+                        }}>
+                            <div style={{ fontSize: '2rem', marginBottom: '0.6rem' }}>🔍</div>
+                            <h3 style={{ fontSize: '1.1rem', color: '#f8fafc', marginBottom: '0.4rem' }}>
+                                {t.noResults}
+                            </h3>
+                            <p style={{ fontSize: '0.82rem', marginBottom: '1rem' }}>
+                                {t.noResultsTip}
+                            </p>
+                            <button
+                                onClick={resetFilters}
+                                style={{
+                                    background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    padding: '0.55rem 1.2rem',
+                                    borderRadius: '8px',
+                                    fontWeight: 800,
+                                    fontSize: '0.8rem',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                {t.resetFilters}
+                            </button>
+                        </div>
+                    )}
+
+                    {/* ======================================================== */}
+                    {/* PRIMARY VIEW 1: BLOOMBERG-STYLE TERMINAL TABLE VIEW       */}
+                    {/* ======================================================== */}
+                    {!loading && filteredAndSortedPicks.length > 0 && viewMode === 'TERMINAL' && (
+                        <div style={{
+                            background: 'linear-gradient(180deg, #090e1a, #0b1120)',
+                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            borderRadius: '14px',
+                            overflow: 'hidden',
+                            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.45)'
+                        }}>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{
+                                    width: '100%',
+                                    borderCollapse: 'collapse',
+                                    textAlign: 'left',
+                                    fontSize: '0.82rem'
+                                }}>
+                                    {/* Table Header */}
+                                    <thead>
+                                        <tr style={{
+                                            background: '#0d1527',
+                                            borderBottom: '2px solid rgba(56, 189, 248, 0.25)',
+                                            color: '#94a3b8',
+                                            fontSize: '0.72rem',
+                                            textTransform: 'uppercase',
+                                            letterSpacing: '0.5px'
+                                        }}>
+                                            {/* ZAMAN / TÜR */}
+                                            <th
+                                                onClick={() => setSortBy(sortBy === 'NEWEST' ? 'OLDEST' : 'NEWEST')}
+                                                style={{ padding: '0.85rem 1rem', cursor: 'pointer', userSelect: 'none' }}
+                                                title="Zamana göre sırala"
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span>{t.colTime}</span>
+                                                    <span style={{ color: sortBy === 'NEWEST' ? '#38bdf8' : '#64748b' }}>▼</span>
+                                                </div>
+                                            </th>
+
+                                            {/* PRO ANALİST */}
+                                            <th
+                                                onClick={() => setSortBy('ANALYST')}
+                                                style={{ padding: '0.85rem 0.9rem', cursor: 'pointer', userSelect: 'none' }}
+                                                title="Analist ismine göre sırala"
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <span>{t.colAnalyst}</span>
+                                                    <span style={{ color: sortBy === 'ANALYST' ? '#38bdf8' : '#64748b' }}>▲</span>
+                                                </div>
+                                            </th>
+
+                                            {/* SPOR & LİG */}
+                                            <th style={{ padding: '0.85rem 0.9rem' }}>{t.colSport}</th>
+
+                                            {/* KARŞILAŞMA */}
+                                            <th style={{ padding: '0.85rem 1rem' }}>{t.colMatch}</th>
+
+                                            {/* UZMAN SEÇİMİ */}
+                                            <th style={{ padding: '0.85rem 1rem' }}>{t.colPick}</th>
+
+                                            {/* PİYASA ORANI */}
+                                            <th
+                                                onClick={() => setSortBy(sortBy === 'ODDS_DESC' ? 'ODDS_ASC' : 'ODDS_DESC')}
+                                                style={{ padding: '0.85rem 0.9rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                                                title="Orana göre sırala"
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                                    <span>{t.colOdds}</span>
+                                                    <span style={{ color: sortBy.startsWith('ODDS') ? '#10b981' : '#64748b' }}>
+                                                        {sortBy === 'ODDS_ASC' ? '▲' : '▼'}
+                                                    </span>
+                                                </div>
+                                            </th>
+
+                                            {/* GÜVEN (STAKE) */}
+                                            <th
+                                                onClick={() => setSortBy('STAKE_DESC')}
+                                                style={{ padding: '0.85rem 0.9rem', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                                                title="Güven seviyesine göre sırala"
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                                                    <span>{t.colConfidence}</span>
+                                                    <span style={{ color: sortBy === 'STAKE_DESC' ? '#fbbf24' : '#64748b' }}>▼</span>
+                                                </div>
+                                            </th>
+
+                                            {/* KASA / İŞLEMLER */}
+                                            <th style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>{t.colActions}</th>
+                                        </tr>
+                                    </thead>
+
+                                    {/* Table Body */}
+                                    <tbody>
+                                        {filteredAndSortedPicks.map((pick, pIdx) => {
+                                            const inPortfolio = isAlreadyInPortfolio(pick.id);
+                                            const isComboExpanded = Boolean(expandedCombos[pick.id]);
+                                            const isNoteExpanded = Boolean(expandedNotes[pick.id]);
+                                            const oddsDisplay = typeof pick.odds === 'number' ? pick.odds.toFixed(2) : pick.odds;
+
+                                            return (
+                                                <React.Fragment key={pick.id || pIdx}>
+                                                    <tr style={{
+                                                        borderBottom: isComboExpanded || isNoteExpanded ? 'none' : '1px solid rgba(255, 255, 255, 0.05)',
+                                                        background: pick.isDualConsensus 
+                                                            ? 'rgba(234, 179, 8, 0.04)' 
+                                                            : (pIdx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent'),
+                                                        transition: 'background 0.15s ease',
+                                                        borderLeft: pick.isDualConsensus ? '3px solid #eab308' : '3px solid transparent'
+                                                    }}>
+                                                        {/* COL 1: ZAMAN / TÜR */}
+                                                        <td style={{ padding: '0.9rem 1rem', whiteSpace: 'nowrap' }}>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                                {pick.isLive ? (
+                                                                    <span style={{
+                                                                        background: 'rgba(239, 68, 68, 0.2)',
+                                                                        color: '#ef4444',
+                                                                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                                                                        padding: '2px 7px',
+                                                                        borderRadius: '10px',
+                                                                        fontSize: '0.68rem',
+                                                                        fontWeight: 900,
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '4px',
+                                                                        width: 'fit-content'
+                                                                    }}>
+                                                                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ef4444', animation: 'pulse 1.5s infinite' }}></span>
+                                                                        CANLI
+                                                                    </span>
+                                                                ) : (
+                                                                    <span style={{ fontSize: '0.72rem', color: '#cbd5e1', fontWeight: 600, fontFamily: 'monospace' }}>
+                                                                        🕒 {pick.ageText || 'Az önce'}
+                                                                    </span>
+                                                                )}
+
+                                                                {pick.isDualConsensus && (
+                                                                    <span style={{
+                                                                        background: 'linear-gradient(90deg, #eab308, #d97706)',
+                                                                        color: '#000',
+                                                                        padding: '1px 6px',
+                                                                        borderRadius: '4px',
+                                                                        fontSize: '0.64rem',
+                                                                        fontWeight: 900,
+                                                                        letterSpacing: '0.4px',
+                                                                        width: 'fit-content'
+                                                                    }}>
+                                                                        ⚡ {t.dualConsensus}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* COL 2: PRO ANALİST */}
+                                                        <td style={{ padding: '0.9rem 0.9rem', whiteSpace: 'nowrap' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
+                                                                <div style={{
+                                                                    width: '32px',
+                                                                    height: '32px',
+                                                                    borderRadius: '50%',
+                                                                    background: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                                                                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontSize: '1rem',
+                                                                    flexShrink: 0
+                                                                }}>
+                                                                    {pick.analyst?.avatarIndex ? ['🎯','🧠','⚡','👑','🔥','🛡️','🔭','⚽'][(pick.analyst.avatarIndex - 1) % 8] : '👑'}
+                                                                </div>
+                                                                <div>
+                                                                    <div style={{ fontWeight: 800, color: '#f8fafc', fontSize: '0.85rem' }}>
+                                                                        {pick.analyst?.name || 'Kıdemli Analist'}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.68rem', color: '#38bdf8', fontWeight: 700 }}>
+                                                                        {pick.analyst?.badge || '🔥 Formda'}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* COL 3: SPOR & LİG */}
+                                                        <td style={{ padding: '0.9rem 0.9rem', whiteSpace: 'nowrap' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                                <span style={{ fontSize: '1rem' }}>{getSportEmoji(pick.sport)}</span>
+                                                                <span style={{ color: '#94a3b8', fontSize: '0.78rem', fontWeight: 600, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                                    {pick.sportDetails || pick.sport}
+                                                                </span>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* COL 4: KARŞILAŞMA */}
+                                                        <td style={{ padding: '0.9rem 1rem' }}>
+                                                            <div style={{
+                                                                fontWeight: 800,
+                                                                color: '#ffffff',
+                                                                fontSize: '0.88rem',
+                                                                lineHeight: 1.3
+                                                            }}>
+                                                                {pick.matchName}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* COL 5: UZMAN SEÇİMİ */}
+                                                        <td style={{ padding: '0.9rem 1rem' }}>
+                                                            {pick.isCombo && pick.comboLegs && pick.comboLegs.length > 0 ? (
+                                                                <button
+                                                                    onClick={() => toggleCombo(pick.id)}
+                                                                    style={{
+                                                                        background: 'rgba(245, 158, 11, 0.15)',
+                                                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                                                        color: '#fbbf24',
+                                                                        padding: '0.35rem 0.7rem',
+                                                                        borderRadius: '8px',
+                                                                        fontSize: '0.78rem',
+                                                                        fontWeight: 900,
+                                                                        cursor: 'pointer',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '5px'
+                                                                    }}
+                                                                >
+                                                                    <span>🎯 {pick.comboLegs.length}'li Kombine</span>
+                                                                    <span style={{ fontSize: '0.68rem', color: '#f59e0b' }}>
+                                                                        {isComboExpanded ? '▲' : '▼'}
+                                                                    </span>
+                                                                </button>
+                                                            ) : (
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                                    <span style={{
+                                                                        color: '#38bdf8',
+                                                                        fontWeight: 900,
+                                                                        fontSize: '0.86rem',
+                                                                        background: 'rgba(56, 189, 248, 0.1)',
+                                                                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '6px'
+                                                                    }}>
+                                                                        {pick.selection || 'Karşılaşma Seçimi'}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </td>
+
+                                                        {/* COL 6: PİYASA ORANI */}
+                                                        <td style={{ padding: '0.9rem 0.9rem', textAlign: 'center' }}>
+                                                            <div style={{
+                                                                display: 'inline-block',
+                                                                background: 'rgba(16, 185, 129, 0.15)',
+                                                                border: '1px solid rgba(16, 185, 129, 0.45)',
+                                                                color: '#10b981',
+                                                                fontWeight: 900,
+                                                                fontFamily: 'monospace',
+                                                                fontSize: '1.05rem',
+                                                                padding: '0.25rem 0.65rem',
+                                                                borderRadius: '8px',
+                                                                letterSpacing: '0.3px',
+                                                                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.15)'
+                                                            }}>
+                                                                {oddsDisplay}
+                                                            </div>
+                                                        </td>
+
+                                                        {/* COL 7: GÜVEN (STAKE) */}
+                                                        <td style={{ padding: '0.9rem 0.9rem', textAlign: 'center' }}>
+                                                            <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                                <span style={{
+                                                                    color: pick.stake >= 9 ? '#fbbf24' : '#38bdf8',
+                                                                    fontWeight: 900,
+                                                                    fontSize: '0.82rem'
+                                                                }}>
+                                                                    {pick.stake}/10 {pick.stake >= 9 ? '⭐' : ''}
+                                                                </span>
+                                                                <div style={{
+                                                                    width: '45px',
+                                                                    height: '4px',
+                                                                    background: 'rgba(255,255,255,0.08)',
+                                                                    borderRadius: '2px',
+                                                                    overflow: 'hidden'
+                                                                }}>
+                                                                    <div style={{
+                                                                        width: `${Math.min(100, (pick.stake / 10) * 100)}%`,
+                                                                        height: '100%',
+                                                                        background: pick.stake >= 9 ? 'linear-gradient(90deg, #eab308, #fbbf24)' : 'linear-gradient(90deg, #38bdf8, #2563eb)'
+                                                                    }}></div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* COL 8: KASA / İŞLEMLER */}
+                                                        <td style={{ padding: '0.9rem 1rem', textAlign: 'right' }}>
+                                                            <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                                {/* Analysis Note Toggle Button */}
+                                                                {pick.analysis && (
+                                                                    <button
+                                                                        onClick={() => toggleNote(pick.id)}
+                                                                        title={isNoteExpanded ? 'Notu kapat' : 'Analiz notunu oku'}
+                                                                        style={{
+                                                                            background: isNoteExpanded ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                                                                            border: isNoteExpanded ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                                                                            color: isNoteExpanded ? '#38bdf8' : '#94a3b8',
+                                                                            padding: '0.45rem 0.6rem',
+                                                                            borderRadius: '8px',
+                                                                            fontSize: '0.74rem',
+                                                                            fontWeight: 700,
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        💬
+                                                                    </button>
+                                                                )}
+
+                                                                {/* Add to Bankroll Button */}
+                                                                <button
+                                                                    onClick={() => inPortfolio && typeof onNavigatePortfolio === 'function' ? onNavigatePortfolio() : handleAddToPortfolio(pick)}
+                                                                    style={{
+                                                                        background: inPortfolio 
+                                                                            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.4))' 
+                                                                            : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25))',
+                                                                        border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.8)' : '1px solid rgba(16, 185, 129, 0.4)',
+                                                                        color: inPortfolio ? '#34d399' : '#10b981',
+                                                                        padding: '0.45rem 0.75rem',
+                                                                        borderRadius: '8px',
+                                                                        fontWeight: 800,
+                                                                        fontSize: '0.75rem',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.3rem',
+                                                                        boxShadow: inPortfolio ? '0 0 10px rgba(16, 185, 129, 0.3)' : 'none',
+                                                                        whiteSpace: 'nowrap'
+                                                                    }}
+                                                                    title={inPortfolio ? t.inBankroll : t.addToBankroll}
+                                                                >
+                                                                    <span>{inPortfolio ? '✓' : '💼'}</span>
+                                                                    <span>{inPortfolio ? t.inBankroll : t.addToBankroll}</span>
+                                                                </button>
+
+                                                                {/* Track on Live Radar Button */}
+                                                                <button
+                                                                    onClick={() => handleTrackOnRadar(pick)}
+                                                                    title={t.trackRadar}
+                                                                    style={{
+                                                                        background: 'rgba(255, 255, 255, 0.05)',
+                                                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                                        color: '#e2e8f0',
+                                                                        padding: '0.45rem 0.65rem',
+                                                                        borderRadius: '8px',
+                                                                        fontWeight: 700,
+                                                                        fontSize: '0.74rem',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '0.25rem'
+                                                                    }}
+                                                                >
+                                                                    <span>📡</span>
+                                                                    <span>{t.trackRadar}</span>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+
+                                                    {/* EXPANDABLE SUB-ROW 1: COMBO PICK LEGS BREAKDOWN */}
+                                                    {isComboExpanded && pick.comboLegs && pick.comboLegs.length > 0 && (
+                                                        <tr style={{ background: 'rgba(10, 16, 30, 0.95)', borderBottom: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                                                            <td colSpan={8} style={{ padding: '0.85rem 1.25rem' }}>
+                                                                <div style={{
+                                                                    background: 'rgba(245, 158, 11, 0.05)',
+                                                                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                                                                    borderRadius: '10px',
+                                                                    padding: '0.85rem 1rem'
+                                                                }}>
+                                                                    <div style={{
+                                                                        display: 'flex',
+                                                                        justifyContent: 'space-between',
+                                                                        alignItems: 'center',
+                                                                        marginBottom: '0.6rem',
+                                                                        borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                                                                        paddingBottom: '0.4rem'
+                                                                    }}>
+                                                                        <span style={{ fontSize: '0.78rem', color: '#f59e0b', fontWeight: 900 }}>
+                                                                            {t.comboTitle(pick.comboLegs.length)}
+                                                                        </span>
+                                                                        <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                                                                            {t.comboTotalOdds} <b style={{ color: '#10b981', fontFamily: 'monospace', fontSize: '0.95rem' }}>{oddsDisplay}</b>
+                                                                        </span>
+                                                                    </div>
+                                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '0.5rem' }}>
+                                                                        {pick.comboLegs.map((leg, lIdx) => (
+                                                                            <div key={lIdx} style={{
+                                                                                background: 'rgba(0, 0, 0, 0.35)',
+                                                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                                                borderRadius: '8px',
+                                                                                padding: '0.55rem 0.8rem',
+                                                                                display: 'flex',
+                                                                                justifyContent: 'space-between',
+                                                                                alignItems: 'center'
+                                                                            }}>
+                                                                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '8px' }}>
+                                                                                    <div style={{ color: '#e2e8f0', fontWeight: 700, fontSize: '0.8rem' }}>
+                                                                                        {lIdx + 1}. {leg.event}
+                                                                                    </div>
+                                                                                    <div style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.8rem' }}>
+                                                                                        {leg.selection}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <span style={{
+                                                                                    background: 'rgba(16, 185, 129, 0.15)',
+                                                                                    color: '#10b981',
+                                                                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                                                    padding: '2px 7px',
+                                                                                    borderRadius: '6px',
+                                                                                    fontWeight: 900,
+                                                                                    fontFamily: 'monospace',
+                                                                                    fontSize: '0.82rem',
+                                                                                    flexShrink: 0
+                                                                                }}>
+                                                                                    @{leg.odds}
+                                                                                </span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+
+                                                    {/* EXPANDABLE SUB-ROW 2: ANALYST REASONING NOTE */}
+                                                    {isNoteExpanded && pick.analysis && (
+                                                        <tr style={{ background: 'rgba(10, 16, 30, 0.95)', borderBottom: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                                                            <td colSpan={8} style={{ padding: '0.75rem 1.25rem' }}>
+                                                                <div style={{
+                                                                    background: 'rgba(56, 189, 248, 0.05)',
+                                                                    borderLeft: '3px solid #38bdf8',
+                                                                    borderRadius: '0 8px 8px 0',
+                                                                    padding: '0.7rem 1rem',
+                                                                    color: '#cbd5e1',
+                                                                    fontSize: '0.82rem',
+                                                                    fontStyle: 'italic',
+                                                                    lineHeight: 1.5
+                                                                }}>
+                                                                    <div style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.74rem', marginBottom: '4px', textTransform: 'uppercase' }}>
+                                                                        💬 {pick.analyst?.name || 'Analist'} {lang === 'tr' ? 'Değerlendirme Notu' : 'Analysis Rationale'}:
+                                                                    </div>
+                                                                    "{pick.analysis}"
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ======================================================== */}
+                    {/* SECONDARY VIEW 2: CARD GRID VIEW (Optional toggle)       */}
+                    {/* ======================================================== */}
+                    {!loading && filteredAndSortedPicks.length > 0 && viewMode === 'CARDS' && (
                         <div style={{
                             display: 'grid',
                             gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
                             gap: '1.25rem'
                         }}>
-                            {feedData.picks.map((pick) => {
-                                // All picks are completely open as requested by user
-                                const isLocked = false;
+                            {filteredAndSortedPicks.map((pick) => {
+                                const inPortfolio = isAlreadyInPortfolio(pick.id);
+                                const isComboExpanded = Boolean(expandedCombos[pick.id]);
+                                const oddsDisplay = typeof pick.odds === 'number' ? pick.odds.toFixed(2) : pick.odds;
 
                                 return (
                                     <div
@@ -501,7 +1554,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                         </span>
                                                     ) : (
                                                         <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600 }}>
-                                                            {pick.ageText}
+                                                            🕒 {pick.ageText || 'Az önce'}
                                                         </span>
                                                     )}
                                                 </div>
@@ -510,47 +1563,15 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                             {/* Match Name & League */}
                                             <div style={{ marginBottom: '0.85rem' }}>
                                                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>
-                                                    {pick.sportDetails || pick.sport}
+                                                    {getSportEmoji(pick.sport)} {pick.sportDetails || pick.sport}
                                                 </div>
                                                 <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#fff', lineHeight: 1.3 }}>
                                                     {pick.matchName}
                                                 </div>
                                             </div>
 
-                                            {/* Locked overlay for VIP if free user */}
-                                            {isLocked ? (
-                                                <div style={{
-                                                    background: 'rgba(15, 23, 42, 0.85)',
-                                                    border: '1px dashed rgba(234, 179, 8, 0.4)',
-                                                    borderRadius: '12px',
-                                                    padding: '1.25rem 1rem',
-                                                    textAlign: 'center',
-                                                    marginBottom: '1rem'
-                                                }}>
-                                                    <div style={{ fontSize: '1.6rem', marginBottom: '0.3rem' }}>🔒</div>
-                                                    <div style={{ fontWeight: 800, color: '#fbbf24', fontSize: '0.88rem', marginBottom: '0.2rem' }}>
-                                                        {lang === 'tr' ? '10/10 VIP Özel Tahmin' : '10/10 VIP Exclusive Pick'}
-                                                    </div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.75rem' }}>
-                                                        {lang === 'tr' ? 'Bu analistin en yüksek güven dereceli seçimi VIP üyelere açıktır.' : 'Highest confidence signal reserved for VIP members.'}
-                                                    </div>
-                                                    <button
-                                                        onClick={() => onOpenVipModal && onOpenVipModal()}
-                                                        style={{
-                                                            background: 'linear-gradient(135deg, #fbbf24, #d97706)',
-                                                            color: '#000',
-                                                            border: 'none',
-                                                            padding: '0.5rem 1.1rem',
-                                                            borderRadius: '8px',
-                                                            fontWeight: 900,
-                                                            fontSize: '0.78rem',
-                                                            cursor: 'pointer'
-                                                        }}
-                                                    >
-                                                        💎 {lang === 'tr' ? 'VIP İle Kilidi Aç' : 'Unlock With VIP'}
-                                                    </button>
-                                                </div>
-                                            ) : pick.isCombo && pick.comboLegs && pick.comboLegs.length > 0 ? (
+                                            {/* Selection / Combo Details */}
+                                            {pick.isCombo && pick.comboLegs && pick.comboLegs.length > 0 ? (
                                                 <div style={{
                                                     background: 'rgba(15, 23, 42, 0.75)',
                                                     border: '1px solid rgba(245, 158, 11, 0.3)',
@@ -560,10 +1581,10 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.35rem' }}>
                                                         <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 900 }}>
-                                                            🎯 {pick.comboLegs.length}'Lİ KOMBİNE SEÇİMLERİ:
+                                                            {t.comboTitle(pick.comboLegs.length)}
                                                         </span>
                                                         <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                                                            Toplam Oran: <b style={{ color: '#10b981', fontSize: '0.95rem' }}>{typeof pick.odds === 'number' ? pick.odds.toFixed(2) : pick.odds}</b>
+                                                            {t.comboTotalOdds} <b style={{ color: '#10b981', fontSize: '0.95rem', fontFamily: 'monospace' }}>{oddsDisplay}</b>
                                                         </span>
                                                     </div>
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -573,7 +1594,7 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                                     <span style={{ color: '#e2e8f0', fontWeight: 700 }}>{leg.event}: </span>
                                                                     <span style={{ color: '#38bdf8', fontWeight: 800 }}>{leg.selection}</span>
                                                                 </div>
-                                                                <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.78rem', flexShrink: 0 }}>
+                                                                <span style={{ color: '#10b981', fontWeight: 800, fontSize: '0.78rem', flexShrink: 0, fontFamily: 'monospace' }}>
                                                                     @{leg.odds}
                                                                 </span>
                                                             </div>
@@ -593,45 +1614,43 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                                 }}>
                                                     <div>
                                                         <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase' }}>
-                                                            {lang === 'tr' ? 'UZMAN SEÇİMİ' : 'EXPERT PICK'}
+                                                            {t.singlePickTitle}
                                                         </div>
                                                         <div style={{ fontSize: '0.98rem', fontWeight: 900, color: '#38bdf8' }}>
-                                                            {pick.selection || (lang === 'tr' ? 'Karşılaşma Analiz Seçimi' : 'Match Selection')}
+                                                            {pick.selection || 'Karşılaşma Analiz Seçimi'}
                                                         </div>
                                                     </div>
                                                     <div style={{ textAlign: 'right' }}>
                                                         <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700 }}>
-                                                            {lang === 'tr' ? 'PİYASA ORANI' : 'MARKET ODDS'}
+                                                            {t.colOdds}
                                                         </div>
-                                                        <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#10b981' }}>
-                                                            {typeof pick.odds === 'number' ? pick.odds.toFixed(2) : pick.odds}
+                                                        <div style={{ fontSize: '1.2rem', fontWeight: 900, color: '#10b981', fontFamily: 'monospace' }}>
+                                                            {oddsDisplay}
                                                         </div>
                                                     </div>
                                                 </div>
                                             )}
 
                                             {/* Stake / Confidence Bar */}
-                                            {!isLocked && (
-                                                <div style={{ marginBottom: '0.9rem' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, marginBottom: '4px' }}>
-                                                        <span>{lang === 'tr' ? 'Analist Güven Seviyesi:' : 'Confidence Level:'}</span>
-                                                        <span style={{ color: pick.stake >= 9 ? '#fbbf24' : '#38bdf8', fontWeight: 900 }}>
-                                                            {pick.stake}/10 {pick.stake >= 9 ? '⭐ MAKSİMUM' : ''}
-                                                        </span>
-                                                    </div>
-                                                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                        <div style={{
-                                                            width: `${Math.min(100, (pick.stake / 10) * 100)}%`,
-                                                            height: '100%',
-                                                            background: pick.stake >= 9 ? 'linear-gradient(90deg, #eab308, #fbbf24)' : 'linear-gradient(90deg, #38bdf8, #2563eb)',
-                                                            borderRadius: '3px'
-                                                        }}></div>
-                                                    </div>
+                                            <div style={{ marginBottom: '0.9rem' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#94a3b8', fontWeight: 700, marginBottom: '4px' }}>
+                                                    <span>{t.colConfidence}:</span>
+                                                    <span style={{ color: pick.stake >= 9 ? '#fbbf24' : '#38bdf8', fontWeight: 900 }}>
+                                                        {pick.stake}/10 {pick.stake >= 9 ? '⭐ MAKSİMUM' : ''}
+                                                    </span>
                                                 </div>
-                                            )}
+                                                <div style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                    <div style={{
+                                                        width: `${Math.min(100, (pick.stake / 10) * 100)}%`,
+                                                        height: '100%',
+                                                        background: pick.stake >= 9 ? 'linear-gradient(90deg, #eab308, #fbbf24)' : 'linear-gradient(90deg, #38bdf8, #2563eb)',
+                                                        borderRadius: '3px'
+                                                    }}></div>
+                                                </div>
+                                            </div>
 
                                             {/* Analysis Note if available */}
-                                            {pick.analysis && !isLocked && (
+                                            {pick.analysis && (
                                                 <div style={{
                                                     fontSize: '0.74rem',
                                                     color: '#94a3b8',
@@ -647,65 +1666,56 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
                                             )}
                                         </div>
 
-                                        {/* In-House Action Buttons (NO EXTERNAL LINKS) */}
-                                        {!isLocked && (() => {
-                                            const inPortfolio = isAlreadyInPortfolio(pick.id);
-                                            return (
-                                                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                                    <button
-                                                        onClick={() => inPortfolio && typeof onNavigatePortfolio === 'function' ? onNavigatePortfolio() : handleAddToPortfolio(pick)}
-                                                        style={{
-                                                            flex: 1,
-                                                            background: inPortfolio 
-                                                                ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.4))' 
-                                                                : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25))',
-                                                            border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.7)' : '1px solid rgba(16, 185, 129, 0.4)',
-                                                            color: inPortfolio ? '#34d399' : '#10b981',
-                                                            padding: '0.65rem 0.8rem',
-                                                            borderRadius: '10px',
-                                                            fontWeight: 800,
-                                                            fontSize: '0.78rem',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            gap: '0.35rem',
-                                                            transition: 'all 0.2s',
-                                                            boxShadow: inPortfolio ? '0 0 12px rgba(16, 185, 129, 0.3)' : 'none'
-                                                        }}
-                                                        title={inPortfolio ? (lang === 'tr' ? 'Bu kupon kasanızda açık. Tıklayarak portföyü açın.' : 'Open in portfolio') : (lang === 'tr' ? 'Bu kuponu simülasyon kasanıza ekleyin' : 'Add to portfolio')}
-                                                    >
-                                                        <span>{inPortfolio ? '✓' : '💼'}</span>
-                                                        <span>
-                                                            {inPortfolio 
-                                                                ? (lang === 'tr' ? 'Kasada Açık (Görüntüle)' : (lang === 'de' ? 'Im Depot (Öffnen)' : 'In Portfolio (View)')) 
-                                                                : (lang === 'tr' ? 'Kasa / Portföye Ekle' : (lang === 'de' ? 'Zum Depot hinzufügen' : 'Add to Portfolio'))}
-                                                        </span>
-                                                    </button>
+                                        {/* Action Buttons */}
+                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                            <button
+                                                onClick={() => inPortfolio && typeof onNavigatePortfolio === 'function' ? onNavigatePortfolio() : handleAddToPortfolio(pick)}
+                                                style={{
+                                                    flex: 1,
+                                                    background: inPortfolio 
+                                                        ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.4))' 
+                                                        : 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.25))',
+                                                    border: inPortfolio ? '1px solid rgba(16, 185, 129, 0.7)' : '1px solid rgba(16, 185, 129, 0.4)',
+                                                    color: inPortfolio ? '#34d399' : '#10b981',
+                                                    padding: '0.65rem 0.8rem',
+                                                    borderRadius: '10px',
+                                                    fontWeight: 800,
+                                                    fontSize: '0.78rem',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '0.35rem',
+                                                    transition: 'all 0.2s',
+                                                    boxShadow: inPortfolio ? '0 0 12px rgba(16, 185, 129, 0.3)' : 'none'
+                                                }}
+                                                title={inPortfolio ? t.inBankroll : t.addToBankroll}
+                                            >
+                                                <span>{inPortfolio ? '✓' : '💼'}</span>
+                                                <span>{inPortfolio ? t.inBankroll : t.addToBankroll}</span>
+                                            </button>
 
-                                                    <button
-                                                        onClick={() => handleTrackOnRadar(pick)}
-                                                        title={lang === 'tr' ? 'Canlı Radarda Takibe Al' : 'Pin to Radar'}
-                                                        style={{
-                                                            background: 'rgba(255, 255, 255, 0.05)',
-                                                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                                                            color: '#e2e8f0',
-                                                            padding: '0.65rem 0.9rem',
-                                                            borderRadius: '10px',
-                                                            fontWeight: 700,
-                                                            fontSize: '0.78rem',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.3rem'
-                                                        }}
-                                                    >
-                                                        <span>📡</span>
-                                                        <span>{lang === 'tr' ? 'Takip' : 'Track'}</span>
-                                                    </button>
-                                                </div>
-                                            );
-                                        })()}
+                                            <button
+                                                onClick={() => handleTrackOnRadar(pick)}
+                                                title={t.trackRadar}
+                                                style={{
+                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                    color: '#e2e8f0',
+                                                    padding: '0.65rem 0.9rem',
+                                                    borderRadius: '10px',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.78rem',
+                                                    cursor: 'pointer',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.3rem'
+                                                }}
+                                            >
+                                                <span>📡</span>
+                                                <span>{t.trackRadar}</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}

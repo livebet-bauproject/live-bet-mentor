@@ -260,11 +260,35 @@ class TipsterEngine {
                 // Age / Time
                 const ageMatch = content.match(/<small class="bet-age text-muted">([^<]+)<\/small>/i);
                 let ageText = ageMatch ? ageMatch[1].trim() : 'Yeni';
+                let ageMinutes = 0;
+                const rawAge = (ageMatch ? ageMatch[1] : '').toLowerCase().trim();
+                if (rawAge.includes('sec')) {
+                    ageMinutes = 0.5;
+                } else if (rawAge.includes('min')) {
+                    const num = parseInt(rawAge.match(/([0-9]+)/)?.[1] || '1', 10);
+                    ageMinutes = num;
+                } else if (rawAge.includes('hour')) {
+                    const num = parseInt(rawAge.match(/([0-9]+)/)?.[1] || '1', 10);
+                    ageMinutes = num * 60;
+                } else if (rawAge.includes('day')) {
+                    const num = parseInt(rawAge.match(/([0-9]+)/)?.[1] || '1', 10);
+                    ageMinutes = num * 1440;
+                } else if (rawAge.includes('yesterday')) {
+                    ageMinutes = 1440;
+                }
+
                 ageText = ageText
                     .replace('secs ago', 'sn önce')
+                    .replace('sec ago', 'sn önce')
                     .replace('mins ago', 'dk önce')
+                    .replace('min ago', 'dk önce')
                     .replace('hours ago', 'sa önce')
-                    .replace('hour ago', 'sa önce');
+                    .replace('hour ago', 'sa önce')
+                    .replace('days ago', 'gün önce')
+                    .replace('day ago', 'gün önce')
+                    .replace('yesterday', 'Dün');
+
+                const postedAt = Date.now() - (ageMinutes * 60 * 1000);
 
                 // Analysis text (if provided by tipster)
                 const analysisMatch = content.match(/id="feed_pick_analysis_[0-9]+"[^>]*>([\s\S]*?)<\/div>/i);
@@ -293,6 +317,8 @@ class TipsterEngine {
                     sport,
                     sportDetails,
                     ageText,
+                    ageMinutes,
+                    postedAt,
                     analysis: analysis || null,
                     isVipOnly,
                     isDualConsensus,
@@ -307,7 +333,7 @@ class TipsterEngine {
                         simulatedRoi: persona.simulatedRoi
                     },
                     status: 'PENDING',
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date(postedAt).toISOString()
                 });
             } catch (err) {
                 console.warn('[TIPSTER_ENGINE] Item parse error:', err.message);
@@ -362,8 +388,8 @@ class TipsterEngine {
 
                         // Sort newest first
                         merged.sort((a, b) => {
-                            const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                            const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                            const timeA = a.postedAt || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+                            const timeB = b.postedAt || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
                             return timeB - timeA;
                         });
 
