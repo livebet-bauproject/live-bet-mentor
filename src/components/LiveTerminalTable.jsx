@@ -24,7 +24,7 @@ const StarIcon = ({ filled = false, size = 14 }) => (
     </svg>
 );
 
-export const LiveTerminalTable = ({
+export const LiveTerminalTable = React.memo(({
     matches = [],
     signals = {},
     trendingBets = [],
@@ -53,6 +53,7 @@ export const LiveTerminalTable = ({
     const [trackedMatchIds, setTrackedMatchIds] = useState(() => new Set());
     const [sortColumn, setSortColumn] = useState(null);
     const [sortDirection, setSortDirection] = useState('desc');
+    const computeMatchDataCacheRef = useRef(new Map());
 
     const handleColumnSort = (colKey) => {
         if (sortColumn === colKey) {
@@ -349,9 +350,28 @@ export const LiveTerminalTable = ({
     const computeMatchData = (m) => {
         const signal = signals[m.id];
         const isPinned = pinnedMatchIds.has(m.id);
+        const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
+
+        // Memoization: Return cached calculation if match metrics & signal are unchanged
+        const sHome = typeof m.score === 'object' ? (m.score?.home ?? 0) : (m.score || 0);
+        const sAway = typeof m.score === 'object' ? (m.score?.away ?? 0) : 0;
+        const daKey = `${m.stats?.dangerousAttacks?.home || 0}_${m.stats?.dangerousAttacks?.away || 0}`;
+        const sogKey = `${m.stats?.shotsOnGoal?.home || 0}_${m.stats?.shotsOnGoal?.away || 0}`;
+        const possKey = `${m.stats?.possession?.home || 0}_${m.stats?.possession?.away || 0}`;
+        const xgKey = `${m.stats?.xg?.home || 0}_${m.stats?.xg?.away || 0}`;
+        const oddsH = m.odds?.home || m.liveOdds?.home || m.matchedOdds?.home || '-';
+        const oddsA = m.odds?.away || m.liveOdds?.away || m.matchedOdds?.away || '-';
+        const sigKey = signal ? `${signal.verdict}_${signal.odds || ''}_${signal.prediction || ''}` : 'none';
+        const oppKey = opp ? `${opp.score}_${opp.heatLevel}` : 'none';
+        const trendLen = (trendingBets || []).length;
+        const cacheKey = `${m.id}|${m.minute}|${sHome}:${sAway}|${daKey}|${sogKey}|${possKey}|${xgKey}|${oddsH}:${oddsA}|${sigKey}|${oppKey}|${isPinned}|${lang}|${trendLen}|${momentumWindow}`;
+
+        if (computeMatchDataCacheRef.current && computeMatchDataCacheRef.current.has(cacheKey)) {
+            return computeMatchDataCacheRef.current.get(cacheKey);
+        }
+
         const rawHeat = calculateMatchHeatScore(m, signal);
         const heat = (typeof rawHeat === 'number' && !isNaN(rawHeat)) ? rawHeat : 0;
-        const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
         const rawScore = (opp?.score !== undefined && typeof opp.score === 'number' && !isNaN(opp.score)) ? opp.score : heat;
         const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
         const rawHeatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
@@ -458,7 +478,7 @@ export const LiveTerminalTable = ({
         const isHot = heat >= 75;
         const smartStake = bankrollManager ? bankrollManager.calculateSmartStake(m, signal) : null;
 
-        return {
+        const result = {
             signal, isPinned, rawHeat, heat, opp, heatScore, rawHeatLevel, heatLevel, heatIcon, windowMomentum, last20,
             possHome, possAway, sogHome, sogAway, daHome, daAway, daDiff, xgHome, xgAway,
             redHome, redAway, yellowHome, yellowAway, oddsHome, oddsDraw, oddsAway, fullOdds,
@@ -468,6 +488,15 @@ export const LiveTerminalTable = ({
             pressureImpact, confidence, confidenceLabel, confidenceColor, latencyMs, dataQuality, pressureTotal,
             minStr, minNum, isLateOrFinished, predText, isBetReady, isHot, smartStake
         };
+
+        if (computeMatchDataCacheRef.current) {
+            if (computeMatchDataCacheRef.current.size > 800) {
+                computeMatchDataCacheRef.current.clear();
+            }
+            computeMatchDataCacheRef.current.set(cacheKey, result);
+        }
+
+        return result;
     };
 
     const renderSignalBadge = (m, d) => {
@@ -1536,8 +1565,9 @@ export const LiveTerminalTable = ({
     };
     return (
         <div className={`tb-terminal-wrapper ${mobileTableMode ? 'mobile-table-mode' : ''}`}>
-            <div className="tb-desktop-table-view">
-            <table className="tb-table">
+            {!mobileTableMode && (
+                <div className="tb-desktop-table-view">
+                <table className="tb-table">
                 <thead>
                     <tr>
                         <th style={{ width: '28px', padding: '6px 2px', textAlign: 'center' }} title={lang === 'tr' ? 'Favoriler' : (lang === 'de' ? 'Favoriten' : 'Favorites')}>
@@ -1988,8 +2018,10 @@ export const LiveTerminalTable = ({
                 </tbody>
             </table>
         </div>
+        )}
 
         {/* MOBILE COMPACT TABLE VIEW (Ultra-dense zero-horizontal-scroll live table) */}
+        {mobileTableMode && (
         <div className="tb-mobile-compact-view">
             {displayMatches.length === 0 ? (
                 terminalCategoryFilter === 'PINNED' ? (
@@ -2151,6 +2183,7 @@ export const LiveTerminalTable = ({
                 </>
             )}
         </div>
+        )}
     </div>
     );
-};
+});

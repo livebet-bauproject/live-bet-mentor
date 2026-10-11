@@ -30,7 +30,7 @@ const formatOddsVal = (val) => {
     return (!isNaN(num) && num > 1.0) ? num.toFixed(2) : '-';
 };
 
-export const LiveTerminalMobile = ({
+export const LiveTerminalMobile = React.memo(({
     matches = [],
     signals = {},
     trendingBets = [],
@@ -57,6 +57,7 @@ export const LiveTerminalMobile = ({
     const EffectiveIncidentsTimeline = MatchIncidentsTimeline || DefaultIncidentsTimeline;
     const [expandedMatchId, setExpandedMatchId] = useState(null);
     const [trackedMatchIds, setTrackedMatchIds] = useState(() => new Set());
+    const computeMatchDataCacheRef = useRef(new Map());
 
     // Freeze card sequence while a match is expanded to eliminate jumping/closing every 2s
     const frozenOrderRef = useRef(null);
@@ -258,111 +259,164 @@ export const LiveTerminalMobile = ({
         );
     }
 
+    const computeMatchData = (m) => {
+        const signal = signals[m.id];
+        const isPinned = pinnedMatchIds.has(m.id);
+        const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
+
+        // Memoization: Return cached calculation if match metrics & signal are unchanged
+        const sHome = typeof m.score === 'object' ? (m.score?.home ?? 0) : (m.score || 0);
+        const sAway = typeof m.score === 'object' ? (m.score?.away ?? 0) : 0;
+        const daKey = `${m.stats?.dangerousAttacks?.home || 0}_${m.stats?.dangerousAttacks?.away || 0}`;
+        const sogKey = `${m.stats?.shotsOnGoal?.home || 0}_${m.stats?.shotsOnGoal?.away || 0}`;
+        const possKey = `${m.stats?.possession?.home || 0}_${m.stats?.possession?.away || 0}`;
+        const xgKey = `${m.stats?.xg?.home || 0}_${m.stats?.xg?.away || 0}`;
+        const oddsH = m.odds?.home || m.liveOdds?.home || m.matchedOdds?.home || '-';
+        const oddsA = m.odds?.away || m.liveOdds?.away || m.matchedOdds?.away || '-';
+        const sigKey = signal ? `${signal.verdict}_${signal.odds || ''}_${signal.prediction || ''}` : 'none';
+        const oppKey = opp ? `${opp.score}_${opp.heatLevel}` : 'none';
+        const trendLen = (trendingBets || []).length;
+        const cacheKey = `${m.id}|${m.minute}|${sHome}:${sAway}|${daKey}|${sogKey}|${possKey}|${xgKey}|${oddsH}:${oddsA}|${sigKey}|${oppKey}|${isPinned}|${lang}|${trendLen}|${momentumWindow}`;
+
+        if (computeMatchDataCacheRef.current && computeMatchDataCacheRef.current.has(cacheKey)) {
+            return computeMatchDataCacheRef.current.get(cacheKey);
+        }
+
+        const rawHeat = calculateMatchHeatScore(m, signal);
+        const heat = (typeof rawHeat === 'number' && !isNaN(rawHeat)) ? rawHeat : 0;
+        const rawScore = (opp?.score !== undefined && typeof opp.score === 'number' && !isNaN(opp.score)) ? opp.score : heat;
+        const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
+        const rawHeatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
+        const heatLevel = lang === 'en' 
+            ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : rawHeatLevel === 'SOGUK' ? 'COLD' : rawHeatLevel)
+            : rawHeatLevel;
+        const heatIcon = rawHeatLevel === 'ALPHA' ? '🚀' : rawHeatLevel === 'ALEV' ? '🔥' : rawHeatLevel === 'SICAK' ? '⚡' : '❄️';
+        const windowMomentum = opp?.components?.momentum ?? opp?.score ?? heat;
+        const last20 = calculateLast20MinMetrics(m, signal, momentumWindow);
+
+        const sogHome = m.stats?.shotsOnGoal?.home || 0;
+        const sogAway = m.stats?.shotsOnGoal?.away || 0;
+        const daHome = m.stats?.dangerousAttacks?.home || 0;
+        const daAway = m.stats?.dangerousAttacks?.away || 0;
+        const daDiff = Math.abs(daHome - daAway);
+        const xgHome = Number(m.stats?.xg?.home || 0);
+        const xgAway = Number(m.stats?.xg?.away || 0);
+        const possHome = Number(m.stats?.possession?.home || 0);
+        const possAway = Number(m.stats?.possession?.away || 0);
+
+        const redHome = Number(m.cards?.home?.red || m.stats?.cards?.home?.red || 0);
+        const redAway = Number(m.cards?.away?.red || m.stats?.cards?.away?.red || 0);
+        const yellowHome = Number(m.cards?.home?.yellow || m.stats?.cards?.home?.yellow || 0);
+        const yellowAway = Number(m.cards?.away?.yellow || m.stats?.cards?.away?.yellow || 0);
+
+        const rawHome = m.odds?.home || m.liveOdds?.home || m.matchedOdds?.home || '-';
+        const rawDraw = m.odds?.draw || m.liveOdds?.draw || m.matchedOdds?.draw || '-';
+        const rawAway = m.odds?.away || m.liveOdds?.away || m.matchedOdds?.away || '-';
+        const oddsHome = formatOddsVal(rawHome);
+        const oddsDraw = formatOddsVal(rawDraw);
+        const oddsAway = formatOddsVal(rawAway);
+        const fullOdds = m.odds || m.liveOdds || m.matchedOdds || null;
+        const hasOdds = oddsHome !== '-' || oddsDraw !== '-' || oddsAway !== '-';
+        const minStr = String(m?.minute || '').trim();
+        const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
+        const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
+
+        const predDisplay = getPredictionDisplay(m, signal);
+        const isBetReady = signal?.verdict === 'BET' && Boolean(predDisplay) && !isLateOrFinished;
+        const isHot = heat >= 75;
+
+        // Stat coloring discipline matching desktop
+        const daAlertClass = daDiff >= 20 ? 'alert-red' : daDiff >= 12 ? 'alert-amber' : 'neutral';
+        const heatAlertClass = heat >= 75 ? 'alert-red' : heat >= 55 ? 'alert-amber' : 'neutral';
+
+        const riskFilters = (dataWorker && typeof dataWorker.checkRiskFilters === 'function')
+            ? dataWorker.checkRiskFilters(m)
+            : {
+                deadMatch: { status: 'OK' },
+                momentum: { status: 'OK' },
+                lateGame: { status: 'OK' }
+            };
+        const scores = parseScores(m.score);
+        const goalDiffVal = Math.abs(scores.home - scores.away);
+        const minVal = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
+        const isDeadMatch = riskFilters?.deadMatch?.status === 'FAIL' || goalDiffVal >= 4 || (goalDiffVal >= 3 && minVal >= 40) || (goalDiffVal >= 2 && minVal >= 75);
+
+        // European Market Flow / Trending Bets
+        const matchTrendingBets = (trendingBets || []).filter(tb => 
+            consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+            consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+        );
+        const hasTrend = matchTrendingBets.length > 0;
+        const primaryTrend = hasTrend 
+            ? [...matchTrendingBets].sort((a, b) => (b.count || 0) - (a.count || 0))[0] 
+            : null;
+        const totalTrendCount = hasTrend
+            ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
+            : 0;
+        const dqsVal = m.dqs !== undefined ? m.dqs : 0;
+        const isEarlyMin = !opp?.isHalftime && minVal < 15;
+        const isTrendApproved = hasTrend && dqsVal >= 0.50 && !isDeadMatch && !isEarlyMin && heatScore >= 45;
+        const isTrendTrap = hasTrend && (dqsVal < 0.40 || isDeadMatch);
+        const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
+        const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
+
+        // Consolidated Intelligence (Bayesian Radar & Risk Guard)
+        const bayesian = m?.observations?.bayesian;
+        const heatNorm = Math.min(1, Math.max(0, heat / 100));
+        const rawPosterior = bayesian?.posterior ?? Math.min(0.92, Math.max(0.12, (heatNorm * 0.45 + ((xgHome + xgAway) > 0 ? (xgHome + xgAway) * 0.15 : (sogHome + sogAway) * 0.04) + (daDiff >= 15 ? 0.12 : 0))));
+        const goalProb = (rawPosterior * 100).toFixed(1);
+        const baseTempo = bayesian?.prior ? Math.round(bayesian.prior * 100) : Math.min(85, Math.max(20, Math.round(heatNorm * 60 + 15)));
+        const pressureImpact = bayesian?.impact ? (bayesian.impact * 100).toFixed(1) : ((rawPosterior - (baseTempo / 100)) * 100).toFixed(1);
+        const confidence = isDeadMatch 
+            ? 'LOW' 
+            : ((minVal < 10 && !opp?.isHalftime) 
+                ? 'LOW' 
+                : ((minVal < 15 && !opp?.isHalftime) 
+                    ? (bayesian?.confidence === 'HIGH' ? 'MEDIUM' : (bayesian?.confidence || 'LOW'))
+                    : (bayesian?.confidence || (heat >= 75 ? 'HIGH' : heat >= 50 ? 'MEDIUM' : 'LOW'))));
+        const confidenceLabel = confidence === 'HIGH' ? (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH')) : confidence === 'MEDIUM' ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')) : (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW'));
+        const confidenceColor = confidence === 'HIGH' ? '#10b981' : confidence === 'MEDIUM' ? '#fbbf24' : '#ef4444';
+
+        const latencyMs = m.latency || Math.round(35 + (m.id ? (Number(String(m.id).replace(/\D/g, '')) % 40) : 12));
+        const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'tr' ? 'BEKLENİYOR' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')) : (m.dataQuality === 'LIMITED' ? (lang === 'tr' ? 'KISITLI' : (lang === 'de' ? 'EINGESCHRÄNKT' : 'LIMITED')) : (lang === 'tr' ? 'TAM' : (lang === 'de' ? 'VOLLSTÄNDIG' : 'FULL')));
+        const pressureTotal = m.observations?.pressure?.total || Math.round(heat * 0.85);
+
+        const result = {
+            signal, isPinned, rawHeat, heat, opp, heatScore, rawHeatLevel, heatLevel, heatIcon, windowMomentum, last20,
+            sogHome, sogAway, daHome, daAway, daDiff, xgHome, xgAway, possHome, possAway,
+            redHome, redAway, yellowHome, yellowAway, rawHome, rawDraw, rawAway, oddsHome, oddsDraw, oddsAway,
+            fullOdds, hasOdds, minStr, minNum, isLateOrFinished, predDisplay, isBetReady, isHot,
+            daAlertClass, heatAlertClass, riskFilters, scores, goalDiffVal, minVal, isDeadMatch,
+            matchTrendingBets, hasTrend, primaryTrend, totalTrendCount, dqsVal, isEarlyMin, isTrendApproved, isTrendTrap,
+            marketPrediction, trendInfo, bayesian, heatNorm, rawPosterior, goalProb, baseTempo, pressureImpact,
+            confidence, confidenceLabel, confidenceColor, latencyMs, dataQuality, pressureTotal
+        };
+
+        if (computeMatchDataCacheRef.current) {
+            if (computeMatchDataCacheRef.current.size > 800) {
+                computeMatchDataCacheRef.current.clear();
+            }
+            computeMatchDataCacheRef.current.set(cacheKey, result);
+        }
+
+        return result;
+    };
+
     return (
         <div className={`tb-mobile-stream ${hideInTableMode ? 'hide-in-table-mode' : ''}`}>
             {displayMatches.map(m => {
                 const isExpanded = String(expandedMatchId) === String(m.id);
-                const signal = signals[m.id];
-                const isPinned = pinnedMatchIds.has(m.id);
-                const rawHeat = calculateMatchHeatScore(m, signal);
-                const heat = (typeof rawHeat === 'number' && !isNaN(rawHeat)) ? rawHeat : 0;
-                const opp = (opportunitiesMap instanceof Map ? opportunitiesMap.get(m.id) : null) || m.opportunityData;
-                const rawScore = (opp?.score !== undefined && typeof opp.score === 'number' && !isNaN(opp.score)) ? opp.score : heat;
-                const heatScore = Math.max(0, Math.min(100, Math.round(rawScore || 0)));
-                const rawHeatLevel = opp?.heatLevel || (heatScore >= 75 ? 'ALEV' : heatScore >= 50 ? 'SICAK' : 'SOGUK');
-                const heatLevel = lang === 'en' 
-                    ? (rawHeatLevel === 'ALEV' ? 'FLAME' : rawHeatLevel === 'SICAK' ? 'HOT' : rawHeatLevel === 'SOGUK' ? 'COLD' : rawHeatLevel)
-                    : rawHeatLevel;
-                const heatIcon = rawHeatLevel === 'ALPHA' ? '🚀' : rawHeatLevel === 'ALEV' ? '🔥' : rawHeatLevel === 'SICAK' ? '⚡' : '❄️';
-                const windowMomentum = opp?.components?.momentum ?? opp?.score ?? heat;
-                const last20 = calculateLast20MinMetrics(m, signal, momentumWindow);
-
-                    const sogHome = m.stats?.shotsOnGoal?.home || 0;
-                    const sogAway = m.stats?.shotsOnGoal?.away || 0;
-                    const daHome = m.stats?.dangerousAttacks?.home || 0;
-                    const daAway = m.stats?.dangerousAttacks?.away || 0;
-                    const daDiff = Math.abs(daHome - daAway);
-                    const xgHome = Number(m.stats?.xg?.home || 0);
-                    const xgAway = Number(m.stats?.xg?.away || 0);
-                    const possHome = Number(m.stats?.possession?.home || 0);
-                    const possAway = Number(m.stats?.possession?.away || 0);
-
-                    const redHome = Number(m.cards?.home?.red || m.stats?.cards?.home?.red || 0);
-                    const redAway = Number(m.cards?.away?.red || m.stats?.cards?.away?.red || 0);
-                    const yellowHome = Number(m.cards?.home?.yellow || m.stats?.cards?.home?.yellow || 0);
-                    const yellowAway = Number(m.cards?.away?.yellow || m.stats?.cards?.away?.yellow || 0);
-
-                    const rawHome = m.odds?.home || m.liveOdds?.home || m.matchedOdds?.home || '-';
-                    const rawDraw = m.odds?.draw || m.liveOdds?.draw || m.matchedOdds?.draw || '-';
-                    const rawAway = m.odds?.away || m.liveOdds?.away || m.matchedOdds?.away || '-';
-                    const oddsHome = formatOddsVal(rawHome);
-                    const oddsDraw = formatOddsVal(rawDraw);
-                    const oddsAway = formatOddsVal(rawAway);
-                    const fullOdds = m.odds || m.liveOdds || m.matchedOdds || null;
-                    const hasOdds = oddsHome !== '-' || oddsDraw !== '-' || oddsAway !== '-';
-                    const minStr = String(m?.minute || '').trim();
-                    const minNum = parseInt(minStr.replace(/[^0-9]/g, '')) || 0;
-                    const isLateOrFinished = minStr.includes('90+') || minStr === 'MS' || minStr.includes('FT') || minNum >= 88;
-
-                    const predDisplay = getPredictionDisplay(m, signal);
-                    const isBetReady = signal?.verdict === 'BET' && Boolean(predDisplay) && !isLateOrFinished;
-                    const isHot = heat >= 75;
-
-                    // Stat coloring discipline matching desktop
-                    const daAlertClass = daDiff >= 20 ? 'alert-red' : daDiff >= 12 ? 'alert-amber' : 'neutral';
-                    const heatAlertClass = heat >= 75 ? 'alert-red' : heat >= 55 ? 'alert-amber' : 'neutral';
-
-                    const riskFilters = (dataWorker && typeof dataWorker.checkRiskFilters === 'function')
-                        ? dataWorker.checkRiskFilters(m)
-                        : {
-                            deadMatch: { status: 'OK' },
-                            momentum: { status: 'OK' },
-                            lateGame: { status: 'OK' }
-                        };
-                    const scores = parseScores(m.score);
-                    const goalDiffVal = Math.abs(scores.home - scores.away);
-                    const minVal = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
-                    const isDeadMatch = riskFilters?.deadMatch?.status === 'FAIL' || goalDiffVal >= 4 || (goalDiffVal >= 3 && minVal >= 40) || (goalDiffVal >= 2 && minVal >= 75);
-
-                    // European Market Flow / Trending Bets
-                    const matchTrendingBets = (trendingBets || []).filter(tb => 
-                        consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                        consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                    );
-                    const hasTrend = matchTrendingBets.length > 0;
-                    const primaryTrend = hasTrend 
-                        ? [...matchTrendingBets].sort((a, b) => (b.count || 0) - (a.count || 0))[0] 
-                        : null;
-                    const totalTrendCount = hasTrend
-                        ? matchTrendingBets.reduce((sum, b) => sum + (b.count || 0), 0)
-                        : 0;
-                    const dqsVal = m.dqs !== undefined ? m.dqs : 0;
-                    const isEarlyMin = !opp?.isHalftime && minVal < 15;
-                    const isTrendApproved = hasTrend && dqsVal >= 0.50 && !isDeadMatch && !isEarlyMin && heatScore >= 45;
-                    const isTrendTrap = hasTrend && (dqsVal < 0.40 || isDeadMatch);
-                    const marketPrediction = hasTrend ? formatMarketPrediction(primaryTrend, lang) : '';
-                    const trendInfo = hasTrend ? getTrendTimelineInfo(primaryTrend, m, lang) : null;
-
-                    // Consolidated Intelligence (Bayesian Radar & Risk Guard)
-                    const bayesian = m?.observations?.bayesian;
-                    const heatNorm = Math.min(1, Math.max(0, heat / 100));
-                    const rawPosterior = bayesian?.posterior ?? Math.min(0.92, Math.max(0.12, (heatNorm * 0.45 + ((xgHome + xgAway) > 0 ? (xgHome + xgAway) * 0.15 : (sogHome + sogAway) * 0.04) + (daDiff >= 15 ? 0.12 : 0))));
-                    const goalProb = (rawPosterior * 100).toFixed(1);
-                    const baseTempo = bayesian?.prior ? Math.round(bayesian.prior * 100) : Math.min(85, Math.max(20, Math.round(heatNorm * 60 + 15)));
-                    const pressureImpact = bayesian?.impact ? (bayesian.impact * 100).toFixed(1) : ((rawPosterior - (baseTempo / 100)) * 100).toFixed(1);
-                    const confidence = isDeadMatch 
-                        ? 'LOW' 
-                        : ((minVal < 10 && !opp?.isHalftime) 
-                            ? 'LOW' 
-                            : ((minVal < 15 && !opp?.isHalftime) 
-                                ? (bayesian?.confidence === 'HIGH' ? 'MEDIUM' : (bayesian?.confidence || 'LOW'))
-                                : (bayesian?.confidence || (heat >= 75 ? 'HIGH' : heat >= 50 ? 'MEDIUM' : 'LOW'))));
-                    const confidenceLabel = confidence === 'HIGH' ? (lang === 'tr' ? 'YÜKSEK' : (lang === 'de' ? 'HOCH' : 'HIGH')) : confidence === 'MEDIUM' ? (lang === 'tr' ? 'ORTA' : (lang === 'de' ? 'MITTEL' : 'MEDIUM')) : (lang === 'tr' ? 'DÜŞÜK' : (lang === 'de' ? 'NIEDRIG' : 'LOW'));
-                    const confidenceColor = confidence === 'HIGH' ? '#10b981' : confidence === 'MEDIUM' ? '#fbbf24' : '#ef4444';
-
-                    const latencyMs = m.latency || Math.round(35 + (m.id ? (Number(String(m.id).replace(/\D/g, '')) % 40) : 12));
-                    const dataQuality = m.dataQuality === 'PARTIAL' ? (lang === 'tr' ? 'BEKLENİYOR' : (lang === 'de' ? 'AUSSTEHEND' : 'PENDING')) : (m.dataQuality === 'LIMITED' ? (lang === 'tr' ? 'KISITLI' : (lang === 'de' ? 'EINGESCHRÄNKT' : 'LIMITED')) : (lang === 'tr' ? 'TAM' : (lang === 'de' ? 'VOLLSTÄNDIG' : 'FULL')));
-                    const pressureTotal = m.observations?.pressure?.total || Math.round(heat * 0.85);
+                const d = computeMatchData(m);
+                const {
+                    signal, isPinned, rawHeat, heat, opp, heatScore, rawHeatLevel, heatLevel, heatIcon, windowMomentum, last20,
+                    sogHome, sogAway, daHome, daAway, daDiff, xgHome, xgAway, possHome, possAway,
+                    redHome, redAway, yellowHome, yellowAway, rawHome, rawDraw, rawAway, oddsHome, oddsDraw, oddsAway,
+                    fullOdds, hasOdds, minStr, minNum, isLateOrFinished, predDisplay, isBetReady, isHot,
+                    daAlertClass, heatAlertClass, riskFilters, scores, goalDiffVal, minVal, isDeadMatch,
+                    matchTrendingBets, hasTrend, primaryTrend, totalTrendCount, dqsVal, isEarlyMin, isTrendApproved, isTrendTrap,
+                    marketPrediction, trendInfo, bayesian, heatNorm, rawPosterior, goalProb, baseTempo, pressureImpact,
+                    confidence, confidenceLabel, confidenceColor, latencyMs, dataQuality, pressureTotal
+                } = d;
 
                     return (
                         <div
@@ -1398,4 +1452,4 @@ export const LiveTerminalMobile = ({
             })}
         </div>
     );
-};
+});

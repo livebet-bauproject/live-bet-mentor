@@ -9,9 +9,7 @@ const VAULT_FILE = path.join(__dirname, 'sharp_picks_vault.json');
 
 const SOURCE_CONFIG = {
     top_today: 'https://superbetpredictions.com/top',
-    all_today: 'https://superbetpredictions.com/',
-    top_yesterday: 'https://superbetpredictions.com/yesterdaytoptips',
-    all_yesterday: 'https://superbetpredictions.com/yesterday'
+    top_yesterday: 'https://superbetpredictions.com/yesterdaytoptips'
 };
 
 const HEADERS = {
@@ -224,39 +222,19 @@ class SharpPicksEngine {
     }
 
     async fetchTodayPicks() {
-        console.log("[SHARP_ENGINE] Fetching today's selections from source...");
+        console.log("[SHARP_ENGINE] Fetching today's top 10 selections from source (superbetpredictions.com/top)...");
         const picks = [];
 
-        // 1. Fetch Top Picks first
+        // Strictly fetch Top 10 Tips only (Today Tips excluded)
         try {
             const resTop = await fetchUrl(SOURCE_CONFIG.top_today);
             if (resTop.status === 200) {
                 const topMatches = parseMatches(resTop.body, true);
                 picks.push(...topMatches);
-                console.log(`[SHARP_ENGINE] Found ${topMatches.length} Top Tier picks`);
+                console.log(`[SHARP_ENGINE] Found ${topMatches.length} Top 10 Tier picks`);
             }
         } catch (err) {
             console.error('[SHARP_ENGINE] Error fetching top picks:', err.message);
-        }
-
-        // 2. Fetch General Today's Picks to supplement
-        try {
-            const resAll = await fetchUrl(SOURCE_CONFIG.all_today);
-            if (resAll.status === 200) {
-                const allMatches = parseMatches(resAll.body, false);
-                const existingIds = new Set(picks.map(m => m.id));
-                let added = 0;
-                for (const m of allMatches) {
-                    if (!existingIds.has(m.id)) {
-                        picks.push(m);
-                        existingIds.add(m.id);
-                        added++;
-                    }
-                }
-                console.log(`[SHARP_ENGINE] Supplemented with ${added} additional today picks`);
-            }
-        } catch (err) {
-            console.error('[SHARP_ENGINE] Error fetching general today picks:', err.message);
         }
 
         if (picks.length > 0) {
@@ -267,26 +245,13 @@ class SharpPicksEngine {
     }
 
     async fetchYesterdayRecord() {
-        console.log("[SHARP_ENGINE] Fetching yesterday's verification record...");
+        console.log("[SHARP_ENGINE] Fetching yesterday's top 10 verification record (superbetpredictions.com/yesterdaytoptips)...");
         try {
-            let res = await fetchUrl(SOURCE_CONFIG.top_yesterday);
+            // Strictly fetch Yesterday Top 10 only (Yesterday Tips excluded)
+            const res = await fetchUrl(SOURCE_CONFIG.top_yesterday);
             let yMatches = [];
             if (res.status === 200) {
                 yMatches = parseMatches(res.body, true);
-            }
-
-            if (yMatches.length < 5) {
-                const resAll = await fetchUrl(SOURCE_CONFIG.all_yesterday);
-                if (resAll.status === 200) {
-                    const allY = parseMatches(resAll.body, false);
-                    const existingIds = new Set(yMatches.map(m => m.id));
-                    for (const m of allY) {
-                        if (!existingIds.has(m.id)) {
-                            yMatches.push(m);
-                            existingIds.add(m.id);
-                        }
-                    }
-                }
             }
 
             if (yMatches.length > 0) {
@@ -308,7 +273,7 @@ class SharpPicksEngine {
                     avg_odds: avgOdds,
                     picks: yMatches
                 };
-                console.log(`[SHARP_ENGINE] Yesterday record: ${won} Won / ${lost} Lost (${winRate}% Win Rate)`);
+                console.log(`[SHARP_ENGINE] Yesterday Top 10 record: ${won} Won / ${lost} Lost (${winRate}% Win Rate)`);
             }
         } catch (err) {
             console.error('[SHARP_ENGINE] Error fetching yesterday record:', err.message);

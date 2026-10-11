@@ -29,9 +29,7 @@ VAULT_FILE = os.path.join(BASE_DIR, "sharp_picks_vault.json")
 
 SOURCE_CONFIG = {
     "top_today": "https://superbetpredictions.com/top",
-    "all_today": "https://superbetpredictions.com/",
-    "top_yesterday": "https://superbetpredictions.com/yesterdaytoptips",
-    "all_yesterday": "https://superbetpredictions.com/yesterday"
+    "top_yesterday": "https://superbetpredictions.com/yesterdaytoptips"
 }
 
 HEADERS = {
@@ -194,33 +192,17 @@ class SharpPicksEngine:
             print(f"[SHARP_ENGINE] Render sync notice: {e}")
 
     def fetch_today_picks(self):
-        print("[SHARP_ENGINE] Fetching today's top sharp selections...")
+        print("[SHARP_ENGINE] Fetching today's top 10 sharp selections (superbetpredictions.com/top)...")
         picks = []
         try:
-            # 1. Fetch Top 10 Picks first
+            # Fetch Top 10 Picks only (Today Tips excluded)
             r_top = requests.get(SOURCE_CONFIG["top_today"], headers=HEADERS, timeout=12)
             if r_top.status_code == 200:
                 top_matches = parse_page_matches(r_top.text, is_top=True)
                 picks.extend(top_matches)
-                print(f"[SHARP_ENGINE] Extracted {len(top_matches)} Top Tier picks")
+                print(f"[SHARP_ENGINE] Extracted {len(top_matches)} Top 10 Tier picks")
         except Exception as e:
             print(f"[SHARP_ENGINE] Error fetching top picks: {e}")
-
-        # 2. Fetch General Today's Picks if needed to supplement
-        try:
-            r_all = requests.get(SOURCE_CONFIG["all_today"], headers=HEADERS, timeout=12)
-            if r_all.status_code == 200:
-                all_matches = parse_page_matches(r_all.text, is_top=False)
-                existing_ids = {m["id"] for m in picks}
-                added_count = 0
-                for m in all_matches:
-                    if m["id"] not in existing_ids:
-                        picks.append(m)
-                        existing_ids.add(m["id"])
-                        added_count += 1
-                print(f"[SHARP_ENGINE] Supplemented with {added_count} additional picks")
-        except Exception as e:
-            print(f"[SHARP_ENGINE] Error fetching general today picks: {e}")
 
         if picks:
             def get_time_minutes(m):
@@ -235,12 +217,10 @@ class SharpPicksEngine:
             self.vault["today_picks"] = picks
 
     def fetch_yesterday_record(self):
-        print("[SHARP_ENGINE] Fetching yesterday's verification record...")
+        print("[SHARP_ENGINE] Fetching yesterday's top 10 record (superbetpredictions.com/yesterdaytoptips)...")
         try:
+            # Fetch Yesterday Top 10 only (Yesterday Tips excluded)
             r = requests.get(SOURCE_CONFIG["top_yesterday"], headers=HEADERS, timeout=12)
-            if r.status_code != 200:
-                r = requests.get(SOURCE_CONFIG["all_yesterday"], headers=HEADERS, timeout=12)
-
             if r.status_code == 200:
                 y_matches = parse_page_matches(r.text, is_top=True)
                 def get_time_minutes(m):
@@ -269,7 +249,7 @@ class SharpPicksEngine:
                     "avg_odds": avg_odds,
                     "picks": y_matches
                 }
-                print(f"[SHARP_ENGINE] Yesterday record: {won} Won / {lost} Lost ({win_rate}% Win Rate)")
+                print(f"[SHARP_ENGINE] Yesterday Top 10 record: {won} Won / {lost} Lost ({win_rate}% Win Rate)")
         except Exception as e:
             print(f"[SHARP_ENGINE] Error fetching yesterday record: {e}")
 

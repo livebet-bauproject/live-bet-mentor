@@ -4,6 +4,23 @@ let activeBackendUrl = null;
 let lastDiscoveryTime = 0;
 let discoveryPromise = null;
 
+async function pingBackend(url, timeoutMs = 1200) {
+  if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(`${url.replace(/\/$/, '')}/api/health`, {
+      method: 'GET',
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function initBackendDiscovery() {
   if (typeof window === 'undefined') return getApiBaseUrl();
   const hostname = window.location.hostname;
@@ -13,7 +30,7 @@ export async function initBackendDiscovery() {
   }
 
   const now = Date.now();
-  if (activeBackendUrl && (now - lastDiscoveryTime < 60000)) {
+  if (now - lastDiscoveryTime < 30000) {
     return activeBackendUrl;
   }
 
@@ -24,11 +41,23 @@ export async function initBackendDiscovery() {
       lastDiscoveryTime = now;
       const { data } = await supabase.from('system_settings').select('value').eq('key', 'backend_api_url').maybeSingle();
       if (data && data.value && data.value.startsWith('http')) {
-        const freshUrl = data.value.trim().replace(/\/$/, '');
-        activeBackendUrl = freshUrl;
-        try { localStorage.setItem('lbm_backend_api_url', freshUrl); } catch(e) {}
-        console.log('[API_DISCOVERY] Connected to active 24/7 backend:', freshUrl);
-        return freshUrl;
+        const candidateUrl = data.value.trim().replace(/\/$/, '');
+        // Fast ping verification (max 600ms) - don't trap the user with dead tunnels!
+        const isAlive = await pingBackend(candidateUrl, 600);
+        if (isAlive) {
+          activeBackendUrl = candidateUrl;
+          try { 
+            localStorage.setItem('lbm_backend_api_url', candidateUrl);
+            localStorage.setItem('lbm_backend_api_url_ts', String(now));
+          } catch(e) {}
+          console.log('[API_DISCOVERY] Verified live backend:', candidateUrl);
+          return candidateUrl;
+        } else {
+          console.warn('[API_DISCOVERY] Registered backend is unreachable (offline tunnel). Bypassing to cloud fallback:', candidateUrl);
+          activeBackendUrl = null;
+          try { localStorage.removeItem('lbm_backend_api_url'); } catch(e) {}
+          return null;
+        }
       }
     } catch(err) {
       console.warn('[API_DISCOVERY] Discovery notice:', err.message);
@@ -36,28 +65,21 @@ export async function initBackendDiscovery() {
       discoveryPromise = null;
     }
 
-    try {
-      const cached = localStorage.getItem('lbm_backend_api_url');
-      if (cached && cached.startsWith('http')) {
-        activeBackendUrl = cached.replace(/\/$/, '');
-        return activeBackendUrl;
-      }
-    } catch(e) {}
-
-    return activeBackendUrl || 'http://localhost:3001';
+    // If candidate verification failed, do not use stale unverified cache
+    activeBackendUrl = null;
+    return null;
   })();
 
   return discoveryPromise;
 }
 
-// Auto-trigger discovery immediately when module loads in browser
+// Auto-trigger discovery in background when module loads in browser
 if (typeof window !== 'undefined') {
-  try {
-    const cached = localStorage.getItem('lbm_backend_api_url');
-    if (cached && cached.startsWith('http')) {
-      activeBackendUrl = cached.replace(/\/$/, '');
-    }
-  } catch(e) {}
+  const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isLocalHost) {
+    activeBackendUrl = 'http://localhost:3001';
+  }
+  // Run background verification without blocking UI
   initBackendDiscovery();
   // Auto-refresh every 60s
   setInterval(initBackendDiscovery, 60000);
@@ -72,14 +94,8 @@ export function getApiBaseUrl() {
     if (activeBackendUrl) {
       return activeBackendUrl;
     }
-    try {
-      const cached = localStorage.getItem('lbm_backend_api_url');
-      if (cached && cached.startsWith('http')) {
-        return cached.replace(/\/$/, '');
-      }
-    } catch(e) {}
   }
-  return activeBackendUrl || ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://localhost:3001').replace(/\/$/, '');
+  return activeBackendUrl || null;
 }
 
 export const CONFIG = {
@@ -182,11 +198,15 @@ export const CONFIG = {
       TIER_1: [
         'Süper Lig', 'Trendyol Süper Lig', 'Premier League', 'Bundesliga', 'LaLiga', 'Serie A', 'Ligue 1',
         'Champions League', 'Europa League', 'Conference League', 'UEFA Champions League', 'UEFA Europa League', 'UEFA Europa Conference League',
-        'UEFA Nations League', 'Nations League', 'World Cup', 'Euro', 'European Championship', 'Copa America'
+        'UEFA Nations League', 'Nations League', 'World Cup', 'Euro', 'European Championship', 'Copa America',
+        'Copa Libertadores', 'FA Cup', 'Copa del Rey', 'DFB-Pokal', 'DFB Pokal', 'Coppa Italia', 'Coupe de France', 'Türkiye Kupası', 'Turkiye Kupasi',
+        'Supercopa de España', 'Supercoppa Italiana', 'DFL-Supercup', 'TFF Süper Kupa', 'FIFA Club World Cup', 'UEFA Super Cup'
       ],
       TIER_2: [
-        'Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Pro League', 'Austrian Bundesliga', 'Super League', 'Superliga', 'Scottish Premiership', 'MLS', 'Championship',
-        'Liga DiMayor', 'Liga BetPlay', 'Primera A', 'Liga MX'
+        'Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Pro League', 'Championship', '2. Bundesliga', 'LaLiga 2', 'Segunda División', 'Serie B', 'Ligue 2', '1. Lig', 'Trendyol 1. Lig',
+        'Austrian Bundesliga', 'Swiss Super League', 'Superliga', 'Scottish Premiership', 'Eliteserien', 'Allsvenskan', 'Super League Greece', 'Ekstraklasa', 'Fortuna Liga', 'Chance Liga', 'HNL',
+        'MLS', 'Major League Soccer', 'Brasileirão', 'Brasileirao', 'Liga Profesional', 'Liga MX', 'Saudi Pro League', 'J1 League', 'K League 1', 'A-League',
+        'Copa Sudamericana', 'EFL Cup', 'Carabao Cup', 'CONCACAF Nations League', 'Primera A', 'Liga BetPlay', 'Liga DiMayor', 'Primera División'
       ],
       // Everything else is TIER_3 (Discovery) by default
       SETTINGS: {

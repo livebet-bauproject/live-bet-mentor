@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react'
-import { Dashboard } from './components/Dashboard'
-import { LandingPage } from './components/LandingPage'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
+
+const Dashboard = lazy(() => import('./components/Dashboard').then(m => ({ default: m.Dashboard })));
+const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 import { LiveSupportChat } from './components/LiveSupportChat'
 import { supabase } from './backend/supabaseClient'
 import { translations } from './locales/translations'
@@ -927,27 +928,51 @@ function App() {
 
   return (
     <div className="App">
-      {(page === 'landing' || page === 'login' || page === 'register') && (
-        <LandingPage
-          onLoginSuccess={handleLoginSuccess}
-          onNavigate={handleNavigate}
-          lang={lang}
-          setLang={setLang}
-          settings={systemSettings}
-        />
-      )}
+      <Suspense fallback={
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#0a0e17',
+          color: '#38bdf8'
+        }}>
+          <div style={{
+            width: '36px',
+            height: '36px',
+            border: '3px solid rgba(56, 189, 248, 0.2)',
+            borderTopColor: '#38bdf8',
+            borderRadius: '50%',
+            animation: 'spin 0.7s linear infinite'
+          }} />
+          <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>
+            {lang === 'tr' ? 'Terminal Yükleniyor...' : (lang === 'de' ? 'Terminal lädt...' : 'Loading Terminal...')}
+          </div>
+        </div>
+      }>
+        {(page === 'landing' || page === 'login' || page === 'register') && (
+          <LandingPage
+            onLoginSuccess={handleLoginSuccess}
+            onNavigate={handleNavigate}
+            lang={lang}
+            setLang={setLang}
+            settings={systemSettings}
+          />
+        )}
 
-      {page === 'dashboard' && session && (
-        <Dashboard
-          user={session.user}
-          userProfile={userProfile}
-          onLogout={handleLogout}
-          onExpire={() => setPage('expired')}
-          lang={lang}
-          setLang={setLang}
-          settings={systemSettings}
-        />
-      )}
+        {page === 'dashboard' && session && (
+          <Dashboard
+            user={session.user}
+            userProfile={userProfile}
+            onLogout={handleLogout}
+            onExpire={() => setPage('expired')}
+            lang={lang}
+            setLang={setLang}
+            settings={systemSettings}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

@@ -26,14 +26,16 @@ export const consensusAdapter = {
             } else {
                 // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
                 const renderBase = await initBackendDiscovery() || getApiBaseUrl();
-                try {
-                    const response = await fetch(`${renderBase}/api/consensus`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        console.log(`[CONSENSUS_ADAPTER] RENDER: Loaded consensus with ${Object.keys(data).length} sources`);
-                        return data;
-                    }
-                } catch {}
+                if (renderBase) {
+                    try {
+                        const response = await fetch(`${renderBase}/api/consensus`, { signal: AbortSignal.timeout(2500) });
+                        if (response.ok) {
+                            const data = await response.json();
+                            console.log(`[CONSENSUS_ADAPTER] PROXY: Loaded consensus with ${Object.keys(data).length} sources`);
+                            return data;
+                        }
+                    } catch {}
+                }
                 // Fallback to Firebase
                 try {
                     const snapshot = await get(ref(database, 'consensus'));

@@ -49,6 +49,22 @@ class DataWorker {
         this.consensusData = {};
         this.consensusTimer = 0;
         this.listeners = new Set();
+
+        // Instant 0ms Local Hydration from SessionStorage (Zero delay on page open / F5!)
+        try {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+                const stored = sessionStorage.getItem('lbm_cached_fixtures');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    const fixtures = Array.isArray(parsed) ? parsed : (parsed?.fixtures || []);
+                    const ts = parsed?.timestamp || 0;
+                    if (Array.isArray(fixtures) && fixtures.length > 0 && (Date.now() - ts < 600000)) {
+                        this.fixtures = fixtures;
+                        this.lastUpdated = ts || Date.now();
+                    }
+                }
+            }
+        } catch (e) {}
     }
 
     subscribe(cb) {
@@ -88,6 +104,19 @@ class DataWorker {
                     match.odds = odds;
                     match.liveOdds = odds;
                     match.matchedOdds = odds;
+                    this.notify();
+                }
+            }
+        }).catch(() => {});
+
+        // Immediate On-Demand Details Fetch for selected match if missing deep stats
+        sofaScoreAdapter.fetchEventDetails(matchId).then(details => {
+            if (details) {
+                const match = this.fixtures.find(f => f.id?.toString() === matchId?.toString());
+                if (match) {
+                    Object.assign(match, details);
+                    this.matchLastStatsFetch.set(matchId, Date.now());
+                    this.notify();
                 }
             }
         }).catch(() => {});
@@ -233,19 +262,64 @@ class DataWorker {
                 }
 
                 if (rawMatches && Array.isArray(rawMatches)) {
+                    // ========================================================
+                    // PHASE 1: INSTANT DISPLAY EMIT (<300ms)
+                    // If we have live rawMatches, immediately merge with existing fixtures and notify UI!
+                    // User sees the live scores, minutes, and leagues in < 300ms without waiting for deep stats.
+                    // ========================================================
+                    if (rawMatches.length > 0) {
+                        const existingMap = new Map((this.fixtures || []).map(f => [String(f.id), f]));
+                        const fastMatches = rawMatches.map(rm => {
+                            const ex = existingMap.get(String(rm.id));
+                            if (ex) {
+                                return {
+                                    ...ex,
+                                    score: (rm.score && (rm.score.home !== undefined || rm.score.away !== undefined)) ? rm.score : ex.score,
+                                    minute: rm.minute || ex.minute,
+                                    status: rm.status || ex.status,
+                                    tournament: rm.tournament || ex.tournament
+                                };
+                            }
+                            return rm;
+                        });
+
+                        // Publish immediately so UI is populated within 0-300ms!
+                        this.fixtures = this.normalizeFixtures(fastMatches);
+                        this.lastUpdated = Date.now();
+                        this.notify();
+
+                        // Persist to sessionStorage for instant 0ms F5 reloads
+                        try {
+                            if (typeof window !== 'undefined' && window.sessionStorage) {
+                                window.sessionStorage.setItem('lbm_cached_fixtures', JSON.stringify({
+                                    timestamp: Date.now(),
+                                    fixtures: this.fixtures
+                                }));
+                            }
+                        } catch (e) {}
+                    }
+
                     // 1. Fetch central live odds in 1 single HTTP request (prevents 40 separate HTTP calls!)
                     try {
                         const centralOdds = await sofaScoreAdapter.fetchCentralOdds();
                         if (centralOdds && typeof centralOdds === 'object' && Object.keys(centralOdds).length > 0) {
                             Object.assign(this.odds, centralOdds);
+                            // Attach odds to current fixtures immediately
+                            for (const f of this.fixtures) {
+                                const od = this.odds[f.id] || this.odds[String(f.id)] || this.odds[Number(f.id)];
+                                if (od) {
+                                    f.matchedOdds = od;
+                                    f.odds = od;
+                                    f.liveOdds = od;
+                                }
+                            }
+                            this.notify();
                         }
                     } catch (e) {}
 
-                    // 2. SELECTION PRIORITY & LOAD BALANCING (v2.4)
-                    // Fetch full details only for:
-                    // - Currently selected match in the UI (always top priority)
-                    // - Matches missing stats (staggered, up to 2 per cycle)
-                    // - Stale high-priority matches not refreshed in > 60s (staggered, up to 2 per cycle)
+                    // ========================================================
+                    // PHASE 2: BACKGROUND STATS ENRICHMENT (Load Balanced)
+                    // ========================================================
                     const priorityIds = new Set();
                     const now = Date.now();
 
@@ -256,35 +330,35 @@ class DataWorker {
                         priorityIds.add(String(this.selectedMatchId));
                     }
 
-                    // 2. Tier 1 Core matches missing stats: prioritize immediately (up to 8 per cycle)
+                    // 2. Tier 1 Core matches missing stats: prioritize immediately (up to 3 per cycle)
                     const tier1Missing = rawMatches.filter(rm => {
                         const isTier1 = leagueProfileModule.getTier(rm) === 1;
                         if (!isTier1) return false;
-                        const ex = this.fixtures.find(f => f.id === rm.id);
+                        const ex = this.fixtures.find(f => String(f.id) === String(rm.id));
                         return !ex || !ex.stats || ex.isPartial;
                     });
-                    for (const rm of tier1Missing.slice(0, 8)) {
+                    for (const rm of tier1Missing.slice(0, 3)) {
                         priorityIds.add(rm.id);
                     }
 
-                    // 3. Other matches missing stats: up to 3 per cycle
+                    // 3. Other matches missing stats: up to 2 per cycle
                     const otherMissingStats = rawMatches.filter(rm => {
                         if (priorityIds.has(rm.id)) return false;
-                        const ex = this.fixtures.find(f => f.id === rm.id);
+                        const ex = this.fixtures.find(f => String(f.id) === String(rm.id));
                         return !ex || !ex.stats || ex.isPartial;
                     });
-                    for (const rm of otherMissingStats.slice(0, 3)) {
+                    for (const rm of otherMissingStats.slice(0, 2)) {
                         priorityIds.add(rm.id);
                     }
 
-                    // 4. Major Tier 1 & 2 matches that haven't refreshed in > 30s: up to 5 per cycle
+                    // 4. Major Tier 1 & 2 matches that haven't refreshed in > 45s: up to 2 per cycle
                     const staleHighPriority = rawMatches.filter(rm => {
                         if (priorityIds.has(rm.id)) return false;
                         const isMajor = leagueProfileModule.getTier(rm) <= 2;
                         const lastFetch = this.matchLastStatsFetch.get(rm.id) || 0;
-                        return isMajor && (now - lastFetch > 30000);
+                        return isMajor && (now - lastFetch > 45000);
                     });
-                    for (const rm of staleHighPriority.slice(0, 5)) {
+                    for (const rm of staleHighPriority.slice(0, 2)) {
                         priorityIds.add(rm.id);
                     }
 
@@ -437,6 +511,16 @@ class DataWorker {
                 this.healthStats.lastFetch = Date.now();
                 this.lastUpdated = Date.now();
                 this.notify();
+
+                // Persist sanitized live fixtures for instant 0ms F5 reloads
+                try {
+                    if (typeof window !== 'undefined' && window.sessionStorage) {
+                        window.sessionStorage.setItem('lbm_cached_fixtures', JSON.stringify({
+                            timestamp: Date.now(),
+                            fixtures: this.fixtures
+                        }));
+                    }
+                } catch (e) {}
             } catch (error) {
                 console.error('DataWorker Poll Error:', error);
                 this.healthStats.errorCount++;

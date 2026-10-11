@@ -22,29 +22,19 @@ async function getLiveOddsMap() {
     }
     const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     const primaryUrl = await resolveBackendUrl();
+    if (!primaryUrl) {
+        return centralOddsCache || {};
+    }
 
     try {
-        const res = await fetch(`${primaryUrl}/api/odds/live`, { signal: AbortSignal.timeout(4500) });
+        const res = await fetch(`${primaryUrl}/api/odds/live`, { signal: AbortSignal.timeout(2000) });
         if (res.ok) {
             const data = await res.json();
             centralOddsCache = data;
             centralOddsCacheTime = now;
             return data;
         }
-    } catch (e) {
-        // Fallback to Render cloud if local dev proxy was unreachable
-        if (isLocalDev && (primaryUrl.includes('localhost') || primaryUrl.includes('127.0.0.1'))) {
-            try {
-                const cloudRes = await fetch('https://live-bet-mentor.onrender.com/api/odds/live', { signal: AbortSignal.timeout(4000) });
-                if (cloudRes.ok) {
-                    const data = await cloudRes.json();
-                    centralOddsCache = data;
-                    centralOddsCacheTime = now;
-                    return data;
-                }
-            } catch (cloudErr) {}
-        }
-    }
+    } catch (e) {}
     return centralOddsCache || {};
 }
 
@@ -56,6 +46,7 @@ const inFlightGraph = new Map();
 const inFlightIncidents = new Map();
 let adapterLiveEventsCache = [];
 let adapterLiveEventsTime = 0;
+let firebaseFailureTime = 0;
 try {
     if (typeof window !== 'undefined' && window.sessionStorage) {
         const stored = sessionStorage.getItem('lbm_cached_live_events');
@@ -63,14 +54,10 @@ try {
             const parsed = JSON.parse(stored);
             const events = Array.isArray(parsed) ? parsed : (parsed?.events || []);
             const cacheTime = parsed?.time || 0;
-            // Only accept cache if fresher than 45 seconds
-            if (Array.isArray(events) && cacheTime && (Date.now() - cacheTime < 45000)) {
+            // Accept cache up to 10 minutes (600,000ms) for instant stale-while-revalidate startup
+            if (Array.isArray(events) && events.length > 0 && cacheTime && (Date.now() - cacheTime < 600000)) {
                 adapterLiveEventsCache = events;
                 adapterLiveEventsTime = cacheTime;
-            } else {
-                sessionStorage.removeItem('lbm_cached_live_events');
-                adapterLiveEventsCache = [];
-                adapterLiveEventsTime = 0;
             }
         }
     }
@@ -123,8 +110,22 @@ export const sofaScoreAdapter = {
     /**
      * Fetches the match list for the current day.
      */
-    async fetchScheduledEvents() {
+    async fetchScheduledEvents(allowCache = true) {
         try {
+            // INSTANT F5 ACCELERATOR (Stale-While-Revalidate):
+            // If we have cached events in memory or sessionStorage (< 10 mins), return immediately (0ms)
+            // and trigger background sync so the UI renders in 0 seconds!
+            if (allowCache && adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000)) {
+                const cacheAge = Date.now() - adapterLiveEventsTime;
+                // If cache is older than 8s, trigger background refresh so fresh scores/minutes update seamlessly
+                if (cacheAge > 8000) {
+                    setTimeout(() => {
+                        this.fetchScheduledEvents(false).catch(() => {});
+                    }, 50);
+                }
+                return adapterLiveEventsCache;
+            }
+
             // Detect environment: Local dev uses local proxy, any deployed domain uses cloud/Firebase
             const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
@@ -134,25 +135,12 @@ export const sofaScoreAdapter = {
                 let data = null;
 
                 try {
-                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(3500) });
+                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(2500) });
                     if (response.ok) {
                         data = await response.json();
                     }
                 } catch (localErr) {
-                    // Local proxy offline -> proceed to cloud fallback
-                }
-
-                // If local proxy failed or returned empty events, fallback to Render cloud
-                if (!data || !data.events || data.events.length === 0) {
-                    try {
-                        const cloudUrl = 'https://live-bet-mentor.onrender.com/api/sofascore/live';
-                        const cloudRes = await fetch(cloudUrl, { signal: AbortSignal.timeout(8000) });
-                        if (cloudRes.ok) {
-                            data = await cloudRes.json();
-                        }
-                    } catch (cloudErr) {
-                        console.warn('[SOFASCORE_ADAPTER] Render fallback error:', cloudErr.message);
-                    }
+                    // Local proxy offline
                 }
 
                 if (data && data.events) {
@@ -166,71 +154,51 @@ export const sofaScoreAdapter = {
                         }
                     }
 
-                    const totalMatches = data.events.length;
-                    console.log(`[SOFASCORE_ADAPTER] Discovered ${totalMatches} total. After normalization: ${normalized.length} active football matches.`);
-                    
-                    if (normalized.length === 0 && totalMatches > 0) {
-                        console.warn('[SOFASCORE_ADAPTER] All matches were filtered out. Check normalizeEvent() logic.');
-                    }
-                    
                     if (normalized.length > 0) {
                         adapterLiveEventsCache = normalized;
                         adapterLiveEventsTime = Date.now();
                         try {
                             if (typeof window !== 'undefined' && window.sessionStorage) {
-                                window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 100) }));
+                                window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 300) }));
                             }
                         } catch(e) {}
                     }
                     return normalized;
                 }
-                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000);
                 return isCacheValid ? adapterLiveEventsCache : [];
             } else {
-                // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
+                // PRODUCTION: Use active Cloudflare Tunnel if verified alive, otherwise Firebase directly
                 const apiBase = await resolveBackendUrl();
-                const renderUrl = `${apiBase}/api/sofascore/live`;
-                try {
-                    const response = await fetch(renderUrl, { signal: AbortSignal.timeout(8000) });
-                    if (!response.ok) {
-                        console.warn('[SOFASCORE_ADAPTER] Render proxy error:', response.status);
-                        // Fallback to Firebase
-                        try {
-                            const snapshot = await get(ref(database, 'live_events'));
-                            if (snapshot.exists()) {
-                                const fbData = snapshot.val();
-                                if (fbData && fbData.events) {
-                                    const fbNorm = fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
-                                    if (fbNorm.length > 0) {
-                                        adapterLiveEventsCache = fbNorm;
-                                        adapterLiveEventsTime = Date.now();
-                                        return fbNorm;
-                                    }
+                if (apiBase) {
+                    const renderUrl = `${apiBase}/api/sofascore/live`;
+                    try {
+                        const response = await fetch(renderUrl, { signal: AbortSignal.timeout(2500) });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data && data.events) {
+                                const normalized = data.events
+                                    .map(event => this.normalizeEvent(event))
+                                    .filter(event => event !== null);
+                                if (normalized.length > 0) {
+                                    adapterLiveEventsCache = normalized;
+                                    adapterLiveEventsTime = Date.now();
+                                    try {
+                                        if (typeof window !== 'undefined' && window.sessionStorage) {
+                                            window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 300) }));
+                                        }
+                                    } catch(e) {}
+                                    return normalized;
                                 }
                             }
-                        } catch (fbErr) {}
-                        const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
-                        return isCacheValid ? adapterLiveEventsCache : [];
-                    }
-                    const data = await response.json();
-                    if (data && data.events) {
-                        const normalized = data.events
-                            .map(event => this.normalizeEvent(event))
-                            .filter(event => event !== null);
-                        console.log(`[SOFASCORE_ADAPTER] RENDER: Found ${data.events.length} total, ${normalized.length} active football matches`);
-                        if (normalized.length > 0) {
-                            adapterLiveEventsCache = normalized;
-                            adapterLiveEventsTime = Date.now();
-                            try {
-                                if (typeof window !== 'undefined' && window.sessionStorage) {
-                                    window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 100) }));
-                                }
-                            } catch(e) {}
-                            return normalized;
                         }
+                    } catch (renderErr) {
+                        // Tunnel timed out or unreachable, immediately proceed to Firebase
                     }
-                } catch (renderErr) {
-                    console.warn('[SOFASCORE_ADAPTER] Render fetch failed, trying Firebase fallback:', renderErr.message);
+                }
+
+                // Fallback to Firebase Realtime Database (fast & resilient cloud backup)
+                if (Date.now() - firebaseFailureTime > 60000) {
                     try {
                         const snapshot = await get(ref(database, 'live_events'));
                         if (snapshot.exists()) {
@@ -240,23 +208,30 @@ export const sofaScoreAdapter = {
                                 if (fbNorm.length > 0) {
                                     adapterLiveEventsCache = fbNorm;
                                     adapterLiveEventsTime = Date.now();
+                                    try {
+                                        if (typeof window !== 'undefined' && window.sessionStorage) {
+                                            window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: fbNorm.slice(0, 300) }));
+                                        }
+                                    } catch(e) {}
                                     return fbNorm;
                                 }
                             }
                         }
-                    } catch (fbErr) {}
+                    } catch (fbErr) {
+                        firebaseFailureTime = Date.now();
+                        console.warn('[SOFASCORE_ADAPTER] Firebase live fetch notice (muted for 60s):', fbErr?.message);
+                    }
                 }
-                // Return cached events ONLY if fresher than 45 seconds (prevents serving finished/stale matches)
-                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
+
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000);
                 if (isCacheValid) {
-                    console.log(`[SOFASCORE_ADAPTER] Using cached live events: ${adapterLiveEventsCache.length} matches`);
                     return adapterLiveEventsCache;
                 }
                 return [];
             }
         } catch (error) {
             console.error('[SOFASCORE_ADAPTER] Error fetching:', error);
-            const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 45000);
+            const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000);
             return isCacheValid ? adapterLiveEventsCache : [];
         }
     },
@@ -439,34 +414,38 @@ export const sofaScoreAdapter = {
             } else {
                 // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
                 const renderBase = await resolveBackendUrl();
-                try {
-                    const [detailRes, statsRes] = await Promise.all([
-                        fetch(`${renderBase}/api/sofascore/event/${eventId}`),
-                        fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`)
-                    ]);
+                if (renderBase) {
+                    try {
+                        const [detailRes, statsRes] = await Promise.all([
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(2500) }),
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(2500) })
+                        ]);
 
-                    const latency = Date.now() - startTime;
+                        const latency = Date.now() - startTime;
 
-                    if (!detailRes.ok && detailRes.status !== 202) return null;
+                        if (detailRes.ok || detailRes.status === 202) {
+                            const detail = await detailRes.json();
+                            let stats = null;
+                            if (statsRes.status === 202) {
+                                stats = { status: 'queued' };
+                            } else if (statsRes.ok) {
+                                stats = await statsRes.json();
+                                if (stats?.status === 'queued') stats = { status: 'queued' };
+                            } else if (statsRes.status === 404) {
+                                stats = { statistics: [] };
+                            }
 
-                    const detail = await detailRes.json();
-                    let stats = null;
-                    if (statsRes.status === 202) {
-                        stats = { status: 'queued' };
-                    } else if (statsRes.ok) {
-                        stats = await statsRes.json();
-                        if (stats?.status === 'queued') stats = { status: 'queued' };
-                    } else if (statsRes.status === 404) {
-                        stats = { statistics: [] };
-                    }
+                            if (detail.status !== 'queued' && !detail?.error) {
+                                const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
+                                normalized.latency = latency;
+                                return normalized;
+                            }
+                        }
+                    } catch (renderErr) {}
+                }
 
-                    if (detail.status === 'queued' || detail?.error) return null;
-
-                    const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
-                    normalized.latency = latency;
-                    return normalized;
-                } catch (renderErr) {
-                    // Fallback to Firebase
+                // Fallback to Firebase (only if not tripped by permission denied / failure)
+                if (Date.now() - firebaseFailureTime > 60000) {
                     try {
                         const [detailSnap, statsSnap] = await Promise.all([
                             get(ref(database, `stats/${eventId}/detail`)),
@@ -479,8 +458,12 @@ export const sofaScoreAdapter = {
                         const normalized = sofaScoreAdapter.normalize(detail, stats);
                         normalized.latency = Date.now() - startTime;
                         return normalized;
-                    } catch { return null; }
+                    } catch (fbErr) {
+                        firebaseFailureTime = Date.now();
+                        return null;
+                    }
                 }
+                return null;
             }
         } catch (error) {
             console.error(`SofaScore fetchEventDetails Error for ${eventId}:`, error);

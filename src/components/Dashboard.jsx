@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense, lazy } from 'react';
 import { CONFIG, getApiBaseUrl, initBackendDiscovery } from '../config';
 import { dataWorker } from '../backend/dataWorker';
 import { bankrollManager } from '../logic/bankrollManager';
@@ -8,7 +8,7 @@ import { StakingCalculator } from './StakingCalculator';
 import { SharpPicksCard } from './SharpPicksCard';
 import { BetanoRadarCard } from './BetanoRadarCard';
 import { translations } from '../locales/translations';
-import { AdminPanel } from './AdminPanel';
+const AdminPanel = lazy(() => import('./AdminPanel').then(m => ({ default: m.AdminPanel })));
 import { consensusAdapter } from '../backend/consensusAdapter';
 import { aiAnalystService } from '../backend/aiAnalystService';
 import { aiUsageLimiter } from '../backend/aiUsageLimiter';
@@ -26,7 +26,7 @@ import { LegalModal } from './LegalModal';
 import { LiveSupportChat } from './LiveSupportChat';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
-import { TipsterHub } from './TipsterHub';
+const TipsterHub = lazy(() => import('./TipsterHub').then(m => ({ default: m.TipsterHub })));
 import { PortfolioCockpit } from './portfolio/PortfolioCockpit';
 import { AnalystLeaderboard } from './portfolio/AnalystLeaderboard';
 import { CompoundSimulator } from './portfolio/CompoundSimulator';
@@ -102,6 +102,64 @@ export const renderMatchMinute = (minute, t, withLabel = false) => {
     return minStr.includes("'") ? minStr : `${minStr}'`;
 };
 
+// Isolated self-ticking timer subcomponents to prevent re-rendering the entire 9,600-line Dashboard every 1-2s!
+export const LastFetchCounter = ({ lastFetch, secondsAgoText }) => {
+    const [sec, setSec] = useState(() => lastFetch ? Math.max(0, Math.floor((Date.now() - lastFetch) / 1000)) : 0);
+    useEffect(() => {
+        const id = setInterval(() => {
+            if (lastFetch) {
+                setSec(Math.max(0, Math.floor((Date.now() - lastFetch) / 1000)));
+            }
+        }, 1000);
+        return () => clearInterval(id);
+    }, [lastFetch]);
+    return (
+        <div className={sec > 15 ? 'danger' : 'success'} style={{ fontWeight: 800, fontSize: '1.1rem', marginTop: '0.3rem' }}>
+            {sec} <span style={{ fontSize: '0.8rem' }}>{secondsAgoText}</span>
+        </div>
+    );
+};
+
+export const TrialCountdownText = ({ subscriptionEnd, onExpire, lang, format = 'simple' }) => {
+    const [seconds, setSeconds] = useState(() => {
+        if (!subscriptionEnd) return 0;
+        return Math.max(0, Math.floor((new Date(subscriptionEnd).getTime() - Date.now()) / 1000));
+    });
+
+    useEffect(() => {
+        if (!subscriptionEnd) return;
+        const tick = () => {
+            const diff = Math.max(0, Math.floor((new Date(subscriptionEnd).getTime() - Date.now()) / 1000));
+            setSeconds(diff);
+            if (diff <= 0 && typeof onExpire === 'function') {
+                onExpire();
+            }
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [subscriptionEnd, onExpire]);
+
+    const formatSeconds = (sec) => {
+        if (sec <= 0) return '00:00:00';
+        const hrs = Math.floor(sec / 3600);
+        const mins = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const formatted = formatSeconds(seconds);
+    if (format === 'user-popover') {
+        return seconds > 0 
+            ? `⏳ ${formatted} ${lang === 'tr' ? 'kaldı' : (lang === 'de' ? 'verbleibend' : 'remaining')}`
+            : (lang === 'tr' ? 'Süre Doldu' : 'Expired');
+    }
+    if (format === 'modal') {
+        return seconds > 0 ? `⏳ ${formatted}` : (lang === 'tr' ? 'Süre Doldu' : 'Expired');
+    }
+    return formatted;
+};
+
 export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang, settings = {} }) => {
     const isLocal = typeof window !== 'undefined' && (
         window.location.hostname === 'localhost' || 
@@ -109,16 +167,40 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         window.location.hostname.startsWith('192.168.')
     );
     const proxyBase = getApiBaseUrl();
-
-    const [matches, setMatches] = useState([]);
-    const [signals, setSignals] = useState({});
+    const [matches, setMatches] = useState(() => {
+        if (dataWorker.fixtures && dataWorker.fixtures.length > 0) {
+            return dataWorker.fixtures;
+        }
+        try {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+                const stored = sessionStorage.getItem('lbm_cached_fixtures');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    const list = Array.isArray(parsed) ? parsed : (parsed?.fixtures || []);
+                    if (Array.isArray(list) && list.length > 0) {
+                        return list;
+                    }
+                }
+            }
+        } catch (e) {}
+        return [];
+    });
+    const [signals, setSignals] = useState(() => {
+        const initial = {};
+        const list = (dataWorker.fixtures && dataWorker.fixtures.length > 0) ? dataWorker.fixtures : [];
+        for (const m of list) {
+            if (m && m.id && m.signal) {
+                initial[m.id] = m.signal;
+            }
+        }
+        return initial;
+    });
     const [bankState, setBankState] = useState(bankrollManager.getState());
     const autoPilotProcessedRef = useRef(new Set());
     const [portfolioTab, setPortfolioTab] = useState('cockpit'); // 'cockpit', 'leaderboard', 'simulator', 'journal'
     const [isCapitalModalOpen, setIsCapitalModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isBankrollGuideOpen, setIsBankrollGuideOpen] = useState(false);
-    const [lastFetchSeconds, setLastFetchSeconds] = useState(0);
     const [healthStats, setHealthStats] = useState(dataWorker.healthStats);
     const [selectedMatch, setSelectedMatch] = useState(null);
     const [decisionMode, setDecisionMode] = useState(dataWorker.decisionMode);
@@ -298,6 +380,17 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             localStorage.setItem('lbm_mobile_subview', mode);
         } catch (e) {}
     };
+
+    const [isMobileScreen, setIsMobileScreen] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+    useEffect(() => {
+        const handleResize = () => {
+            const mobile = window.innerWidth <= 768;
+            setIsMobileScreen(prev => prev !== mobile ? mobile : prev);
+        };
+        window.addEventListener('resize', handleResize, { passive: true });
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     const [pinnedMatchIds, setPinnedMatchIds] = useState(() => {
         try {
             const saved = localStorage.getItem('lbm_pinned_matches');
@@ -507,7 +600,6 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     useEffect(() => {
         alertNotifyModeRef.current = alertNotifyMode;
     }, [alertNotifyMode]);
-    const [toastProgress, setToastProgress] = useState(100);
     const [isToastPaused, setIsToastPaused] = useState(false);
     const [trackingStats, setTrackingStats] = useState(predictionTracker.getStats());
     const [showTrackingPanel, setShowTrackingPanel] = useState(false);
@@ -685,13 +777,15 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             const primaryBase = await initBackendDiscovery() || getApiBaseUrl();
 
             let res = null;
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
-                res = await fetch(`${primaryBase}/api/market/trending`, { signal: controller.signal });
-                clearTimeout(timeoutId);
-            } catch (fetchErr) {
-                // Ignore temporary delay
+            if (primaryBase) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 2000);
+                    res = await fetch(`${primaryBase}/api/market/trending`, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                } catch (fetchErr) {
+                    // Ignore temporary delay
+                }
             }
 
             if (res && res.ok) {
@@ -777,64 +871,33 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         return diff > 0 ? diff : 0;
     };
 
-    const [remainingTrialSeconds, setRemainingTrialSeconds] = useState(() => {
-        if (!userProfile?.subscription_end) return 0;
-        const diff = Math.floor((new Date(userProfile.subscription_end).getTime() - Date.now()) / 1000);
-        return diff > 0 ? diff : 0;
-    });
-
     useEffect(() => {
         const isAdmin = userProfile?.plan === 'admin' || userProfile?.email === 'admin@livebetmentor.com';
         if (isAdmin || !userProfile?.subscription_end) return;
 
-        const updateTimer = () => {
+        const checkExpiry = () => {
             const diff = Math.floor((new Date(userProfile.subscription_end).getTime() - Date.now()) / 1000);
-            if (diff <= 0) {
-                setRemainingTrialSeconds(0);
-                if (typeof onExpire === 'function') {
-                    onExpire();
-                }
-            } else {
-                setRemainingTrialSeconds(diff);
+            if (diff <= 0 && typeof onExpire === 'function') {
+                onExpire();
             }
         };
 
-        updateTimer();
-        const timer = setInterval(updateTimer, 1000);
+        checkExpiry();
+        const timer = setInterval(checkExpiry, 30000);
         return () => clearInterval(timer);
     }, [userProfile?.subscription_end, userProfile?.plan, userProfile?.email, onExpire]);
-
-    const formatTrialCountdown = (seconds) => {
-        if (seconds <= 0) return '00:00:00';
-        const hrs = Math.floor(seconds / 3600);
-        const mins = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
-        return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
 
     // Auto-dismiss floating toast after 10 seconds (with pause on hover)
     useEffect(() => {
         if (!showAlertPopup || alertNotifyMode !== 'TOAST') return;
+        if (isToastPaused) return;
 
-        setToastProgress(100);
-        const timer = setInterval(() => {
-            setIsToastPaused(paused => {
-                if (!paused) {
-                    setToastProgress(prev => {
-                        if (prev <= 1) {
-                            clearInterval(timer);
-                            setShowAlertPopup(null);
-                            return 0;
-                        }
-                        return prev - 1; // 100 steps * 100ms = 10 seconds
-                    });
-                }
-                return paused;
-            });
-        }, 100);
+        const timer = setTimeout(() => {
+            setShowAlertPopup(null);
+        }, 10000);
 
-        return () => clearInterval(timer);
-    }, [showAlertPopup, alertNotifyMode]);
+        return () => clearTimeout(timer);
+    }, [showAlertPopup, alertNotifyMode, isToastPaused]);
 
     const requestUpgrade = async (requestedPlan) => {
         if (!user || requestLoading) return;
@@ -2404,17 +2467,19 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         const fetchLiveOdds = async () => {
             try {
                 const proxyBase = await initBackendDiscovery() || getApiBaseUrl();
-                try {
-                    const res = await fetch(`${proxyBase}/api/odds/live`, { signal: AbortSignal.timeout(4500) });
-                    if (res.ok) {
-                        const data = await res.json();
-                        if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
-                            setLiveOdds(data);
-                            liveOpportunityScorer.setLiveOdds(data);
-                            return;
+                if (proxyBase) {
+                    try {
+                        const res = await fetch(`${proxyBase}/api/odds/live`, { signal: AbortSignal.timeout(2000) });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && (data.matches?.length > 0 || Object.keys(data).length > 2)) {
+                                setLiveOdds(data);
+                                liveOpportunityScorer.setLiveOdds(data);
+                                return;
+                            }
                         }
-                    }
-                } catch (pe) { /* fallback to firebase */ }
+                    } catch (pe) { /* fallback to firebase */ }
+                }
 
                 // Fallback to Firebase
                 try {
@@ -2426,7 +2491,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     }
                 } catch (fe) {}
             } catch (e) {
-                console.log('[ODDS] Odds fetch failed:', e.message);
+                console.log('[ODDS] Odds fetch notice:', e.message);
             }
         };
 
@@ -2440,11 +2505,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         const fetchAiWeights = async () => {
             try {
                 const proxyBase = await initBackendDiscovery() || getApiBaseUrl();
-                const res = await fetch(`${proxyBase}/api/learning/weights`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.version) {
-                        liveOpportunityScorer.setDynamicWeights(data);
+                if (proxyBase) {
+                    const res = await fetch(`${proxyBase}/api/learning/weights`, { signal: AbortSignal.timeout(2000) });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.version) {
+                            liveOpportunityScorer.setDynamicWeights(data);
+                        }
                     }
                 }
             } catch (e) {
@@ -2464,18 +2531,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         let lastFixturesUpdate = 0;
 
         const syncUI = () => {
-            // 1. Second counter (lightweight)
-            if (dataWorker.healthStats.lastFetch) {
-                setLastFetchSeconds(Math.floor((Date.now() - dataWorker.healthStats.lastFetch) / 1000));
-            }
-
-            // 2. Only update consensus data when reference actually changes (every ~2 mins)
+            // 1. Only update consensus data when reference actually changes (every ~2 mins)
             if (dataWorker.consensusData && dataWorker.consensusData !== lastConsensusRef) {
                 lastConsensusRef = dataWorker.consensusData;
                 setConsensusData(dataWorker.consensusData);
             }
 
-            // 3. Only recalculate fixtures and signals when a new poll completed
+            // 2. Only recalculate fixtures and signals when a new poll completed
             if (dataWorker.lastUpdated && dataWorker.lastUpdated === lastFixturesUpdate) {
                 return;
             }
@@ -2499,9 +2561,22 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 console.warn('[Dashboard] Error in autoSettlementEngine:', e);
             }
 
+            const updatedSignals = {};
+            const enrichedFixtures = currentFixtures.map(m => {
+                const sig = dataWorker.getSignalForMatch(m.id) || m.signal;
+                if (sig) {
+                    updatedSignals[m.id] = sig;
+                    bankrollManager.logVerdict(m.id, sig.verdict);
+                }
+
+                // ENRICH: Add opportunity data for Smart Alerts
+                const opp = liveOpportunityScorer.calculateOpportunityScore(m, sig);
+                return { ...m, opportunityData: opp };
+            });
+
             // Filter out finished/ended matches and ghost events so matches state only holds genuine live matches
             const nowSec = Date.now() / 1000;
-            const liveFixtures = currentFixtures.filter(m => {
+            const liveFixtures = enrichedFixtures.filter(m => {
                 const min = String(m.minute || '').toUpperCase().trim();
                 const st = (m.status?.type || '').toLowerCase();
                 const desc = (m.status?.description || '').toLowerCase();
@@ -2520,19 +2595,6 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 setMatches([...liveFixtures]);
             }
 
-            const updatedSignals = {};
-            const enrichedFixtures = currentFixtures.map(m => {
-                const sig = dataWorker.getSignalForMatch(m.id) || m.signal;
-                if (sig) {
-                    updatedSignals[m.id] = sig;
-                    bankrollManager.logVerdict(m.id, sig.verdict);
-                }
-
-                // ENRICH: Add opportunity data for Smart Alerts
-                const opp = liveOpportunityScorer.calculateOpportunityScore(m, sig);
-                return { ...m, opportunityData: opp };
-            });
-
             setSignals(updatedSignals);
             setBankState(bankrollManager.getState());
 
@@ -2548,7 +2610,6 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 // Only show popup/toast if notify mode is TOAST (respects SILENT and OFF)
                 if (alertNotifyModeRef.current === 'TOAST') {
                     setShowAlertPopup(newAlerts[0]);
-                    setToastProgress(100);
                 }
 
                 // Trigger FinTech terminal chime
@@ -2620,7 +2681,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         }
     }, [view]);
 
-    const getEnforcedMatches = () => {
+    const enforcedMatches = useMemo(() => {
         const isLocalDev = window.location.hostname === 'localhost' || 
                            window.location.hostname === '127.0.0.1' ||
                            window.location.hostname.startsWith('192.168.') ||
@@ -2630,7 +2691,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
         // Exclude finished/ended matches and ghost events from live radar cockpit
         const nowSec = Date.now() / 1000;
-        const liveOnly = matches.filter(m => {
+        const liveOnly = (matches || []).filter(m => {
             const min = String(m.minute || '').toUpperCase().trim();
             const st = (m.status?.type || '').toLowerCase();
             const desc = (m.status?.description || '').toLowerCase();
@@ -2653,19 +2714,98 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             return liveOnly.filter(m => m.tier === 1 || m.tier === 2);
         }
         return liveOnly; // Premium or Admin/LocalDev
-    };
+    }, [matches, isAdmin, userProfile?.plan]);
 
-    const enforcedMatches = getEnforcedMatches();
     const analytics = bankrollManager.getAnalytics();
 
-    const eligibleMatches = enforcedMatches
-        .filter(m => m.dqs >= CONFIG.DECISION.DQS_THRESHOLD);
+    const eligibleMatches = useMemo(() => {
+        return enforcedMatches.filter(m => m.dqs >= CONFIG.DECISION.DQS_THRESHOLD);
+    }, [enforcedMatches]);
 
-    const observationMatches = enforcedMatches
-        .filter(m => (m.dqs || 0) < CONFIG.DECISION.DQS_THRESHOLD)
-        .sort((a, b) => (b.dqs || 0) - (a.dqs || 0));
+    const observationMatches = useMemo(() => {
+        return enforcedMatches
+            .filter(m => (m.dqs || 0) < CONFIG.DECISION.DQS_THRESHOLD)
+            .sort((a, b) => (b.dqs || 0) - (a.dqs || 0));
+    }, [enforcedMatches]);
 
     const filterByTier = (m) => activeTierFilter === 'ALL' || m.tier === activeTierFilter;
+
+    const tierFilteredMatches = useMemo(() => {
+        return enforcedMatches.filter(filterByTier);
+    }, [enforcedMatches, activeTierFilter]);
+
+    const trendingMatchIdsSet = useMemo(() => {
+        if (!trendingBets || trendingBets.length === 0 || !enforcedMatches) return new Set();
+        const set = new Set();
+        enforcedMatches.forEach(m => {
+            if (trendingBets.some(tb => 
+                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+            )) {
+                set.add(m.id);
+            }
+        });
+        return set;
+    }, [enforcedMatches, trendingBets]);
+
+    const categoryCounts = useMemo(() => {
+        let allCount = tierFilteredMatches.length;
+        let hotCount = 0;
+        let trendCount = 0;
+        let betCount = 0;
+        let secondHalfCount = 0;
+        let pinnedCount = 0;
+        let radarAllCount = 0;
+        let goalProbCount = 0;
+        let xgSurplusCount = 0;
+        let surgeCount = 0;
+        let goldenMinCount = 0;
+        let comebackCount = 0;
+
+        tierFilteredMatches.forEach(m => {
+            const sig = signals[m.id];
+            if (isMatchHot(m, sig)) hotCount++;
+            if (trendingMatchIdsSet.has(m.id)) trendCount++;
+            if (sig?.verdict === 'BET') betCount++;
+
+            const minStr = String(m.minute || '');
+            const minNum = parseInt(minStr, 10);
+            if (minNum >= 45 || minStr.includes('2.Y') || minStr.includes('2H')) secondHalfCount++;
+
+            if (pinnedMatchIds.has(m.id)) pinnedCount++;
+
+            const gp = isMatchHighGoalProb(m, sig, 0.55);
+            const xg = isMatchXgSurplus(m, sig);
+            const surge = isMatchSurgingLast20(m, sig);
+            const golden = isMatchGoldenMinutes(m, sig);
+            const cb = isMatchComeback(m, sig);
+
+            if (gp) goalProbCount++;
+            if (xg) xgSurplusCount++;
+            if (surge) surgeCount++;
+            if (golden) goldenMinCount++;
+            if (cb) comebackCount++;
+
+            if (!isMatchBlowout(m) && (gp || xg || surge || golden || cb)) {
+                radarAllCount++;
+            }
+        });
+
+        return {
+            ALL: allCount,
+            HOT: hotCount,
+            TREND: trendCount,
+            BET: betCount,
+            SECOND_HALF: secondHalfCount,
+            PINNED: pinnedCount,
+            RADAR_ALL: radarAllCount,
+            GOAL_PROB: goalProbCount,
+            XG_SURPLUS: xgSurplusCount,
+            SURGE_20: surgeCount,
+            GOLDEN_MIN: goldenMinCount,
+            COMEBACK: comebackCount
+        };
+    }, [tierFilteredMatches, signals, trendingMatchIdsSet, pinnedMatchIds]);
 
     const handleTerminalApproveBet = (match, signal, customStake = null) => {
         if (!match) return;
@@ -2748,7 +2888,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     };
 
     const terminalOpportunitiesMap = useMemo(() => {
-        const oppMatches = enforcedMatches.filter(filterByTier).filter(m => {
+        const oppMatches = tierFilteredMatches.filter(m => {
             const minStr = String(m.minute || '').toLowerCase();
             const code = m.status?.code;
             const desc = String(m.status?.description || '').toLowerCase();
@@ -2761,10 +2901,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             if (o && o.matchId) map.set(o.matchId, o);
         });
         return map;
-    }, [enforcedMatches, activeTierFilter, signals, momentumWindow]);
+    }, [tierFilteredMatches, signals, momentumWindow]);
 
     const processedTerminalMatches = useMemo(() => {
-        let list = enforcedMatches.filter(filterByTier);
+        let list = tierFilteredMatches;
 
         // Search filter
         if (terminalSearchQuery.trim()) {
@@ -2811,12 +2951,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         } else if (terminalCategoryFilter === 'PINNED') {
             list = list.filter(m => pinnedMatchIds.has(m.id));
         } else if (terminalCategoryFilter === 'TREND') {
-            list = list.filter(m => {
-                return (trendingBets || []).some(tb => 
-                    consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                    consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                );
-            });
+            list = list.filter(m => trendingMatchIdsSet.has(m.id));
         }
 
         // Sort matches dynamically
@@ -2831,8 +2966,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             momentumWindow
         );
     }, [
-        enforcedMatches,
-        activeTierFilter,
+        tierFilteredMatches,
         terminalSearchQuery,
         terminalCategoryFilter,
         terminalSortCriteria,
@@ -2840,12 +2974,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         isSortLocked,
         pinnedMatchIds,
         trendingBets,
+        trendingMatchIdsSet,
         terminalOpportunitiesMap,
         momentumWindow
     ]);
 
     const terminalGoldenCombo = useMemo(() => {
-        const oppMatches = enforcedMatches.filter(filterByTier).filter(m => {
+        const oppMatches = tierFilteredMatches.filter(m => {
             const minStr = String(m.minute || '').toLowerCase();
             const code = m.status?.code;
             const desc = String(m.status?.description || '').toLowerCase();
@@ -2872,7 +3007,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             }
 
             const sig = signals[m.id] || m.signal;
-            const oppScore = Number(m.opportunityData?.score) || 0;
+            const opp = (terminalOpportunitiesMap instanceof Map ? terminalOpportunitiesMap.get(m.id) : null) || m.opportunityData;
+            const oppScore = Number(opp?.score ?? m.opportunityData?.score) || 0;
             const eff = bankrollManager.getEffectiveRiskSettings?.() || { autoPilotMinConf: 80 };
             const minConf = eff.autoPilotMinConf || 80;
 
@@ -2881,19 +3017,35 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             const isEliteOpp = oppScore >= minConf && (m.tier || 3) <= 2 && !m.isFriendly;
             if (!isBetSignal && !isEliteOpp) continue;
 
-            const smart = bankrollManager.calculateSmartStake(m, sig);
+            const matchWithOpp = opp ? { ...m, opportunityData: opp } : m;
+            const smart = bankrollManager.calculateSmartStake(matchWithOpp, sig);
             if (!smart || !smart.allowed) continue;
 
             const sigConf = Number(sig?.confidence) || oppScore;
             if (sigConf >= minConf || oppScore >= minConf) {
                 autoPilotProcessedRef.current.add(m.id);
-                handleTerminalApproveBet(m, sig, smart.stake);
+
+                const predVal = opp?.suggestedMarket?.label || sig?.prediction || sig?.marketLabel || (sig?.reason && !sig.reason.includes('Bulunamadı') ? sig.reason : null) || (lang === 'tr' ? 'Canlı Takip' : (lang === 'de' ? 'Live-Tipp' : 'Live Pick'));
+                const marketVal = opp?.suggestedMarket?.market || sig?.market || 'Canlı Bahis';
+                const oddsVal = Number(opp?.suggestedMarket?.odds || sig?.odds || 1.80);
+
+                const enrichedSig = {
+                    ...(sig || {}),
+                    prediction: predVal,
+                    market: marketVal,
+                    marketLabel: predVal,
+                    odds: oddsVal,
+                    confidence: sigConf,
+                    reason: predVal
+                };
+
+                handleTerminalApproveBet(matchWithOpp, enrichedSig, smart.stake);
                 const curr = bankrollManager?.getState()?.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺');
                 console.log(`[AutoPilot] Automatically placed disciplined bet on ${m.homeTeam} vs ${m.awayTeam}: ${smart.stake} ${curr} (${smart.units}U)`);
                 break; // 1 at a time to prevent race conditions
             }
         }
-    }, [bankState?.auto_pilot_enabled, enforcedMatches, signals]);
+    }, [bankState?.auto_pilot_enabled, enforcedMatches, signals, terminalOpportunitiesMap]);
 
     const handleGenerateGlobalReport = async (type) => {
         // Enforce AI Usage Limits
@@ -5602,8 +5754,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                             </div>
                                         ) : userProfile?.subscription_end && (
                                             <div className="user-expiry-text" style={{ color: (userProfile?.plan === 'trial' || (getRemainingDays(userProfile.subscription_end) ?? 999) <= 3) ? '#38bdf8' : '#94a3b8', fontWeight: 700 }}>
-                                                {userProfile?.plan === 'trial' && remainingTrialSeconds > 0
-                                                    ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)} ${lang === 'tr' ? 'kaldı' : (lang === 'de' ? 'verbleibend' : 'remaining')}`
+                                                {userProfile?.plan === 'trial'
+                                                    ? <TrialCountdownText subscriptionEnd={userProfile?.subscription_end} onExpire={onExpire} lang={lang} format="user-popover" />
                                                     : `⏳ ${getRemainingDays(userProfile.subscription_end)} ${t.days_remaining}`}
                                             </div>
                                         )}
@@ -5879,7 +6031,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     letterSpacing: '1px',
                                     boxShadow: '0 0 10px rgba(56, 189, 248, 0.25)'
                                 }}>
-                                    {formatTrialCountdown(remainingTrialSeconds)}
+                                    <TrialCountdownText subscriptionEnd={userProfile?.subscription_end} onExpire={onExpire} lang={lang} format="simple" />
                                 </span>
                                 <span style={{ color: '#e2e8f0', fontSize: '0.82rem', opacity: 0.9 }}>
                                     {lang === 'tr'
@@ -5988,27 +6140,31 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             ) : view === 'TRENDING' ? (
                 renderTrending()
             ) : view === 'TIPSTERS' ? (
-                <TipsterHub
-                    lang={lang}
-                    userProfile={userProfile}
-                    onOpenVipModal={() => setIsSupportChatOpen(true)}
-                    onFocusMatch={(mName) => {
-                        setView('DASHBOARD');
-                        if (typeof setTerminalSearchQuery === 'function') {
-                            setTerminalSearchQuery(mName.split('-')[0].trim());
-                        }
-                    }}
-                    onNavigatePortfolio={() => {
-                        setView('PORTFOLIO');
-                        setPortfolioTab('journal');
-                    }}
-                />
+                <Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center', color: '#38bdf8' }}>Modül Yükleniyor...</div>}>
+                    <TipsterHub
+                        lang={lang}
+                        userProfile={userProfile}
+                        onOpenVipModal={() => setIsSupportChatOpen(true)}
+                        onFocusMatch={(mName) => {
+                            setView('DASHBOARD');
+                            if (typeof setTerminalSearchQuery === 'function') {
+                                setTerminalSearchQuery(mName.split('-')[0].trim());
+                            }
+                        }}
+                        onNavigatePortfolio={() => {
+                            setView('PORTFOLIO');
+                            setPortfolioTab('journal');
+                        }}
+                    />
+                </Suspense>
             ) : view === 'ADMIN' ? (
-                <AdminPanel
-                    lang={lang}
-                    initialTab={(typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('tab') === 'support_staff' || new URLSearchParams(window.location.search).get('session'))) ? 'support_staff' : undefined}
-                    initialSessionId={typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('session') || undefined) : undefined}
-                />
+                <Suspense fallback={<div style={{ padding: '3rem', textAlign: 'center', color: '#38bdf8' }}>Yönetici Paneli Yükleniyor...</div>}>
+                    <AdminPanel
+                        lang={lang}
+                        initialTab={(typeof window !== 'undefined' && (new URLSearchParams(window.location.search).get('tab') === 'support_staff' || new URLSearchParams(window.location.search).get('session'))) ? 'support_staff' : undefined}
+                        initialSessionId={typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('session') || undefined) : undefined}
+                    />
+                </Suspense>
             ) : view === 'SHARP_PICKS' ? (
                 <div style={{ maxWidth: '960px', margin: '1.5rem auto 3rem', padding: '0 1rem' }}>
                     <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1.2rem', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -6815,9 +6971,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <div className="health-metrics-grid">
                                 <div className="metric">
                                     <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.5, letterSpacing: '1px' }}>{t.last_update}</div>
-                                    <div className={lastFetchSeconds > 15 ? 'danger' : 'success'} style={{ fontWeight: 800, fontSize: '1.1rem', marginTop: '0.3rem' }}>
-                                        {lastFetchSeconds} <span style={{ fontSize: '0.8rem' }}>{t.seconds_ago}</span>
-                                    </div>
+                                    <LastFetchCounter lastFetch={healthStats.lastFetch} secondsAgoText={t.seconds_ago} />
                                 </div>
                                 <div className="metric">
                                     <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', opacity: 0.5, letterSpacing: '1px' }}>{t.live_matches}</div>
@@ -7358,15 +7512,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
                             {/* Quick Category Filter Strip with Two Mini Sub-Tabs */}
                             {(() => {
-                                const radarMatchesCount = enforcedMatches.filter(filterByTier).filter(m => 
-                                    !isMatchBlowout(m) && (
-                                        isMatchHighGoalProb(m, signals[m.id], 0.55) ||
-                                        isMatchXgSurplus(m, signals[m.id]) ||
-                                        isMatchSurgingLast20(m, signals[m.id]) ||
-                                        isMatchGoldenMinutes(m, signals[m.id]) ||
-                                        isMatchComeback(m, signals[m.id])
-                                    )
-                                ).length;
+                                const radarMatchesCount = categoryCounts.RADAR_ALL;
 
                                 return (
                                     <div className="tb-filter-strip-wrapper">
@@ -7443,7 +7589,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>⚡</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Tümü' : (lang === 'de' ? 'Alle' : 'All')}</span>
-                                                        <span className="tb-chip-count">{enforcedMatches.filter(filterByTier).length}</span>
+                                                        <span className="tb-chip-count">{categoryCounts.ALL}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7453,9 +7599,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>🔥</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Sıcak Fırsatlar' : (lang === 'de' ? 'Heiße Chancen' : 'Hot Picks')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Sıcak' : (lang === 'de' ? 'Heiß' : 'Hot')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHot(m, signals[m.id])).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.HOT}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7466,14 +7610,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>📈</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Canlı Trendler' : (lang === 'de' ? 'Live-Trends' : 'Live Trends')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Trend' : (lang === 'de' ? 'Trends' : 'Trends')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => {
-                                                                return (trendingBets || []).some(tb => 
-                                                                    consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-                                                                    consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-                                                                );
-                                                            }).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.TREND}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7483,9 +7620,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>✓</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'AI Bahis Sinyali' : (lang === 'de' ? 'KI-Wettsignale' : 'AI Signals')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'AI Sinyal' : (lang === 'de' ? 'KI-Signal' : 'Signals')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => signals[m.id]?.verdict === 'BET').length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.BET}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7495,13 +7630,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>⏱️</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? '2. Yarı (45\'+)' : (lang === 'de' ? '2. Halbzeit (45\'+)' : '2nd Half')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? '2. Yarı' : (lang === 'de' ? '2. HZ' : '2H')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => {
-                                                                const minStr = String(m.minute || '');
-                                                                const min = parseInt(minStr, 10);
-                                                                return min >= 45 || minStr.includes('2.Y') || minStr.includes('2H');
-                                                            }).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.SECOND_HALF}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7511,9 +7640,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>★</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Favoriler' : (lang === 'de' ? 'Favoriten' : 'Favorites')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Favori' : (lang === 'de' ? 'Favorit' : 'Favs')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => pinnedMatchIds.has(m.id)).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.PINNED}</span>
                                                     </button>
                                                 </>
                                             ) : (
@@ -7538,9 +7665,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>🧠</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Gol Radarı' : (lang === 'de' ? 'Tor-Radar' : 'Goal Radar')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Gol' : (lang === 'de' ? 'Tore' : 'Goals')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchHighGoalProb(m, signals[m.id], 0.55)).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.GOAL_PROB}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7551,9 +7676,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>⏳</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Geciken Gol' : (lang === 'de' ? 'Überfälliges Tor' : 'Unrewarded xG')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Geciken' : (lang === 'de' ? 'Überfällig' : 'Late Goal')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchXgSurplus(m, signals[m.id])).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.XG_SURPLUS}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7564,9 +7687,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>⚡</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? '20\' Baskısı' : (lang === 'de' ? "20' Druck" : '20m Surge')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? '20\' Baskı' : (lang === 'de' ? "20' Druck" : '20m Surge')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchSurgingLast20(m, signals[m.id])).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.SURGE_20}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7577,9 +7698,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>⏱️</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Altın Saat' : (lang === 'de' ? 'Goldene Stunde' : 'Golden Window')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Altın' : (lang === 'de' ? 'Gold' : 'Golden')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchGoldenMinutes(m, signals[m.id])).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.GOLDEN_MIN}</span>
                                                     </button>
                                                     <button
                                                         type="button"
@@ -7590,9 +7709,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         <span>🔄</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Geri Dönüş' : (lang === 'de' ? 'Comeback' : 'Comeback')}</span>
                                                         <span className="tb-btn-label-short">{lang === 'tr' ? 'Dönüş' : (lang === 'de' ? 'Comeback' : 'Comeback')}</span>
-                                                        <span className="tb-chip-count">
-                                                            {enforcedMatches.filter(filterByTier).filter(m => isMatchComeback(m, signals[m.id])).length}
-                                                        </span>
+                                                        <span className="tb-chip-count">{categoryCounts.COMEBACK}</span>
                                                     </button>
                                                 </>
                                             )}
@@ -7764,54 +7881,58 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 </div>
                             )}
 
-                            {/* Live Terminal Views (Desktop Table & Mobile Stream) */}
-                            <LiveTerminalTable
-                                matches={processedTerminalMatches}
-                                signals={signals}
-                                trendingBets={trendingBets}
-                                opportunitiesMap={terminalOpportunitiesMap}
-                                t={t}
-                                lang={lang}
-                                selectedMatch={selectedMatch}
-                                onSelectMatch={setSelectedMatch}
-                                onApproveBet={handleTerminalApproveBet}
-                                bankrollManager={bankrollManager}
-                                pinnedMatchIds={pinnedMatchIds}
-                                togglePinMatch={togglePinMatch}
-                                AttackMomentumGraph={AttackMomentumGraph}
-                                MatchIncidentsTimeline={MatchIncidentsTimeline}
-                                mobileTableMode={terminalMobileSubView === 'TABLE'}
-                                userProfile={userProfile}
-                                onOpenUpgrade={() => setShowPlanComparison(true)}
-                                terminalCategoryFilter={terminalCategoryFilter}
-                                isAdmin={isAdmin}
-                                onSendToTelegram={handleSendToTelegram}
-                                momentumWindow={momentumWindow}
-                            />
+                            {/* Live Terminal Views (Conditional: Never render both Desktop Table & Mobile Stream simultaneously) */}
+                            {(!isMobileScreen || terminalMobileSubView === 'TABLE') && (
+                                <LiveTerminalTable
+                                    matches={processedTerminalMatches}
+                                    signals={signals}
+                                    trendingBets={trendingBets}
+                                    opportunitiesMap={terminalOpportunitiesMap}
+                                    t={t}
+                                    lang={lang}
+                                    selectedMatch={selectedMatch}
+                                    onSelectMatch={setSelectedMatch}
+                                    onApproveBet={handleTerminalApproveBet}
+                                    bankrollManager={bankrollManager}
+                                    pinnedMatchIds={pinnedMatchIds}
+                                    togglePinMatch={togglePinMatch}
+                                    AttackMomentumGraph={AttackMomentumGraph}
+                                    MatchIncidentsTimeline={MatchIncidentsTimeline}
+                                    mobileTableMode={terminalMobileSubView === 'TABLE'}
+                                    userProfile={userProfile}
+                                    onOpenUpgrade={() => setShowPlanComparison(true)}
+                                    terminalCategoryFilter={terminalCategoryFilter}
+                                    isAdmin={isAdmin}
+                                    onSendToTelegram={handleSendToTelegram}
+                                    momentumWindow={momentumWindow}
+                                />
+                            )}
 
-                            <LiveTerminalMobile
-                                matches={processedTerminalMatches}
-                                signals={signals}
-                                trendingBets={trendingBets}
-                                opportunitiesMap={terminalOpportunitiesMap}
-                                t={t}
-                                lang={lang}
-                                selectedMatch={selectedMatch}
-                                onSelectMatch={setSelectedMatch}
-                                onApproveBet={handleTerminalApproveBet}
-                                bankrollManager={bankrollManager}
-                                pinnedMatchIds={pinnedMatchIds}
-                                togglePinMatch={togglePinMatch}
-                                AttackMomentumGraph={AttackMomentumGraph}
-                                MatchIncidentsTimeline={MatchIncidentsTimeline}
-                                hideInTableMode={terminalMobileSubView === 'TABLE'}
-                                userProfile={userProfile}
-                                onOpenUpgrade={() => setShowPlanComparison(true)}
-                                terminalCategoryFilter={terminalCategoryFilter}
-                                isAdmin={isAdmin}
-                                onSendToTelegram={handleSendToTelegram}
-                                momentumWindow={momentumWindow}
-                            />
+                            {isMobileScreen && terminalMobileSubView !== 'TABLE' && (
+                                <LiveTerminalMobile
+                                    matches={processedTerminalMatches}
+                                    signals={signals}
+                                    trendingBets={trendingBets}
+                                    opportunitiesMap={terminalOpportunitiesMap}
+                                    t={t}
+                                    lang={lang}
+                                    selectedMatch={selectedMatch}
+                                    onSelectMatch={setSelectedMatch}
+                                    onApproveBet={handleTerminalApproveBet}
+                                    bankrollManager={bankrollManager}
+                                    pinnedMatchIds={pinnedMatchIds}
+                                    togglePinMatch={togglePinMatch}
+                                    AttackMomentumGraph={AttackMomentumGraph}
+                                    MatchIncidentsTimeline={MatchIncidentsTimeline}
+                                    hideInTableMode={terminalMobileSubView === 'TABLE'}
+                                    userProfile={userProfile}
+                                    onOpenUpgrade={() => setShowPlanComparison(true)}
+                                    terminalCategoryFilter={terminalCategoryFilter}
+                                    isAdmin={isAdmin}
+                                    onSendToTelegram={handleSendToTelegram}
+                                    momentumWindow={momentumWindow}
+                                />
+                            )}
 
                             {/* Global AI Section */}
                             <div style={{ marginTop: '3rem' }}>
@@ -7971,7 +8092,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         </div>
                                         <div style={{ fontWeight: 800, color: userProfile?.plan === 'trial' ? '#38bdf8' : 'inherit' }}>
                                             {userProfile?.plan === 'trial'
-                                                ? (remainingTrialSeconds > 0 ? `⏳ ${formatTrialCountdown(remainingTrialSeconds)}` : (lang === 'tr' ? 'Süre Doldu' : (lang === 'de' ? 'Zeit abgelaufen' : 'Expired')))
+                                                ? <TrialCountdownText subscriptionEnd={userProfile?.subscription_end} onExpire={onExpire} lang={lang} format="modal" />
                                                 : (userProfile?.subscription_end ? new Date(userProfile.subscription_end).toLocaleDateString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US')) : '-')}
                                         </div>
                                     </div>
@@ -8377,8 +8498,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             left: 0,
                             height: '3px',
                             background: showAlertPopup.level === 'ALEV' ? '#ef4444' : '#fbbf24',
-                            width: `${toastProgress}%`,
-                            transition: 'width 0.1s linear'
+                            width: '100%',
+                            animation: 'toastProgressAnim 10s linear forwards',
+                            animationPlayState: isToastPaused ? 'paused' : 'running'
                         }} />
                     </div>
                 )

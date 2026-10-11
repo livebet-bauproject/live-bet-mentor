@@ -229,6 +229,13 @@ function sanitizeMemberList(members) {
 
 if (!fs.existsSync(STATS_DIR)) fs.mkdirSync(STATS_DIR, { recursive: true });
 
+// Fast Health Check Endpoint for Discovery & Monitoring
+app.get('/api/health', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.status(200).json({ ok: true, status: 'healthy', uptime: Math.round(process.uptime()), timestamp: Date.now() });
+});
+
 // Root Status Page
 app.get('/', (req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -661,6 +668,9 @@ app.post('/api/sync/sharp-picks', express.json({ limit: '10mb' }), (req, res) =>
         return res.status(403).json({ error: 'Forbidden' });
     }
     memorySharpPicksData = req.body;
+    if (sharpPicksEngine && req.body) {
+        sharpPicksEngine.vault = req.body;
+    }
     try { fs.writeFileSync(SHARP_PICKS_FILE, JSON.stringify(req.body), 'utf8'); } catch(e) {}
     console.log(`[SYNC] Received sharp picks: ${(req.body?.today_picks || []).length} picks`);
     res.json({ ok: true });
