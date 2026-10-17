@@ -154,6 +154,8 @@ app.use((req, res, next) => {
 const SOFASCORE_FILE = path.join(__dirname, 'sofascore_live.json');
 const CONSENSUS_FILE = path.join(__dirname, 'consensus_data.json');
 const SHARP_PICKS_FILE = path.join(__dirname, 'sharp_picks_vault.json');
+const MARKET_RADAR_FILE = path.join(__dirname, 'market_radar_vault.json');
+let memoryMarketRadarData = null;
 const STATS_DIR = path.join(__dirname, 'stats');
 const REQUEST_QUEUE = path.join(__dirname, 'stats_request.json');
 const ODDS_FILE = path.join(__dirname, 'live_odds.json');
@@ -1022,6 +1024,29 @@ app.get('/api/sharp-picks', async (req, res) => {
         model: "Mentor Alpha-10 Quant",
         today_picks: [],
         yesterday_summary: { total: 0, won: 0, lost: 0, pending: 0, win_rate: 0.0, avg_odds: 0.0, picks: [] }
+    });
+});
+
+// 2b-1. Multi-Sport Market Opportunities & Dropping Odds Radar
+app.get('/api/market-radar', (req, res) => {
+    if (memoryMarketRadarData && (memoryMarketRadarData.opportunities || []).length > 0) {
+        return res.json(memoryMarketRadarData);
+    }
+    if (fs.existsSync(MARKET_RADAR_FILE)) {
+        try {
+            res.setHeader('Content-Type', 'application/json');
+            const data = fs.readFileSync(MARKET_RADAR_FILE, 'utf8');
+            memoryMarketRadarData = JSON.parse(data);
+            return res.json(memoryMarketRadarData);
+        } catch (e) {
+            console.error('[PROXY] Error reading market_radar_vault.json:', e.message);
+        }
+    }
+    res.json({
+        model: "LiveBet Quant Market Radar v2.0",
+        total_scanned: 0,
+        total_opportunities: 0,
+        opportunities: []
     });
 });
 
@@ -4988,6 +5013,41 @@ function startBetanoScraper() {
     setInterval(runBetano, 15 * 60 * 1000); // Autonomous scrape every 15 minutes
 }
 
+function startMarketRadarEngine() {
+    console.log('[PROXY] Initializing Multi-Sport Market Radar Engine (24/7 autonomous)...');
+    const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
+    let isRunning = false;
+    const runRadar = () => {
+        if (isRunning) return;
+        isRunning = true;
+        try {
+            console.log(`[PROXY] 🔄 Scheduled Market Radar scan via ${pyCmd} marketRadarEngine.py...`);
+            const pyProc = spawn(pyCmd, [path.join(__dirname, 'marketRadarEngine.py')]);
+            pyProc.stdout.on('data', (d) => console.log(`[MARKET_RADAR] ${d}`));
+            pyProc.stderr.on('data', (d) => console.error(`[MARKET_RADAR_ERR] ${d}`));
+            pyProc.on('close', (code) => {
+                isRunning = false;
+                if (code === 0 && fs.existsSync(MARKET_RADAR_FILE)) {
+                    try {
+                        const raw = fs.readFileSync(MARKET_RADAR_FILE, 'utf8');
+                        memoryMarketRadarData = JSON.parse(raw);
+                        console.log(`[PROXY] ✅ Updated memoryMarketRadarData with ${memoryMarketRadarData?.opportunities?.length || 0} opportunities!`);
+                    } catch (e) {}
+                }
+            });
+            pyProc.on('error', (e) => {
+                isRunning = false;
+                console.error('[PROXY] Market radar spawn error:', e.message);
+            });
+        } catch (e) {
+            isRunning = false;
+            console.error('[PROXY] Market radar error:', e.message);
+        }
+    };
+    runRadar();
+    setInterval(runRadar, 20 * 60 * 1000); // Poll every 20 minutes
+}
+
 // --- CLOUDFLARE 24/7 TUNNEL MANAGEMENT ---
 let tunnelProcess = null;
 let activeTunnelUrl = null;
@@ -5098,6 +5158,7 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
         startConsensusScraper();
         startSharpPicksEngine();
         startBetanoScraper();
+        startMarketRadarEngine();
     }, 10000);
 
     // 24/7 CLOUD MODE: Keep-alive self-ping to prevent Render free-tier spin-down
