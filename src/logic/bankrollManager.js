@@ -261,7 +261,7 @@ class BankrollManager {
      * 500 TL balance -> 1 Unit = 5.00 TL.
      */
     getUnitSize() {
-        const bal = Number(this.state.current_balance) || 2000;
+        const bal = Number(this.state.current_balance) || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000;
         return Math.max(1, Math.round((bal / 100) * 100) / 100);
     }
 
@@ -346,7 +346,7 @@ class BankrollManager {
      * Evaluates daily locks (Target +%5, Stop Loss -%3, Exposure Cap)
      */
     getDisciplineStatus() {
-        const starting = Number(this.state.starting_balance) || 2000;
+        const starting = Number(this.state.starting_balance) || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000;
         const current = Number(this.state.current_balance) || starting;
         const dailyPL = Number(this.state.daily_pl) || 0;
         const dailyPLPct = starting > 0 ? (dailyPL / starting) * 100 : 0;
@@ -692,7 +692,7 @@ class BankrollManager {
         }
 
         const unitSize = this.getUnitSize();
-        const balanceBefore = Number(this.state.current_balance) || 2000;
+        const balanceBefore = Number(this.state.current_balance) || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000;
 
         // Determine stake: if provided use it, else calculate from units (e.g. 1.5 units)
         let stake = Number(customBet.stake);
@@ -966,7 +966,7 @@ class BankrollManager {
         const stopLossPct = eff.stopLossPct;
 
         // EXPERT DISCIPLINE: Stop-Loss & Target Profit
-        const dailyProfitPercent = (this.state.daily_pl / (this.state.starting_balance || 2000));
+        const dailyProfitPercent = (this.state.daily_pl / (this.state.starting_balance || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000));
         const targetReached = dailyProfitPercent >= targetDailyPct;
         const stopLossReached = dailyProfitPercent <= -stopLossPct;
 
@@ -1060,7 +1060,7 @@ class BankrollManager {
 
         const settled = (this.state.ledger || []).filter(l => l.is_settled);
         const totalSettled = settled.length;
-        const startBal = this.state.starting_balance || 2000;
+        const startBal = this.state.starting_balance || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000;
         const dailyProfitPercent = (this.state.daily_pl / startBal);
         const totalGrowthPercent = ((this.state.current_balance - startBal) / startBal);
 
@@ -1102,7 +1102,7 @@ class BankrollManager {
      * Returns daily progress towards target and stop loss
      */
     getDailyProgress() {
-        const starting = this.state.starting_balance || 2000;
+        const starting = this.state.starting_balance || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000;
         const dailyPL = this.state.daily_pl || 0;
         const dailyPLPct = (dailyPL / starting) * 100;
         const eff = this.getEffectiveRiskSettings();
@@ -1136,7 +1136,7 @@ class BankrollManager {
      * Compound Growth Simulator Engine
      */
     getProjectedGrowth(days = 30, dailyTargetPct = 2, customStartingBalance = null) {
-        const initial = Number(customStartingBalance) || Number(this.state.starting_balance) || 2000;
+        const initial = Number(customStartingBalance) || Number(this.state.starting_balance) || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000;
         const rate = (Number(dailyTargetPct) || 2) / 100;
         const points = [];
         let current = initial;
@@ -1214,7 +1214,7 @@ class BankrollManager {
      * Custom Starting Capital and Risk Profile configuration
      */
     setInitialCapital(amount, profile = 'BALANCED', currency = null, customRules = null) {
-        const numAmount = Math.max(10, Number(amount) || 2000);
+        const numAmount = Math.max(10, Number(amount) || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000);
         this.state.starting_balance = numAmount;
         this.state.current_balance = numAmount;
         this.state.max_balance_seen = numAmount;
@@ -1308,7 +1308,7 @@ class BankrollManager {
     reset(startingBalance = null, currency = null) {
         const profile = this.state?.risk_profile || 'BALANCED';
         const nickname = this.state?.nickname || ('Analist_' + Math.floor(1000 + Math.random() * 9000));
-        const balance = startingBalance || this.state?.starting_balance || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 2000;
+        const balance = startingBalance || this.state?.starting_balance || CONFIG.BANKROLL.HIERARCHY.INITIAL_BALANCE || 5000;
         const curr = currency || this.state?.currency || '₺';
 
         if (typeof localStorage !== 'undefined') {
