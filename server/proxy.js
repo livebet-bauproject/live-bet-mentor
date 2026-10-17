@@ -16,6 +16,7 @@ import { quantTradingDesk } from './quantTradingDesk.js';
 import { geminiTradingBridge } from './geminiTradingBridge.js';
 import { sharpPicksEngine } from './sharpPicksEngine.js';
 import { tipsterEngine } from './tipsterEngine.js';
+import { cryptoPay } from './cryptoPay.js';
 import { 
     hashPassword, 
     verifyPassword, 
@@ -2770,6 +2771,40 @@ app.post('/api/payment/webhook', async (req, res) => {
     }
 });
 
+// 3.2 CryptoBot & TON Web3 Payment Endpoints
+app.post('/api/crypto/create-invoice', async (req, res) => {
+    try {
+        const { plan = 'PROFESYONEL', days = 30, amount = '29', asset = 'USDT', userId = 'web_user', username = 'User' } = req.body || {};
+        const result = await cryptoPay.createInvoice({
+            plan,
+            days: parseInt(days, 10),
+            amount: String(amount),
+            currencyType: 'crypto',
+            asset,
+            userId,
+            username,
+            description: `Live Bet Mentor - ${plan} VIP (${days} Gün)`
+        });
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/crypto/status/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const status = await cryptoPay.checkInvoiceStatus(id);
+        if (status.isPaid && status.payload?.userId) {
+            const meta = status.payload;
+            vipManager.addVip(meta.userId, meta.days || 30, meta.username || 'CryptoUser', meta.plan || 'PROFESYONEL');
+        }
+        res.json(status);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // 4. Approve member
 app.post('/api/members/approve', (req, res) => {
     try {
@@ -5038,7 +5073,20 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
         console.warn('[PROXY] ⚠️ Telegram Bot not available:', botStatus.error);
     }
 
-    // 24/7 Autonomous In-Play Quant Signal Engine
+    // 24/7 Autonomous In-Play Quant Signal Engine with Self-Healing Wire-Up
+    if (autonomousSignalEngine.watchdog) {
+        autonomousSignalEngine.watchdog.onStalledCallback = () => {
+            console.warn('[SELF-HEALING] 🔄 Watchdog triggered scraper recovery!');
+            if (scraperProcess) {
+                try {
+                    scraperProcess.kill('SIGKILL');
+                } catch (e) {}
+            }
+            if (typeof fetchSofaScoreLiveNode === 'function') {
+                fetchSofaScoreLiveNode().catch(() => {});
+            }
+        };
+    }
     autonomousSignalEngine.start(25);
 
     // 24/7 Autonomous Office (Sentinel, Cashier, Marketing)

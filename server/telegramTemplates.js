@@ -4,6 +4,7 @@
  */
 
 export const WEB_URL = process.env.SITE_URL || 'https://www.livebetmentor.com';
+import { learningEngine } from './learningEngine.js';
 
 export function cleanMd(str) {
     if (!str) return '';
@@ -112,6 +113,14 @@ export function resolveMarketText(alert, lang = 'tr', includeOdds = false) {
     }
     if (key === 'AWAY_WIN_NEXT' || label.toLowerCase().includes('away win')) {
         return isTr ? `Maç Sonucu: ${away}${oddsStr}` : isDe ? `Spielgewinner: ${away}${oddsStr}` : `Match Winner: ${away}${oddsStr}`;
+    }
+
+    // 8. Draw No Bet (Beraberlikte İade / DNB)
+    if (key === 'market_dnb_home' || (label.toLowerCase().includes('beraberlikte iade') && label.includes(home))) {
+        return isTr ? `Beraberlikte İade: ${home}${oddsStr}` : isDe ? `DNB (Unentschieden Geld zurück): ${home}${oddsStr}` : `Draw No Bet (DNB): ${home}${oddsStr}`;
+    }
+    if (key === 'market_dnb_away' || (label.toLowerCase().includes('beraberlikte iade') && label.includes(away))) {
+        return isTr ? `Beraberlikte İade: ${away}${oddsStr}` : isDe ? `DNB (Unentschieden Geld zurück): ${away}${oddsStr}` : `Draw No Bet (DNB): ${away}${oddsStr}`;
     }
 
     // Fallback translation of English labels
@@ -269,9 +278,14 @@ export function formatVIPSignal(alert, lang = 'tr') {
             : 'High offensive pressure and match momentum detected.';
     }
 
-    const minNum = parseInt(alert.minute, 10) || 60;
-    const histSamples = 140 + Math.abs((minNum * 7) % 65);
-    const histWinPct = Math.min(88, Math.max(78, Math.round(conf * 0.98)));
+    // Quantitative Safety Floor: Minimum acceptable value odds to prevent entering decayed lines
+    const floorOdds = isRealOdds ? Math.max(1.40, parseFloat((numOdds * 0.88).toFixed(2))) : null;
+    const floorStr = floorOdds ? `${floorOdds.toFixed(2)}` : null;
+
+    // Dynamic Empirical Archive Stats from Self-Learning Quant Engine
+    const valStats = learningEngine.getValidationStats(alert.league || alert.tournament?.name, marketText, alert.minute);
+    const winRateFormatted = valStats.winRate.toFixed(1);
+    const netSign = valStats.netUnits >= 0 ? '+' : '';
 
     if (isTr) {
         return `${badge} · *${alert.minute}'* [*${alert.score || '0-0'}*]
@@ -279,10 +293,11 @@ export function formatVIPSignal(alert, lang = 'tr') {
 ⚽ *${home} - ${away}*
 ${leagueLine}🎯 *TERCİH  :* *${marketText}*
 📈 *PİYASA   :* *${oddsVal}* (Canlı Piyasa Oranı)
-💰 *KASA     :* *%${stake}* (Önerilen Yatırım)
+${floorStr ? `🛑 *TABAN    :* *${floorStr}* (Bu oranın altına girmeyiniz)\n` : ''}💰 *KASA     :* *%${stake}* (Disiplinli Yatırım)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ *Saha İvmesi:* _${reasonStr}_
-📊 *Model Güveni:* %${conf} | *Arşiv Onayı:* ${histSamples}+ maçta %${histWinPct}
+📊 *Model Güveni:* %${conf} | *Doğrulanmış Arşiv:* ${valStats.sample}+ maçta %${winRateFormatted} İsabet
+📈 *Kasa Getirisi:* ${netSign}${valStats.netUnits} Birim (%${netSign}${valStats.roi} ROI)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 _Live Bet Mentor Quantitative Syndicate_`;
     }
@@ -293,10 +308,11 @@ ${leagueLine}🎯 *TERCİH  :* *${marketText}*
 ⚽ *${home} - ${away}*
 ${leagueLine}🎯 *TIPP     :* *${marketText}*
 📈 *QUOTE    :* *${oddsVal}* (Live-Marktquote)
-💰 *EINSATZ  :* *%${stake}* (Bankroll-Empfehlung)
+${floorStr ? `🛑 *MIN-QUOTE:* *${floorStr}* (Nicht unter dieser Quote einsteigen)\n` : ''}💰 *EINSATZ  :* *%${stake}* (Disziplinierte Allokation)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ *Spiel-Momentum:* _${reasonStr}_
-📊 *KI-Konfidenz:* ${conf}% | *Archiv-Validierung:* ${histWinPct}% (${histSamples}+ Spiele)
+📊 *KI-Konfidenz:* ${conf}% | *Archiv-Validierung:* ${valStats.sample}+ Spiele (%${winRateFormatted})
+📈 *Ertragsbilanz:* ${netSign}${valStats.netUnits} Einheiten (${netSign}${valStats.roi}% ROI)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 _Live Bet Mentor Quantitative Syndicate_`;
     }
@@ -306,10 +322,11 @@ ${leagueLine}🎯 *TIPP     :* *${marketText}*
 ⚽ *${home} - ${away}*
 ${leagueLine}🎯 *PICK     :* *${marketText}*
 📈 *ODDS     :* *${oddsVal}* (Live Market Odds)
-💰 *STAKE    :* *%${stake}* (Bankroll Allocation)
+${floorStr ? `🛑 *FLOOR    :* *${floorStr}* (Do not enter below this odds)\n` : ''}💰 *STAKE    :* *%${stake}* (Bankroll Allocation)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚡ *Match Momentum:* _${reasonStr}_
-📊 *AI Confidence:* ${conf}% | *Backtest Validated:* ${histWinPct}% (${histSamples}+ matches)
+📊 *AI Confidence:* ${conf}% | *Validated Archive:* ${valStats.sample}+ matches (${winRateFormatted}% Win Rate)
+📈 *Yield Ledger:* ${netSign}${valStats.netUnits} Units (${netSign}${valStats.roi}% ROI)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 💎 _Live Bet Mentor Quantitative Syndicate_`;
 }
@@ -514,6 +531,30 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
     const profitUnits = ((validOdds - 1.0) * stake).toFixed(2);
     const oddsStr = (!isNaN(rawOdds) && rawOdds > 1.0) ? rawOdds.toFixed(2) : '1.80';
 
+    // Calculate Real Day Average Odds & Cumulative Day Net Units
+    let dayNetUnits = 0;
+    let oddsSum = 0;
+    let resolvedSignalsCount = 0;
+    if (Array.isArray(currentStats.signals)) {
+        currentStats.signals.forEach(s => {
+            const st = parseFloat(s.level === 'ALPHA' ? 1.5 : 1.0);
+            const o = parseFloat(s.recommendation?.odds || s.odds || 1.80);
+            const vo = (!isNaN(o) && o > 1.0) ? o : 1.80;
+            if (s.status === 'WON') {
+                dayNetUnits += (vo - 1.0) * st;
+                oddsSum += vo;
+                resolvedSignalsCount++;
+            } else if (s.status === 'LOST') {
+                dayNetUnits -= 1.0 * st;
+                oddsSum += vo;
+                resolvedSignalsCount++;
+            }
+        });
+    }
+    const dayAvgOdds = resolvedSignalsCount > 0 ? (oddsSum / resolvedSignalsCount).toFixed(2) : oddsStr;
+    const dayNetSign = dayNetUnits >= 0 ? '+' : '';
+    const dayNetFormatted = `${dayNetSign}${dayNetUnits.toFixed(2)}`;
+
     if (isTr) {
         if (isWon) {
             return `🟢 *HEDEF VURULDU! KASA KAZANDI!* 🎯
@@ -523,7 +564,7 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 📈 *Piyasa Oranı:* ${oddsStr}
 💰 *Net Getiri:* *+${profitUnits} Birim Kasa Kârı* 💸
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Güncel Bilanço:* %${winRate} İsabet (${currentStats.won || 1}/${totalResolved || 1})
+📊 *Güncel Bilanço:* %${winRate} İsabet (${currentStats.won || 1}/${totalResolved || 1}) | Ort: @${dayAvgOdds} | Kâr: ${dayNetFormatted}B
 💎 _Live Bet Mentor VIP Syndicate_`;
         } else {
             return `🔴 *SEÇİM SONUÇLANDI* ${scoreStr ? `[${scoreStr}]` : ''}
@@ -532,7 +573,7 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 🎯 *Tahmin:* *${market}*
 📉 *Kasa Etkisi:* -${stake.toFixed(2)} Birim (%${stake.toFixed(1)} Kasa)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Güncel Bilanço:* %${winRate} İsabet (${currentStats.won || 0}/${totalResolved || 1})
+📊 *Güncel Bilanço:* %${winRate} İsabet (${currentStats.won || 0}/${totalResolved || 1}) | Ort: @${dayAvgOdds} | Kâr: ${dayNetFormatted}B
 🛡️ _Sermaye koruma devrede, kasa disiplinine sadık kalın._`;
         }
     }
@@ -546,7 +587,7 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 📈 *Quote:* ${oddsStr}
 💰 *Netto-Profit:* *+${profitUnits} Einheiten* 💸
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Tagesbilanz:* ${winRate}% Trefferquote (${currentStats.won || 1}/${totalResolved || 1})
+📊 *Tagesbilanz:* ${winRate}% Trefferquote (${currentStats.won || 1}/${totalResolved || 1}) | Ø: ${dayAvgOdds} | Ertrag: ${dayNetFormatted}E
 💎 _Live Bet Mentor VIP Syndicate_`;
         } else {
             return `🔴 *SPIEL BEENDET* ${scoreStr ? `[${scoreStr}]` : ''}
@@ -555,7 +596,7 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 🎯 *Tipp:* *${market}*
 📉 *Bankroll-Effekt:* -${stake.toFixed(2)} Einheiten
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Tagesbilanz:* ${winRate}% (${currentStats.won || 0}/${totalResolved || 1})
+📊 *Tagesbilanz:* ${winRate}% (${currentStats.won || 0}/${totalResolved || 1}) | Ø: ${dayAvgOdds} | Ertrag: ${dayNetFormatted}E
 🛡️ _Kapitalschutz aktiv, diszipliniert im Plan bleiben._`;
         }
     }
@@ -568,7 +609,7 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 📈 *Locked Odds:* ${oddsStr}
 💰 *Net Yield:* *+${profitUnits} Units* 💸
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Ledger:* ${winRate}% Win Rate (${currentStats.won || 1}/${totalResolved || 1})
+📊 *Ledger:* ${winRate}% Win Rate (${currentStats.won || 1}/${totalResolved || 1}) | Avg: @${dayAvgOdds} | Net: ${dayNetFormatted}U
 💎 _Live Bet Mentor VIP Syndicate_`;
     } else {
         return `🔴 *MATCH SETTLED* ${scoreStr ? `[${scoreStr}]` : ''}
@@ -577,7 +618,7 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 🎯 *Pick:* *${market}*
 📉 *Allocation:* -${stake.toFixed(2)} Units
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Ledger:* ${winRate}% (${currentStats.won || 0}/${totalResolved || 1})
+📊 *Ledger:* ${winRate}% (${currentStats.won || 0}/${totalResolved || 1}) | Avg: @${dayAvgOdds} | Net: ${dayNetFormatted}U
 🛡️ _Capital shield active, discipline maintained._`;
     }
 }
@@ -724,13 +765,19 @@ export function formatDailyReport(stats, lang = 'tr') {
     const totalResolved = wonCount + lostCount;
     const winRate = totalResolved > 0 ? ((wonCount / totalResolved) * 100).toFixed(1) : (totalSignals > 0 && wonCount > 0 ? '100.0' : '0.0');
 
-    // Calculate Net Profit / Unit Yield
+    // Calculate Net Profit / Unit Yield & Average Odds
     let netUnits = 0;
+    let oddsSum = 0;
+    let oddsCount = 0;
     if (Array.isArray(stats.signals)) {
         stats.signals.forEach(s => {
             const stake = parseFloat(s.level === 'ALPHA' ? 1.5 : 1.0);
             const oddsVal = parseFloat(s.recommendation?.odds || s.odds || 1.80);
             const validOdds = (!isNaN(oddsVal) && oddsVal > 1.0) ? oddsVal : 1.80;
+            if (s.status === 'WON' || s.status === 'LOST') {
+                oddsSum += validOdds;
+                oddsCount++;
+            }
             if (s.status === 'WON') {
                 netUnits += (validOdds - 1.0) * stake;
             } else if (s.status === 'LOST') {
@@ -738,6 +785,7 @@ export function formatDailyReport(stats, lang = 'tr') {
             }
         });
     }
+    const dayAvgOdds = oddsCount > 0 ? (oddsSum / oddsCount).toFixed(2) : '1.75';
     const signPrefix = netUnits >= 0 ? '+' : '';
     const roiStr = `${signPrefix}${netUnits.toFixed(2)} Birim (${signPrefix}%${(netUnits * 1.0).toFixed(1)} Kasa Büyümesi)`;
     const progressBar = makeProgressBar(wonCount, lostCount);
@@ -763,7 +811,7 @@ export function formatDailyReport(stats, lang = 'tr') {
         return `📊 *GÜNÜN ÖZETİ & PERFORMANS RAPORU*
 📅 *Tarih:* ${date}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 *Net Başarı Oranı:* *%${winRate}*
+📈 *Net Başarı Oranı:* *%${winRate}* | *Ortalama Oran:* @${dayAvgOdds}
 ${progressBar} (${wonCount} Kazandı / ${lostCount} Kaybetti)
 
 💰 *Net Kasa Getirisi:* *${roiStr}*
@@ -777,7 +825,7 @@ Disiplinli kasa yönetimi kazandırır.`;
         return `📊 *TAGESBERICHT & QUANT-PERFORMANCE*
 📅 *Datum:* ${date}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 *Trefferquote:* *${winRate}%*
+📈 *Trefferquote:* *${winRate}%* | *Ø Quote:* ${dayAvgOdds}
 ${progressBar} (${wonCount} Gewonnen / ${lostCount} Verloren)
 
 💰 *Netto-Rendite:* *${roiStr}*
@@ -790,7 +838,7 @@ Diszipliniertes Bankroll-Management setzt sich durch.`;
     return `📊 *DAILY PERFORMANCE & LEDGER REPORT*
 📅 *Date:* ${date}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📈 *Net Win Rate:* *${winRate}%*
+📈 *Net Win Rate:* *${winRate}%* | *Average Odds:* @${dayAvgOdds}
 ${progressBar} (${wonCount} Won / ${lostCount} Lost)
 
 💰 *Net Yield:* *${roiStr}*
@@ -810,7 +858,16 @@ export function formatPublicDailyRecap(stats, lang = 'tr') {
     const winRate = totalResolved > 0 ? ((wonCount / totalResolved) * 100).toFixed(1) : (wonCount > 0 ? '100.0' : '0.0');
 
     let winningList = '';
+    let oddsSum = 0;
+    let oddsCount = 0;
     if (Array.isArray(stats.signals)) {
+        stats.signals.forEach(s => {
+            const numOdds = parseFloat(s.recommendation?.odds || s.odds);
+            if (!isNaN(numOdds) && numOdds > 1.0 && (s.status === 'WON' || s.status === 'LOST')) {
+                oddsSum += numOdds;
+                oddsCount++;
+            }
+        });
         const wins = stats.signals.filter(s => s.status === 'WON');
         if (wins.length > 0) {
             winningList = wins.map(s => {
@@ -824,6 +881,7 @@ export function formatPublicDailyRecap(stats, lang = 'tr') {
             }).slice(0, 6).join('\n');
         }
     }
+    const dayAvgOdds = oddsCount > 0 ? (oddsSum / oddsCount).toFixed(2) : '1.75';
 
     if (isTr) {
         return `🔥 *GÜNÜN VIP KAZANÇ ÖZETİ* 🔥
@@ -831,7 +889,7 @@ export function formatPublicDailyRecap(stats, lang = 'tr') {
 💎 *Bugün VIP Grubumuz Kasasını Büyüttü!*
 
 📊 *Toplam Sinyal:* ${totalSignals} | 🟢 *Kazanan:* ${wonCount}
-🎯 *Net İsabet Oranı:* *%${winRate}*
+🎯 *Net İsabet Oranı:* *%${winRate}* | *Ortalama Oran:* @${dayAvgOdds}
 
 🏆 *Günün Öne Çıkan Kazananları:*
 ${winningList || '  ✅ Algoritmik canlı değer sinyalleri hedefe ulaştı!'}
@@ -846,7 +904,7 @@ Aşağıdaki butona dokunarak *3 Günlük Ücretsiz VIP* üyeliğinizi hemen ba�
 💎 *Heute hat unser VIP-Kanal wieder abgeliefert!*
 
 📊 *Gesamt:* ${totalSignals} | 🟢 *Gewonnen:* ${wonCount}
-🎯 *Trefferquote:* *${winRate}%*
+🎯 *Trefferquote:* *${winRate}%* | *Ø Quote:* ${dayAvgOdds}
 
 🏆 *Top-Treffer des Tages:*
 ${winningList || '  ✅ Algorithmische Value-Picks erfolgreich!'}
@@ -857,7 +915,7 @@ ${winningList || '  ✅ Algorithmische Value-Picks erfolgreich!'}
     return `🔥 *DAILY VIP PERFORMANCE RECAP* 🔥
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 *Total Signals:* ${totalSignals} | 🟢 *Won:* ${wonCount}
-🎯 *Net Win Rate:* *${winRate}%*
+🎯 *Net Win Rate:* *${winRate}%* | *Average Odds:* @${dayAvgOdds}
 
 🏆 *Top Winning Signals Today:*
 ${winningList || '  ✅ Algorithmic value signals landed on target!'}

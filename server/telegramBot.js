@@ -284,6 +284,7 @@ class TelegramBot {
             if (data.ok) {
                 this.botUsername = data.result.username || this.botUsername;
                 console.log(`[TELEGRAM] ✅ Bot verified: @${data.result.username} (${data.result.first_name})`);
+                await this.setupMiniAppMenuButton();
                 return { ok: true, bot: data.result };
             } else {
                 console.error('[TELEGRAM] ❌ Token invalid:', data.description);
@@ -292,6 +293,33 @@ class TelegramBot {
         } catch (e) {
             console.error('[TELEGRAM] ❌ Connection error:', e.message);
             return { ok: false, error: e.message };
+        }
+    }
+
+    /**
+     * Configure Telegram Chat Menu Button to launch Mini App
+     */
+    async setupMiniAppMenuButton() {
+        if (!this.token) return;
+        try {
+            const webAppUrl = process.env.WEBAPP_URL || 'https://livebetmentor.com';
+            const res = await fetch(`https://api.telegram.org/bot${this.token}/setChatMenuButton`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    menu_button: {
+                        type: 'web_app',
+                        text: '🚀 Terminal',
+                        web_app: { url: webAppUrl }
+                    }
+                })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                console.log('[TELEGRAM] 📱 TMA Menu Button configured successfully');
+            }
+        } catch (e) {
+            console.warn('[TELEGRAM] TMA Menu button setup warning:', e.message);
         }
     }
 
@@ -492,6 +520,14 @@ class TelegramBot {
         if (!lCheck.allowed) {
             console.warn(`[TELEGRAM] ⛔ Skipping alert for ${alert.homeTeam} vs ${alert.awayTeam} due to AI quarantine: ${lCheck.reason}`);
             return { sent: false, reason: 'ai_quarantine' };
+        }
+
+        // Strict Real Odds Gate: Zero fake odds, must have verified real market odds >= 1.45
+        const rec = alert.recommendation || {};
+        const parsedOdds = parseFloat(rec.odds);
+        if (rec.isRealOdds === false || isNaN(parsedOdds) || parsedOdds < 1.45) {
+            console.warn(`[TELEGRAM] ⛔ Rejected alert without verified real live odds: ${alert.homeTeam} vs ${alert.awayTeam} (odds: ${rec.odds}, isReal: ${rec.isRealOdds})`);
+            return { sent: false, reason: 'missing_real_odds' };
         }
 
         // Strict duplicate match guard (Checks both matchId and normalized team pair)
@@ -942,12 +978,65 @@ class TelegramBot {
      */
     async autoResolveSignals(liveEvents = []) {
         if (!this.dailyStats?.signals || !Array.isArray(this.dailyStats.signals)) return [];
+        const now = Date.now();
+
+        // 🛡️ VAR DISALLOWED GOAL ROLLBACK GUARD:
+        // Automatically checks if any recently WON in-play signal had its goal cancelled by VAR
+        const recentWonSignals = this.dailyStats.signals.filter(s => 
+            s.status === 'WON' && s.resolvedAt && (now - new Date(s.resolvedAt).getTime()) < 12 * 60 * 1000
+        );
+        for (const wonSignal of recentWonSignals) {
+            const ev = Array.isArray(liveEvents) ? liveEvents.find(e => {
+                if (wonSignal.matchId && String(e.id) === String(wonSignal.matchId)) return true;
+                const home = (wonSignal.homeTeam || wonSignal.match?.split(' vs ')[0] || '').toLowerCase().trim();
+                const away = (wonSignal.awayTeam || wonSignal.match?.split(' vs ')[1] || '').toLowerCase().trim();
+                if (!home || !away) return false;
+                const evHome = (e.homeTeam?.name || '').toLowerCase().trim();
+                const evAway = (e.awayTeam?.name || '').toLowerCase().trim();
+                return (evHome.includes(home.slice(0, 5)) || home.includes(evHome.slice(0, 5))) &&
+                       (evAway.includes(away.slice(0, 5)) || away.includes(evAway.slice(0, 5)));
+            }) : null;
+
+            if (ev && ev.status?.type === 'inprogress') {
+                const curH = Number(ev.homeScore?.current ?? ev.score?.home ?? 0);
+                const curA = Number(ev.awayScore?.current ?? ev.score?.away ?? 0);
+                const curTotal = curH + curA;
+                let wonTotal = 0;
+                if (typeof wonSignal.resultScore === 'string' && wonSignal.resultScore.includes('-')) {
+                    const parts = wonSignal.resultScore.split('-');
+                    wonTotal = (parseInt(parts[0]) || 0) + (parseInt(parts[1]) || 0);
+                }
+                if (curTotal < wonTotal) {
+                    console.warn(`[TELEGRAM] 🚨 VAR CANCELLATION DETECTED: ${wonSignal.match} went from ${wonSignal.resultScore} to ${curH}-${curA}. Rolling back!`);
+                    wonSignal.status = 'PENDING';
+                    wonSignal.resolvedAt = null;
+                    wonSignal.resultScore = null;
+                    this.syncStatsCounters();
+                    this.saveHistory();
+
+                    try {
+                        const activeVips = this.getActiveVipChannels();
+                        for (const dest of activeVips) {
+                            const isTr = dest.lang === 'tr';
+                            const isDe = dest.lang === 'de';
+                            const varMsg = isTr
+                                ? `⚠️ *VAR GOL İPTALİ BİLDİRİMİ* 📺\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n⚽ *${wonSignal.homeTeam} - ${wonSignal.awayTeam}*\n🚨 Hakem VAR incelemesi sonucu son atılan gol geçersiz sayıldı!\n📊 Skor güncellendi: [*${curH}-${curA}*]\n⏳ Sinyal durumu: *TAKİPTE (AÇIK)*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n💎 _Live Bet Mentor Otomatik Düzeltme_`
+                                : isDe
+                                ? `⚠️ *VAR-TORABERKANNUNG* 📺\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n⚽ *${wonSignal.homeTeam} vs ${wonSignal.awayTeam}*\n🚨 Nach VAR-Prüfung wurde der Treffer aberkannt!\n📊 Neuer Spielstand: [*${curH}-${curA}*]\n⏳ Signal-Status: *WIEDER OFFEN / IN-PLAY*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n💎 _Live Bet Mentor Autonome Korrektur_`
+                                : `⚠️ *VAR GOAL DISALLOWED* 📺\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n⚽ *${wonSignal.homeTeam} vs ${wonSignal.awayTeam}*\n🚨 Goal disallowed following VAR review!\n📊 Corrected Score: [*${curH}-${curA}*]\n⏳ Signal Status: *REOPENED (IN-PLAY)*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n💎 _Live Bet Mentor Autonomous Correction_`;
+                            await this.sendMessage(dest.channelId, varMsg);
+                        }
+                    } catch (e) {
+                        console.error('[TELEGRAM] Error sending VAR rollback message:', e.message);
+                    }
+                }
+            }
+        }
 
         const pendingSignals = this.dailyStats.signals.filter(s => s.status === 'PENDING');
         if (pendingSignals.length === 0) return [];
 
         const resolved = [];
-        const now = Date.now();
 
         for (const signal of pendingSignals) {
             // Find event by matchId or team names in liveEvents
@@ -1137,7 +1226,27 @@ class TelegramBot {
                     }
                 }
             }
-            // 5. MATCH FINISHED FALLBACK
+            // 5. DRAW NO BET (Beraberlikte İade / DNB) & 1X2
+            else if (marketKey.includes('dnb') || marketText.includes('beraberlikte iade') || marketText.includes('dnb') || marketKey.includes('1x2')) {
+                const homeName = (signal.homeTeam || signal.match?.split(' vs ')[0] || '').toLowerCase().trim();
+                const awayName = (signal.awayTeam || signal.match?.split(' vs ')[1] || '').toLowerCase().trim();
+                const isHomeTarget = marketKey.includes('home') || marketText.includes(homeName) || /\b(home|ev)\b/i.test(marketText);
+                
+                if (isFinished) {
+                    if (curHome === curAway && (marketKey.includes('dnb') || marketText.includes('dnb') || marketText.includes('iade'))) {
+                        // Push / Void: Capital returned with zero drawdown
+                        const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    } else if (isHomeTarget ? (curHome > curAway) : (curAway > curHome)) {
+                        const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    } else {
+                        const res = await this.resolveSignal(signal, 'LOST', currentScoreStr, true);
+                        if (res) resolved.push(res);
+                    }
+                }
+            }
+            // 6. MATCH FINISHED FALLBACK
             else if (isFinished) {
                 if (totalGoals > (initHome + initAway)) {
                     const res = await this.resolveSignal(signal, 'WON', currentScoreStr, true);
@@ -1762,7 +1871,37 @@ Mesajınız canlı destek ekibimize ulaştı. Yetkili arkadaşımız en kısa s�
                         userLang = 'en';
                     }
                 }
-                await this.sendMessage(chatId, formatWelcome(userLang));
+                const webAppUrl = process.env.WEBAPP_URL || 'https://livebetmentor.com';
+                const tmaBtnText = userLang === 'tr' ? "🚀 Live Terminal Mini App'i Aç" : (userLang === 'de' ? "🚀 Live-Terminal Mini-App öffnen" : "🚀 Open Live Terminal Mini App");
+                await this.sendMessage(chatId, formatWelcome(userLang), {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: tmaBtnText, web_app: { url: webAppUrl } }]
+                        ]
+                    }
+                });
+                break;
+            }
+
+            case '/app':
+            case '/terminal':
+            case '/miniapp': {
+                const webAppUrl = process.env.WEBAPP_URL || 'https://livebetmentor.com';
+                const isTr = userLang === 'tr';
+                const isDe = userLang === 'de';
+                const text = isTr
+                    ? `🚀 *LIVE BET MENTOR MINI APP*\n━━━━━━━━━━━━━━━━━━\nTarayıcı veya şifre gerekmeden, canlı maç analizlerini doğrudan Telegram içinden kesintisiz takip edebilirsiniz.\n\nAşağıdaki butona dokunarak terminali başlatın:`
+                    : (isDe
+                        ? `🚀 *LIVE BET MENTOR MINI APP*\n━━━━━━━━━━━━━━━━━━\nÖffnen Sie das Live-Terminal direkt in Telegram, ohne Browser oder Login.\n\nTippen Sie auf den Button unten:`
+                        : `🚀 *LIVE BET MENTOR MINI APP*\n━━━━━━━━━━━━━━━━━━\nOpen the live terminal directly inside Telegram with zero login friction.\n\nTap below to launch:`);
+                const btnText = isTr ? "🚀 Canlı Terminali Aç (Tam Ekran)" : (isDe ? "🚀 Live-Terminal öffnen" : "🚀 Open Live Terminal");
+                await this.sendMessage(chatId, text, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [{ text: btnText, web_app: { url: webAppUrl } }]
+                        ]
+                    }
+                });
                 break;
             }
 
