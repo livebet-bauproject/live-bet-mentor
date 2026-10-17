@@ -13,6 +13,14 @@
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <meta name="theme-color" content="#0a0e17">
   
+  <!-- PWA & Mobile Web App Capabilities -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="LiveBet Mentor">
+  <link rel="apple-touch-icon" href="/logo.svg">
+  <link rel="manifest" href="/manifest.json">
+  
   <!-- Canonical & Alternate Hreflang -->
   <link rel="canonical" href="https://livebetmentor.com/">
   <link rel="alternate" hreflang="x-default" href="https://livebetmentor.com/">
@@ -66,8 +74,10 @@
         },
         "aggregateRating": {
           "@type": "AggregateRating",
-          "ratingValue": "4.8",
-          "ratingCount": "342"
+          "ratingValue": "4.9",
+          "bestRating": "5",
+          "worstRating": "1",
+          "ratingCount": "1480"
         }
       },
       {
@@ -77,7 +87,7 @@
         "url": "https://livebetmentor.com",
         "logo": "https://livebetmentor.com/logo.svg",
         "sameAs": [
-          "https://t.me/Livebetdeskbot"
+          "https://t.me/Livebetmentorbot"
         ]
       },
       {
@@ -112,10 +122,26 @@
           },
           {
             "@type": "Question",
-            "name": "DQS (Data Quality Score) veri güvenliği eşiği nedir?",
+            "name": "Canlı maç baskı oranı (Pressure Index) ve Alev Seviyesi nedir?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "DQS, canlı veri akışındaki gecikmeyi (latency) ve veri tutarlılığını 0.00-1.00 arasında ölçer. Gecikme 30 saniyeyi aştığında sistem otomatik NO-BET kalkanı açarak hatalı kararları engeller."
+              "text": "Pressure Index (Baskı Endeksi); dakika başına isabetli şut, ceza sahası topla buluşma, korner temposu ve son 10 dakikalık ivmeyi ölçen 0-100 arası bir canlı maç yoğunluğu skorudur. 75 puanı aşan maçlar otomatik olarak Alev Seviyesi (🔥) ile etiketlenir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Gecikme Radarı (Latency Arbitrage) büro oran açığı nedir?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Global referans piyasada yüksek baskı veya kırmızı kart sebebiyle oranlar düştüğünde, bazı yerel bürolar tahtalarını geç günceller. Sistem bu gecikme penceresini tespit ederek matematiksel değer fırsatı sunar."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Telegram Mini App (TMA) üzerinden nasıl erişilir?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Telegram botumuz (@Livebetmentorbot) üzerinden tek tıkla tarayıcı veya şifre gerekmeden tam ekran mobil uygulama deneyimiyle canlı terminale anında erişebilirsiniz."
             }
           }
         ]
@@ -123,9 +149,39 @@
     ]
   }
   </script>
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-  <div id="root"></div>
+  <!-- Semantic Crawlable Fallback for Search Engine Bots (Hydrated by React on boot) -->
+  <div id="root">
+    <div style="padding: 2rem; max-width: 900px; margin: 0 auto; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #f8fafc; background: #0a0e17; min-height: 100vh;">
+      <header style="border-bottom: 1px solid #1e293b; padding-bottom: 1.5rem; margin-bottom: 2rem;">
+        <h1 style="font-size: 2rem; font-weight: 800; color: #38bdf8; margin: 0 0 0.5rem 0;">LiveBet Mentor | Canlı Futbol İstatistikleri, xG & Kuant Analiz Terminali</h1>
+        <p style="font-size: 1.1rem; color: #94a3b8; line-height: 1.6; margin: 0;">Yapay zeka, Poisson olasılık modelleri ve Kelly Kriteri kasa yönetimi ile desteklenen profesyonel canlı maç telemetrisi.</p>
+      </header>
+
+      <section style="margin-bottom: 2rem;">
+        <h2 style="font-size: 1.4rem; color: #f59e0b; margin-bottom: 1rem;">⚡ Temel Kantitatif Analiz Modülleri</h2>
+        <ul style="line-height: 1.8; color: #cbd5e1;">
+          <li><strong>Canlı xG (Beklenen Gol):</strong> Şut kalitesi, tehlikeli bölge aksiyonları ve bitiricilik sapması.</li>
+          <li><strong>Pressure Index (Baskı Endeksi 0-100):</strong> Dakika başına saha tahakkümü ve 75+ 🔥 Alev Seviyesi ikazları.</li>
+          <li><strong>Gecikme Radarı (Latency Arbitrage):</strong> Global piyasa tahtası ile yerel bürolar arasındaki oran açığı tespiti.</li>
+          <li><strong>Sanal Kasa (Paper Trading):</strong> Sıfır finansal riskle 10.000 ₺ sanal bakiye ile strateji testi ve Analist Ligi.</li>
+          <li><strong>Disiplinli Kelly Kasa Kalkanı:</strong> Sermaye koruma, stop-loss ve Drawdown devre kesici koruması.</li>
+        </ul>
+      </section>
+
+      <section style="margin-bottom: 2rem;">
+        <h2 style="font-size: 1.3rem; color: #10b981; margin-bottom: 1rem;">🌍 Desteklenen Diller ve Platformlar</h2>
+        <p style="color: #94a3b8; line-height: 1.6;">Web Tarayıcısı, iOS PWA, Android PWA ve Telegram Mini App (TMA). Türkçe (TR), Almanca (DE) ve İngilizce (EN) çok dilli destek.</p>
+      </section>
+
+      <footer style="border-top: 1px solid #1e293b; padding-top: 1rem; font-size: 0.85rem; color: #64748b;">
+        <p>© 2026 LiveBet Mentor Labs. Sorumlu bahis ve kantitatif spor analitiği servisi.</p>
+      </footer>
+    </div>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

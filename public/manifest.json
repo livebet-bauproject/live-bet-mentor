@@ -1,0 +1,42 @@
+{
+  "name": "LiveBet Mentor | Canlı Maç İstatistikleri, xG & AI Analiz Terminali",
+  "short_name": "LiveBet Mentor",
+  "description": "Yapay zeka ve Poisson modelleriyle desteklenen canlı maç analiz terminali. Canlı xG, atak momentumu ve kasa yönetimi.",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#0a0e17",
+  "orientation": "portrait-primary",
+  "categories": ["sports", "analytics", "finance"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Canlı Terminal",
+      "short_name": "Terminal",
+      "description": "Anlık canlı maç telemetrisi ve baskı radarı",
+      "url": "/?view=TERMINAL",
+      "icons": [{ "src": "/logo.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Alev Alan Maçlar",
+      "short_name": "Alevler",
+      "description": "Gol kokan yüksek baskılı maçlar",
+      "url": "/?view=TERMINAL&filter=HOT",
+      "icons": [{ "src": "/logo.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Kasa & Portföy",
+      "short_name": "Portföy",
+      "description": "Disiplinli Kelly kriteri kasa yönetimi",
+      "url": "/?view=PORTFOLIO",
+      "icons": [{ "src": "/logo.svg", "sizes": "96x96" }]
+    }
+  ]
+}

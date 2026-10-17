@@ -1,4 +1,4 @@
-﻿# LiveBet Mentor - Technical SEO Directive
+# LiveBet Mentor - Technical SEO Directive
 # SaaS Spor Analitiği ve Quant Modelleme Platformu
 # https://livebetmentor.com
 
@@ -7,8 +7,7 @@ Allow: /
 Allow: /public/
 Allow: /assets/
 Disallow: /api/
-Disallow: /api-sofascore/
-Disallow: /api-redscores/
+Disallow: /api-data/
 Disallow: /admin/
 Disallow: /pending/
 

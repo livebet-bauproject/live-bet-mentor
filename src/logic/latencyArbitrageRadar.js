@@ -1,8 +1,8 @@
 /**
  * LATENCY ARBITRAGE & SOFT BOOKMAKER RADAR (v4.0)
  * 
- * Detects fleeting latency windows where sharp market makers (Pinnacle/Asian feeds)
- * have crashed odds due to high pressure, red cards, or dangerous attacks, but soft/local
+ * Detects fleeting latency windows where global benchmark markets
+ * have crashed odds due to high pressure, red cards, or dangerous attacks, but local/regional
  * bookmakers have not yet updated their boards.
  * 
  * If (SoftOdds - SharpOdds) / SharpOdds >= 12%, flags a high-priority "⚡ GECİKME ARBİTRAJI"

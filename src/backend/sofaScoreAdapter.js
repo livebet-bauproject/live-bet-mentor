@@ -47,19 +47,12 @@ const inFlightIncidents = new Map();
 let adapterLiveEventsCache = [];
 let adapterLiveEventsTime = 0;
 let firebaseFailureTime = 0;
+
+// Clean any leftover stale sessionStorage keys to ensure fresh live data on F5
 try {
     if (typeof window !== 'undefined' && window.sessionStorage) {
-        const stored = sessionStorage.getItem('lbm_cached_live_events');
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            const events = Array.isArray(parsed) ? parsed : (parsed?.events || []);
-            const cacheTime = parsed?.time || 0;
-            // Accept cache up to 10 minutes (600,000ms) for instant stale-while-revalidate startup
-            if (Array.isArray(events) && events.length > 0 && cacheTime && (Date.now() - cacheTime < 600000)) {
-                adapterLiveEventsCache = events;
-                adapterLiveEventsTime = cacheTime;
-            }
-        }
+        sessionStorage.removeItem('lbm_cached_live_events');
+        sessionStorage.removeItem('lbm_cached_fixtures');
     }
 } catch(e) {}
 
@@ -112,17 +105,8 @@ export const sofaScoreAdapter = {
      */
     async fetchScheduledEvents(allowCache = true) {
         try {
-            // INSTANT F5 ACCELERATOR (Stale-While-Revalidate):
-            // If we have cached events in memory or sessionStorage (< 10 mins), return immediately (0ms)
-            // and trigger background sync so the UI renders in 0 seconds!
-            if (allowCache && adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000)) {
-                const cacheAge = Date.now() - adapterLiveEventsTime;
-                // If cache is older than 8s, trigger background refresh so fresh scores/minutes update seamlessly
-                if (cacheAge > 8000) {
-                    setTimeout(() => {
-                        this.fetchScheduledEvents(false).catch(() => {});
-                    }, 50);
-                }
+            // In-memory short deduplication (5 seconds) to prevent redundant concurrent fetches
+            if (allowCache && adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 5000)) {
                 return adapterLiveEventsCache;
             }
 
@@ -157,15 +141,10 @@ export const sofaScoreAdapter = {
                     if (normalized.length > 0) {
                         adapterLiveEventsCache = normalized;
                         adapterLiveEventsTime = Date.now();
-                        try {
-                            if (typeof window !== 'undefined' && window.sessionStorage) {
-                                window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 300) }));
-                            }
-                        } catch(e) {}
                     }
                     return normalized;
                 }
-                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000);
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
                 return isCacheValid ? adapterLiveEventsCache : [];
             } else {
                 // PRODUCTION: Use active Cloudflare Tunnel if verified alive, otherwise Firebase directly
@@ -183,11 +162,6 @@ export const sofaScoreAdapter = {
                                 if (normalized.length > 0) {
                                     adapterLiveEventsCache = normalized;
                                     adapterLiveEventsTime = Date.now();
-                                    try {
-                                        if (typeof window !== 'undefined' && window.sessionStorage) {
-                                            window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: normalized.slice(0, 300) }));
-                                        }
-                                    } catch(e) {}
                                     return normalized;
                                 }
                             }
@@ -208,11 +182,6 @@ export const sofaScoreAdapter = {
                                 if (fbNorm.length > 0) {
                                     adapterLiveEventsCache = fbNorm;
                                     adapterLiveEventsTime = Date.now();
-                                    try {
-                                        if (typeof window !== 'undefined' && window.sessionStorage) {
-                                            window.sessionStorage.setItem('lbm_cached_live_events', JSON.stringify({ time: Date.now(), events: fbNorm.slice(0, 300) }));
-                                        }
-                                    } catch(e) {}
                                     return fbNorm;
                                 }
                             }
@@ -223,7 +192,7 @@ export const sofaScoreAdapter = {
                     }
                 }
 
-                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000);
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
                 if (isCacheValid) {
                     return adapterLiveEventsCache;
                 }
@@ -231,7 +200,7 @@ export const sofaScoreAdapter = {
             }
         } catch (error) {
             console.error('[SOFASCORE_ADAPTER] Error fetching:', error);
-            const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 600000);
+            const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
             return isCacheValid ? adapterLiveEventsCache : [];
         }
     },

@@ -7,6 +7,7 @@ import { FAQ } from './FAQ';
 import { StakingCalculator } from './StakingCalculator';
 import { SharpPicksCard } from './SharpPicksCard';
 import { BetanoRadarCard } from './BetanoRadarCard';
+import { MarketRadarCard } from './MarketRadarCard';
 import { translations } from '../locales/translations';
 const AdminPanel = lazy(() => import('./AdminPanel').then(m => ({ default: m.AdminPanel })));
 import { consensusAdapter } from '../backend/consensusAdapter';
@@ -26,6 +27,8 @@ import { LegalModal } from './LegalModal';
 import { LiveSupportChat } from './LiveSupportChat';
 import { LiveTerminalTable } from './LiveTerminalTable';
 import { LiveTerminalMobile } from './LiveTerminalMobile';
+import { OneGlanceFireCard } from './OneGlanceFireCard';
+import { MobileBottomDock } from './MobileBottomDock';
 const TipsterHub = lazy(() => import('./TipsterHub').then(m => ({ default: m.TipsterHub })));
 import { PortfolioCockpit } from './portfolio/PortfolioCockpit';
 import { AnalystLeaderboard } from './portfolio/AnalystLeaderboard';
@@ -33,6 +36,13 @@ import { CompoundSimulator } from './portfolio/CompoundSimulator';
 import { CapitalConfigModal } from './portfolio/CapitalConfigModal';
 import { ShareCardModal } from './portfolio/ShareCardModal';
 import { BankrollGuideModal } from './portfolio/BankrollGuideModal';
+import { latencyArbitrageRadar } from '../logic/latencyArbitrageRadar';
+import { liveMatchFollower } from '../utils/liveMatchFollower';
+import { LiveAICopilotModal } from './LiveAICopilotModal';
+import { PaperBetModal } from './PaperBetModal';
+import { CryptoCheckoutModal } from './CryptoCheckoutModal';
+import { PinnedMatchHUD } from './PinnedMatchHUD';
+import { QuantAcademyModal } from './QuantAcademyModal';
 import { sortMatches, SORT_CRITERIA, calculateMatchHeatScore, isMatchHot, isMatchSurgingLast20, isMatchHighGoalProb, isMatchXgSurplus, isMatchGoldenMinutes, isMatchComeback, isMatchBlowout, calculateLast20MinMetrics, formatMarketPrediction } from '../logic/liveSortEngine';
 import { trackPageView, trackAnalyticsEvent } from '../utils/analyticsTracker';
 import { getAdminHeaders } from '../utils/adminAuth';
@@ -171,18 +181,6 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         if (dataWorker.fixtures && dataWorker.fixtures.length > 0) {
             return dataWorker.fixtures;
         }
-        try {
-            if (typeof window !== 'undefined' && window.sessionStorage) {
-                const stored = sessionStorage.getItem('lbm_cached_fixtures');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    const list = Array.isArray(parsed) ? parsed : (parsed?.fixtures || []);
-                    if (Array.isArray(list) && list.length > 0) {
-                        return list;
-                    }
-                }
-            }
-        } catch (e) {}
         return [];
     });
     const [signals, setSignals] = useState(() => {
@@ -248,6 +246,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 if (p.get('view') === 'ADMIN' || p.get('tab') === 'support_staff' || p.get('tab') === 'support' || p.get('session')) {
                     setView('ADMIN');
                 }
+                if (p.get('view') === 'academy' || window.location.hash === '#akademi' || window.location.hash === '#academy') {
+                    setIsAcademyOpen(true);
+                }
             }
         } catch (e) {}
     }, []);
@@ -258,6 +259,23 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const [settlementMessage, setSettlementMessage] = useState('');
     const [adminTelegramModal, setAdminTelegramModal] = useState(null);
     const [isSendingTelegramSignal, setIsSendingTelegramSignal] = useState(false);
+    const [copilotMatch, setCopilotMatch] = useState(null);
+    const [paperBetMatch, setPaperBetMatch] = useState(null);
+    const [isCryptoModalOpen, setIsCryptoModalOpen] = useState(false);
+    const [isAcademyOpen, setIsAcademyOpen] = useState(false);
+    const [pinnedMatchId, setPinnedMatchId] = useState(() => liveMatchFollower.getPinnedMatchId());
+
+    // Update background telemetry & lock-screen title ticker whenever matches refresh
+    useEffect(() => {
+        if (matches && matches.length > 0) {
+            liveMatchFollower.updateTelemetry(matches, lang);
+        }
+    }, [matches, lang]);
+
+    const handleTogglePin = (match) => {
+        liveMatchFollower.togglePin(match, lang);
+        setPinnedMatchId(liveMatchFollower.getPinnedMatchId());
+    };
 
     // Bankroll portfolio remote sync and manual settlement handlers
     const handleSyncRemoteResults = async () => {
@@ -754,8 +772,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
     const [showStakingCalc, setShowStakingCalc] = useState(false);
     const [showSharpPicks, setShowSharpPicks] = useState(false);
     const [showBetanoRadar, setShowBetanoRadar] = useState(false);
+    const [showMarketRadar, setShowMarketRadar] = useState(false);
     const [showMobileMoreMenu, setShowMobileMoreMenu] = useState(false);
-    const [sharpSubTab, setSharpSubTab] = useState('MENTOR'); // 'MENTOR' | 'BETANO'
+    const [sharpSubTab, setSharpSubTab] = useState('MENTOR'); // 'MENTOR' | 'BETANO' | 'MARKET_RADAR'
     const [liveOpportunitiesLimit, setLiveOpportunitiesLimit] = useState(5);
     const [hidePendingOpportunities, setHidePendingOpportunities] = useState(false);
     const [momentumWindow, setMomentumWindow] = useState(10);
@@ -2629,8 +2648,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         // Run immediately on mount!
         syncUI();
 
-        // Responsive sync interval (2000ms)
-        const interval = setInterval(syncUI, 2000);
+        // Backup sync interval (10000ms) - primary sync is reactive via worker subscription
+        const interval = setInterval(syncUI, 10000);
 
         // Direct subscription to dataWorker for instant UI updates!
         const unsubscribeWorker = dataWorker.subscribe(syncUI);
@@ -2761,12 +2780,14 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         let surgeCount = 0;
         let goldenMinCount = 0;
         let comebackCount = 0;
+        let latencyCount = 0;
 
         tierFilteredMatches.forEach(m => {
             const sig = signals[m.id];
             if (isMatchHot(m, sig)) hotCount++;
             if (trendingMatchIdsSet.has(m.id)) trendCount++;
             if (sig?.verdict === 'BET') betCount++;
+            if (latencyArbitrageRadar.detectLatencyEdge(m)) latencyCount++;
 
             const minStr = String(m.minute || '');
             const minNum = parseInt(minStr, 10);
@@ -2803,7 +2824,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             XG_SURPLUS: xgSurplusCount,
             SURGE_20: surgeCount,
             GOLDEN_MIN: goldenMinCount,
-            COMEBACK: comebackCount
+            COMEBACK: comebackCount,
+            LATENCY: latencyCount
         };
     }, [tierFilteredMatches, signals, trendingMatchIdsSet, pinnedMatchIds]);
 
@@ -2952,6 +2974,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             list = list.filter(m => pinnedMatchIds.has(m.id));
         } else if (terminalCategoryFilter === 'TREND') {
             list = list.filter(m => trendingMatchIdsSet.has(m.id));
+        } else if (terminalCategoryFilter === 'LATENCY') {
+            list = list.filter(m => Boolean(latencyArbitrageRadar.detectLatencyEdge(m)));
         }
 
         // Sort matches dynamically
@@ -5824,6 +5848,16 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         <span>{t.sharp_picks_title || 'Günün Keskin Seçimleri'}</span>
                                     </button>
 
+                                    {/* Market Radar Button */}
+                                    <button
+                                        className="popover-action-btn"
+                                        onClick={() => { setShowMarketRadar(true); setShowUserMenu(false); }}
+                                        style={{ color: '#06b6d4' }}
+                                    >
+                                        <span>📉</span>
+                                        <span>{lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : 'Market Value Radar'}</span>
+                                    </button>
+
                                     {/* Reset Data Button */}
                                     <button
                                         className="popover-action-btn text-danger"
@@ -5927,6 +5961,21 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <span className="label-short">{lang === 'tr' ? 'SICAK' : (lang === 'de' ? 'HOT' : 'HOT')}</span>
                             </span>
                             <span className="tab-live-count count-hot">HOT</span>
+                        </button>
+
+                        {/* 5b. Akıllı Para & 4-Spor Piyasa Radarı */}
+                        <button
+                            className={`unified-tab-btn tab-market-radar ${showMarketRadar ? 'active' : ''}`}
+                            onClick={() => setShowMarketRadar(true)}
+                            title={lang === 'tr' ? 'Akıllı Para & 4-Spor Piyasa Radarı' : 'Market Value Radar'}
+                            style={{ border: showMarketRadar ? '1px solid #06b6d4' : undefined }}
+                        >
+                            <span className="tab-icon">📉</span>
+                            <span className="tab-label">
+                                <span className="label-full">{lang === 'tr' ? 'PİYASA RADARI' : 'MARKET RADAR'}</span>
+                                <span className="label-short">{lang === 'tr' ? 'PİYASA' : 'MARKET'}</span>
+                            </span>
+                            <span className="tab-live-count" style={{ background: '#06b6d4', color: '#000', fontWeight: 900 }}>4-SPOR</span>
                         </button>
 
                         {/* 5b. Pro Analistler & Tahmin Masası */}
@@ -6210,10 +6259,36 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span>{lang === 'tr' ? 'Günün Sıcak Seçimleri (Hot Picks)' : (lang === 'de' ? 'Global Hot-Picks & Trends' : 'Global Hot Picks & Trends')}</span>
                             <span style={{ fontSize: '0.65rem', background: '#f97316', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 }}>HOT</span>
                         </button>
+
+                        <button
+                            onClick={() => setSharpSubTab('MARKET_RADAR')}
+                            style={{
+                                padding: '0.65rem 1.4rem',
+                                borderRadius: '12px',
+                                border: sharpSubTab === 'MARKET_RADAR' ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.08)',
+                                background: sharpSubTab === 'MARKET_RADAR' ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.25), rgba(8, 145, 178, 0.1))' : 'rgba(255,255,255,0.03)',
+                                color: sharpSubTab === 'MARKET_RADAR' ? '#06b6d4' : '#94a3b8',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                            }}
+                        >
+                            <span>📉</span>
+                            <span>{lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : 'Market Value Radar'}</span>
+                            <span style={{ fontSize: '0.65rem', background: '#06b6d4', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 }}>4-SPOR</span>
+                        </button>
                     </div>
 
                     {sharpSubTab === 'BETANO' ? (
                         <BetanoRadarCard lang={lang} t={t} />
+                    ) : sharpSubTab === 'MARKET_RADAR' ? (
+                        <div style={{ position: 'relative', width: '100%', minHeight: '500px' }}>
+                            <MarketRadarCard lang={lang} onClose={() => setSharpSubTab('MENTOR')} />
+                        </div>
                     ) : (
                         <SharpPicksCard lang={lang} t={t} />
                     )}
@@ -7624,6 +7699,21 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     </button>
                                                     <button
                                                         type="button"
+                                                        className={`tb-chip chip-latency ${terminalCategoryFilter === 'LATENCY' ? 'active' : ''}`}
+                                                        onClick={() => setTerminalCategoryFilter('LATENCY')}
+                                                        title={lang === 'tr' ? 'Piyasa hız farkı ve büro oran açığı fırsatları' : 'Latency arbitrage & delayed odds opportunities'}
+                                                        style={{
+                                                            border: terminalCategoryFilter === 'LATENCY' ? '1px solid #38bdf8' : undefined,
+                                                            background: terminalCategoryFilter === 'LATENCY' ? 'rgba(56, 189, 248, 0.2)' : undefined
+                                                        }}
+                                                    >
+                                                        <span>⚡</span>
+                                                        <span className="tb-btn-label-full">{lang === 'tr' ? 'Gecikme Radarı' : (lang === 'de' ? 'Latenz-Radar' : 'Latency Radar')}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Gecikme' : 'Latenz'}</span>
+                                                        <span className="tb-chip-count">{categoryCounts.LATENCY || 0}</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
                                                         className={`tb-chip chip-second-half ${terminalCategoryFilter === 'SECOND_HALF' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('SECOND_HALF')}
                                                     >
@@ -7881,6 +7971,18 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 </div>
                             )}
 
+                            {/* 🔥 One-Glance Fire Card (Tek Bakışta Alev Alan Maçlar) */}
+                            <OneGlanceFireCard
+                                matches={processedTerminalMatches}
+                                opportunitiesMap={terminalOpportunitiesMap}
+                                onSelectMatch={setSelectedMatch}
+                                onOpenCopilot={setCopilotMatch}
+                                onOpenPaperBet={setPaperBetMatch}
+                                onTogglePin={handleTogglePin}
+                                pinnedMatchId={pinnedMatchId}
+                                lang={lang}
+                            />
+
                             {/* Live Terminal Views (Conditional: Never render both Desktop Table & Mobile Stream simultaneously) */}
                             {(!isMobileScreen || terminalMobileSubView === 'TABLE') && (
                                 <LiveTerminalTable
@@ -7893,12 +7995,14 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     selectedMatch={selectedMatch}
                                     onSelectMatch={setSelectedMatch}
                                     onApproveBet={handleTerminalApproveBet}
+                                    onOpenCopilot={setCopilotMatch}
+                                    onOpenPaperBet={setPaperBetMatch}
                                     bankrollManager={bankrollManager}
                                     pinnedMatchIds={pinnedMatchIds}
                                     togglePinMatch={togglePinMatch}
                                     AttackMomentumGraph={AttackMomentumGraph}
                                     MatchIncidentsTimeline={MatchIncidentsTimeline}
-                                    mobileTableMode={terminalMobileSubView === 'TABLE'}
+                                    mobileTableMode={isMobileScreen && terminalMobileSubView === 'TABLE'}
                                     userProfile={userProfile}
                                     onOpenUpgrade={() => setShowPlanComparison(true)}
                                     terminalCategoryFilter={terminalCategoryFilter}
@@ -7919,6 +8023,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     selectedMatch={selectedMatch}
                                     onSelectMatch={setSelectedMatch}
                                     onApproveBet={handleTerminalApproveBet}
+                                    onOpenCopilot={setCopilotMatch}
+                                    onOpenPaperBet={setPaperBetMatch}
                                     bankrollManager={bankrollManager}
                                     pinnedMatchIds={pinnedMatchIds}
                                     togglePinMatch={togglePinMatch}
@@ -9388,6 +9494,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     </div>
                 </div>
             )}
+            {showMarketRadar && <MarketRadarCard lang={lang} onClose={() => setShowMarketRadar(false)} />}
             {showStakingCalc && <StakingCalculator onClose={() => setShowStakingCalc(false)} lang={lang} />}
             {showFAQ && <FAQ onClose={() => setShowFAQ(false)} lang={lang} mode={faqMode} />}
             <button
@@ -9507,6 +9614,21 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     >
                         📜 {t.legal_terms_link}
                     </button>
+                    <span style={{ opacity: 0.3 }}>|</span>
+                    <button
+                        onClick={() => setIsAcademyOpen(true)}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#f59e0b',
+                            textDecoration: 'underline',
+                            cursor: 'pointer',
+                            fontSize: '0.78rem',
+                            fontWeight: 700
+                        }}
+                    >
+                        🎓 {lang === 'tr' ? 'Kuant Akademi & Sözlük' : (lang === 'de' ? 'Quant-Akademie & Lexikon' : 'Quant Academy & Glossary')}
+                    </button>
                 </div>
             </footer>
 
@@ -9542,7 +9664,53 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 onClose={() => setIsSupportChatOpen(false)}
                 lang={lang}
                 userProfile={userProfile}
-                apiBase={proxyBase}
+            />
+
+            {/* 🤖 Live AI Match Copilot Modal */}
+            <LiveAICopilotModal
+                match={copilotMatch}
+                isOpen={Boolean(copilotMatch)}
+                onClose={() => setCopilotMatch(null)}
+                lang={lang}
+            />
+
+            {/* 🧪 Sanal Kasa / Paper Trading Slip Modal */}
+            <PaperBetModal
+                match={paperBetMatch}
+                isOpen={Boolean(paperBetMatch)}
+                onClose={() => setPaperBetMatch(null)}
+                onBetPlaced={() => setBankState({ ...bankrollManager.getState() })}
+                lang={lang}
+            />
+
+            {/* ⚡ 1-Click Crypto & TON Checkout Modal */}
+            <CryptoCheckoutModal
+                isOpen={isCryptoModalOpen}
+                onClose={() => setIsCryptoModalOpen(false)}
+                plan="PROFESYONEL"
+                days={30}
+                price="29"
+                lang={lang}
+                onActivated={() => {
+                    setIsCryptoModalOpen(false);
+                    alert(lang === 'tr' ? '🎉 VIP Üyeliğiniz blockchain üzerinden başarıyla onaylandı!' : '🎉 VIP membership successfully confirmed!');
+                }}
+            />
+
+            {/* 📌 Floating Pinned Match HUD (Lock-Screen & Dynamic Telemetry) */}
+            <PinnedMatchHUD
+                fixtures={matches}
+                onOpenCopilot={setCopilotMatch}
+                onOpenPaperBet={setPaperBetMatch}
+                onUnpin={() => setPinnedMatchId(null)}
+                lang={lang}
+            />
+
+            {/* 🎓 Quant Academy & Betting Glossary Modal */}
+            <QuantAcademyModal
+                isOpen={isAcademyOpen}
+                onClose={() => setIsAcademyOpen(false)}
+                lang={lang}
             />
 
             {/* Mobile Bottom Navigation Bar (Ultra-clean 5-item app navigation on screens <= 768px) */}
@@ -9647,6 +9815,19 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
 
                             <button
                                 type="button"
+                                className={`mobile-sheet-item ${showMarketRadar ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setShowMarketRadar(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' }}>📉</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : 'Market Value Radar'} <span style={{ background: '#06b6d4', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>4-SPOR</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Futbol, Basketbol, Tenis, Hentbol oran düşüşleri' : '4-Sport dropping odds & lagging lines'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
                                 className={`mobile-sheet-item ${view === 'RADAR' ? 'active' : ''}`}
                                 onClick={() => { setShowMobileMoreMenu(false); setView('RADAR'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                             >
@@ -9701,6 +9882,21 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* 📱 Mobile Bottom Dock Navigation Bar */}
+            {isMobileScreen && (
+                <MobileBottomDock
+                    currentView={view}
+                    onSelectView={(v) => { setView(v); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    activeCategoryFilter={terminalCategoryFilter}
+                    onSelectFilter={(f) => setTerminalCategoryFilter(f)}
+                    hotMatchesCount={(processedTerminalMatches || []).filter(m => {
+                        const opp = terminalOpportunitiesMap?.get(m.id);
+                        return opp?.level === 'ALEV' || (opp?.score || 0) >= 75;
+                    }).length}
+                    lang={lang}
+                />
             )}
         </div >
     );

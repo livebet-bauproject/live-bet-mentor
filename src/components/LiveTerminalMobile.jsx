@@ -40,6 +40,8 @@ export const LiveTerminalMobile = React.memo(({
     selectedMatch = null,
     onSelectMatch = () => {},
     onApproveBet = () => {},
+    onOpenCopilot = () => {},
+    onOpenPaperBet = () => {},
     bankrollManager = null,
     pinnedMatchIds = new Set(),
     togglePinMatch = () => {},
@@ -99,6 +101,49 @@ export const LiveTerminalMobile = React.memo(({
 
         return ordered;
     }, [matches, expandedMatchId]);
+
+    // Pre-index trending bets per match to prevent O(N*M) continuous fuzzy matching during render
+    const trendingBetsMap = useMemo(() => {
+        const map = new Map();
+        if (!trendingBets || trendingBets.length === 0 || !matches || matches.length === 0) return map;
+        matches.forEach(m => {
+            const hits = trendingBets.filter(tb => 
+                consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
+                consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
+            );
+            if (hits.length > 0) map.set(m.id, hits);
+        });
+        return map;
+    }, [matches, trendingBets]);
+
+    // Progressive rendering (pagination/infinite scroll) for mobile performance
+    const [visibleCount, setVisibleCount] = useState(40);
+    const sentinelRef = useRef(null);
+
+    useEffect(() => {
+        setVisibleCount(40);
+    }, [terminalCategoryFilter]);
+
+    useEffect(() => {
+        if (!sentinelRef.current || displayMatches.length <= visibleCount) return;
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0] && entries[0].isIntersecting) {
+                setVisibleCount(prev => Math.min(prev + 30, displayMatches.length));
+            }
+        }, { rootMargin: '300px' });
+        observer.observe(sentinelRef.current);
+        return () => observer.disconnect();
+    }, [displayMatches.length, visibleCount]);
+
+    const visibleMatches = useMemo(() => {
+        if (displayMatches.length <= visibleCount) return displayMatches;
+        const sliced = displayMatches.slice(0, visibleCount);
+        if (expandedMatchId && !sliced.some(m => String(m.id) === String(expandedMatchId))) {
+            const exp = displayMatches.find(m => String(m.id) === String(expandedMatchId));
+            if (exp) sliced.push(exp);
+        }
+        return sliced;
+    }, [displayMatches, visibleCount, expandedMatchId]);
 
     const handleCardClick = (match, e) => {
         if (e.target.closest('button') || e.target.closest('.tb-action-ignore')) {
@@ -341,11 +386,8 @@ export const LiveTerminalMobile = React.memo(({
         const minVal = parseInt(String(m.minute || '').replace(/[^0-9]/g, '')) || 0;
         const isDeadMatch = riskFilters?.deadMatch?.status === 'FAIL' || goalDiffVal >= 4 || (goalDiffVal >= 3 && minVal >= 40) || (goalDiffVal >= 2 && minVal >= 75);
 
-        // European Market Flow / Trending Bets
-        const matchTrendingBets = (trendingBets || []).filter(tb => 
-            consensusAdapter._isFuzzyMatch(tb.home, tb.away, m.homeTeam, m.awayTeam) ||
-            consensusAdapter._isFuzzyMatch(tb.away, tb.home, m.homeTeam, m.awayTeam)
-        );
+        // European Market Flow / Trending Bets (O(1) memoized lookup)
+        const matchTrendingBets = trendingBetsMap.get(m.id) || [];
         const hasTrend = matchTrendingBets.length > 0;
         const primaryTrend = hasTrend 
             ? [...matchTrendingBets].sort((a, b) => (b.count || 0) - (a.count || 0))[0] 
@@ -404,7 +446,28 @@ export const LiveTerminalMobile = React.memo(({
 
     return (
         <div className={`tb-mobile-stream ${hideInTableMode ? 'hide-in-table-mode' : ''}`}>
-            {displayMatches.map(m => {
+            {displayMatches.length === 0 ? (
+                (!matches || matches.length === 0) ? (
+                    <div style={{ textAlign: 'center', padding: '3.5rem 1rem' }}>
+                        <div style={{
+                            width: '32px', height: '32px',
+                            border: '3px solid rgba(56, 189, 248, 0.2)',
+                            borderTopColor: '#38bdf8',
+                            borderRadius: '50%',
+                            margin: '0 auto 1rem',
+                            animation: 'tbSpin 0.8s linear infinite'
+                        }} />
+                        <div style={{ color: '#f1f5f9', fontWeight: 600, fontSize: '0.92rem' }}>
+                            {lang === 'tr' ? 'Canlı Karşılaşmalar Taranıyor...' : (lang === 'de' ? 'Live-Spiele werden gescannt...' : 'Scanning Live Matches...')}
+                        </div>
+                    </div>
+                ) : (
+                    <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--tb-text-muted)' }}>
+                        {lang === 'tr' ? 'Seçili kriterlere uygun canlı maç bulunamadı.' : (lang === 'de' ? 'Keine Live-Spiele für die ausgewählten Kriterien gefunden.' : 'No live matches matching current criteria.')}
+                    </div>
+                )
+            ) : (
+                visibleMatches.map(m => {
                 const isExpanded = String(expandedMatchId) === String(m.id);
                 const d = computeMatchData(m);
                 const {
@@ -1431,6 +1494,58 @@ export const LiveTerminalMobile = React.memo(({
                                                         >
                                                             <span>▲</span>
                                                         </button>
+
+                                                        {/* 🤖 Mobile AI Copilot Button */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onOpenCopilot(m);
+                                                            }}
+                                                            style={{
+                                                                background: 'rgba(56, 189, 248, 0.15)',
+                                                                border: '1px solid rgba(56, 189, 248, 0.4)',
+                                                                color: '#38bdf8',
+                                                                padding: '0 0.8rem',
+                                                                borderRadius: '8px',
+                                                                fontWeight: 700,
+                                                                fontSize: '0.78rem',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                gap: '4px'
+                                                            }}
+                                                            title="AI Copilot"
+                                                        >
+                                                            <span>🤖</span>
+                                                            <span>{lang === 'tr' ? 'AI' : 'AI'}</span>
+                                                        </button>
+
+                                                        {/* 🧪 Mobile Paper Bet Button */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onOpenPaperBet(m);
+                                                            }}
+                                                            style={{
+                                                                background: 'rgba(245, 158, 11, 0.15)',
+                                                                border: '1px solid rgba(245, 158, 11, 0.4)',
+                                                                color: '#f59e0b',
+                                                                padding: '0 0.8rem',
+                                                                borderRadius: '8px',
+                                                                fontWeight: 700,
+                                                                fontSize: '0.78rem',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                gap: '4px'
+                                                            }}
+                                                            title="Sanal Kupon"
+                                                        >
+                                                            <span>🧪</span>
+                                                            <span>{lang === 'tr' ? 'Kupon' : 'Bet'}</span>
+                                                        </button>
                                                     </div>
                                                     {isAllowed && (
                                                         <div style={{ fontSize: '0.66rem', color: '#94a3b8', textAlign: 'center', opacity: 0.85 }}>
@@ -1449,7 +1564,33 @@ export const LiveTerminalMobile = React.memo(({
                             )}
                         </div>
                     );
-            })}
+            })
+            )}
+            {displayMatches.length > visibleCount && (
+                <div style={{ padding: '1.2rem 1rem', textAlign: 'center', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '8px', margin: '8px 12px 20px' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>
+                        {lang === 'tr' ? `${displayMatches.length} maçtan ${visibleMatches.length} tanesi listeleniyor` : `${visibleMatches.length} / ${displayMatches.length} matches shown`}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setVisibleCount(prev => Math.min(prev + 30, displayMatches.length))}
+                        style={{
+                            width: '100%',
+                            padding: '10px 16px',
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            borderRadius: '6px',
+                            color: '#38bdf8',
+                            fontWeight: 600,
+                            fontSize: '0.85rem',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {lang === 'tr' ? `+30 Maç Daha Yükle (${displayMatches.length - visibleMatches.length} Kaldı)` : `Show +30 More (${displayMatches.length - visibleMatches.length} Left)`}
+                    </button>
+                    <div ref={sentinelRef} style={{ height: '1px', width: '100%' }} />
+                </div>
+            )}
         </div>
     );
 });

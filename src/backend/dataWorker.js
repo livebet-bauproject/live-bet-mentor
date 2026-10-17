@@ -50,21 +50,9 @@ class DataWorker {
         this.consensusTimer = 0;
         this.listeners = new Set();
 
-        // Instant 0ms Local Hydration from SessionStorage (Zero delay on page open / F5!)
-        try {
-            if (typeof window !== 'undefined' && window.sessionStorage) {
-                const stored = sessionStorage.getItem('lbm_cached_fixtures');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    const fixtures = Array.isArray(parsed) ? parsed : (parsed?.fixtures || []);
-                    const ts = parsed?.timestamp || 0;
-                    if (Array.isArray(fixtures) && fixtures.length > 0 && (Date.now() - ts < 600000)) {
-                        this.fixtures = fixtures;
-                        this.lastUpdated = ts || Date.now();
-                    }
-                }
-            }
-        } catch (e) {}
+        // Clean state on startup - fresh live data is fetched directly
+        this.fixtures = [];
+        this.lastUpdated = 0;
     }
 
     subscribe(cb) {
@@ -287,16 +275,6 @@ class DataWorker {
                         this.fixtures = this.normalizeFixtures(fastMatches);
                         this.lastUpdated = Date.now();
                         this.notify();
-
-                        // Persist to sessionStorage for instant 0ms F5 reloads
-                        try {
-                            if (typeof window !== 'undefined' && window.sessionStorage) {
-                                window.sessionStorage.setItem('lbm_cached_fixtures', JSON.stringify({
-                                    timestamp: Date.now(),
-                                    fixtures: this.fixtures
-                                }));
-                            }
-                        } catch (e) {}
                     }
 
                     // 1. Fetch central live odds in 1 single HTTP request (prevents 40 separate HTTP calls!)
@@ -511,16 +489,6 @@ class DataWorker {
                 this.healthStats.lastFetch = Date.now();
                 this.lastUpdated = Date.now();
                 this.notify();
-
-                // Persist sanitized live fixtures for instant 0ms F5 reloads
-                try {
-                    if (typeof window !== 'undefined' && window.sessionStorage) {
-                        window.sessionStorage.setItem('lbm_cached_fixtures', JSON.stringify({
-                            timestamp: Date.now(),
-                            fixtures: this.fixtures
-                        }));
-                    }
-                } catch (e) {}
             } catch (error) {
                 console.error('DataWorker Poll Error:', error);
                 this.healthStats.errorCount++;
