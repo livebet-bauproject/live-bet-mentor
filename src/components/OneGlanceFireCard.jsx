@@ -1,5 +1,12 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { calculateMatchHeatScore } from '../logic/liveSortEngine';
+
+const resolveTeamName = (team, fallback = '') => {
+    if (!team) return fallback;
+    if (typeof team === 'string') return team.trim();
+    if (typeof team === 'object' && team.name) return String(team.name).trim();
+    return fallback;
+};
 
 export const OneGlanceFireCard = ({
     matches = [],
@@ -13,6 +20,24 @@ export const OneGlanceFireCard = ({
 }) => {
     const isTr = lang === 'tr';
     const isDe = lang === 'de';
+
+    const [isCollapsed, setIsCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem('hide_one_glance_fire') === 'true';
+        } catch (e) {
+            return false;
+        }
+    });
+
+    const toggleCollapse = () => {
+        setIsCollapsed(prev => {
+            const next = !prev;
+            try {
+                localStorage.setItem('hide_one_glance_fire', String(next));
+            } catch (e) {}
+            return next;
+        });
+    };
 
     // Find top 1-3 hottest active matches
     const hotMatches = useMemo(() => {
@@ -33,8 +58,8 @@ export const OneGlanceFireCard = ({
             const hRed = s.cards?.home?.red || 0;
             const aRed = s.cards?.away?.red || 0;
 
-            const homeLabel = m.homeTeam?.name || (isTr ? 'Ev' : (isDe ? 'Heim' : 'Home'));
-            const awayLabel = m.awayTeam?.name || (isTr ? 'Dep' : (isDe ? 'Auswärts' : 'Away'));
+            const homeLabel = resolveTeamName(m.homeTeam) || resolveTeamName(m.home) || m.homeTeamName || (isTr ? 'Ev Sahibi' : (isDe ? 'Heim' : 'Home'));
+            const awayLabel = resolveTeamName(m.awayTeam) || resolveTeamName(m.away) || m.awayTeamName || (isTr ? 'Deplasman' : (isDe ? 'Auswärts' : 'Away'));
 
             if (hRed > 0 || aRed > 0) {
                 const redSide = hRed > 0 ? homeLabel : awayLabel;
@@ -85,6 +110,38 @@ export const OneGlanceFireCard = ({
     }, [matches, opportunitiesMap]);
 
     if (hotMatches.length === 0) return null;
+
+    if (isCollapsed) {
+        return (
+            <div
+                onClick={toggleCollapse}
+                title={lang === 'tr' ? 'Alevli Maçlar Panelini Genişlet' : 'Expand Hot Matches Panel'}
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(249, 115, 22, 0.04), rgba(15, 23, 42, 0.6))',
+                    border: '1px solid rgba(249, 115, 22, 0.25)',
+                    borderRadius: '10px',
+                    padding: '0.5rem 1rem',
+                    marginBottom: '1rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                }}
+            >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', color: '#ffedd5', fontWeight: 800 }}>
+                    <span style={{ fontSize: '1rem' }}>🔥</span>
+                    <span>{lang === 'tr' ? 'TEK BAKIŞTA ALEV ALANLAR' : 'ONE-GLANCE FIRE RADAR'}</span>
+                    <span style={{ fontSize: '0.65rem', background: '#f97316', color: '#fff', padding: '1px 6px', borderRadius: '4px', fontWeight: 900 }}>
+                        {hotMatches.length} {lang === 'tr' ? 'Maç' : 'Matches'}
+                    </span>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}>
+                    <span>{lang === 'tr' ? 'Genişlet ▾' : 'Expand ▾'}</span>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{
@@ -142,16 +199,40 @@ export const OneGlanceFireCard = ({
                     </div>
                 </div>
 
-                <div style={{
-                    fontSize: '0.7rem',
-                    color: '#f97316',
-                    fontWeight: 700,
-                    background: 'rgba(249, 115, 22, 0.12)',
-                    padding: '3px 8px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(249, 115, 22, 0.3)'
-                }}>
-                    {hotMatches.length} {lang === 'tr' ? 'Maç Alevli' : (lang === 'de' ? 'Spiele heiß' : 'Hot Matches')}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                        fontSize: '0.7rem',
+                        color: '#f97316',
+                        fontWeight: 700,
+                        background: 'rgba(249, 115, 22, 0.12)',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(249, 115, 22, 0.3)'
+                    }}>
+                        {hotMatches.length} {lang === 'tr' ? 'Maç Alevli' : (lang === 'de' ? 'Spiele heiß' : 'Hot Matches')}
+                    </div>
+                    <button
+                        onClick={toggleCollapse}
+                        title={lang === 'tr' ? 'Paneli Küçült / Gizle' : 'Collapse Panel'}
+                        style={{
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            color: '#94a3b8',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = '#f97316'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'; }}
+                    >
+                        ✕ {lang === 'tr' ? 'Gizle' : 'Hide'}
+                    </button>
                 </div>
             </div>
 
@@ -162,8 +243,8 @@ export const OneGlanceFireCard = ({
                 gap: '0.85rem'
             }}>
                 {hotMatches.map(({ match, heat, opp, reason, stakeText }) => {
-                    const homeName = match.homeTeam?.name || (lang === 'tr' ? 'Ev' : (lang === 'de' ? 'Heim' : 'Home'));
-                    const awayName = match.awayTeam?.name || (lang === 'tr' ? 'Dep' : (lang === 'de' ? 'Ausw' : 'Away'));
+                    const homeName = resolveTeamName(match.homeTeam) || resolveTeamName(match.home) || match.homeTeamName || (lang === 'tr' ? 'Ev Sahibi' : (lang === 'de' ? 'Heim' : 'Home'));
+                    const awayName = resolveTeamName(match.awayTeam) || resolveTeamName(match.away) || match.awayTeamName || (lang === 'tr' ? 'Deplasman' : (lang === 'de' ? 'Ausw.' : 'Away'));
                     const minute = match.minute ? `${match.minute}'` : (lang === 'tr' ? 'Canlı' : 'LIVE');
                     const score = match.score ? `${match.score.home ?? 0} - ${match.score.away ?? 0}` : '0 - 0';
                     const odds = opp?.recommendation?.odds;

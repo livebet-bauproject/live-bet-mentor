@@ -23,8 +23,9 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM 1.5. Kod Guncellemesi (En son guncellemeleri GitHub'dan otomatik cek)
-echo [Git] En son sistem guncellemeleri kontrol ediliyor...
+REM 1.5. Kod Guncellemesi ve GitHub Senkronizasyonu
+echo [Git] Kodlar GitHub'a gonderiliyor ve canli site guncelleniyor...
+git push origin main
 git pull origin main >nul 2>&1
 
 echo [2/4] Eski cache ve sarkan surecler temizleniyor...

@@ -5967,15 +5967,15 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-market-radar ${showMarketRadar ? 'active' : ''}`}
                             onClick={() => setShowMarketRadar(true)}
-                            title={lang === 'tr' ? 'Surebet & 4-Spor Değer Radarı' : 'Surebet & Market Value Radar'}
+                            title={lang === 'tr' ? 'Surebet & Değer Radarı (4-Spor)' : 'Surebet & Value Radar'}
                             style={{ border: showMarketRadar ? '1px solid #06b6d4' : undefined }}
                         >
-                            <span className="tab-icon">📉</span>
+                            <span className="tab-icon">💎</span>
                             <span className="tab-label">
-                                <span className="label-full">{lang === 'tr' ? 'SUREBET & DEĞER' : 'SUREBET & VALUE'}</span>
-                                <span className="label-short">{lang === 'tr' ? 'SUREBET' : 'SUREBET'}</span>
+                                <span className="label-full">SUREBET</span>
+                                <span className="label-short">SUREBET</span>
                             </span>
-                            <span className="tab-live-count" style={{ background: '#06b6d4', color: '#000', fontWeight: 900 }}>4-SPOR</span>
+                            <span className="tab-live-count" style={{ background: '#06b6d4', color: '#000', fontWeight: 900 }}>+EV</span>
                         </button>
 
                         {/* 5b. Pro Analistler & Tahmin Masası */}
@@ -9494,7 +9494,23 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     </div>
                 </div>
             )}
-            {showMarketRadar && <MarketRadarCard lang={lang} onClose={() => setShowMarketRadar(false)} />}
+            {showMarketRadar && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 99999,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '16px'
+                }} onClick={() => setShowMarketRadar(false)}>
+                    <div style={{ maxHeight: '90vh', overflowY: 'auto', width: '100%', maxWidth: '960px' }} onClick={e => e.stopPropagation()}>
+                        <MarketRadarCard lang={lang} onClose={() => setShowMarketRadar(false)} />
+                    </div>
+                </div>
+            )}
             {showStakingCalc && <StakingCalculator onClose={() => setShowStakingCalc(false)} lang={lang} />}
             {showFAQ && <FAQ onClose={() => setShowFAQ(false)} lang={lang} mode={faqMode} />}
             <button
