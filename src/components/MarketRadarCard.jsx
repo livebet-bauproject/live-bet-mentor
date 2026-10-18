@@ -70,7 +70,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         <div>
                             <div className="flex items-center gap-2">
                                 <h2 className="text-lg font-bold text-white tracking-wide">
-                                    {lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : 'Market Value Radar'}
+                                    {lang === 'tr' ? 'Surebet & Piyasa Değer Radarı' : 'Surebet & Value Radar'}
                                 </h2>
                                 <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
                                     4-Spor Canlı
@@ -78,7 +78,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                             </div>
                             <p className="text-xs text-gray-400 mt-0.5">
                                 {lang === 'tr' 
-                                    ? 'Global piyasada oranları çöken, büroların geride kaldığı avantajlı fırsatlar' 
+                                    ? 'Global piyasada oranları çöken, büroların geride kaldığı Surebet & Değerli fırsatlar' 
                                     : 'Institutional smart money drops and lagging market value opportunities'}
                             </p>
                         </div>

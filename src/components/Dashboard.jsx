@@ -5963,17 +5963,17 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span className="tab-live-count count-hot">HOT</span>
                         </button>
 
-                        {/* 5b. Akıllı Para & 4-Spor Piyasa Radarı */}
+                        {/* 5b. Surebet & 4-Spor Piyasa Radarı */}
                         <button
                             className={`unified-tab-btn tab-market-radar ${showMarketRadar ? 'active' : ''}`}
                             onClick={() => setShowMarketRadar(true)}
-                            title={lang === 'tr' ? 'Akıllı Para & 4-Spor Piyasa Radarı' : 'Market Value Radar'}
+                            title={lang === 'tr' ? 'Surebet & 4-Spor Değer Radarı' : 'Surebet & Market Value Radar'}
                             style={{ border: showMarketRadar ? '1px solid #06b6d4' : undefined }}
                         >
                             <span className="tab-icon">📉</span>
                             <span className="tab-label">
-                                <span className="label-full">{lang === 'tr' ? 'PİYASA RADARI' : 'MARKET RADAR'}</span>
-                                <span className="label-short">{lang === 'tr' ? 'PİYASA' : 'MARKET'}</span>
+                                <span className="label-full">{lang === 'tr' ? 'SUREBET & DEĞER' : 'SUREBET & VALUE'}</span>
+                                <span className="label-short">{lang === 'tr' ? 'SUREBET' : 'SUREBET'}</span>
                             </span>
                             <span className="tab-live-count" style={{ background: '#06b6d4', color: '#000', fontWeight: 900 }}>4-SPOR</span>
                         </button>
@@ -6278,7 +6278,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             }}
                         >
                             <span>📉</span>
-                            <span>{lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : 'Market Value Radar'}</span>
+                            <span>{lang === 'tr' ? 'Surebet & Değerli Fırsatlar' : 'Surebet & Value Opportunities'}</span>
                             <span style={{ fontSize: '0.65rem', background: '#06b6d4', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 900 }}>4-SPOR</span>
                         </button>
                     </div>
