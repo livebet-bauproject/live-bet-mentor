@@ -1518,33 +1518,7 @@ export const LiveTerminalMobile = React.memo(({
                                                             title="AI Copilot"
                                                         >
                                                             <span>🤖</span>
-                                                            <span>{lang === 'tr' ? 'AI' : 'AI'}</span>
-                                                        </button>
-
-                                                        {/* 🧪 Mobile Paper Bet Button */}
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                onOpenPaperBet(m);
-                                                            }}
-                                                            style={{
-                                                                background: 'rgba(245, 158, 11, 0.15)',
-                                                                border: '1px solid rgba(245, 158, 11, 0.4)',
-                                                                color: '#f59e0b',
-                                                                padding: '0 0.8rem',
-                                                                borderRadius: '8px',
-                                                                fontWeight: 700,
-                                                                fontSize: '0.78rem',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center',
-                                                                gap: '4px'
-                                                            }}
-                                                            title="Sanal Kupon"
-                                                        >
-                                                            <span>🧪</span>
-                                                            <span>{lang === 'tr' ? 'Kupon' : 'Bet'}</span>
+                                                            <span>{lang === 'tr' ? 'AI Analizi' : 'AI'}</span>
                                                         </button>
                                                     </div>
                                                     {isAllowed && (

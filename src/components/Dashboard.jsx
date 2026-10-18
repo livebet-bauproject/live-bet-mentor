@@ -39,7 +39,6 @@ import { BankrollGuideModal } from './portfolio/BankrollGuideModal';
 import { latencyArbitrageRadar } from '../logic/latencyArbitrageRadar';
 import { liveMatchFollower } from '../utils/liveMatchFollower';
 import { LiveAICopilotModal } from './LiveAICopilotModal';
-import { PaperBetModal } from './PaperBetModal';
 import { CryptoCheckoutModal } from './CryptoCheckoutModal';
 import { PinnedMatchHUD } from './PinnedMatchHUD';
 import { QuantAcademyModal } from './QuantAcademyModal';
@@ -9687,15 +9686,6 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 match={copilotMatch}
                 isOpen={Boolean(copilotMatch)}
                 onClose={() => setCopilotMatch(null)}
-                lang={lang}
-            />
-
-            {/* 🧪 Sanal Kasa / Paper Trading Slip Modal */}
-            <PaperBetModal
-                match={paperBetMatch}
-                isOpen={Boolean(paperBetMatch)}
-                onClose={() => setPaperBetMatch(null)}
-                onBetPlaced={() => setBankState({ ...bankrollManager.getState() })}
                 lang={lang}
             />
 

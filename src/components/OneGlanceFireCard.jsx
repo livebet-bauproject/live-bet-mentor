@@ -372,37 +372,21 @@ export const OneGlanceFireCard = ({
                                     }}
                                     style={{
                                         flex: 1,
-                                        padding: '5px 0',
+                                        padding: '6px 0',
                                         borderRadius: '6px',
                                         background: 'rgba(56, 189, 248, 0.15)',
                                         border: '1px solid rgba(56, 189, 248, 0.3)',
                                         color: '#38bdf8',
-                                        fontSize: '0.7rem',
+                                        fontSize: '0.72rem',
                                         fontWeight: 700,
-                                        cursor: 'pointer'
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '4px'
                                     }}
                                 >
-                                    🤖 {lang === 'tr' ? 'Asistan' : (lang === 'de' ? 'Assistent' : 'Copilot')}
-                                </button>
-
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onOpenPaperBet(match);
-                                    }}
-                                    style={{
-                                        flex: 1,
-                                        padding: '5px 0',
-                                        borderRadius: '6px',
-                                        background: 'rgba(245, 158, 11, 0.15)',
-                                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                                        color: '#f59e0b',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 700,
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    🧪 {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Schein' : 'Paper Bet')}
+                                    🤖 {lang === 'tr' ? 'Asistan Analizi' : (lang === 'de' ? 'Assistent' : 'Copilot')}
                                 </button>
 
                                 <button

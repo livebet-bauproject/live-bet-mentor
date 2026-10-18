@@ -98,26 +98,6 @@ export const PinnedMatchHUD = ({ fixtures = [], onOpenCopilot, onOpenPaperBet, o
                 </button>
 
                 <button
-                    onClick={() => {
-                        triggerHaptic('medium');
-                        if (typeof onOpenPaperBet === 'function') onOpenPaperBet(match);
-                    }}
-                    style={{
-                        background: 'rgba(245, 158, 11, 0.2)',
-                        border: '1px solid rgba(245, 158, 11, 0.4)',
-                        color: '#f59e0b',
-                        padding: '6px 10px',
-                        borderRadius: '8px',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        cursor: 'pointer'
-                    }}
-                    title={lang === 'tr' ? 'Sanal Kupon' : (lang === 'de' ? 'Wettschein' : 'Paper Bet')}
-                >
-                    🧪 {lang === 'tr' ? 'Kupon' : (lang === 'de' ? 'Schein' : 'Paper Bet')}
-                </button>
-
-                <button
                     onClick={handleUnpin}
                     style={{
                         background: 'transparent',

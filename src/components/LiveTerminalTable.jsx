@@ -1615,31 +1615,6 @@ export const LiveTerminalTable = React.memo(({
                                                                         <span>🤖</span>
                                                                         <span>{lang === 'tr' ? 'AI Asistan' : 'AI Copilot'}</span>
                                                                     </button>
-
-                                                                    {/* 🧪 Paper Bet Button */}
-                                                                    <button
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            onOpenPaperBet(m);
-                                                                        }}
-                                                                        style={{
-                                                                            background: 'rgba(245, 158, 11, 0.15)',
-                                                                            border: '1px solid rgba(245, 158, 11, 0.4)',
-                                                                            color: '#f59e0b',
-                                                                            padding: '0.65rem 1rem',
-                                                                            borderRadius: '8px',
-                                                                            fontWeight: 700,
-                                                                            fontSize: '0.78rem',
-                                                                            cursor: 'pointer',
-                                                                            display: 'inline-flex',
-                                                                            alignItems: 'center',
-                                                                            gap: '6px'
-                                                                        }}
-                                                                        title="Sanal Kupon / Paper Trading"
-                                                                    >
-                                                                        <span>🧪</span>
-                                                                        <span>{lang === 'tr' ? 'Sanal Kupon' : 'Paper Bet'}</span>
-                                                                    </button>
                                                                     {isAllowed && (
                                                                         <span style={{ fontSize: '0.66rem', color: '#94a3b8', opacity: 0.85 }}>
                                                                             {lang === 'tr' 
