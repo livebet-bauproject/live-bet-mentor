@@ -18,7 +18,7 @@ export function resolveMarketText(alert, lang = 'tr', includeOdds = false) {
     const away = cleanMd(alert.awayTeam || (isTr ? 'Deplasman' : isDe ? 'Auswärts' : 'Away'));
     const rec = alert.recommendation || {};
     const key = rec.marketKey || '';
-    let label = cleanMd(rec.marketLabel || rec.market || '');
+    let label = cleanMd(rec.marketLabel || rec.market || alert.market || '');
     let team = cleanMd(rec.team || (key.includes('home') ? home : key.includes('away') ? away : ''));
     if (team.toLowerCase() === 'home') team = home;
     if (team.toLowerCase() === 'away') team = away;
@@ -564,17 +564,19 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 📈 *Piyasa Oranı:* ${oddsStr}
 💰 *Net Getiri:* *+${profitUnits} Birim Kasa Kârı* 💸
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Güncel Bilanço:* %${winRate} İsabet (${currentStats.won || 1}/${totalResolved || 1}) | Ort: @${dayAvgOdds} | Kâr: ${dayNetFormatted}B
+📊 *Günün Bilançosu:* ${currentStats.won || 1} Kazandı / ${currentStats.lost || 0} Kaybetti (%${winRate} İsabet)
+💰 *Kasa Net Kâr:* *${dayNetFormatted} Birim* | Ort: @${dayAvgOdds}
 💎 _Live Bet Mentor VIP Syndicate_`;
         } else {
-            return `🔴 *SEÇİM SONUÇLANDI* ${scoreStr ? `[${scoreStr}]` : ''}
+            return `📌 *SEÇİM TAMAMLANDI* ${scoreStr ? `[${scoreStr}]` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚽ *${home} - ${away}*
-🎯 *Tahmin:* *${market}*
+🎯 *Seçim:* *${market}*
 📉 *Kasa Etkisi:* -${stake.toFixed(2)} Birim (%${stake.toFixed(1)} Kasa)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Güncel Bilanço:* %${winRate} İsabet (${currentStats.won || 0}/${totalResolved || 1}) | Ort: @${dayAvgOdds} | Kâr: ${dayNetFormatted}B
-🛡️ _Sermaye koruma devrede, kasa disiplinine sadık kalın._`;
+📊 *Günün Bilançosu:* ${currentStats.won || 0} Kazandı / ${currentStats.lost || 0} Kaybetti (%${winRate} İsabet)
+💰 *Kasa Net Kâr:* *${dayNetFormatted} Birim* | Ort: @${dayAvgOdds}
+🛡️ _Sermaye koruma devrede, kasa disipliniyle kârda kalmaya devam ediyoruz._`;
         }
     }
 
@@ -587,16 +589,18 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 📈 *Quote:* ${oddsStr}
 💰 *Netto-Profit:* *+${profitUnits} Einheiten* 💸
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Tagesbilanz:* ${winRate}% Trefferquote (${currentStats.won || 1}/${totalResolved || 1}) | Ø: ${dayAvgOdds} | Ertrag: ${dayNetFormatted}E
+📊 *Tagesbilanz:* ${currentStats.won || 1} Gewonnen / ${currentStats.lost || 0} Verloren (${winRate}% Trefferquote)
+💰 *Netto-Ertrag:* *${dayNetFormatted} Einheiten* | Ø: ${dayAvgOdds}
 💎 _Live Bet Mentor VIP Syndicate_`;
         } else {
-            return `🔴 *SPIEL BEENDET* ${scoreStr ? `[${scoreStr}]` : ''}
+            return `📌 *SPIEL BEENDET* ${scoreStr ? `[${scoreStr}]` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚽ *${home} vs ${away}*
 🎯 *Tipp:* *${market}*
 📉 *Bankroll-Effekt:* -${stake.toFixed(2)} Einheiten
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Tagesbilanz:* ${winRate}% (${currentStats.won || 0}/${totalResolved || 1}) | Ø: ${dayAvgOdds} | Ertrag: ${dayNetFormatted}E
+📊 *Tagesbilanz:* ${currentStats.won || 0} Gewonnen / ${currentStats.lost || 0} Verloren (${winRate}%)
+💰 *Netto-Ertrag:* *${dayNetFormatted} Einheiten* | Ø: ${dayAvgOdds}
 🛡️ _Kapitalschutz aktiv, diszipliniert im Plan bleiben._`;
         }
     }
@@ -609,16 +613,18 @@ export function formatSignalResult(signal, result, finalScore, currentStats = {}
 📈 *Locked Odds:* ${oddsStr}
 💰 *Net Yield:* *+${profitUnits} Units* 💸
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Ledger:* ${winRate}% Win Rate (${currentStats.won || 1}/${totalResolved || 1}) | Avg: @${dayAvgOdds} | Net: ${dayNetFormatted}U
+📊 *Day Ledger:* ${currentStats.won || 1} Won / ${currentStats.lost || 0} Lost (${winRate}% Win Rate)
+💰 *Net Profit:* *${dayNetFormatted} Units* | Avg: @${dayAvgOdds}
 💎 _Live Bet Mentor VIP Syndicate_`;
     } else {
-        return `🔴 *MATCH SETTLED* ${scoreStr ? `[${scoreStr}]` : ''}
+        return `📌 *MATCH SETTLED* ${scoreStr ? `[${scoreStr}]` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚽ *${home} vs ${away}*
 🎯 *Pick:* *${market}*
 📉 *Allocation:* -${stake.toFixed(2)} Units
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 *Ledger:* ${winRate}% (${currentStats.won || 0}/${totalResolved || 1}) | Avg: @${dayAvgOdds} | Net: ${dayNetFormatted}U
+📊 *Day Ledger:* ${currentStats.won || 0} Won / ${currentStats.lost || 0} Lost (${winRate}%)
+💰 *Net Profit:* *${dayNetFormatted} Units* | Avg: @${dayAvgOdds}
 🛡️ _Capital shield active, discipline maintained._`;
     }
 }

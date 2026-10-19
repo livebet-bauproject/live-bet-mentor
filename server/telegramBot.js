@@ -415,13 +415,29 @@ class TelegramBot {
             });
 
             const data = await res.json();
-            if (!data.ok) {
-                console.error(`[TELEGRAM] Send photo failed to ${chatId}:`, data.description);
-                return null;
-            }
             return data.result;
         } catch (e) {
             console.error(`[TELEGRAM] Send photo error:`, e.message);
+            return null;
+        }
+    }
+
+    async editMessageReplyMarkup(chatId, messageId, replyMarkup) {
+        if (!this.token || !chatId || !messageId) return null;
+        try {
+            const body = {
+                chat_id: chatId,
+                message_id: messageId,
+                reply_markup: replyMarkup
+            };
+            const res = await fetch(`https://api.telegram.org/bot${this.token}/editMessageReplyMarkup`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await res.json();
+            return data?.ok ? data.result : null;
+        } catch (e) {
             return null;
         }
     }
@@ -570,6 +586,7 @@ class TelegramBot {
 
         // 1. Send to all configured VIP channels in their matching language (0s latency)
         const activeVips = this.getActiveVipChannels();
+        signalData.deliveries = [];
         for (const dest of activeVips) {
             const vipMessage = formatVIPSignal(alert, dest.lang);
             const vipBtnText = dest.lang === 'tr' ? '📊 Canlı Terminalde Aç' : dest.lang === 'de' ? '📊 Live-Terminal öffnen' : '📊 Open Live Terminal';
@@ -578,9 +595,13 @@ class TelegramBot {
                 reply_markup: { inline_keyboard: vipKeyboard }
             });
             results.vipDeliveries.push({ lang: dest.lang, channelId: dest.channelId, ok: !!res });
+            if (res && res.message_id) {
+                signalData.deliveries.push({ lang: dest.lang, channelId: dest.channelId, messageId: res.message_id });
+            }
             if (!results.vip) results.vip = res;
             console.log(`[TELEGRAM] 💎 VIP signal sent [${dest.lang.toUpperCase()}]: ${alert.homeTeam} vs ${alert.awayTeam} [${alert.level}] -> ${dest.channelId}`);
         }
+        this.saveHistory();
 
         // 2. Send to all configured public channels (delayed teaser, with teaser deduplication guard)
         const activePubs = this.getActivePublicChannels();
@@ -897,13 +918,25 @@ class TelegramBot {
                 const activePubs = this.getActivePublicChannels();
 
                 if (result === 'WON') {
-                    // 1. Send institutional confirmation to VIP channels with terminal button
+                    // 1. Send institutional confirmation to VIP channels with terminal button (reply to original signal if exists)
                     for (const dest of activeVips) {
                         const message = formatSignalResult(signal, result, score, this.dailyStats, dest.lang);
                         const terminalBtn = dest.lang === 'tr' ? '📊 Canlı Terminal' : dest.lang === 'de' ? '📊 Live-Terminal' : '📊 Live Terminal';
+                        const delivery = Array.isArray(signal.deliveries) ? signal.deliveries.find(d => String(d.channelId) === String(dest.channelId)) : null;
                         await this.sendMessage(dest.channelId, message, {
+                            reply_to_message_id: delivery?.messageId,
                             reply_markup: { inline_keyboard: [[{ text: terminalBtn, url: WEB_URL }]] }
                         });
+
+                        // Update original message button to show winning status
+                        if (delivery?.messageId) {
+                            try {
+                                const wonBtn = dest.lang === 'tr' ? `✅ KAZANDI [${score || 'GOL'}]` : dest.lang === 'de' ? `✅ GEWONNEN [${score || 'TOR'}]` : `✅ WON [${score || 'GOAL'}]`;
+                                await this.editMessageReplyMarkup(dest.channelId, delivery.messageId, {
+                                    inline_keyboard: [[{ text: wonBtn, url: WEB_URL }]]
+                                });
+                            } catch (e) {}
+                        }
                     }
                     // 2. Send high-converting FOMO social proof card to Public channels with 1-click VIP buttons
                     for (const dest of activePubs) {
@@ -924,7 +957,22 @@ class TelegramBot {
                 } else if (result === 'LOST') {
                     for (const dest of activeVips) {
                         const message = formatSignalResult(signal, result, score, this.dailyStats, dest.lang);
-                        await this.sendMessage(dest.channelId, message);
+                        const delivery = Array.isArray(signal.deliveries) ? signal.deliveries.find(d => String(d.channelId) === String(dest.channelId)) : null;
+                        // Thread as reply, silent delivery (disable_notification) so users are not bombarded with noisy negative alert sound
+                        await this.sendMessage(dest.channelId, message, {
+                            reply_to_message_id: delivery?.messageId,
+                            disable_notification: true
+                        });
+
+                        // Update original message button to show settled status
+                        if (delivery?.messageId) {
+                            try {
+                                const closedBtn = dest.lang === 'tr' ? `📌 Sonuçlandı [${score || 'MS'}]` : dest.lang === 'de' ? `📌 Beendet [${score || 'FT'}]` : `📌 Settled [${score || 'FT'}]`;
+                                await this.editMessageReplyMarkup(dest.channelId, delivery.messageId, {
+                                    inline_keyboard: [[{ text: closedBtn, url: WEB_URL }]]
+                                });
+                            } catch (e) {}
+                        }
                     }
                 }
             } catch (e) {
