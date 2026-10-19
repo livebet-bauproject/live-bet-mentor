@@ -23,6 +23,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 VAULT_FILE = os.path.join(SERVER_DIR, "market_radar_vault.json")
+PUBLIC_VAULT_FILE = os.path.join(SERVER_DIR, "..", "public", "market_radar_vault.json")
+SRC_VAULT_FILE = os.path.join(SERVER_DIR, "..", "src", "data", "market_radar_vault.json")
 
 from curl_cffi import requests
 from bs4 import BeautifulSoup
@@ -175,13 +177,15 @@ def run_radar_cycle():
         'opportunities': filtered_picks
     }
 
-    try:
-        with open(VAULT_FILE, 'w', encoding='utf-8') as f:
-            json.dump(vault_data, f, ensure_ascii=False, indent=2)
-        print(f"[MARKET RADAR] Successfully saved {len(filtered_picks)} high-conviction opportunities to {VAULT_FILE}")
-    except Exception as e:
-        print(f"[MARKET RADAR] Error saving vault file: {e}")
+    for path in [VAULT_FILE, PUBLIC_VAULT_FILE, SRC_VAULT_FILE]:
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(vault_data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"[MARKET RADAR] Error saving {path}: {e}")
 
+    print(f"[MARKET RADAR] Successfully saved {len(filtered_picks)} high-conviction opportunities to vault files.")
     return vault_data
 
 if __name__ == '__main__':

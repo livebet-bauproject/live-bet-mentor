@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { getApiBaseUrl, initBackendDiscovery } from '../config.js';
+import defaultMarketRadar from '../data/market_radar_vault.json';
 
 export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState(defaultMarketRadar || null);
+    const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedSport, setSelectedSport] = useState('ALL'); // 'ALL' | 'soccer' | 'basketball' | 'tennis' | 'handball'
     const [searchQuery, setSearchQuery] = useState('');
@@ -13,16 +14,46 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
         try {
             if (forceRefresh) setRefreshing(true);
             const proxyBase = await initBackendDiscovery() || getApiBaseUrl();
-            const url = `${proxyBase}/api/market-radar${forceRefresh ? '?t=' + Date.now() : ''}`;
-            const res = await fetch(url);
-            if (res.ok) {
-                const json = await res.json();
-                if (json && json.opportunities) {
-                    setData(json);
+            let loaded = false;
+
+            // 1. Try Live Server Proxy first
+            if (proxyBase) {
+                try {
+                    const url = `${proxyBase}/api/market-radar${forceRefresh ? '?t=' + Date.now() : ''}`;
+                    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    if (res.ok) {
+                        const contentType = res.headers.get('content-type') || '';
+                        if (contentType.includes('application/json')) {
+                            const json = await res.json();
+                            if (json && Array.isArray(json.opportunities) && json.opportunities.length > 0) {
+                                setData(json);
+                                loaded = true;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[MARKET_RADAR] Proxy fetch skipped, attempting fallback:', e.message);
+                }
+            }
+
+            // 2. If proxy didn't deliver (or returned 404 / HTML error), fallback to static Vercel CDN asset
+            if (!loaded) {
+                try {
+                    const staticUrl = `/market_radar_vault.json?t=${Date.now()}`;
+                    const res = await fetch(staticUrl);
+                    if (res.ok) {
+                        const json = await res.json();
+                        if (json && Array.isArray(json.opportunities) && json.opportunities.length > 0) {
+                            setData(json);
+                            loaded = true;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[MARKET_RADAR] Static fallback failed:', e.message);
                 }
             }
         } catch (err) {
-            console.error('[MARKET_RADAR] Fetch error:', err);
+            console.error('[MARKET_RADAR] General fetch error:', err);
         } finally {
             setLoading(false);
             if (forceRefresh) setRefreshing(false);
