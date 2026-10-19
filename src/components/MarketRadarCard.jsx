@@ -2,8 +2,288 @@ import React, { useState, useEffect } from 'react';
 import { getApiBaseUrl, initBackendDiscovery } from '../config.js';
 import defaultMarketRadar from '../data/market_radar_vault.json';
 
+// --- 🌐 Comprehensive 3-Language Dictionary (TR / EN / DE) ---
+const I18N = {
+    title: {
+        tr: 'Surebet & Piyasa Değer Radarı',
+        en: 'Surebet & Value Radar',
+        de: 'Surebet & Value-Quoten-Radar'
+    },
+    badge: {
+        tr: '4-SPOR QUANT TERMINAL',
+        en: '4-SPORT QUANT TERMINAL',
+        de: '4-SPORT QUANT TERMINAL'
+    },
+    subtitle: {
+        tr: 'Piyasada oranları çöken, büroların geride kaldığı matematiksel +EV fırsatları',
+        en: 'Institutional smart money drops and lagging market value opportunities',
+        de: 'Institutionelle Quotenstürze & träge Buchmacherquoten (+EV Value)'
+    },
+    guideBtn: {
+        tr: 'Nasıl Çalışır?',
+        en: 'How it Works',
+        de: 'Wie es funktioniert'
+    },
+    refreshBtn: {
+        tr: 'Yenile',
+        en: 'Refresh',
+        de: 'Aktualisieren'
+    },
+    guideTitle: {
+        tr: 'BU BÖLÜM NASIL OKUNUR & KAZANDIRIR?',
+        en: 'HOW TO READ & PROFIT FROM THIS RADAR',
+        de: 'WIE MAN DIESES RADAR LIEST & GEWINNE ERZIELT'
+    },
+    guide1_title: {
+        tr: '1. Akıllı Para Düşüşü:',
+        en: '1. Smart Money Drop:',
+        de: '1. Smart-Money Quotensturz:'
+    },
+    guide1_desc: {
+        tr: 'Dünyada bir tercihe yüklü bahis girince oran aniden çöker (%20-%45 sert düşüş).',
+        en: 'When heavy institutional money enters, global market odds collapse by 20% to 45%.',
+        de: 'Fließt weltweit hohes Kapital in einen Tipp, bricht die globale Quote drastisch ein (20%-45%).'
+    },
+    guide2_title: {
+        tr: '2. Uyuyan Büroyu Yakala:',
+        en: '2. Beat Lagging Bookmakers:',
+        de: '2. Träge Buchmacher schlagen:'
+    },
+    guide2_desc: {
+        tr: 'Dünyada oran düşmüşken büron henüz indirmediyse, eski yüksek fiyattan hemen tekli oyna.',
+        en: 'If global odds have collapsed but your bookmaker is slow to update, bet at the higher stale price.',
+        de: 'Ist die Quote global gefallen, dein Buchmacher hat sie aber noch nicht gesenkt, platziere die Wette zum alten Spitzenwert.'
+    },
+    guide3_title: {
+        tr: '3. Sabit Kasa Disiplini:',
+        en: '3. Bankroll Discipline:',
+        de: '3. Bankroll-Disziplin:'
+    },
+    guide3_desc: {
+        tr: 'Sadece tekli (single) oynanır. Kasanın %2 veya %3\'ünü aşma.',
+        en: 'Play strictly as singles. Never exceed 2% to 3% of your bankroll per bet.',
+        de: 'Nur als Einzelwette spielen. Niemals mehr als 2% bis 3% des Kapitals riskieren.'
+    },
+    hideGuide: {
+        tr: 'Gizle',
+        en: 'Hide',
+        de: 'Ausblenden'
+    },
+    searchPlaceholder: {
+        tr: 'Maç veya Lig ara...',
+        en: 'Search match or league...',
+        de: 'Spiel oder Liga suchen...'
+    },
+    dropFilterLabel: {
+        tr: 'Düşüş:',
+        en: 'Drop:',
+        de: 'Sturz:'
+    },
+    dropAll: {
+        tr: 'Tüm Düşüşler (%12+)',
+        en: 'All Drops (12%+)',
+        de: 'Alle Stürze (12%+)'
+    },
+    dropMega: {
+        tr: '🔥 Mega Çöküş (%30+)',
+        en: '🔥 Mega Drop (30%+)',
+        de: '🔥 Mega-Sturz (30%+)'
+    },
+    dropHeavy: {
+        tr: '⚡ Sert Düşüş (%20+)',
+        en: '⚡ Heavy Drop (20%+)',
+        de: '⚡ Starker Sturz (20%+)'
+    },
+    oddsFilterLabel: {
+        tr: 'Oran:',
+        en: 'Odds:',
+        de: 'Quote:'
+    },
+    oddsAll: {
+        tr: 'Tüm Oranlar (1.35 - 2.50)',
+        en: 'All Odds (1.35 - 2.50)',
+        de: 'Alle Quoten (1.35 - 2.50)'
+    },
+    oddsLow: {
+        tr: '1.35 - 1.80 (Banko / Düşük Risk)',
+        en: '1.35 - 1.80 (Safe / Low Risk)',
+        de: '1.35 - 1.80 (Sicher / Geringes Risiko)'
+    },
+    oddsHigh: {
+        tr: '1.80 - 2.50 (Yüksek Değer / +EV)',
+        en: '1.80 - 2.50 (High Value / +EV)',
+        de: '1.80 - 2.50 (Hoher Value / +EV)'
+    },
+    sortLabel: {
+        tr: 'Sırala:',
+        en: 'Sort:',
+        de: 'Sortieren:'
+    },
+    sortDrop: {
+        tr: '📉 En Yüksek Düşüş',
+        en: '📉 Highest Drop %',
+        de: '📉 Höchster Sturz %'
+    },
+    sortConf: {
+        tr: '💎 En Yüksek Güven',
+        en: '💎 Highest Confidence',
+        de: '💎 Höchstes Vertrauen'
+    },
+    sortTime: {
+        tr: '⏰ Maç Saati (En Yakın)',
+        en: '⏰ Match Time',
+        de: '⏰ Nächste Spielzeit'
+    },
+    sortOdds: {
+        tr: '📊 En Yüksek Oran',
+        en: '📊 Highest Odds',
+        de: '📊 Höchste Quote'
+    },
+    viewTerminal: {
+        tr: 'Terminal',
+        en: 'Terminal',
+        de: 'Terminal'
+    },
+    viewCards: {
+        tr: 'Kart',
+        en: 'Cards',
+        de: 'Karten'
+    },
+    colSportTime: {
+        tr: 'Spor / Saat',
+        en: 'Sport / Time',
+        de: 'Sport / Zeit'
+    },
+    colMatchLeague: {
+        tr: 'Maç & Lig',
+        en: 'Match & League',
+        de: 'Spiel & Liga'
+    },
+    colTip: {
+        tr: 'Önerilen Tercih',
+        en: 'Value Pick',
+        de: 'Tipp-Empfehlung'
+    },
+    colOdds: {
+        tr: 'Piyasa Oranı',
+        en: 'Market Odds',
+        de: 'Marktquote'
+    },
+    colDrop: {
+        tr: 'Global Düşüş',
+        en: 'Global Drop',
+        de: 'Quotensturz'
+    },
+    colConf: {
+        tr: 'Güven',
+        en: 'Confidence',
+        de: 'Vertrauen'
+    },
+    colAction: {
+        tr: 'İşlem',
+        en: 'Action',
+        de: 'Aktion'
+    },
+    copyBtn: {
+        tr: 'Kopyala',
+        en: 'Copy',
+        de: 'Kopieren'
+    },
+    copiedBtn: {
+        tr: 'Alındı',
+        en: 'Copied',
+        de: 'Kopiert'
+    },
+    dropLabel: {
+        tr: 'Düşüş',
+        en: 'Drop',
+        de: 'Sturz'
+    },
+    confLabel: {
+        tr: 'Güven',
+        en: 'Conf',
+        de: 'Vertr.'
+    },
+    noOppTitle: {
+        tr: 'Seçili Filtrede Fırsat Bulunmuyor',
+        en: 'No opportunities in selected filter',
+        de: 'Keine Gelegenheiten im ausgewählten Filter'
+    },
+    noOppDesc: {
+        tr: 'Filtreleri sıfırlayarak diğer sporlardaki ve oran aralıklarındaki fırsatları görebilirsiniz.',
+        en: 'Reset filters to view opportunities across all sports and odds ranges.',
+        de: 'Filter zurücksetzen, um Gelegenheiten in allen Sportarten anzuzeigen.'
+    },
+    footerStatus: {
+        tr: '7/24 Otonom Surebet & Değer Motoru Aktif',
+        en: 'Autonomous 24/7 Engine Active',
+        de: 'Autonome 24/7 Value-Engine aktiv'
+    },
+    footerCount: {
+        tr: 'fırsat listeleniyor',
+        en: 'opportunities listed',
+        de: 'Gelegenheiten gelistet'
+    },
+    footerScan: {
+        tr: 'Son Tarama:',
+        en: 'Last Scan:',
+        de: 'Letzter Scan:'
+    },
+    scanningText: {
+        tr: '4 Spor dalı için canlı oran hareketleri taranıyor...',
+        en: 'Scanning 4-sport dropping odds feeds...',
+        de: 'Scanne Quotenbewegungen für 4 Sportarten...'
+    }
+};
+
+const getI18n = (key, lang = 'tr') => {
+    const item = I18N[key];
+    if (!item) return key;
+    return item[lang] || item['en'] || item['tr'] || '';
+};
+
+const getSportLabel = (sportKey, lang = 'tr') => {
+    const sportsDict = {
+        ALL: { tr: 'Tümü', en: 'All', de: 'Alle' },
+        soccer: { tr: 'Futbol', en: 'Football', de: 'Fußball' },
+        basketball: { tr: 'Basketbol', en: 'Basketball', de: 'Basketball' },
+        tennis: { tr: 'Tenis', en: 'Tennis', de: 'Tennis' },
+        handball: { tr: 'Hentbol', en: 'Handball', de: 'Handball' }
+    };
+    return sportsDict[sportKey]?.[lang] || sportsDict[sportKey]?.['en'] || sportKey;
+};
+
+const formatLocalizedTip = (tipRaw, lang = 'tr') => {
+    if (!tipRaw) return '';
+    if (lang === 'tr') return tipRaw;
+
+    // Pattern: "MS 2 (Sahita S. Kazanır)" or "MS 1 (Ochi M. Kazanır)"
+    const match = tipRaw.match(/MS\s*([12X])\s*\((.*?)\s*Kazanır\)/i);
+    if (match) {
+        const side = match[1];
+        const team = match[2];
+        if (lang === 'de') {
+            return side === '1' ? `Heimsieg (${team})` : (side === '2' ? `Auswärtssieg (${team})` : `Unentschieden`);
+        }
+        return side === '1' ? `Home Win (${team})` : (side === '2' ? `Away Win (${team})` : `Draw (X)`);
+    }
+
+    if (lang === 'de') {
+        return tipRaw.replace(/Kazanır/g, 'gewinnt').replace(/Beraberlik/g, 'Unentschieden');
+    }
+    return tipRaw.replace(/Kazanır/g, 'to Win').replace(/Beraberlik/g, 'Draw');
+};
+
+const formatLocalizedAdvantage = (dropPct, lang = 'tr') => {
+    const num = Math.round(Number(dropPct) || 0);
+    if (lang === 'tr') return `%${num} Global Oran Düşüşü (Değerli Fiyat)`;
+    if (lang === 'de') return `%${num} Globaler Quotensturz (Value-Quote)`;
+    return `%${num} Global Market Drop (+EV Edge)`;
+};
+
 export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
-    const isTr = lang === 'tr';
+    const activeLang = (lang === 'tr' || lang === 'de' || lang === 'en') ? lang : 'tr';
+    const txt = (key) => getI18n(key, activeLang);
 
     const [data, setData] = useState(defaultMarketRadar || null);
     const [loading, setLoading] = useState(false);
@@ -103,7 +383,14 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
     });
 
     const handleCopy = (item) => {
-        const text = `🎯 LiveBet Surebet & Değer Radarı\n🏆 ${item.league}\n⏰ ${item.time} | ${item.home} vs ${item.away}\n👉 Tercih: ${item.tip} (Oran: ${item.odds})\n💎 Avantaj: ${item.advantage}\n⚡ Güven: %${item.confidence}`;
+        const localizedTip = formatLocalizedTip(item.tip, activeLang);
+        const localizedAdv = formatLocalizedAdvantage(item.drop_pct, activeLang);
+        const headerTitle = activeLang === 'tr' ? 'LiveBet Surebet & Değer Radarı' : (activeLang === 'de' ? 'LiveBet Surebet & Value-Radar' : 'LiveBet Surebet & Value Radar');
+        const tipPrefix = activeLang === 'tr' ? 'Tercih' : (activeLang === 'de' ? 'Tipp' : 'Pick');
+        const edgePrefix = activeLang === 'tr' ? 'Avantaj' : (activeLang === 'de' ? 'Vorteil' : 'Edge');
+        const confPrefix = activeLang === 'tr' ? 'Güven' : (activeLang === 'de' ? 'Vertrauen' : 'Confidence');
+
+        const text = `🎯 ${headerTitle}\n🏆 ${item.league}\n⏰ ${item.time} | ${item.home} vs ${item.away}\n👉 ${tipPrefix}: ${localizedTip} (${Number(item.odds).toFixed(2)})\n💎 ${edgePrefix}: ${localizedAdv}\n⚡ ${confPrefix}: %${item.confidence}`;
         navigator.clipboard?.writeText(text);
         setCopiedId(item.id);
         setTimeout(() => setCopiedId(null), 2000);
@@ -152,7 +439,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                             <h2 style={{ margin: 0, fontSize: '1.18rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px' }}>
-                                {isTr ? 'Surebet & Piyasa Değer Radarı' : 'Surebet & Value Radar'}
+                                {txt('title')}
                             </h2>
                             <span style={{
                                 padding: '2px 8px',
@@ -163,13 +450,11 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                 color: '#000',
                                 letterSpacing: '0.5px'
                             }}>
-                                4-SPOR QUANT TERMINAL
+                                {txt('badge')}
                             </span>
                         </div>
                         <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                            {isTr 
-                                ? 'Piyasada oranları çöken, büroların geride kaldığı matematiksel +EV fırsatları' 
-                                : 'Institutional smart money drops and lagging market value opportunities'}
+                            {txt('subtitle')}
                         </p>
                     </div>
                 </div>
@@ -192,7 +477,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         }}
                     >
                         <span>💡</span>
-                        <span>{isTr ? 'Nasıl Çalışır?' : 'Guide'}</span>
+                        <span>{txt('guideBtn')}</span>
                     </button>
 
                     <button
@@ -214,7 +499,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         }}
                     >
                         <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.5s' }}>🔄</span>
-                        <span>{isTr ? 'Yenile' : 'Refresh'}</span>
+                        <span>{txt('refreshBtn')}</span>
                     </button>
 
                     {onClose && (
@@ -241,7 +526,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                 </div>
             </div>
 
-            {/* 💡 Kolay Anlaşılır Rehber Banner (Kullanıcı İsteği) */}
+            {/* 💡 3-Dilde Kolay Anlaşılır Rehber Banner */}
             {showGuide && (
                 <div style={{
                     background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%)',
@@ -257,7 +542,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 900, color: '#38bdf8' }}>
                             <span>🎯</span>
-                            <span>{isTr ? 'BU BÖLÜM NASIL OKUNUR & KAZANDIRIR?' : 'HOW THIS RADAR WORKS'}</span>
+                            <span>{txt('guideTitle')}</span>
                         </div>
                         <button
                             onClick={() => setShowGuide(false)}
@@ -270,7 +555,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                 fontWeight: 700
                             }}
                         >
-                            ✕ {isTr ? 'Gizle' : 'Hide'}
+                            ✕ {txt('hideGuide')}
                         </button>
                     </div>
 
@@ -283,13 +568,13 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         lineHeight: '1.4'
                     }}>
                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 10px', borderRadius: '8px', borderLeft: '3px solid #06b6d4' }}>
-                            <strong style={{ color: '#06b6d4' }}>1. Akıllı Para Düşüşü:</strong> Dünyada bir tercihe yüklü bahis girince oran çöker (%20-%45 sert düşüş).
+                            <strong style={{ color: '#06b6d4' }}>{txt('guide1_title')}</strong> {txt('guide1_desc')}
                         </div>
                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 10px', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
-                            <strong style={{ color: '#10b981' }}>2. Uyuyan Büroyu Yakala:</strong> Dünyada oran düşmüşken büron henüz indirmediyse, eski yüksek fiyattan tekli oyna.
+                            <strong style={{ color: '#10b981' }}>{txt('guide2_title')}</strong> {txt('guide2_desc')}
                         </div>
                         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 10px', borderRadius: '8px', borderLeft: '3px solid #f59e0b' }}>
-                            <strong style={{ color: '#f59e0b' }}>3. Sabit Kasa Disiplini:</strong> Sadece tekli (single) oynanır. Kasanın %2 veya %3'ünü aşma.
+                            <strong style={{ color: '#f59e0b' }}>{txt('guide3_title')}</strong> {txt('guide3_desc')}
                         </div>
                     </div>
                 </div>
@@ -314,11 +599,11 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflowX: 'auto', paddingBottom: '2px' }}>
                         {[
-                            { key: 'ALL', label: isTr ? 'Tümü' : 'All', icon: '🌐' },
-                            { key: 'soccer', label: isTr ? 'Futbol' : 'Football', icon: '⚽' },
-                            { key: 'basketball', label: isTr ? 'Basketbol' : 'Basketball', icon: '🏀' },
-                            { key: 'tennis', label: isTr ? 'Tenis' : 'Tennis', icon: '🎾' },
-                            { key: 'handball', label: isTr ? 'Hentbol' : 'Handball', icon: '🤾' },
+                            { key: 'ALL', icon: '🌐' },
+                            { key: 'soccer', icon: '⚽' },
+                            { key: 'basketball', icon: '🏀' },
+                            { key: 'tennis', icon: '🎾' },
+                            { key: 'handball', icon: '🤾' },
                         ].map((tab) => {
                             const count = tab.key === 'ALL' 
                                 ? opportunities.length 
@@ -345,7 +630,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     }}
                                 >
                                     <span>{tab.icon}</span>
-                                    <span>{tab.label}</span>
+                                    <span>{getSportLabel(tab.key, activeLang)}</span>
                                     <span style={{
                                         padding: '1px 5px',
                                         borderRadius: '999px',
@@ -366,7 +651,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder={isTr ? 'Maç veya Lig ara...' : 'Search match or league...'}
+                            placeholder={txt('searchPlaceholder')}
                             style={{
                                 width: '100%',
                                 boxSizing: 'border-box',
@@ -413,7 +698,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {/* Düşüş Filtresi */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>{isTr ? 'Düşüş:' : 'Drop:'}</span>
+                            <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('dropFilterLabel')}</span>
                             <select
                                 value={minDrop}
                                 onChange={(e) => setMinDrop(e.target.value)}
@@ -429,15 +714,15 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     cursor: 'pointer'
                                 }}
                             >
-                                <option value="ALL">{isTr ? 'Tüm Düşüşler (%12+)' : 'All Drops (12%+)'}</option>
-                                <option value="30">{isTr ? '🔥 Mega Çöküş (%30+)' : '🔥 Mega Drop (30%+)'}</option>
-                                <option value="20">{isTr ? '⚡ Sert Düşüş (%20+)' : '⚡ Heavy Drop (20%+)'}</option>
+                                <option value="ALL">{txt('dropAll')}</option>
+                                <option value="30">{txt('dropMega')}</option>
+                                <option value="20">{txt('dropHeavy')}</option>
                             </select>
                         </div>
 
                         {/* Oran Aralığı */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>{isTr ? 'Oran:' : 'Odds:'}</span>
+                            <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('oddsFilterLabel')}</span>
                             <select
                                 value={oddsRange}
                                 onChange={(e) => setOddsRange(e.target.value)}
@@ -453,15 +738,15 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     cursor: 'pointer'
                                 }}
                             >
-                                <option value="ALL">{isTr ? 'Tüm Oranlar (1.35 - 2.50)' : 'All Odds (1.35 - 2.50)'}</option>
-                                <option value="LOW">{isTr ? '1.35 - 1.80 (Banko / Düşük Risk)' : '1.35 - 1.80 (Safe)'}</option>
-                                <option value="HIGH">{isTr ? '1.80 - 2.50 (Yüksek Değer / +EV)' : '1.80 - 2.50 (High Value)'}</option>
+                                <option value="ALL">{txt('oddsAll')}</option>
+                                <option value="LOW">{txt('oddsLow')}</option>
+                                <option value="HIGH">{txt('oddsHigh')}</option>
                             </select>
                         </div>
 
                         {/* Sıralama */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>{isTr ? 'Sırala:' : 'Sort:'}</span>
+                            <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('sortLabel')}</span>
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
@@ -477,10 +762,10 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     cursor: 'pointer'
                                 }}
                             >
-                                <option value="DROP_DESC">{isTr ? '📉 En Yüksek Düşüş' : 'Drop % (Highest)'}</option>
-                                <option value="CONF_DESC">{isTr ? '💎 En Yüksek Güven' : 'Confidence (Highest)'}</option>
-                                <option value="TIME_ASC">{isTr ? '⏰ Maç Saati (En Yakın)' : 'Match Time'}</option>
-                                <option value="ODDS_DESC">{isTr ? '📊 En Yüksek Oran' : 'Odds (Highest)'}</option>
+                                <option value="DROP_DESC">{txt('sortDrop')}</option>
+                                <option value="CONF_DESC">{txt('sortConf')}</option>
+                                <option value="TIME_ASC">{txt('sortTime')}</option>
+                                <option value="ODDS_DESC">{txt('sortOdds')}</option>
                             </select>
                         </div>
                     </div>
@@ -509,10 +794,9 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                 alignItems: 'center',
                                 gap: '3px'
                             }}
-                            title={isTr ? 'Göz yormayan Terminal Tablo Görünümü' : 'Terminal Table View'}
                         >
                             <span>📟</span>
-                            <span>{isTr ? 'Terminal' : 'Terminal'}</span>
+                            <span>{txt('viewTerminal')}</span>
                         </button>
                         <button
                             onClick={() => setViewMode('GRID')}
@@ -529,10 +813,9 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                 alignItems: 'center',
                                 gap: '3px'
                             }}
-                            title={isTr ? 'Geniş Kart Görünümü' : 'Grid Cards View'}
                         >
                             <span>🎴</span>
-                            <span>{isTr ? 'Kart' : 'Cards'}</span>
+                            <span>{txt('viewCards')}</span>
                         </button>
                     </div>
                 </div>
@@ -549,23 +832,21 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                     <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
                         <div style={{ fontSize: '2rem', marginBottom: '0.8rem' }}>🔄</div>
                         <div style={{ fontSize: '0.95rem', color: '#94a3b8' }}>
-                            {isTr ? '4 Spor dalı için canlı oran hareketleri taranıyor...' : 'Scanning 4-sport dropping odds feeds...'}
+                            {txt('scanningText')}
                         </div>
                     </div>
                 ) : filtered.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
                         <div style={{ fontSize: '2.5rem', marginBottom: '0.8rem' }}>💎</div>
                         <h4 style={{ margin: '0 0 0.4rem', fontSize: '1.1rem', color: '#e2e8f0' }}>
-                            {isTr ? 'Seçili Filtrede Fırsat Bulunmuyor' : 'No opportunities in selected filter'}
+                            {txt('noOppTitle')}
                         </h4>
                         <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b' }}>
-                            {isTr 
-                                ? 'Filtreleri sıfırlayarak diğer sporlardaki ve oran aralıklarındaki fırsatları görebilirsiniz.' 
-                                : 'Reset filters to view opportunities across all sports.'}
+                            {txt('noOppDesc')}
                         </p>
                     </div>
                 ) : viewMode === 'TERMINAL' ? (
-                    /* 📟 QUANT TERMINAL TABLO GÖRÜNÜMÜ (GÖZ YORMAYAN YÜKSEK DİSİPLİNLİ GÖRÜNÜM) */
+                    /* 📟 QUANT TERMINAL TABLO GÖRÜNÜMÜ */
                     <div style={{ overflowX: 'auto', width: '100%' }}>
                         <table style={{
                             width: '100%',
@@ -575,13 +856,13 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         }}>
                             <thead>
                                 <tr style={{ color: '#64748b', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{isTr ? 'Spor / Saat' : 'Sport / Time'}</th>
-                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{isTr ? 'Maç & Lig' : 'Match & League'}</th>
-                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{isTr ? 'Önerilen Tercih' : 'Tip'}</th>
-                                    <th style={{ textAlign: 'center', padding: '6px 12px' }}>{isTr ? 'Piyasa Oranı' : 'Odds'}</th>
-                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{isTr ? 'Global Düşüş' : 'Drop %'}</th>
-                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{isTr ? 'Güven' : 'Confidence'}</th>
-                                    <th style={{ textAlign: 'right', padding: '6px 12px' }}>{isTr ? 'İşlem' : 'Action'}</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{txt('colSportTime')}</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{txt('colMatchLeague')}</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{txt('colTip')}</th>
+                                    <th style={{ textAlign: 'center', padding: '6px 12px' }}>{txt('colOdds')}</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{txt('colDrop')}</th>
+                                    <th style={{ textAlign: 'left', padding: '6px 12px' }}>{txt('colConf')}</th>
+                                    <th style={{ textAlign: 'right', padding: '6px 12px' }}>{txt('colAction')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -589,6 +870,9 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     const isCopied = copiedId === item.id;
                                     const dropNum = item.drop_pct || 0;
                                     const isMegaDrop = dropNum >= 35;
+                                    const localizedTip = formatLocalizedTip(item.tip, activeLang);
+                                    const sportLabel = getSportLabel(item.sport, activeLang);
+
                                     return (
                                         <tr
                                             key={item.id}
@@ -610,7 +894,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                     <span style={{ fontSize: '1rem' }}>{item.icon}</span>
                                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>{item.sport_name}</span>
+                                                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>{sportLabel}</span>
                                                         <span style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 800 }}>⏰ {item.time}</span>
                                                     </div>
                                                 </div>
@@ -639,7 +923,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                     fontSize: '0.76rem',
                                                     whiteSpace: 'nowrap'
                                                 }}>
-                                                    👉 {item.tip}
+                                                    👉 {localizedTip}
                                                 </span>
                                             </td>
 
@@ -670,7 +954,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                         fontWeight: 800,
                                                         fontSize: '0.76rem'
                                                     }}>
-                                                        📉 %{dropNum} {isTr ? 'Düşüş' : 'Drop'}
+                                                        📉 %{dropNum} {txt('dropLabel')}
                                                     </span>
                                                 </div>
                                             </td>
@@ -706,9 +990,8 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                         cursor: 'pointer',
                                                         transition: 'all 0.15s'
                                                     }}
-                                                    title={isTr ? 'Bahis kuponu için kopyala' : 'Copy selection'}
                                                 >
-                                                    {isCopied ? '✓' : '📋'} {isCopied ? (isTr ? 'Alındı' : 'Copied') : (isTr ? 'Kopyala' : 'Copy')}
+                                                    {isCopied ? '✓' : '📋'} {isCopied ? txt('copiedBtn') : txt('copyBtn')}
                                                 </button>
                                             </td>
                                         </tr>
@@ -718,7 +1001,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         </table>
                     </div>
                 ) : (
-                    /* 🎴 KART GÖRÜNÜMÜ (ALTERNATİF) */
+                    /* 🎴 KART GÖRÜNÜMÜ */
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
@@ -728,6 +1011,9 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                             const isCopied = copiedId === item.id;
                             const dropNum = item.drop_pct || 0;
                             const isMegaDrop = dropNum >= 35;
+                            const localizedTip = formatLocalizedTip(item.tip, activeLang);
+                            const localizedAdv = formatLocalizedAdvantage(item.drop_pct, activeLang);
+
                             return (
                                 <div
                                     key={item.id}
@@ -772,15 +1058,15 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                         }}>
                                             <div>
                                                 <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
-                                                    {isTr ? 'Önerilen Tercih' : 'Suggested Tip'}
+                                                    {txt('colTip')}
                                                 </div>
                                                 <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#38bdf8' }}>
-                                                    {item.tip}
+                                                    {localizedTip}
                                                 </div>
                                             </div>
                                             <div style={{ textAlign: 'right' }}>
                                                 <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
-                                                    {isTr ? 'Piyasa Oranı' : 'Market Odds'}
+                                                    {txt('colOdds')}
                                                 </div>
                                                 <div style={{ fontSize: '1rem', fontWeight: 900, fontFamily: 'monospace', color: '#fff' }}>
                                                     {Number(item.odds).toFixed(2)}
@@ -802,7 +1088,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                             marginBottom: '0.7rem'
                                         }}>
                                             <span>📉</span>
-                                            <span>{item.advantage}</span>
+                                            <span>{localizedAdv}</span>
                                         </div>
                                     </div>
 
@@ -822,7 +1108,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                 }} />
                                             </div>
                                             <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 700 }}>
-                                                %{item.confidence} {isTr ? 'Güven' : 'Conf'}
+                                                %{item.confidence} {txt('confLabel')}
                                             </span>
                                         </div>
 
@@ -840,7 +1126,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                 transition: 'all 0.15s'
                                             }}
                                         >
-                                            {isCopied ? '✓' : '📋'} {isCopied ? (isTr ? 'Alındı' : 'Copied') : (isTr ? 'Kopyala' : 'Copy')}
+                                            {isCopied ? '✓' : '📋'} {isCopied ? txt('copiedBtn') : txt('copyBtn')}
                                         </button>
                                     </div>
                                 </div>
@@ -863,12 +1149,12 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }}></span>
-                    <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{isTr ? '7/24 Otonom Surebet & Değer Motoru Aktif' : 'Autonomous 24/7 Engine Active'}</span>
+                    <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{txt('footerStatus')}</span>
                     <span style={{ color: '#475569' }}>•</span>
-                    <span>{filtered.length} {isTr ? 'fırsat listeleniyor' : 'opportunities listed'}</span>
+                    <span>{filtered.length} {txt('footerCount')}</span>
                 </div>
                 {data?.last_updated && (
-                    <span>{isTr ? 'Son Tarama:' : 'Last Scan:'} {new Date(data.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span>{txt('footerScan')} {new Date(data.last_updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 )}
             </div>
         </div>
