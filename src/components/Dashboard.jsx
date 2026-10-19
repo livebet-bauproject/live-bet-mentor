@@ -9505,7 +9505,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     justifyContent: 'center',
                     padding: '16px'
                 }} onClick={() => setShowMarketRadar(false)}>
-                    <div style={{ maxHeight: '90vh', overflowY: 'auto', width: '100%', maxWidth: '960px' }} onClick={e => e.stopPropagation()}>
+                    <div style={{ maxHeight: '92vh', overflowY: 'auto', width: '100%', maxWidth: '1160px' }} onClick={e => e.stopPropagation()}>
                         <MarketRadarCard lang={lang} onClose={() => setShowMarketRadar(false)} />
                     </div>
                 </div>
