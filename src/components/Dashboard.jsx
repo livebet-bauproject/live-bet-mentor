@@ -5683,6 +5683,32 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                     </div>
 
                     <div className="terminal-header-actions">
+                        {/* Live Institutional Bankroll Indicator & Quick View Switcher */}
+                        <button
+                            type="button"
+                            onClick={() => setView('PORTFOLIO')}
+                            className={`header-bankroll-pill ${view === 'PORTFOLIO' ? 'active' : ''}`}
+                            title={lang === 'tr' ? 'Kasa & Portföy Yönetimi (Detayları Gör)' : (lang === 'de' ? 'Kassa & Depot-Verwaltung' : 'Bankroll & Portfolio Management')}
+                        >
+                            <span className="hbp-icon">💼</span>
+                            <span className="hbp-label">{lang === 'tr' ? 'KASA' : (lang === 'de' ? 'KASSA' : 'PORTFOLIO')}</span>
+                            <span className="hbp-val">{Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺</span>
+                        </button>
+
+                        {/* Admin Direct Shortcut Pill (if admin) */}
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => setView('ADMIN')}
+                                className={`header-admin-pill ${view === 'ADMIN' ? 'active' : ''}`}
+                                title={lang === 'tr' ? 'Admin Paneli' : 'Admin Panel'}
+                            >
+                                <span className="admin-pill-icon">🛡️</span>
+                                <span className="admin-pill-label">ADMIN</span>
+                                <span className="admin-pill-badge">ROOT</span>
+                            </button>
+                        )}
+
                         {/* 7/24 Live Support & AI Chatbot Button */}
                         <button
                             type="button"
@@ -5948,36 +5974,35 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span className="tab-live-count count-sharp">10</span>
                         </button>
 
-                        {/* 5. Sıcak Trendler */}
+                        {/* 5. Sıcak Fırsatlar */}
                         <button
                             className={`unified-tab-btn tab-hot ${showBetanoRadar ? 'active' : ''}`}
                             onClick={() => setShowBetanoRadar(true)}
-                            title={lang === 'tr' ? 'Sıcak Trendler & Hızlı Fırsatlar' : (lang === 'de' ? 'Heiße Picks' : 'Hot Picks')}
+                            title={lang === 'tr' ? 'Sıcak Fırsatlar & Hızlı Trendler' : (lang === 'de' ? 'Heiße Picks' : 'Hot Picks')}
                         >
                             <span className="tab-icon">🔥</span>
                             <span className="tab-label">
-                                <span className="label-full">{lang === 'tr' ? 'SICAK TRENDLER' : (lang === 'de' ? 'HOT-PICKS' : 'HOT PICKS')}</span>
+                                <span className="label-full">{lang === 'tr' ? 'SICAK FIRSATLAR' : (lang === 'de' ? 'HOT-PICKS' : 'HOT PICKS')}</span>
                                 <span className="label-short">{lang === 'tr' ? 'SICAK' : (lang === 'de' ? 'HOT' : 'HOT')}</span>
                             </span>
                             <span className="tab-live-count count-hot">HOT</span>
                         </button>
 
-                        {/* 5b. Surebet & 4-Spor Piyasa Radarı */}
+                        {/* 6. Surebet Radarı */}
                         <button
                             className={`unified-tab-btn tab-market-radar ${showMarketRadar ? 'active' : ''}`}
                             onClick={() => setShowMarketRadar(true)}
                             title={lang === 'tr' ? 'Surebet & Değer Radarı (4-Spor)' : 'Surebet & Value Radar'}
-                            style={{ border: showMarketRadar ? '1px solid #06b6d4' : undefined }}
                         >
                             <span className="tab-icon">💎</span>
                             <span className="tab-label">
-                                <span className="label-full">SUREBET</span>
+                                <span className="label-full">{lang === 'tr' ? 'SUREBET RADARI' : 'SUREBET RADAR'}</span>
                                 <span className="label-short">SUREBET</span>
                             </span>
-                            <span className="tab-live-count" style={{ background: '#06b6d4', color: '#000', fontWeight: 900 }}>+EV</span>
+                            <span className="tab-live-count count-surebet">+EV</span>
                         </button>
 
-                        {/* 5b. Pro Analistler & Tahmin Masası */}
+                        {/* 7. Pro Analistler & Tahmin Masası */}
                         <button
                             className={`unified-tab-btn tab-tipsters ${view === 'TIPSTERS' ? 'active' : ''}`}
                             onClick={() => setView('TIPSTERS')}
@@ -5988,12 +6013,12 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <span className="label-full">{lang === 'tr' ? 'PRO ANALİSTLER' : (lang === 'de' ? 'PRO-ANALYSTEN' : 'PRO ANALYSTS')}</span>
                                 <span className="label-short">{lang === 'tr' ? 'ANALİST' : (lang === 'de' ? 'TIPPER' : 'TIPSTERS')}</span>
                             </span>
-                            <span className="tab-live-count count-tipster" style={{ background: '#38bdf8', color: '#000', fontWeight: 900 }}>
+                            <span className="tab-live-count count-tipster">
                                 PRO
                             </span>
                         </button>
 
-                        {/* 6. Kasa & Portföy */}
+                        {/* 8. Kasa & Portföy */}
                         <button
                             className={`unified-tab-btn tab-portfolio ${view === 'PORTFOLIO' ? 'active' : ''}`}
                             onClick={() => setView('PORTFOLIO')}
@@ -6002,25 +6027,12 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             <span className="tab-icon">💼</span>
                             <span className="tab-label">
                                 <span className="label-full">{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO')}</span>
-                                <span className="label-short">{lang === 'tr' ? 'KASA & PORTFÖY' : (lang === 'de' ? 'KASSA & DEPOT' : 'PORTFOLIO')}</span>
+                                <span className="label-short">{lang === 'tr' ? 'PORTFÖY' : (lang === 'de' ? 'DEPOT' : 'PORTFOLIO')}</span>
                             </span>
                             <span className="tab-live-count count-portfolio">
                                 {Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺
                             </span>
                         </button>
-
-                        {/* 7. Admin (if admin) */}
-                        {isAdmin && (
-                            <button
-                                className={`unified-tab-btn tab-admin ${view === 'ADMIN' ? 'active' : ''}`}
-                                onClick={() => setView('ADMIN')}
-                                title="Admin Panel"
-                            >
-                                <span className="tab-icon">🛡️</span>
-                                <span className="tab-label">ADMIN</span>
-                                <span className="tab-live-count count-admin">ROOT</span>
-                            </button>
-                        )}
                     </nav>
                 </div>
 

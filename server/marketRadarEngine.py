@@ -135,6 +135,14 @@ def scrape_sport_movements(sport_info):
         confidence = min(96, max(68, int(62 + (drop_pct * 0.8))))
         unique_id = re.sub(r'[^a-zA-Z0-9]', '', f"{sport_info['key']}_{home}_{away}_{current_date}").lower()
 
+        # Calculate opening odds based on current odds and drop_pct:
+        # If odds dropped by drop_pct%, then current_odd = opening_odd * (1 - drop_pct/100)
+        # So opening_odd = current_odd / (1 - drop_pct/100)
+        if 0 < drop_pct < 95:
+            opening_odd = round(best_odd / (1.0 - (drop_pct / 100.0)), 2)
+        else:
+            opening_odd = best_odd
+
         picks.append({
             'id': unique_id,
             'sport': sport_info['key'],
@@ -147,6 +155,7 @@ def scrape_sport_movements(sport_info):
             'away': away,
             'tip': tip_text,
             'odds': best_odd,
+            'opening_odds': opening_odd,
             'drop_pct': drop_pct,
             'confidence': confidence,
             'advantage': f"%{int(drop_pct)} Global Oran Düşüşü (Değerli Fiyat)",

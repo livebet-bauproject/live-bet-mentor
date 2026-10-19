@@ -19,7 +19,8 @@
       "drop_pct": 45.0,
       "confidence": 96,
       "advantage": "%45 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 4.36
     },
     {
       "id": "handballfukuieiheijibluethunderdaido20102026",
@@ -36,7 +37,8 @@
       "drop_pct": 42.0,
       "confidence": 95,
       "advantage": "%42 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 3.79
     },
     {
       "id": "tennisochimtanumar20102026",
@@ -53,7 +55,8 @@
       "drop_pct": 39.0,
       "confidence": 93,
       "advantage": "%39 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 3.2
     },
     {
       "id": "handballskovdeamohk20102026",
@@ -70,7 +73,8 @@
       "drop_pct": 35.0,
       "confidence": 90,
       "advantage": "%35 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.62
     },
     {
       "id": "basketballlatvijasuniversitateviimsi20102026",
@@ -87,7 +91,8 @@
       "drop_pct": 25.0,
       "confidence": 82,
       "advantage": "%25 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.27
     },
     {
       "id": "soccerfortisgoa20102026",
@@ -104,7 +109,8 @@
       "drop_pct": 23.0,
       "confidence": 80,
       "advantage": "%23 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.21
     },
     {
       "id": "tennisbrancacciorhemeryc20102026",
@@ -121,7 +127,8 @@
       "drop_pct": 22.0,
       "confidence": 79,
       "advantage": "%22 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.63
     },
     {
       "id": "soccerlibertadasuncionwudechilew20102026",
@@ -138,7 +145,8 @@
       "drop_pct": 20.0,
       "confidence": 78,
       "advantage": "%20 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.75
     },
     {
       "id": "basketballpsychikounemegaridas21102026",
@@ -155,7 +163,8 @@
       "drop_pct": 20.0,
       "confidence": 78,
       "advantage": "%20 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.19
     },
     {
       "id": "soccerlduquitowolimpiaasuncionw20102026",
@@ -172,7 +181,8 @@
       "drop_pct": 19.0,
       "confidence": 77,
       "advantage": "%19 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.04
     },
     {
       "id": "soccerzabbarsliema21102026",
@@ -189,7 +199,8 @@
       "drop_pct": 19.0,
       "confidence": 77,
       "advantage": "%19 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.14
     },
     {
       "id": "tennisvandezandschulpbchidekhc20102026",
@@ -206,7 +217,8 @@
       "drop_pct": 19.0,
       "confidence": 77,
       "advantage": "%19 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.84
     },
     {
       "id": "tennisferyagojob20102026",
@@ -223,7 +235,8 @@
       "drop_pct": 16.0,
       "confidence": 74,
       "advantage": "%16 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.83
     },
     {
       "id": "tennisrollandderavelcbariso20102026",
@@ -240,7 +253,8 @@
       "drop_pct": 16.0,
       "confidence": 74,
       "advantage": "%16 Global Oran Düşüşü (Değerli Fiyat)",
-      "status": "ACTIVE"
+      "status": "ACTIVE",
+      "opening_odds": 2.23
     }
   ]
 }

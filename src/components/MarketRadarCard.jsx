@@ -233,6 +233,16 @@ const I18N = {
         tr: '4 Spor dalı için canlı oran hareketleri taranıyor...',
         en: 'Scanning 4-sport dropping odds feeds...',
         de: 'Scanne Quotenbewegungen für 4 Sportarten...'
+    },
+    openOddsLabel: {
+        tr: 'Açılış',
+        en: 'Open',
+        de: 'Eröffnung'
+    },
+    oddsMovementLabel: {
+        tr: 'Oran Hareketi',
+        en: 'Odds Movement',
+        de: 'Quotenverlauf'
     }
 };
 
@@ -251,6 +261,14 @@ const getSportLabel = (sportKey, lang = 'tr') => {
         handball: { tr: 'Hentbol', en: 'Handball', de: 'Handball' }
     };
     return sportsDict[sportKey]?.[lang] || sportsDict[sportKey]?.['en'] || sportKey;
+};
+
+const getOpeningOdds = (item) => {
+    if (item?.opening_odds) return Number(item.opening_odds).toFixed(2);
+    if (item?.odds && item?.drop_pct && item.drop_pct > 0 && item.drop_pct < 95) {
+        return (Number(item.odds) / (1 - (Number(item.drop_pct) / 100))).toFixed(2);
+    }
+    return null;
 };
 
 const formatLocalizedTip = (tipRaw, lang = 'tr') => {
@@ -383,14 +401,20 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
     });
 
     const handleCopy = (item) => {
+        const openingOdds = getOpeningOdds(item);
         const localizedTip = formatLocalizedTip(item.tip, activeLang);
         const localizedAdv = formatLocalizedAdvantage(item.drop_pct, activeLang);
         const headerTitle = activeLang === 'tr' ? 'LiveBet Surebet & Değer Radarı' : (activeLang === 'de' ? 'LiveBet Surebet & Value-Radar' : 'LiveBet Surebet & Value Radar');
         const tipPrefix = activeLang === 'tr' ? 'Tercih' : (activeLang === 'de' ? 'Tipp' : 'Pick');
+        const oddsPrefix = activeLang === 'tr' ? 'Oran Hareketi' : (activeLang === 'de' ? 'Quotenverlauf' : 'Odds Movement');
         const edgePrefix = activeLang === 'tr' ? 'Avantaj' : (activeLang === 'de' ? 'Vorteil' : 'Edge');
         const confPrefix = activeLang === 'tr' ? 'Güven' : (activeLang === 'de' ? 'Vertrauen' : 'Confidence');
 
-        const text = `🎯 ${headerTitle}\n🏆 ${item.league}\n⏰ ${item.time} | ${item.home} vs ${item.away}\n👉 ${tipPrefix}: ${localizedTip} (${Number(item.odds).toFixed(2)})\n💎 ${edgePrefix}: ${localizedAdv}\n⚡ ${confPrefix}: %${item.confidence}`;
+        const oddsProgression = openingOdds 
+            ? `~${openingOdds} ➔ ${Number(item.odds).toFixed(2)}`
+            : `${Number(item.odds).toFixed(2)}`;
+
+        const text = `🎯 ${headerTitle}\n🏆 ${item.league}\n⏰ ${item.time} | ${item.home} vs ${item.away}\n👉 ${tipPrefix}: ${localizedTip}\n📈 ${oddsPrefix}: ${oddsProgression} (📉 %${item.drop_pct})\n💎 ${edgePrefix}: ${localizedAdv}\n⚡ ${confPrefix}: %${item.confidence}`;
         navigator.clipboard?.writeText(text);
         setCopiedId(item.id);
         setTimeout(() => setCopiedId(null), 2000);
@@ -872,6 +896,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     const isMegaDrop = dropNum >= 35;
                                     const localizedTip = formatLocalizedTip(item.tip, activeLang);
                                     const sportLabel = getSportLabel(item.sport, activeLang);
+                                    const openingOdds = getOpeningOdds(item);
 
                                     return (
                                         <tr
@@ -927,19 +952,44 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                 </span>
                                             </td>
 
-                                            {/* Piyasa Oranı */}
+                                            {/* Piyasa Oranı & Üstü Çizili Açılış Oranı */}
                                             <td style={{ padding: '8px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                                <span style={{
-                                                    fontSize: '0.92rem',
-                                                    fontWeight: 900,
-                                                    fontFamily: 'monospace',
-                                                    color: '#fff',
-                                                    background: 'rgba(255, 255, 255, 0.08)',
+                                                <div style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '6px',
+                                                    background: 'rgba(255, 255, 255, 0.06)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.08)',
                                                     padding: '3px 8px',
                                                     borderRadius: '6px'
                                                 }}>
-                                                    {Number(item.odds).toFixed(2)}
-                                                </span>
+                                                    {openingOdds && (
+                                                        <>
+                                                            <span
+                                                                title={`${txt('openOddsLabel')}: ~${openingOdds}`}
+                                                                style={{
+                                                                    fontSize: '0.74rem',
+                                                                    fontWeight: 700,
+                                                                    fontFamily: 'monospace',
+                                                                    color: '#f87171',
+                                                                    textDecoration: 'line-through',
+                                                                    opacity: 0.85
+                                                                }}
+                                                            >
+                                                                ~{openingOdds}
+                                                            </span>
+                                                            <span style={{ color: '#64748b', fontSize: '0.68rem' }}>➔</span>
+                                                        </>
+                                                    )}
+                                                    <span style={{
+                                                        fontSize: '0.92rem',
+                                                        fontWeight: 900,
+                                                        fontFamily: 'monospace',
+                                                        color: '#34d399'
+                                                    }}>
+                                                        {Number(item.odds).toFixed(2)}
+                                                    </span>
+                                                </div>
                                             </td>
 
                                             {/* Global Düşüş */}
@@ -1013,6 +1063,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                             const isMegaDrop = dropNum >= 35;
                             const localizedTip = formatLocalizedTip(item.tip, activeLang);
                             const localizedAdv = formatLocalizedAdvantage(item.drop_pct, activeLang);
+                            const openingOdds = getOpeningOdds(item);
 
                             return (
                                 <div
@@ -1068,8 +1119,28 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                                 <div style={{ fontSize: '0.62rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
                                                     {txt('colOdds')}
                                                 </div>
-                                                <div style={{ fontSize: '1rem', fontWeight: 900, fontFamily: 'monospace', color: '#fff' }}>
-                                                    {Number(item.odds).toFixed(2)}
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', marginTop: '2px' }}>
+                                                    {openingOdds && (
+                                                        <>
+                                                            <span
+                                                                title={`${txt('openOddsLabel')}: ~${openingOdds}`}
+                                                                style={{
+                                                                    fontSize: '0.78rem',
+                                                                    fontWeight: 700,
+                                                                    fontFamily: 'monospace',
+                                                                    color: '#f87171',
+                                                                    textDecoration: 'line-through',
+                                                                    opacity: 0.85
+                                                                }}
+                                                            >
+                                                                ~{openingOdds}
+                                                            </span>
+                                                            <span style={{ color: '#64748b', fontSize: '0.7rem' }}>➔</span>
+                                                        </>
+                                                    )}
+                                                    <span style={{ fontSize: '1.05rem', fontWeight: 900, fontFamily: 'monospace', color: '#34d399' }}>
+                                                        {Number(item.odds).toFixed(2)}
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
