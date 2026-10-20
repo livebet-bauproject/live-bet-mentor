@@ -5,7 +5,7 @@ color 0B
 title LIVE BET MENTOR - 7/24 Otonom VIP Sistem
 
 echo =====================================================================
-echo        💎 LIVE BET MENTOR - OTONOM VIP SISTEM & GUNCELLEYICI 💎
+echo        💎 LIVE BET MENTOR - OTONOM VIP SISTEM VE GUNCELLEYICI 💎
 echo =====================================================================
 echo.
 
@@ -18,10 +18,16 @@ if not exist "%USERPROFILE%\Desktop\Sistemi Guncelle ve Baslat.lnk" (
 )
 
 echo [1/3] 📡 Yeni kodlar GitHub'a yükleniyor ve senkronize ediliyor...
+git add src/ server/ index.html package.json update_and_start.bat baslat.bat >nul 2>&1
+git commit -m "auto: sync live system updates" >nul 2>&1
 git push origin main
-git pull origin main >nul 2>&1
-echo.
-echo [2/3] ✅ Sistem ve Canlı Site (livebetmentor.com) başarıyla güncellendi!
+if errorlevel 1 (
+    echo.
+    echo [UYARI] GitHub senkronizasyonu tamamlanamadi veya zaten guncel.
+) else (
+    echo.
+    echo [2/3] ✅ Sistem ve Canlı Site (livebetmentor.com) başarıyla güncellendi!
+)
 echo.
 echo [3/3] 🚀 7/24 Otonom Sunucu ve Telegram VIP Motoru Başlatılıyor...
 echo =====================================================================

@@ -25,6 +25,8 @@ if errorlevel 1 (
 
 REM 1.5. Kod Guncellemesi ve GitHub Senkronizasyonu
 echo [Git] Kodlar GitHub'a gonderiliyor ve canli site guncelleniyor...
+git add src/ server/ index.html package.json update_and_start.bat baslat.bat >nul 2>&1
+git commit -m "auto: sync live system updates" >nul 2>&1
 git push origin main
 git pull origin main >nul 2>&1
 
