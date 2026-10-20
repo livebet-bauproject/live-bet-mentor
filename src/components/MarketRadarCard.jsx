@@ -525,7 +525,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         }}
                     >
                         <span>💡</span>
-                        <span>{isMobile ? (activeLang === 'tr' ? 'Rehber' : 'Guide') : txt('guideBtn')}</span>
+                        <span>{isMobile ? (activeLang === 'tr' ? 'Rehber' : (activeLang === 'de' ? 'Leitfaden' : 'Guide')) : txt('guideBtn')}</span>
                     </button>
 
                     <button

@@ -3533,6 +3533,49 @@ html, body {
     transform: scale(0.985) !important;
   }
 
+  .mobile-sheet-icon-wrap {
+    width: 36px !important;
+    height: 36px !important;
+    border-radius: 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.15rem !important;
+    flex-shrink: 0 !important;
+  }
+
+  .mobile-sheet-info {
+    flex: 1 1 0% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+  }
+
+  .mobile-sheet-name {
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+    color: #f8fafc !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .mobile-sheet-sub {
+    font-size: 0.68rem !important;
+    color: #94a3b8 !important;
+    line-height: 1.35 !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .mobile-sheet-arrow {
+    font-size: 1.15rem !important;
+    color: #475569 !important;
+    margin-left: auto !important;
+    flex-shrink: 0 !important;
+  }
+
   /* Top Terminal Header - Sleek Institutional Sticky Mobile Bar */
   .terminal-header {
     position: sticky !important;

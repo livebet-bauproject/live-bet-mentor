@@ -43,7 +43,7 @@ export const MobileBottomDock = ({
     return (
         <nav
             className="mobile-bottom-dock"
-            aria-label="Mobile Navigation Dock"
+            aria-label={lang === 'tr' ? 'Mobil Gezinme Menüsü' : (lang === 'de' ? 'Mobile Navigation' : 'Mobile Navigation Dock')}
             style={{
                 position: 'fixed',
                 bottom: 0,
@@ -154,7 +154,7 @@ export const MobileBottomDock = ({
                     letterSpacing: '-0.2px',
                     color: isHotActive ? '#ffedd5' : '#94a3b8'
                 }}>
-                    {lang === 'tr' ? 'Alev Alan' : (lang === 'de' ? 'Flammen' : 'Hot Picks')}
+                    {lang === 'tr' ? 'Alev Alan' : (lang === 'de' ? 'Heiße Picks' : 'Hot Picks')}
                 </span>
                 {isHotActive && (
                     <span style={{
@@ -276,7 +276,7 @@ export const MobileBottomDock = ({
                     position: 'relative',
                     transition: 'all 0.15s ease'
                 }}
-                aria-label="Menü"
+                aria-label={isMenuOpen ? (lang === 'tr' ? 'Menüyü Kapat' : (lang === 'de' ? 'Menü schließen' : 'Close Menu')) : (lang === 'tr' ? 'Hızlı Menü' : (lang === 'de' ? 'Schnellmenü' : 'Quick Menu'))}
             >
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                     <span style={{ fontSize: '1.2rem', lineHeight: '1.25rem', fontWeight: 900 }}>
@@ -302,7 +302,7 @@ export const MobileBottomDock = ({
                     color: isMenuOpen ? '#38bdf8' : '#94a3b8'
                 }}>
                     {isMenuOpen 
-                        ? (lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Zu' : 'Close'))
+                        ? (lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Schließen' : 'Close'))
                         : (lang === 'tr' ? 'Menü' : (lang === 'de' ? 'Menü' : 'Menu'))}
                 </span>
                 {isMenuOpen && (

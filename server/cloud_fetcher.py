@@ -417,8 +417,17 @@ def fetch_match_details_and_stats(match_id):
             if 'statistics' in stats_data:
                 atomic_write_json(os.path.join(STATS_DIR, f"{match_id}_stats.json"), stats_data)
                 stats_saved = True
+                try:
+                    from firebase_uploader import upload_to_firebase
+                    upload_to_firebase(f"stats/{match_id}/stats", stats_data)
+                except Exception:
+                    pass
         elif resp.status_code == 404:
-            atomic_write_json(os.path.join(STATS_DIR, f"{match_id}_stats.json"), {"error": {"code": 404}})
+            # Do NOT overwrite valid existing stats file with 404
+            stats_path = os.path.join(STATS_DIR, f"{match_id}_stats.json")
+            if not os.path.exists(stats_path):
+                # Temporary empty marker, will re-probe in 30s
+                atomic_write_json(stats_path, {"error": {"code": 404, "message": "Not Found"}})
     except Exception as e:
         logger.debug(f"Stats fetch notice for {match_id}: {e}")
 

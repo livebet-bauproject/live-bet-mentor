@@ -565,12 +565,12 @@ export const LiveTerminalMobile = React.memo(({
                                     <div className="tb-badges-row" style={{ marginTop: '5px', display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
                                         {(opp.hasHalftimeValue || (opp.isHalftime && opp.isStatsReady && !opp.isLowData && heatScore >= 50)) && (
                                             <span className="opp-micro-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', border: '1px solid rgba(245, 158, 11, 0.4)', color: '#fbbf24', fontSize: '0.62rem', padding: '1px 5px' }}>
-                                                ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : '2ND HALF VALUE'}
+                                                ☕ {lang === 'tr' ? '2. YARI DEĞERİ' : (lang === 'de' ? '2. HZ VALUE' : '2ND HALF VALUE')}
                                             </span>
                                         )}
                                         {opp.valueDetected && !isEarlyMin && (
                                             <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #10b981, #34d399)', color: '#000', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
-                                                💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : 'VALUE ODDS'}
+                                                💰 {lang === 'tr' ? 'DEĞERLİ ORAN' : (lang === 'de' ? 'VALUE-QUOTE' : 'VALUE ODDS')}
                                             </span>
                                         )}
                                         {opp.hasValueEV && opp.bestEV && (
@@ -580,12 +580,12 @@ export const LiveTerminalMobile = React.memo(({
                                         )}
                                         {opp.smartMoney?.active && (
                                             <span className="opp-micro-badge" style={{ background: 'linear-gradient(135deg, #06b6d4, #3b82f6)', color: '#fff', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
-                                                📉 {lang === 'tr' ? 'BÜYÜK PARA' : 'SMART MONEY'} (-%{opp.smartMoney.dropPct?.toFixed ? opp.smartMoney.dropPct.toFixed(0) : opp.smartMoney.dropPct}%)
+                                                📉 {lang === 'tr' ? 'BÜYÜK PARA' : (lang === 'de' ? 'SMART MONEY' : 'SMART MONEY')} (-%{opp.smartMoney.dropPct?.toFixed ? opp.smartMoney.dropPct.toFixed(0) : opp.smartMoney.dropPct}%)
                                             </span>
                                         )}
                                         {opp.cashOutWarning && (
                                             <span className="opp-micro-badge" style={{ background: '#ef4444', color: '#fff', animation: 'pulse 1.5s infinite', fontWeight: 800, fontSize: '0.62rem', padding: '1px 5px' }}>
-                                                🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : 'CASHOUT'}
+                                                🛡️ {lang === 'tr' ? 'BAHİS BOZDUR' : (lang === 'de' ? 'CASHOUT' : 'CASHOUT')}
                                             </span>
                                         )}
                                     </div>
@@ -854,8 +854,8 @@ export const LiveTerminalMobile = React.memo(({
                                             <StarIcon filled={isPinned} size={15} />
                                             <span>
                                                 {isPinned 
-                                                    ? (lang === 'tr' ? 'Favorilerden Çıkar ★' : 'Remove ★')
-                                                    : (lang === 'tr' ? '☆ Favorilere Ekle' : '☆ Pin Match')
+                                                    ? (lang === 'tr' ? 'Favorilerden Çıkar ★' : (lang === 'de' ? 'Entfernen ★' : 'Remove ★'))
+                                                    : (lang === 'tr' ? '☆ Favorilere Ekle' : (lang === 'de' ? '☆ Zu Favoriten' : '☆ Pin Match'))
                                                 }
                                             </span>
                                         </button>
@@ -865,7 +865,7 @@ export const LiveTerminalMobile = React.memo(({
                                                 onClick={(e) => { e.stopPropagation(); onSendToTelegram(e, m, opp); }}
                                                 className="opp-telegram-btn"
                                                 style={{ width: '38px', height: '38px', borderRadius: '8px', fontSize: '1rem', cursor: 'pointer' }}
-                                                title={lang === 'tr' ? "VIP Gruba Gönder" : "Send to VIP"}
+                                                title={lang === 'tr' ? "VIP Gruba Gönder" : (lang === 'de' ? "An VIP senden" : "Send to VIP")}
                                             >
                                                 ✈️
                                             </button>
@@ -937,7 +937,7 @@ export const LiveTerminalMobile = React.memo(({
                                                         borderRadius: '6px',
                                                         padding: '6px 8px'
                                                     }}>
-                                                        ⚠️ {lang === 'tr' ? 'Canlı piyasa oranları askıda veya bu karşılaşma için henüz açılmamış.' : 'Live market odds currently suspended.'}
+                                                        ⚠️ {lang === 'tr' ? 'Canlı piyasa oranları askıda veya bu karşılaşma için henüz açılmamış.' : (lang === 'de' ? 'Live-Marktquoten derzeit ausgesetzt.' : 'Live market odds currently suspended.')}
                                                     </div>
                                                 ) : (
                                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
@@ -951,15 +951,15 @@ export const LiveTerminalMobile = React.memo(({
                                                             </div>
                                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
                                                                 <div style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '5px', padding: '4px', textAlign: 'center' }}>
-                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>1 (Ev)</div>
+                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>1 ({lang === 'tr' ? 'Ev' : (lang === 'de' ? 'Heim' : 'Home')})</div>
                                                                     <div style={{ fontSize: '0.80rem', fontWeight: 900, color: ftHome !== '-' ? '#38bdf8' : 'var(--tb-text-muted)' }}>{ftHome}</div>
                                                                 </div>
                                                                 <div style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '5px', padding: '4px', textAlign: 'center' }}>
-                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>X (Ber.)</div>
+                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>X ({lang === 'tr' ? 'Ber.' : (lang === 'de' ? 'Remis' : 'Draw')})</div>
                                                                     <div style={{ fontSize: '0.80rem', fontWeight: 900, color: ftDraw !== '-' ? '#f1f5f9' : 'var(--tb-text-muted)' }}>{ftDraw}</div>
                                                                 </div>
                                                                 <div style={{ background: 'rgba(0, 0, 0, 0.35)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '5px', padding: '4px', textAlign: 'center' }}>
-                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>2 (Dep)</div>
+                                                                    <div style={{ fontSize: '0.54rem', color: '#94a3b8', fontWeight: 700 }}>2 ({lang === 'tr' ? 'Dep' : (lang === 'de' ? 'Ausw.' : 'Away')})</div>
                                                                     <div style={{ fontSize: '0.80rem', fontWeight: 900, color: ftAway !== '-' ? '#f43f5e' : 'var(--tb-text-muted)' }}>{ftAway}</div>
                                                                 </div>
                                                             </div>
@@ -971,15 +971,15 @@ export const LiveTerminalMobile = React.memo(({
                                                                 {ouOver !== '-' && (
                                                                     <div>
                                                                         <div style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '2px' }}>
-                                                                            {ouLine} {lang === 'tr' ? 'ALT / ÜST' : 'O/U'}
+                                                                            {ouLine} {lang === 'tr' ? 'ALT / ÜST' : (lang === 'de' ? 'UNTER / ÜBER' : 'O/U')}
                                                                         </div>
                                                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px' }}>
                                                                             <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
-                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Üst</div>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Üst' : (lang === 'de' ? 'Über' : 'Over')}</div>
                                                                                 <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#34d399' }}>{ouOver}</div>
                                                                             </div>
                                                                             <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
-                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Alt</div>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Alt' : (lang === 'de' ? 'Unter' : 'Under')}</div>
                                                                                 <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{ouUnder}</div>
                                                                             </div>
                                                                         </div>
@@ -988,15 +988,15 @@ export const LiveTerminalMobile = React.memo(({
                                                                 {bttsYes !== '-' && (
                                                                     <div>
                                                                         <div style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '2px' }}>
-                                                                            {lang === 'tr' ? 'KG VAR / YOK' : 'BTTS'}
+                                                                            {lang === 'tr' ? 'KG VAR / YOK' : (lang === 'de' ? 'BEIDE TREFFEN' : 'BTTS')}
                                                                         </div>
                                                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px' }}>
                                                                             <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
-                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Var</div>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Var' : (lang === 'de' ? 'Ja' : 'Yes')}</div>
                                                                                 <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#34d399' }}>{bttsYes}</div>
                                                                             </div>
                                                                             <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
-                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Yok</div>
+                                                                                <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Yok' : (lang === 'de' ? 'Nein' : 'No')}</div>
                                                                                 <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{bttsNo}</div>
                                                                             </div>
                                                                         </div>
@@ -1009,7 +1009,7 @@ export const LiveTerminalMobile = React.memo(({
                                                         {ngHome !== '-' && (
                                                             <div>
                                                                 <div style={{ fontSize: '0.58rem', fontWeight: 800, color: '#38bdf8', marginBottom: '2px' }}>
-                                                                    ⚡ {lang === 'tr' ? 'SIRADAKİ GOL (CANLI)' : 'NEXT GOAL'}
+                                                                    ⚡ {lang === 'tr' ? 'SIRADAKİ GOL (CANLI)' : (lang === 'de' ? 'NÄCHSTES TOR (LIVE)' : 'NEXT GOAL')}
                                                                 </div>
                                                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
                                                                     <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(56,189,248,0.2)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
@@ -1017,7 +1017,7 @@ export const LiveTerminalMobile = React.memo(({
                                                                         <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#38bdf8' }}>{ngHome}</div>
                                                                     </div>
                                                                     <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
-                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>Gol Yok</div>
+                                                                        <div style={{ fontSize: '0.52rem', color: '#94a3b8' }}>{lang === 'tr' ? 'Gol Yok' : (lang === 'de' ? 'Kein Tor' : 'No Goal')}</div>
                                                                         <div style={{ fontSize: '0.74rem', fontWeight: 900, color: '#f1f5f9' }}>{ngNoGoal}</div>
                                                                     </div>
                                                                     <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
@@ -1032,7 +1032,7 @@ export const LiveTerminalMobile = React.memo(({
                                                         {(dc1X !== '-' && ngHome === '-') && (
                                                             <div>
                                                                 <div style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--tb-text-muted)', marginBottom: '2px' }}>
-                                                                    {lang === 'tr' ? 'ÇİFTE ŞANS' : 'DOUBLE CHANCE'}
+                                                                    {lang === 'tr' ? 'ÇİFTE ŞANS' : (lang === 'de' ? 'DOPPELTE CHANCE' : 'DOUBLE CHANCE')}
                                                                 </div>
                                                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
                                                                     <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '4px', padding: '3px 4px', textAlign: 'center' }}>
@@ -1518,7 +1518,7 @@ export const LiveTerminalMobile = React.memo(({
                                                             title="AI Copilot"
                                                         >
                                                             <span>🤖</span>
-                                                            <span>{lang === 'tr' ? 'AI Analizi' : 'AI'}</span>
+                                                            <span>{lang === 'tr' ? 'AI Analizi' : (lang === 'de' ? 'KI-Analyse' : 'AI Analysis')}</span>
                                                         </button>
                                                     </div>
                                                     {isAllowed && (
@@ -1543,7 +1543,7 @@ export const LiveTerminalMobile = React.memo(({
             {displayMatches.length > visibleCount && (
                 <div style={{ padding: '1.2rem 1rem', textAlign: 'center', background: 'rgba(15, 23, 42, 0.4)', borderRadius: '8px', margin: '8px 12px 20px' }}>
                     <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '8px' }}>
-                        {lang === 'tr' ? `${displayMatches.length} maçtan ${visibleMatches.length} tanesi listeleniyor` : `${visibleMatches.length} / ${displayMatches.length} matches shown`}
+                        {lang === 'tr' ? `${displayMatches.length} maçtan ${visibleMatches.length} tanesi listeleniyor` : (lang === 'de' ? `${visibleMatches.length} von ${displayMatches.length} Spielen angezeigt` : `${visibleMatches.length} / ${displayMatches.length} matches shown`)}
                     </div>
                     <button
                         type="button"
@@ -1560,7 +1560,7 @@ export const LiveTerminalMobile = React.memo(({
                             cursor: 'pointer'
                         }}
                     >
-                        {lang === 'tr' ? `+30 Maç Daha Yükle (${displayMatches.length - visibleMatches.length} Kaldı)` : `Show +30 More (${displayMatches.length - visibleMatches.length} Left)`}
+                        {lang === 'tr' ? `+30 Maç Daha Yükle (${displayMatches.length - visibleMatches.length} Kaldı)` : (lang === 'de' ? `+30 Spiele laden (${displayMatches.length - visibleMatches.length} verbleibend)` : `Show +30 More (${displayMatches.length - visibleMatches.length} Left)`)}
                     </button>
                     <div ref={sentinelRef} style={{ height: '1px', width: '100%' }} />
                 </div>

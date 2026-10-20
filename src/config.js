@@ -203,7 +203,7 @@ export const CONFIG = {
         'Supercopa de España', 'Supercoppa Italiana', 'DFL-Supercup', 'TFF Süper Kupa', 'FIFA Club World Cup', 'UEFA Super Cup'
       ],
       TIER_2: [
-        'Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Pro League', 'Championship', '2. Bundesliga', 'LaLiga 2', 'Segunda División', 'Serie B', 'Ligue 2', '1. Lig', 'Trendyol 1. Lig',
+        'UEFA Youth League', 'UEFA Gençler Ligi', 'Youth League', 'Eredivisie', 'Primeira Liga', 'Liga Portugal', 'Pro League', 'Championship', '2. Bundesliga', 'LaLiga 2', 'Segunda División', 'Serie B', 'Ligue 2', '1. Lig', 'Trendyol 1. Lig',
         'Austrian Bundesliga', 'Swiss Super League', 'Superliga', 'Scottish Premiership', 'Eliteserien', 'Allsvenskan', 'Super League Greece', 'Ekstraklasa', 'Fortuna Liga', 'Chance Liga', 'HNL',
         'MLS', 'Major League Soccer', 'Brasileirão', 'Brasileirao', 'Liga Profesional', 'Liga MX', 'Saudi Pro League', 'J1 League', 'K League 1', 'A-League',
         'Copa Sudamericana', 'EFL Cup', 'Carabao Cup', 'CONCACAF Nations League', 'Primera A', 'Liga BetPlay', 'Liga DiMayor', 'Primera División'

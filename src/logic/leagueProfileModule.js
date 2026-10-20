@@ -148,6 +148,10 @@ export class LeagueProfileModule {
         if (!normalizedName && !uniqueTournamentId) return 3;
 
         // CRITICAL GUARD: Friendly, Women's, Youth, and Amateur matches are always Tier 3 (Discovery Only)
+        const isUefaYouth = (normalizedName || '').includes('uefa youth league') || (normalizedName || '').includes('uefa gencler ligi');
+        if (isUefaYouth) {
+            return 2; // Official UEFA Tournament with Full Telemetry
+        }
         if (isFriendly || isWomen || isYouth || isAmateur) {
             return 3;
         }

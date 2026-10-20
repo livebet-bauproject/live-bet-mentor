@@ -1234,7 +1234,15 @@ app.get('/api/sofascore/event/:id', generalApiLimiter, (req, res) => {
     if (memoryStatsCache[id]?.data?.detail) {
         const cacheAge = (Date.now() - (memoryStatsCache[id].time || 0)) / 1000;
         if (cacheAge >= 30) queueRequest(id);
-        detailJson = memoryStatsCache[id].data.detail;
+        const memDetail = memoryStatsCache[id].data.detail;
+        if (memDetail?.error && (memDetail.error.code === 404 || memDetail.error.status === 404)) {
+            if (cacheAge >= 25) {
+                queueRequest(id);
+                return res.status(202).json({ status: 'queued', message: 'Re-checking event details' });
+            }
+            return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Details not available for this match', noStats: true });
+        }
+        detailJson = memDetail;
     } else {
         const filePath = path.join(STATS_DIR, `${id}_detail.json`);
         if (fs.existsSync(filePath)) {
@@ -1248,7 +1256,11 @@ app.get('/api/sofascore/event/:id', generalApiLimiter, (req, res) => {
                 if (!json.error) {
                     detailJson = json;
                 } else if (json.error && (json.error.code === 404 || json.error.status === 404)) {
-                    return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Statistics not available for this match', noStats: true });
+                    if (ageInSeconds >= 25) {
+                        queueRequest(id);
+                        return res.status(202).json({ status: 'queued', message: 'Re-checking event details' });
+                    }
+                    return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Details not available for this match', noStats: true });
                 }
             } catch (e) {
                 console.error(`Error parsing ${filePath}:`, e);
@@ -1288,6 +1300,10 @@ app.get('/api/sofascore/event/:id/statistics', generalApiLimiter, (req, res) => 
         if (cacheAge >= 30) queueRequest(id);
         const statsObj = memoryStatsCache[id].data.stats;
         if (statsObj.error && (statsObj.error.code === 404 || statsObj.error.status === 404)) {
+            if (cacheAge >= 25) {
+                queueRequest(id);
+                return res.status(202).json({ status: 'queued', message: 'Re-probing live match statistics' });
+            }
             return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Statistics not available for this match', noStats: true });
         }
         return res.json(statsObj);
@@ -1306,8 +1322,13 @@ app.get('/api/sofascore/event/:id/statistics', generalApiLimiter, (req, res) => 
                 return res.json(json);
             }
 
-            // If the saved file is a 404 error from SofaScore, return 404 to frontend and DO NOT re-queue
+            // CRITICAL FIX: If the saved file is a 404 error from SofaScore, check age!
+            // If age >= 25s, do NOT give up permanently! Re-queue and return 202 queued!
             if (json.error && (json.error.code === 404 || json.error.status === 404)) {
+                if (ageInSeconds >= 25) {
+                    queueRequest(id);
+                    return res.status(202).json({ status: 'queued', message: 'Re-probing live match statistics' });
+                }
                 return res.status(404).json({ error: 'Not Found on SofaScore', message: 'Statistics not available for this match', noStats: true });
             }
         } catch (e) {

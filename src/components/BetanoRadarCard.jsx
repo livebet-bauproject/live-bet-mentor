@@ -562,7 +562,7 @@ export const BetanoRadarCard = ({ lang = 'tr', t = {}, onClose }) => {
                     <button
                         onClick={() => fetchBetanoCards(true)}
                         disabled={refreshing}
-                        title={isTr ? 'Verileri Betano API üzerinden anlık güncelle' : isDe ? 'Daten jetzt über Betano API aktualisieren' : 'Refresh live data via Betano API'}
+                        title={isTr ? 'Verileri canlı piyasa akışından anlık güncelle' : isDe ? 'Daten jetzt über Live-Markt-Stream aktualisieren' : 'Refresh live data via market stream'}
                         style={{
                             padding: isMobile ? '0.45rem 0.65rem' : '0.55rem 1rem',
                             borderRadius: '10px',

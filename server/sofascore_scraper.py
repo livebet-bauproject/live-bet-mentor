@@ -212,23 +212,33 @@ def fetch_stats_via_js(driver, match_id):
             stats_data = result.get('stats')
             stats_path = os.path.join(STATS_DIR, f"{match_id}_stats.json")
             if stats_data and ('statistics' in stats_data or 'error' in stats_data):
-                with open(stats_path, 'w', encoding='utf-8') as f:
-                    json.dump(stats_data, f)
-                captured_something = True
+                is_err = 'error' in stats_data
+                # Never overwrite valid existing stats with a temporary 404/error!
+                can_write = True
+                if is_err and os.path.exists(stats_path):
+                    try:
+                        with open(stats_path, 'r', encoding='utf-8') as f_old:
+                            old_data = json.load(f_old)
+                            if old_data and 'statistics' in old_data and old_data['statistics']:
+                                can_write = False
+                    except:
+                        pass
                 
-                # Firebase Upload
-                try:
-                    from firebase_uploader import upload_to_firebase
-                    upload_to_firebase(f"stats/{match_id}/stats", stats_data)
-                except:
-                    pass
-            else:
-                # Save empty marker so scraper doesn't waste time on unstat-tracked matches
-                try:
+                if can_write:
                     with open(stats_path, 'w', encoding='utf-8') as f:
-                        json.dump({"error": {"code": 404, "message": "No statistics"}, "statistics": []}, f)
-                except:
-                    pass
+                        json.dump(stats_data, f)
+                
+                if not is_err:
+                    captured_something = True
+                    # Firebase Upload
+                    try:
+                        from firebase_uploader import upload_to_firebase
+                        upload_to_firebase(f"stats/{match_id}/stats", stats_data)
+                    except:
+                        pass
+            else:
+                # Do NOT write a permanent 404 file if the match was merely slow or rate-limited
+                pass
             
             # 2. Save Details
             detail_data = result.get('detail')
@@ -707,23 +717,23 @@ def _run_capture_session():
                                 score = 0
                                 t = event.get('tournament', {})
                                 ut = t.get('uniqueTournament', {})
-                                # Priority 1: Official tournament priority (Serie A=702, LaLiga=701, Premier League, etc.)
-                                score += t.get('priority', 0) * 1000
-                                # Priority 2: Tournament user count / popularity
-                                score += ut.get('userCount', 0) / 100
-                                # Priority 3: Teams popularity
-                                score += (event.get('homeTeam', {}).get('userCount', 0) + event.get('awayTeam', {}).get('userCount', 0)) / 500
-                                # Priority 4: Active in-progress matches
+                                # Priority 1: In-progress matches are top priority!
                                 if event.get('status', {}).get('type') == 'inprogress':
-                                    score += 50000
+                                    score += 200000
+                                # Priority 2: Official tournament priority
+                                score += t.get('priority', 0) * 1000
+                                # Priority 3: Tournament user count / popularity
+                                score += ut.get('userCount', 0) / 100
+                                # Priority 4: Teams popularity
+                                score += (event.get('homeTeam', {}).get('userCount', 0) + event.get('awayTeam', {}).get('userCount', 0)) / 500
                                 return score
 
                             sorted_events = sorted(events, key=get_match_priority, reverse=True)
                             
-                            # Tier 1: Top 25 major matches (Serie A, LaLiga, Premier League, Super Lig, etc.)
+                            # Tier 1: All active in-progress matches + top major leagues (up to 45 matches)
                             # Tier 2: Remaining matches (rotated in small batches)
-                            tier1_events = sorted_events[:25]
-                            tier2_events = sorted_events[25:]
+                            tier1_events = sorted_events[:45]
+                            tier2_events = sorted_events[45:]
                             
                             tier1_ids = [str(e.get('id')) for e in tier1_events if e.get('id')]
                             tier2_ids = [str(e.get('id')) for e in tier2_events if e.get('id')]
@@ -742,7 +752,8 @@ def _run_capture_session():
                                         try:
                                             with open(stats_file, 'r', encoding='utf-8') as sf:
                                                 content = sf.read()
-                                                if "error" in content and age < 300:
+                                                # If it had an error or 404, retry after 30s! (Never lock out for 300s)
+                                                if "error" in content and age < 30:
                                                     should_fetch = False
                                         except:
                                             should_fetch = True
@@ -755,9 +766,9 @@ def _run_capture_session():
                             if tier1_updated > 0:
                                 logger.info(f"[TIER-1 STATS] Refreshed {tier1_updated}/{len(tier1_ids)} top matches")
 
-                            # Background rotation for Tier 2 matches (5 per cycle)
+                            # Background rotation for Tier 2 matches (8 per cycle)
                             if tier2_ids:
-                                t2_batch_size = 5
+                                t2_batch_size = 8
                                 total_t2_batches = (len(tier2_ids) + t2_batch_size - 1) // t2_batch_size
                                 stats_batch_index = stats_batch_index % total_t2_batches
                                 t2_start = stats_batch_index * t2_batch_size
@@ -774,8 +785,8 @@ def _run_capture_session():
                                             with open(stats_file, 'r', encoding='utf-8') as sf:
                                                 content = sf.read()
                                                 if "error" in content:
-                                                    should_fetch = (age > 600)
-                                                elif age < 60:
+                                                    should_fetch = (age > 40)
+                                                elif age < 45:
                                                     should_fetch = False
                                         except:
                                             should_fetch = True

@@ -5880,7 +5880,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         style={{ color: '#06b6d4' }}
                                     >
                                         <span>📉</span>
-                                        <span>{lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : 'Market Value Radar'}</span>
+                                        <span>{lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : (lang === 'de' ? 'Smart Money & Value-Radar' : 'Market Value Radar')}</span>
                                     </button>
 
                                     {/* Reset Data Button */}
@@ -5914,11 +5914,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             type="button"
                             className="mobile-header-menu-btn"
                             onClick={() => setShowMobileMoreMenu(prev => !prev)}
-                            aria-label="Menü"
-                            title={lang === 'tr' ? 'Hızlı Menü & Araçlar' : 'Quick Menu & Tools'}
+                            aria-label={showMobileMoreMenu ? (lang === 'tr' ? 'Menüyü Kapat' : (lang === 'de' ? 'Menü schließen' : 'Close Menu')) : (lang === 'tr' ? 'Hızlı Menü' : (lang === 'de' ? 'Schnellmenü' : 'Quick Menu'))}
+                            title={lang === 'tr' ? 'Hızlı Menü & Araçlar' : (lang === 'de' ? 'Schnellmenü & Tools' : 'Quick Menu & Tools')}
                         >
                             <span className="mobile-header-menu-icon" style={{ fontSize: '1.05rem', lineHeight: 1 }}>{showMobileMoreMenu ? '✕' : '☰'}</span>
-                            <span className="mobile-header-menu-label" style={{ fontSize: '0.72rem', fontWeight: 800 }}>{showMobileMoreMenu ? (lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Zu' : 'Close')) : (lang === 'tr' ? 'Menü' : (lang === 'de' ? 'Menü' : 'Menu'))}</span>
+                            <span className="mobile-header-menu-label" style={{ fontSize: '0.72rem', fontWeight: 800 }}>{showMobileMoreMenu ? (lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Schließen' : 'Close')) : (lang === 'tr' ? 'Menü' : (lang === 'de' ? 'Menü' : 'Menu'))}</span>
                             {(isAdmin || userProfile?.plan === 'admin') && (
                                 <span style={{
                                     width: '6px',
@@ -6014,11 +6014,11 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <button
                             className={`unified-tab-btn tab-market-radar ${showMarketRadar ? 'active' : ''}`}
                             onClick={() => setShowMarketRadar(true)}
-                            title={lang === 'tr' ? 'Surebet & Değer Radarı (4-Spor)' : 'Surebet & Value Radar'}
+                            title={lang === 'tr' ? 'Surebet & Değer Radarı (4-Spor)' : (lang === 'de' ? 'Surebet & Value-Radar (4 Sportarten)' : 'Surebet & Value Radar (4 Sports)')}
                         >
                             <span className="tab-icon">💎</span>
                             <span className="tab-label">
-                                <span className="label-full">{lang === 'tr' ? 'SUREBET RADARI' : 'SUREBET RADAR'}</span>
+                                <span className="label-full">{lang === 'tr' ? 'SUREBET RADARI' : (lang === 'de' ? 'SUREBET-RADAR' : 'SUREBET RADAR')}</span>
                                 <span className="label-short">SUREBET</span>
                             </span>
                             <span className="tab-live-count count-surebet">+EV</span>
@@ -7305,7 +7305,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         <span style={{ fontSize: '1.4rem' }}>💰</span>
                                         <div>
                                             <div style={{ fontSize: '0.66rem', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                {lang === 'tr' ? 'CANLI KASA' : 'LIVE BANKROLL'}
+                                                {lang === 'tr' ? 'CANLI KASA' : (lang === 'de' ? 'LIVE-KASSA' : 'LIVE BANKROLL')}
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#f8fafc', letterSpacing: '-0.3px' }}>
@@ -7672,7 +7672,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                             handleGenerateGlobalReport('LIVE');
                                                         }
                                                     }}
-                                                    title={lang === 'tr' ? 'Nexus Quant Core™ Canlı İstihbarat Raporunu Aç / Kapat' : 'Toggle Nexus Quant Core™ Live Intelligence'}
+                                                    title={lang === 'tr' ? 'Nexus Quant Core™ Canlı İstihbarat Raporunu Aç / Kapat' : (lang === 'de' ? 'Nexus Quant Core™ Live-Intelligenzbericht umschalten' : 'Toggle Nexus Quant Core™ Live Intelligence')}
                                                 >
                                                     <span className="tb-intel-pulse-dot" />
                                                     <span className="tb-intel-icon">🧠</span>
@@ -7734,7 +7734,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                         type="button"
                                                         className={`tb-chip chip-latency ${terminalCategoryFilter === 'LATENCY' ? 'active' : ''}`}
                                                         onClick={() => setTerminalCategoryFilter('LATENCY')}
-                                                        title={lang === 'tr' ? 'Piyasa hız farkı ve büro oran açığı fırsatları' : 'Latency arbitrage & delayed odds opportunities'}
+                                                        title={lang === 'tr' ? 'Piyasa hız farkı ve büro oran açığı fırsatları' : (lang === 'de' ? 'Latenz-Arbitrage & Quotenverzögerungs-Chancen' : 'Latency arbitrage & delayed odds opportunities')}
                                                         style={{
                                                             border: terminalCategoryFilter === 'LATENCY' ? '1px solid #38bdf8' : undefined,
                                                             background: terminalCategoryFilter === 'LATENCY' ? 'rgba(56, 189, 248, 0.2)' : undefined
@@ -7742,7 +7742,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                                     >
                                                         <span>⚡</span>
                                                         <span className="tb-btn-label-full">{lang === 'tr' ? 'Gecikme Radarı' : (lang === 'de' ? 'Latenz-Radar' : 'Latency Radar')}</span>
-                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Gecikme' : 'Latenz'}</span>
+                                                        <span className="tb-btn-label-short">{lang === 'tr' ? 'Gecikme' : (lang === 'de' ? 'Latenz' : 'Latency')}</span>
                                                         <span className="tb-chip-count">{categoryCounts.LATENCY || 0}</span>
                                                     </button>
                                                     <button
@@ -9721,7 +9721,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 type="button"
                                 className="mobile-sheet-close"
                                 onClick={() => setShowMobileMoreMenu(false)}
-                                aria-label="Kapat"
+                                aria-label={lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Schließen' : 'Close')}
                             >
                                 ✕
                             </button>
@@ -9749,10 +9749,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         const newMuted = audioAlert.toggle();
                                         setAudioMuted(newMuted);
                                     }}
-                                    title="Ses"
+                                    title={lang === 'tr' ? 'Sesli Uyarı' : (lang === 'de' ? 'Audio-Alarm' : 'Audio Alert')}
                                 >
                                     <span>{!audioMuted ? '🔊' : '🔇'}</span>
-                                    <span>{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : 'Sound On') : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
+                                    <span>{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : (lang === 'de' ? 'Ton an' : 'Sound On')) : (lang === 'tr' ? 'Sessiz' : (lang === 'de' ? 'Stumm' : 'Muted'))}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -9762,10 +9762,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                         setAlertNotifyMode(nextMode);
                                         try { localStorage.setItem('alert_notify_mode', nextMode); } catch (e) {}
                                     }}
-                                    title="Bildirim"
+                                    title={lang === 'tr' ? 'Bildirim Modu' : (lang === 'de' ? 'Benachrichtigung' : 'Notifications')}
                                 >
                                     <span>{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
-                                    <span>{alertNotifyMode === 'TOAST' ? 'Toast' : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
+                                    <span>{alertNotifyMode === 'TOAST' ? 'Toast' : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : (lang === 'de' ? 'Lautlos' : 'Silent')) : (lang === 'tr' ? 'Kapalı' : (lang === 'de' ? 'Aus' : 'Off'))}</span>
                                 </button>
                             </div>
                         </div>
@@ -9773,7 +9773,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         <div className="mobile-sheet-grid">
                             {/* Kategori 1: Canlı & Fırsatlar */}
                             <div className="mobile-sheet-category-title">
-                                <span>⚡</span> {lang === 'tr' ? 'Canlı Terminal & Fırsatlar' : 'Live & Hot Picks'}
+                                <span>⚡</span> {lang === 'tr' ? 'Canlı Terminal & Fırsatlar' : (lang === 'de' ? 'Live-Terminal & Chancen' : 'Live & Hot Picks')}
                             </div>
 
                             <button
@@ -9784,10 +9784,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>⚡</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">
-                                        {lang === 'tr' ? 'Canlı Radar Terminali' : 'Live Radar Terminal'}
-                                        {matches.length > 0 && <span className="sheet-badge-cyan">{matches.length} Canlı</span>}
+                                        {lang === 'tr' ? 'Canlı Radar Terminali' : (lang === 'de' ? 'Live-Radar Terminal' : 'Live Radar Terminal')}
+                                        {matches.length > 0 && <span className="sheet-badge-cyan">{matches.length} {lang === 'tr' ? 'Canlı' : 'Live'}</span>}
                                     </div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Gerçek zamanlı canlı maç akışı ve momentum' : 'Real-time live matches & momentum stream'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Gerçek zamanlı canlı maç akışı ve momentum' : (lang === 'de' ? 'Echtzeit Live-Spiele & Momentum-Stream' : 'Real-time live matches & momentum stream')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9800,10 +9800,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>🔥</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">
-                                        {lang === 'tr' ? 'Piyasa & Bahis Trendleri' : 'Market & Betting Trends'}
+                                        {lang === 'tr' ? 'Piyasa & Bahis Trendleri' : (lang === 'de' ? 'Markt- & Wett-Trends' : 'Market & Betting Trends')}
                                         {trendingBets && trendingBets.length > 0 && <span className="sheet-badge-hot">{trendingBets.length}</span>}
                                     </div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Global piyasa hacim anomalileri ve oran trendleri' : 'Global volume anomalies & line movements'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Global piyasa hacim anomalileri ve oran trendleri' : (lang === 'de' ? 'Globale Volumen-Anomalien & Quoten-Trends' : 'Global volume anomalies & line movements')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9816,10 +9816,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8' }}>⭐</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">
-                                        {lang === 'tr' ? 'Günün Keskin 10 Seçimi' : 'Sharp 10 Picks'}
+                                        {lang === 'tr' ? 'Günün Keskin 10 Seçimi' : (lang === 'de' ? 'Top 10 Sharp Picks' : 'Sharp 10 Picks')}
                                         <span className="sheet-badge-cyan">10</span>
                                     </div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Kuant algoritması tarafından filtrelenmiş en keskin 10 tercih' : 'Top 10 highest-confidence quant selections'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Kuant algoritması tarafından filtrelenmiş en keskin 10 tercih' : (lang === 'de' ? 'Top 10 Quant-Auswahlen mit höchster Konfidenz' : 'Top 10 highest-confidence quant selections')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9831,15 +9831,15 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             >
                                 <div className="mobile-sheet-icon-wrap hot">🔥</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">Hot Picks <span className="sheet-badge-hot">HOT</span></div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Günün sıcak fırsatları & anlık baskı sinyalleri' : 'Hot market opportunities & high pressure'}</div>
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Sıcak Fırsatlar' : (lang === 'de' ? 'Heiße Picks' : 'Hot Picks')} <span className="sheet-badge-hot">HOT</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Günün sıcak fırsatları & anlık baskı sinyalleri' : (lang === 'de' ? 'Heiße Marktchancen & Sofortdruck-Signale' : 'Hot market opportunities & high pressure')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
 
                             {/* Kategori 2: Analitik Masalar */}
                             <div className="mobile-sheet-category-title">
-                                <span>📊</span> {lang === 'tr' ? 'Analitik Masalar & Kasa' : 'Analytics & Bankroll'}
+                                <span>📊</span> {lang === 'tr' ? 'Analitik Masalar & Kasa' : (lang === 'de' ? 'Analytik & Kassa' : 'Analytics & Bankroll')}
                             </div>
 
                             <button
@@ -9850,10 +9850,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' }}>💎</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">
-                                        {lang === 'tr' ? 'Surebet & Piyasa Radarı' : 'Surebet & Value Radar'}
-                                        <span style={{ background: '#06b6d4', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>4-SPOR</span>
+                                        {lang === 'tr' ? 'Surebet & Piyasa Radarı' : (lang === 'de' ? 'Surebet & Value-Radar' : 'Surebet & Value Radar')}
+                                        <span style={{ background: '#06b6d4', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>{lang === 'tr' ? '4-SPOR' : (lang === 'de' ? '4-SPORT' : '4-SPORTS')}</span>
                                     </div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Futbol, Basketbol, Tenis, Hentbol oran düşüşleri & +EV' : '4-Sport dropping odds & arbitrage scanner'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Futbol, Basketbol, Tenis, Hentbol oran düşüşleri & +EV' : (lang === 'de' ? 'Quotenabfall & Arbitrage-Scanner für 4 Sportarten' : '4-Sport dropping odds & arbitrage scanner')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9866,10 +9866,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#eab308' }}>👑</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">
-                                        {lang === 'tr' ? 'Pro Analistler Masası' : 'Pro Analysts Board'}
+                                        {lang === 'tr' ? 'Pro Analistler Masası' : (lang === 'de' ? 'Pro-Analysten Board' : 'Pro Analysts Board')}
                                         <span style={{ background: '#eab308', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>PRO</span>
                                     </div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Doğrulanmış uzman tahminleri & ROI liderlik tablosu' : 'Verified analyst picks & ROI leaderboard'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Doğrulanmış uzman tahminleri & ROI liderlik tablosu' : (lang === 'de' ? 'Verifizierte Experten-Tipps & ROI-Rangliste' : 'Verified analyst picks & ROI leaderboard')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9881,8 +9881,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             >
                                 <div className="mobile-sheet-icon-wrap radar">🎯</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Günlük Maç Radarı' : 'Daily Match Radar'}</div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Tüm günün maç programı & algoritmik tarama' : 'Full-day match schedule & pre-match scan'}</div>
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Günlük Maç Radarı' : (lang === 'de' ? 'Tages-Match-Radar' : 'Daily Match Radar')}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Tüm günün maç programı & algoritmik tarama' : (lang === 'de' ? 'Vollständiger Spielplan & Vorab-Scan' : 'Full-day match schedule & pre-match scan')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9895,17 +9895,17 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa' }}>💼</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">
-                                        {lang === 'tr' ? 'Kasa & Portföy Yönetimi' : 'Bankroll & Portfolio'}
-                                        <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>{Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺</span>
+                                        {lang === 'tr' ? 'Kasa & Portföy Yönetimi' : (lang === 'de' ? 'Kassa & Depot-Verwaltung' : 'Bankroll & Portfolio')}
+                                        <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>{Math.round(bankState?.current_balance ?? 1000).toLocaleString(lang === 'tr' ? 'tr-TR' : (lang === 'de' ? 'de-DE' : 'en-US'))} {bankState?.currency || (lang === 'de' ? '€' : lang === 'en' ? '$' : '₺')}</span>
                                     </div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Dinamik Kelly kasası, açık pozisyonlar ve risk analitiği' : 'Dynamic Kelly staking, open bets & analytics'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Dinamik Kelly kasası, açık pozisyonlar ve risk analitiği' : (lang === 'de' ? 'Dynamisches Kelly-Staking, offene Positionen & Risikoanalytik' : 'Dynamic Kelly staking, open bets & analytics')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
 
                             {/* Kategori 3: Eğitim & Rehber */}
                             <div className="mobile-sheet-category-title">
-                                <span>🎓</span> {lang === 'tr' ? 'Eğitim & Kılavuz' : 'Education & Help'}
+                                <span>🎓</span> {lang === 'tr' ? 'Eğitim & Kılavuz' : (lang === 'de' ? 'Bildung & Leitfaden' : 'Education & Help')}
                             </div>
 
                             <button
@@ -9915,8 +9915,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             >
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>🎓</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Kuant Akademi & Sözlük' : (lang === 'de' ? 'Quant-Akademie & Lexikon' : 'Quant Academy & Glossary')} <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>EĞİTİM</span></div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Kelly, Poisson, xG ve kuant metrikleri kapsamlı rehberi' : 'Kelly, Poisson & xG quantitative guide'}</div>
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Kuant Akademi & Sözlük' : (lang === 'de' ? 'Quant-Akademie & Lexikon' : 'Quant Academy & Glossary')} <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>{lang === 'tr' ? 'EĞİTİM' : (lang === 'de' ? 'AKADEMIE' : 'ACADEMY')}</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Kelly, Poisson, xG ve kuant metrikleri kapsamlı rehberi' : (lang === 'de' ? 'Umfassender Leitfaden für Kelly, Poisson & xG' : 'Kelly, Poisson & xG quantitative guide')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9929,14 +9929,14 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>❓</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">{lang === 'tr' ? 'Sistem Rehberi & SSS' : (lang === 'de' ? 'System-Leitfaden & FAQ' : 'System Guide & FAQ')}</div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Terminal kullanımı ve sık sorulan sorular' : 'Terminal guide & frequent questions'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Terminal kullanımı ve sık sorulan sorular' : (lang === 'de' ? 'Terminal-Bedienung & häufig gestellte Fragen' : 'Terminal guide & frequent questions')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
 
                             {/* Kategori 4: Sistem & Destek */}
                             <div className="mobile-sheet-category-title">
-                                <span>⚙️</span> {lang === 'tr' ? 'Sistem, Destek & Yasal' : 'System & Legal'}
+                                <span>⚙️</span> {lang === 'tr' ? 'Sistem, Destek & Yasal' : (lang === 'de' ? 'System, Support & Rechtliches' : 'System & Legal')}
                             </div>
 
                             <button
@@ -9946,8 +9946,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             >
                                 <div className="mobile-sheet-icon-wrap support">💬</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Canlı Destek Masası' : (lang === 'de' ? 'Live-Support-Desk' : 'Live Support Desk')} <span style={{ background: '#10b981', color: '#000', fontSize: '0.62rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>7/24 AKTİF</span></div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7/24 AI ve Operatör Destek Masası' : '24/7 AI and human operator desk'}</div>
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Canlı Destek Masası' : (lang === 'de' ? 'Live-Support-Desk' : 'Live Support Desk')} <span style={{ background: '#10b981', color: '#000', fontSize: '0.62rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>{lang === 'tr' ? '7/24 AKTİF' : (lang === 'de' ? '24/7 AKTIV' : '24/7 ACTIVE')}</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7/24 AI ve Operatör Destek Masası' : (lang === 'de' ? '24/7 KI- und Support-Desk' : '24/7 AI and human operator desk')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9959,8 +9959,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             >
                                 <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}>⚙️</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{t.advanced_settings || 'Gelişmiş Ayarlar'}</div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Filtreler, parametreler ve analiz modelleri' : 'Filters & system parameters'}</div>
+                                    <div className="mobile-sheet-name">{t.advanced_settings || (lang === 'tr' ? 'Gelişmiş Ayarlar' : (lang === 'de' ? 'Erweiterte Einstellungen' : 'Advanced Settings'))}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Filtreler, parametreler ve analiz modelleri' : (lang === 'de' ? 'Filter, Systemparameter & Analysemodelle' : 'Filters & system parameters')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9974,7 +9974,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                     <div className="mobile-sheet-icon-wrap admin">🛡️</div>
                                     <div className="mobile-sheet-info">
                                         <div className="mobile-sheet-name">{lang === 'tr' ? 'Admin Kontrol Paneli' : (lang === 'de' ? 'Admin-Panel' : 'Admin Control Panel')} <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.62rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>ROOT</span></div>
-                                        <div className="mobile-sheet-sub">{lang === 'tr' ? 'Sistem, kullanıcı ve lisans yönetimi' : 'System & user management'}</div>
+                                        <div className="mobile-sheet-sub">{lang === 'tr' ? 'Sistem, kullanıcı ve lisans yönetimi' : (lang === 'de' ? 'System-, Benutzer- & Lizenzverwaltung' : 'System & user management')}</div>
                                     </div>
                                     <span className="mobile-sheet-arrow">›</span>
                                 </button>
@@ -9988,7 +9988,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap legal">⚖️</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">{lang === 'tr' ? 'Yasal Bilgi & Şartlar' : (lang === 'de' ? 'Rechtliche Hinweise' : 'Legal & Terms')}</div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7258 sayılı kanun uyumluluğu, sorumlu oyun & şartlar' : 'Compliance, responsible gaming & terms'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7258 sayılı kanun uyumluluğu, sorumlu oyun & şartlar' : (lang === 'de' ? 'Rechtliche Hinweise, verantwortungsvolles Spiel & AGB' : 'Compliance, responsible gaming & terms')}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
