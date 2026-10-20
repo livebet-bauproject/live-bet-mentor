@@ -9514,15 +9514,23 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 <div style={{
                     position: 'fixed',
                     inset: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                    backdropFilter: 'blur(10px)',
-                    zIndex: 99999,
+                    backgroundColor: 'rgba(0, 0, 0, 0.88)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    zIndex: 20000,
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: isMobileScreen ? 'flex-end' : 'center',
                     justifyContent: 'center',
-                    padding: '16px'
+                    padding: isMobileScreen ? 0 : '16px'
                 }} onClick={() => setShowBetanoRadar(false)}>
-                    <div style={{ maxHeight: '90vh', overflowY: 'auto', width: '100%', maxWidth: '960px' }} onClick={e => e.stopPropagation()}>
+                    <div style={{
+                        height: isMobileScreen ? '100dvh' : 'auto',
+                        maxHeight: isMobileScreen ? '100dvh' : '90vh',
+                        width: '100%',
+                        maxWidth: '960px',
+                        display: 'flex',
+                        overflow: 'hidden'
+                    }} onClick={e => e.stopPropagation()}>
                         <BetanoRadarCard lang={lang} t={t} onClose={() => setShowBetanoRadar(false)} />
                     </div>
                 </div>
@@ -9531,15 +9539,23 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 <div style={{
                     position: 'fixed',
                     inset: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-                    backdropFilter: 'blur(10px)',
-                    zIndex: 99999,
+                    backgroundColor: 'rgba(2, 6, 23, 0.88)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    zIndex: 20000,
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: isMobileScreen ? 'flex-end' : 'center',
                     justifyContent: 'center',
-                    padding: '16px'
+                    padding: isMobileScreen ? 0 : '16px'
                 }} onClick={() => setShowMarketRadar(false)}>
-                    <div style={{ maxHeight: '92vh', overflowY: 'auto', width: '100%', maxWidth: '1160px' }} onClick={e => e.stopPropagation()}>
+                    <div style={{
+                        height: isMobileScreen ? '100dvh' : 'auto',
+                        maxHeight: isMobileScreen ? '100dvh' : '92vh',
+                        width: '100%',
+                        maxWidth: '1160px',
+                        display: 'flex',
+                        overflow: 'hidden'
+                    }} onClick={e => e.stopPropagation()}>
                         <MarketRadarCard lang={lang} onClose={() => setShowMarketRadar(false)} />
                     </div>
                 </div>

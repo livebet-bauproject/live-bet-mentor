@@ -311,8 +311,18 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
     const [oddsRange, setOddsRange] = useState('ALL'); // 'ALL' | 'LOW' | 'HIGH'
     const [sortBy, setSortBy] = useState('DROP_DESC'); // 'DROP_DESC' | 'CONF_DESC' | 'TIME_ASC' | 'ODDS_DESC'
     const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState('TERMINAL'); // 'TERMINAL' | 'GRID'
-    const [showGuide, setShowGuide] = useState(true);
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+    useEffect(() => {
+        const handleResize = () => {
+            const m = window.innerWidth <= 768;
+            setIsMobile(prev => prev !== m ? m : prev);
+        };
+        window.addEventListener('resize', handleResize, { passive: true });
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const [viewMode, setViewMode] = useState(() => (typeof window !== 'undefined' && window.innerWidth <= 768) ? 'GRID' : 'TERMINAL'); // 'TERMINAL' | 'GRID'
+    const [showGuide, setShowGuide] = useState(() => (typeof window !== 'undefined' && window.innerWidth <= 768) ? false : true);
     const [copiedId, setCopiedId] = useState(null);
 
     const fetchRadar = async (forceRefresh = false) => {
@@ -423,9 +433,9 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
     return (
         <div style={{
             background: 'linear-gradient(180deg, #090e18 0%, #060911 100%)',
-            border: '1px solid rgba(6, 182, 212, 0.45)',
-            borderRadius: '20px',
-            boxShadow: '0 0 70px rgba(6, 182, 212, 0.25), 0 25px 50px -12px rgba(0, 0, 0, 0.95)',
+            border: isMobile ? 'none' : '1px solid rgba(6, 182, 212, 0.45)',
+            borderRadius: isMobile ? '0' : '20px',
+            boxShadow: isMobile ? 'none' : '0 0 70px rgba(6, 182, 212, 0.25), 0 25px 50px -12px rgba(0, 0, 0, 0.95)',
             color: '#f8fafc',
             fontFamily: 'inherit',
             display: 'flex',
@@ -433,116 +443,131 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
             overflow: 'hidden',
             width: '100%',
             maxWidth: '1140px',
-            maxHeight: '90vh'
+            height: isMobile ? '100%' : 'auto',
+            maxHeight: isMobile ? '100dvh' : '90vh'
         }}>
             {/* Header */}
             <div style={{
-                padding: '1.1rem 1.4rem',
+                padding: isMobile ? '0.75rem 0.9rem' : '1.1rem 1.4rem',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
                 background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.18) 0%, rgba(14, 165, 233, 0.06) 60%, transparent 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '0.8rem'
+                gap: '0.6rem',
+                flexShrink: 0
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '0.85rem', minWidth: 0 }}>
                     <div style={{
-                        width: '42px',
-                        height: '42px',
-                        borderRadius: '12px',
+                        width: isMobile ? '34px' : '42px',
+                        height: isMobile ? '34px' : '42px',
+                        borderRadius: '10px',
                         background: 'rgba(6, 182, 212, 0.2)',
                         border: '1px solid rgba(6, 182, 212, 0.5)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '1.4rem'
+                        fontSize: isMobile ? '1.1rem' : '1.4rem',
+                        flexShrink: 0
                     }}>
                         💎
                     </div>
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                            <h2 style={{ margin: 0, fontSize: '1.18rem', fontWeight: 900, color: '#fff', letterSpacing: '-0.3px' }}>
+                    <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'nowrap' }}>
+                            <h2 style={{
+                                margin: 0,
+                                fontSize: isMobile ? '0.98rem' : '1.18rem',
+                                fontWeight: 900,
+                                color: '#fff',
+                                letterSpacing: '-0.3px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                            }}>
                                 {txt('title')}
                             </h2>
                             <span style={{
-                                padding: '2px 8px',
-                                fontSize: '0.68rem',
+                                padding: '1px 6px',
+                                fontSize: isMobile ? '0.58rem' : '0.68rem',
                                 fontWeight: 900,
                                 borderRadius: '999px',
                                 background: '#06b6d4',
                                 color: '#000',
-                                letterSpacing: '0.5px'
+                                letterSpacing: '0.5px',
+                                flexShrink: 0
                             }}>
                                 {txt('badge')}
                             </span>
                         </div>
-                        <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
-                            {txt('subtitle')}
-                        </p>
+                        {!isMobile && (
+                            <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                                {txt('subtitle')}
+                            </p>
+                        )}
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
                     <button
                         onClick={() => setShowGuide(!showGuide)}
                         style={{
-                            padding: '0.45rem 0.85rem',
-                            borderRadius: '10px',
+                            padding: isMobile ? '0.35rem 0.55rem' : '0.45rem 0.85rem',
+                            borderRadius: '9px',
                             background: showGuide ? 'rgba(6, 182, 212, 0.2)' : 'rgba(255, 255, 255, 0.06)',
                             border: showGuide ? '1px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.12)',
                             color: showGuide ? '#06b6d4' : '#cbd5e1',
-                            fontSize: '0.8rem',
+                            fontSize: isMobile ? '0.74rem' : '0.8rem',
                             fontWeight: 700,
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.35rem'
+                            gap: '0.3rem'
                         }}
                     >
                         <span>💡</span>
-                        <span>{txt('guideBtn')}</span>
+                        <span>{isMobile ? (activeLang === 'tr' ? 'Rehber' : 'Guide') : txt('guideBtn')}</span>
                     </button>
 
                     <button
                         onClick={() => fetchRadar(true)}
                         disabled={refreshing}
                         style={{
-                            padding: '0.45rem 0.85rem',
-                            borderRadius: '10px',
+                            padding: isMobile ? '0.35rem 0.55rem' : '0.45rem 0.85rem',
+                            borderRadius: '9px',
                             background: 'rgba(255, 255, 255, 0.06)',
                             border: '1px solid rgba(255, 255, 255, 0.12)',
                             color: refreshing ? '#06b6d4' : '#cbd5e1',
-                            fontSize: '0.8rem',
+                            fontSize: isMobile ? '0.74rem' : '0.8rem',
                             fontWeight: 700,
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.35rem',
+                            gap: '0.3rem',
                             transition: 'all 0.2s'
                         }}
                     >
                         <span style={{ display: 'inline-block', transform: refreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.5s' }}>🔄</span>
-                        <span>{txt('refreshBtn')}</span>
+                        {!isMobile && <span>{txt('refreshBtn')}</span>}
                     </button>
 
                     {onClose && (
                         <button
                             onClick={onClose}
                             style={{
-                                width: '34px',
-                                height: '34px',
-                                borderRadius: '10px',
+                                width: isMobile ? '30px' : '34px',
+                                height: isMobile ? '30px' : '34px',
+                                borderRadius: '9px',
                                 background: 'rgba(255, 255, 255, 0.06)',
                                 border: '1px solid rgba(255, 255, 255, 0.12)',
                                 color: '#94a3b8',
-                                fontSize: '1rem',
+                                fontSize: '0.95rem',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center'
                             }}
+                            aria-label="Kapat"
                         >
                             ✕
                         </button>
@@ -556,15 +581,16 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                     background: 'linear-gradient(90deg, rgba(6, 182, 212, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%)',
                     border: '1px solid rgba(6, 182, 212, 0.35)',
                     borderRadius: '12px',
-                    padding: '0.8rem 1.1rem',
-                    margin: '0.75rem 1.25rem 0',
+                    padding: isMobile ? '0.65rem 0.85rem' : '0.8rem 1.1rem',
+                    margin: isMobile ? '0.5rem 0.75rem 0' : '0.75rem 1.25rem 0',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.5rem',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.3)'
+                    gap: '0.45rem',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                    flexShrink: 0
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', fontWeight: 900, color: '#38bdf8' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: isMobile ? '0.78rem' : '0.82rem', fontWeight: 900, color: '#38bdf8' }}>
                             <span>🎯</span>
                             <span>{txt('guideTitle')}</span>
                         </div>
@@ -585,19 +611,19 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
 
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                        gap: '0.65rem',
-                        fontSize: '0.76rem',
+                        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(260px, 1fr))',
+                        gap: '0.45rem',
+                        fontSize: isMobile ? '0.72rem' : '0.76rem',
                         color: '#cbd5e1',
                         lineHeight: '1.4'
                     }}>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 10px', borderRadius: '8px', borderLeft: '3px solid #06b6d4' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '7px', borderLeft: '3px solid #06b6d4' }}>
                             <strong style={{ color: '#06b6d4' }}>{txt('guide1_title')}</strong> {txt('guide1_desc')}
                         </div>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 10px', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '7px', borderLeft: '3px solid #10b981' }}>
                             <strong style={{ color: '#10b981' }}>{txt('guide2_title')}</strong> {txt('guide2_desc')}
                         </div>
-                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '7px 10px', borderRadius: '8px', borderLeft: '3px solid #f59e0b' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '6px 8px', borderRadius: '7px', borderLeft: '3px solid #f59e0b' }}>
                             <strong style={{ color: '#f59e0b' }}>{txt('guide3_title')}</strong> {txt('guide3_desc')}
                         </div>
                     </div>
@@ -606,22 +632,31 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
 
             {/* Filter Bar: Sports Tabs + Dropdown Filters + View Mode */}
             <div style={{
-                padding: '0.75rem 1.25rem',
+                padding: isMobile ? '0.6rem 0.8rem' : '0.75rem 1.25rem',
                 borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
                 background: 'rgba(0, 0, 0, 0.3)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '0.65rem'
+                gap: '0.55rem',
+                flexShrink: 0
             }}>
                 {/* Row 1: Sport Tabs + Search */}
                 <div style={{
                     display: 'flex',
-                    alignItems: 'center',
+                    alignItems: isMobile ? 'stretch' : 'center',
                     justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '0.6rem'
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: '0.5rem'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflowX: 'auto', paddingBottom: '2px' }}>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        overflowX: 'auto',
+                        WebkitOverflowScrolling: 'touch',
+                        paddingBottom: '2px',
+                        width: isMobile ? '100%' : 'auto'
+                    }}>
                         {[
                             { key: 'ALL', icon: '🌐' },
                             { key: 'soccer', icon: '⚽' },
@@ -638,19 +673,20 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     key={tab.key}
                                     onClick={() => setSelectedSport(tab.key)}
                                     style={{
-                                        padding: '0.4rem 0.75rem',
+                                        padding: isMobile ? '0.32rem 0.6rem' : '0.4rem 0.75rem',
                                         borderRadius: '8px',
                                         border: isActive ? '1px solid #06b6d4' : '1px solid rgba(255, 255, 255, 0.08)',
                                         background: isActive ? 'linear-gradient(135deg, rgba(6, 182, 212, 0.3), rgba(8, 145, 178, 0.15))' : 'rgba(255, 255, 255, 0.03)',
                                         color: isActive ? '#06b6d4' : '#94a3b8',
-                                        fontSize: '0.78rem',
+                                        fontSize: isMobile ? '0.74rem' : '0.78rem',
                                         fontWeight: 800,
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.35rem',
+                                        gap: '0.3rem',
                                         whiteSpace: 'nowrap',
-                                        transition: 'all 0.15s'
+                                        transition: 'all 0.15s',
+                                        flexShrink: 0
                                     }}
                                 >
                                     <span>{tab.icon}</span>
@@ -658,7 +694,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     <span style={{
                                         padding: '1px 5px',
                                         borderRadius: '999px',
-                                        fontSize: '0.65rem',
+                                        fontSize: '0.62rem',
                                         fontWeight: 900,
                                         background: isActive ? '#06b6d4' : 'rgba(255,255,255,0.08)',
                                         color: isActive ? '#000' : '#cbd5e1'
@@ -670,7 +706,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         })}
                     </div>
 
-                    <div style={{ position: 'relative', width: '210px' }}>
+                    <div style={{ position: 'relative', width: isMobile ? '100%' : '210px' }}>
                         <input
                             type="text"
                             value={searchQuery}
@@ -679,12 +715,12 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                             style={{
                                 width: '100%',
                                 boxSizing: 'border-box',
-                                padding: '0.4rem 1.6rem 0.4rem 0.7rem',
+                                padding: isMobile ? '0.38rem 1.6rem 0.38rem 0.65rem' : '0.4rem 1.6rem 0.4rem 0.7rem',
                                 borderRadius: '8px',
                                 background: 'rgba(0, 0, 0, 0.55)',
                                 border: '1px solid rgba(255, 255, 255, 0.1)',
                                 color: '#fff',
-                                fontSize: '0.78rem',
+                                fontSize: isMobile ? '0.76rem' : '0.78rem',
                                 outline: 'none'
                             }}
                         />
@@ -714,15 +750,17 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '0.6rem',
+                    gap: '0.45rem',
                     fontSize: '0.75rem',
-                    paddingTop: '2px'
+                    flexWrap: isMobile ? 'nowrap' : 'wrap',
+                    overflowX: isMobile ? 'auto' : 'visible',
+                    WebkitOverflowScrolling: 'touch',
+                    paddingBottom: isMobile ? '2px' : '0'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                         {/* Düşüş Filtresi */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('dropFilterLabel')}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            {!isMobile && <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('dropFilterLabel')}</span>}
                             <select
                                 value={minDrop}
                                 onChange={(e) => setMinDrop(e.target.value)}
@@ -731,8 +769,8 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     color: minDrop !== 'ALL' ? '#34d399' : '#cbd5e1',
                                     border: minDrop !== 'ALL' ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '6px',
-                                    padding: '3px 8px',
-                                    fontSize: '0.75rem',
+                                    padding: '3px 6px',
+                                    fontSize: '0.72rem',
                                     fontWeight: 700,
                                     outline: 'none',
                                     cursor: 'pointer'
@@ -745,8 +783,8 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         </div>
 
                         {/* Oran Aralığı */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('oddsFilterLabel')}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            {!isMobile && <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('oddsFilterLabel')}</span>}
                             <select
                                 value={oddsRange}
                                 onChange={(e) => setOddsRange(e.target.value)}
@@ -755,8 +793,8 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     color: oddsRange !== 'ALL' ? '#06b6d4' : '#cbd5e1',
                                     border: oddsRange !== 'ALL' ? '1px solid #06b6d4' : '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '6px',
-                                    padding: '3px 8px',
-                                    fontSize: '0.75rem',
+                                    padding: '3px 6px',
+                                    fontSize: '0.72rem',
                                     fontWeight: 700,
                                     outline: 'none',
                                     cursor: 'pointer'
@@ -769,8 +807,8 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         </div>
 
                         {/* Sıralama */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('sortLabel')}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            {!isMobile && <span style={{ color: '#64748b', fontWeight: 600 }}>{txt('sortLabel')}</span>}
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value)}
@@ -779,8 +817,8 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                     color: '#cbd5e1',
                                     border: '1px solid rgba(255,255,255,0.1)',
                                     borderRadius: '6px',
-                                    padding: '3px 8px',
-                                    fontSize: '0.75rem',
+                                    padding: '3px 6px',
+                                    fontSize: '0.72rem',
                                     fontWeight: 700,
                                     outline: 'none',
                                     cursor: 'pointer'
@@ -801,17 +839,19 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                         background: 'rgba(255, 255, 255, 0.05)',
                         borderRadius: '8px',
                         padding: '2px',
-                        border: '1px solid rgba(255, 255, 255, 0.08)'
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        flexShrink: 0,
+                        marginLeft: 'auto'
                     }}>
                         <button
                             onClick={() => setViewMode('TERMINAL')}
                             style={{
-                                padding: '3px 9px',
+                                padding: '3px 7px',
                                 borderRadius: '6px',
                                 border: 'none',
                                 background: viewMode === 'TERMINAL' ? '#06b6d4' : 'transparent',
                                 color: viewMode === 'TERMINAL' ? '#000' : '#94a3b8',
-                                fontSize: '0.72rem',
+                                fontSize: '0.7rem',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 display: 'flex',
@@ -820,17 +860,17 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                             }}
                         >
                             <span>📟</span>
-                            <span>{txt('viewTerminal')}</span>
+                            {!isMobile && <span>{txt('viewTerminal')}</span>}
                         </button>
                         <button
                             onClick={() => setViewMode('GRID')}
                             style={{
-                                padding: '3px 9px',
+                                padding: '3px 7px',
                                 borderRadius: '6px',
                                 border: 'none',
                                 background: viewMode === 'GRID' ? '#06b6d4' : 'transparent',
                                 color: viewMode === 'GRID' ? '#000' : '#94a3b8',
-                                fontSize: '0.72rem',
+                                fontSize: '0.7rem',
                                 fontWeight: 800,
                                 cursor: 'pointer',
                                 display: 'flex',
@@ -839,7 +879,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                             }}
                         >
                             <span>🎴</span>
-                            <span>{txt('viewCards')}</span>
+                            {!isMobile && <span>{txt('viewCards')}</span>}
                         </button>
                     </div>
                 </div>
@@ -849,8 +889,9 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
             <div style={{
                 flex: 1,
                 overflowY: 'auto',
-                padding: '0.8rem 1.25rem',
-                minHeight: '280px'
+                padding: isMobile ? '0.6rem 0.75rem' : '0.8rem 1.25rem',
+                minHeight: '260px',
+                WebkitOverflowScrolling: 'touch'
             }}>
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '4rem 1rem' }}>
@@ -1054,8 +1095,8 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                     /* 🎴 KART GÖRÜNÜMÜ */
                     <div style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-                        gap: '0.85rem'
+                        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))',
+                        gap: isMobile ? '0.65rem' : '0.85rem'
                     }}>
                         {filtered.map((item) => {
                             const isCopied = copiedId === item.id;
@@ -1072,7 +1113,7 @@ export const MarketRadarCard = ({ lang = 'tr', onClose }) => {
                                         background: 'rgba(15, 23, 42, 0.7)',
                                         border: '1px solid rgba(255, 255, 255, 0.08)',
                                         borderRadius: '14px',
-                                        padding: '1rem',
+                                        padding: isMobile ? '0.75rem 0.85rem' : '1rem',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         justifyContent: 'space-between',
