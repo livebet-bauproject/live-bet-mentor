@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { translations } from '../locales/translations';
 
 export const LegalModal = ({ isOpen, onClose, lang = 'tr' }) => {
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     if (!isOpen) return null;
 
     const t = translations[lang] || translations['tr'];
@@ -10,80 +18,84 @@ export const LegalModal = ({ isOpen, onClose, lang = 'tr' }) => {
         <div style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 999999,
-            background: 'rgba(3, 7, 18, 0.85)',
+            zIndex: 100005,
+            background: 'rgba(3, 7, 18, 0.88)',
             backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1.5rem'
-        }}>
+            padding: isMobile ? '8px' : '1.5rem'
+        }} onClick={onClose}>
             <div style={{
                 background: 'linear-gradient(135deg, #0b1329 0%, #030712 100%)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
-                borderRadius: '20px',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: isMobile ? '16px' : '20px',
                 maxWidth: '680px',
                 width: '100%',
-                maxHeight: '85vh',
+                maxHeight: isMobile ? '92vh' : '85vh',
                 overflowY: 'auto',
-                padding: '2.5rem',
+                padding: isMobile ? '1.25rem 1rem' : '2.5rem',
                 color: '#e2e8f0',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.75)',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85)',
                 position: 'relative'
-            }}>
+            }} onClick={e => e.stopPropagation()}>
                 {/* Close Button */}
                 <button
+                    type="button"
                     onClick={onClose}
                     style={{
                         position: 'absolute',
-                        top: '1.5rem',
-                        right: '1.5rem',
+                        top: isMobile ? '0.85rem' : '1.5rem',
+                        right: isMobile ? '0.85rem' : '1.5rem',
                         background: 'rgba(255, 255, 255, 0.08)',
-                        border: 'none',
-                        color: '#94a3b8',
-                        width: '32px',
-                        height: '32px',
+                        border: '1px solid rgba(255, 255, 255, 0.12)',
+                        color: '#cbd5e1',
+                        width: '34px',
+                        height: '34px',
                         borderRadius: '50%',
                         cursor: 'pointer',
-                        fontSize: '1.2rem',
+                        fontSize: '1rem',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        zIndex: 2
                     }}
+                    aria-label="Kapat"
                 >
                     ✕
                 </button>
 
                 {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '2.4rem' }}>⚖️</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.25rem', paddingRight: '2rem' }}>
+                    <span style={{ fontSize: isMobile ? '1.8rem' : '2.4rem', flexShrink: 0 }}>⚖️</span>
                     <div>
                         <div style={{
                             display: 'inline-block',
                             background: 'rgba(239, 68, 68, 0.15)',
                             color: '#ef4444',
                             border: '1px solid rgba(239, 68, 68, 0.3)',
-                            padding: '2px 8px',
-                            borderRadius: '6px',
-                            fontSize: '0.65rem',
+                            padding: '2px 7px',
+                            borderRadius: '5px',
+                            fontSize: '0.62rem',
                             fontWeight: 900,
-                            letterSpacing: '1px',
-                            marginBottom: '0.4rem'
+                            letterSpacing: '0.5px',
+                            marginBottom: '0.3rem'
                         }}>
-                            {t.legal_modal_badge || (lang === 'tr' ? '🔞 18+ YASAL BİLGİLENDİRME & KULLANIM SÖZLEŞMESİ' : (lang === 'de' ? '🔞 18+ GESETZLICHE HINWEISE & NUTZUNGSBEDINGUNGEN' : '🔞 18+ STATUTORY DISCLOSURE & TERMS OF USE'))}
+                            {t.legal_modal_badge || (lang === 'tr' ? '🔞 18+ YASAL BİLGİLENDİRME' : (lang === 'de' ? '🔞 18+ GESETZLICHE HINWEISE' : '🔞 18+ STATUTORY DISCLOSURE'))}
                         </div>
-                        <h2 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#f8fafc', margin: 0 }}>
-                            {t.legal_modal_title || (lang === 'tr' ? 'Hukuki Şartlar & Sorumluluk Reddi' : (lang === 'de' ? 'Rechtliche Bedingungen & Haftungsausschluss' : 'Legal Terms & Disclaimer'))}
+                        <h2 style={{ fontSize: isMobile ? '1.1rem' : '1.35rem', fontWeight: 900, color: '#f8fafc', margin: 0, lineHeight: 1.3 }}>
+                            {t.legal_modal_title || (lang === 'tr' ? 'Hukuki Şartlar & Sorumluluk Reddi' : (lang === 'de' ? 'Rechtliche Bedingungen' : 'Legal Terms & Disclaimer'))}
                         </h2>
                     </div>
                 </div>
 
                 {/* Content Sections */}
-                <div style={{ fontSize: '0.85rem', lineHeight: 1.7, color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                <div style={{ fontSize: isMobile ? '0.8rem' : '0.85rem', lineHeight: 1.65, color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                     
                     {/* Section 1 */}
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                        <h4 style={{ color: '#38bdf8', fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.4rem' }}>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: isMobile ? '0.85rem' : '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                        <h4 style={{ color: '#38bdf8', fontWeight: 800, fontSize: isMobile ? '0.85rem' : '0.9rem', marginBottom: '0.35rem', marginTop: 0 }}>
                             {t.legal_section1_title || (lang === 'tr' ? '1. Platformun Niteliği (Bahis Oynatılmaz)' : (lang === 'de' ? '1. Art der Plattform (Kein Glücksspiel)' : '1. Nature of the Platform (No Gambling Conducted)'))}
                         </h4>
                         <p style={{ margin: 0 }}>
@@ -98,8 +110,8 @@ export const LegalModal = ({ isOpen, onClose, lang = 'tr' }) => {
                     </div>
 
                     {/* Section 2 */}
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                        <h4 style={{ color: '#fbbf24', fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.4rem' }}>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: isMobile ? '0.85rem' : '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                        <h4 style={{ color: '#fbbf24', fontWeight: 800, fontSize: isMobile ? '0.85rem' : '0.9rem', marginBottom: '0.35rem', marginTop: 0 }}>
                             {t.legal_section2_title || (lang === 'tr' ? '2. 7258 Sayılı Kanun ve Yasal Uyum Beyanı' : (lang === 'de' ? '2. Gesetzliche Compliance- & Regulierungserklärung' : '2. Statutory & Regulatory Compliance Statement'))}
                         </h4>
                         <p style={{ margin: 0 }}>
@@ -114,9 +126,9 @@ export const LegalModal = ({ isOpen, onClose, lang = 'tr' }) => {
                     </div>
 
                     {/* Section 3 */}
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                        <h4 style={{ color: '#f43f5e', fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.4rem' }}>
-                            {t.legal_section3_title || (lang === 'tr' ? '3. Kesin Kazanç Garantisi Yoktur (İstatistiki Çıktı)' : (lang === 'de' ? '3. Keine Gewinngarantie (Statistische Wahrscheinlichkeiten)' : '3. No Guarantee of Profit (Statistical Outputs)'))}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: isMobile ? '0.85rem' : '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                        <h4 style={{ color: '#f43f5e', fontWeight: 800, fontSize: isMobile ? '0.85rem' : '0.9rem', marginBottom: '0.35rem', marginTop: 0 }}>
+                            {t.legal_section3_title || (lang === 'tr' ? '3. Kesin Kazanç Garantisi Yoktur (İstatistiki Çıktı)' : (lang === 'de' ? '3. Keine Gewinngarantie' : '3. No Guarantee of Profit'))}
                         </h4>
                         <p style={{ margin: 0 }}>
                             {t.legal_section3_body || (lang === 'tr'
@@ -130,9 +142,9 @@ export const LegalModal = ({ isOpen, onClose, lang = 'tr' }) => {
                     </div>
 
                     {/* Section 4 */}
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                        <h4 style={{ color: '#a78bfa', fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.4rem' }}>
-                            {t.legal_section4_title || (lang === 'tr' ? '4. 18+ Yaş Sınırı ve Kullanıcı Sorumluluğu' : (lang === 'de' ? '4. Altersbeschränkung ab 18 Jahren & Eigenverantwortung' : '4. 18+ Age Restriction & User Responsibility'))}
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: isMobile ? '0.85rem' : '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                        <h4 style={{ color: '#a78bfa', fontWeight: 800, fontSize: isMobile ? '0.85rem' : '0.9rem', marginBottom: '0.35rem', marginTop: 0 }}>
+                            {t.legal_section4_title || (lang === 'tr' ? '4. 18+ Yaş Sınırı ve Kullanıcı Sorumluluğu' : (lang === 'de' ? '4. Altersbeschränkung ab 18 Jahren' : '4. 18+ Age Restriction & User Responsibility'))}
                         </h4>
                         <p style={{ margin: 0 }}>
                             {t.legal_section4_body || (lang === 'tr'
@@ -146,8 +158,8 @@ export const LegalModal = ({ isOpen, onClose, lang = 'tr' }) => {
                     </div>
 
                     {/* Section 5 */}
-                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                        <h4 style={{ color: '#10b981', fontWeight: 800, fontSize: '0.9rem', marginBottom: '0.4rem' }}>
+                    <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: isMobile ? '0.85rem' : '1rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                        <h4 style={{ color: '#10b981', fontWeight: 800, fontSize: isMobile ? '0.85rem' : '0.9rem', marginBottom: '0.35rem', marginTop: 0 }}>
                             {t.legal_section5_title || (lang === 'tr' ? '5. Üyelik ve Lisans Bedeli Tanımı' : (lang === 'de' ? '5. Mitgliedschafts- und Softwarelizenzgebühr' : '5. Membership & Software License Definition'))}
                         </h4>
                         <p style={{ margin: 0 }}>
@@ -163,27 +175,27 @@ export const LegalModal = ({ isOpen, onClose, lang = 'tr' }) => {
                 </div>
 
                 {/* Footer Action */}
-                <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
                     <button
+                        type="button"
                         onClick={onClose}
                         style={{
+                            width: isMobile ? '100%' : 'auto',
                             background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
                             color: '#000',
                             border: 'none',
-                            padding: '0.8rem 2.5rem',
-                            borderRadius: '12px',
-                            fontWeight: 900,
-                            fontSize: '0.95rem',
+                            padding: '0.75rem 2rem',
+                            borderRadius: '10px',
+                            fontWeight: 800,
+                            fontSize: '0.9rem',
                             cursor: 'pointer',
                             boxShadow: '0 4px 15px rgba(56, 189, 248, 0.3)'
                         }}
                     >
-                        {t.legal_modal_close || (lang === 'tr' ? 'Anladım ve Kabul Ediyorum' : (lang === 'de' ? 'Verstanden und Zustimmen' : 'I Understand and Agree'))}
+                        {t.legal_modal_agree || (lang === 'tr' ? 'Anladım ve Kabul Ediyorum' : (lang === 'de' ? 'Verstanden & Akzeptiert' : 'I Understand & Agree'))}
                     </button>
                 </div>
             </div>
         </div>
     );
 };
-
-export default LegalModal;

@@ -398,10 +398,10 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
         } catch (e) {}
     };
 
-    const [isMobileScreen, setIsMobileScreen] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+    const [isMobileScreen, setIsMobileScreen] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 900 : false);
     useEffect(() => {
         const handleResize = () => {
-            const mobile = window.innerWidth <= 768;
+            const mobile = window.innerWidth <= 900;
             setIsMobileScreen(prev => prev !== mobile ? mobile : prev);
         };
         window.addEventListener('resize', handleResize, { passive: true });
@@ -5908,6 +5908,28 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 </div>
                             )}
                         </div>
+
+                        {/* 📱 Mobile Header Quick Menu Hamburger Button */}
+                        <button
+                            type="button"
+                            className="mobile-header-menu-btn"
+                            onClick={() => setShowMobileMoreMenu(prev => !prev)}
+                            aria-label="Menü"
+                            title={lang === 'tr' ? 'Hızlı Menü & Araçlar' : 'Quick Menu & Tools'}
+                        >
+                            <span className="mobile-header-menu-icon" style={{ fontSize: '1.05rem', lineHeight: 1 }}>{showMobileMoreMenu ? '✕' : '☰'}</span>
+                            <span className="mobile-header-menu-label" style={{ fontSize: '0.72rem', fontWeight: 800 }}>{showMobileMoreMenu ? (lang === 'tr' ? 'Kapat' : (lang === 'de' ? 'Zu' : 'Close')) : (lang === 'tr' ? 'Menü' : (lang === 'de' ? 'Menü' : 'Menu'))}</span>
+                            {(isAdmin || userProfile?.plan === 'admin') && (
+                                <span style={{
+                                    width: '6px',
+                                    height: '6px',
+                                    borderRadius: '50%',
+                                    background: '#f59e0b',
+                                    boxShadow: '0 0 6px #f59e0b',
+                                    display: 'inline-block'
+                                }} />
+                            )}
+                        </button>
                     </div>
                 </div>
 
@@ -9557,102 +9579,41 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
             </button>
 
             {/* Institutional Compliance & Disclaimer Footer */}
-            <footer style={{
-                marginTop: '4rem',
-                marginBottom: '2rem',
-                padding: '2.5rem 1.5rem',
-                borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                background: 'rgba(3, 7, 18, 0.65)',
-                borderRadius: '16px',
-                textAlign: 'center',
-                color: '#64748b',
-                fontSize: '0.78rem',
-                lineHeight: 1.6
-            }}>
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
-                    <span style={{
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        color: '#ef4444',
-                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontWeight: 900,
-                        fontSize: '0.7rem'
-                    }}>
+            <footer className="dashboard-statutory-footer">
+                <div className="footer-badges-row">
+                    <span className="footer-badge badge-18">
                         {t.badge_18_plus || (lang === 'tr' ? '🔞 18+ Yasal Yaş Sınırı' : (lang === 'de' ? '🔞 18+ Gesetzliches Mindestalter' : '🔞 18+ Age Restriction'))}
                     </span>
-                    <span style={{
-                        background: 'rgba(56, 189, 248, 0.1)',
-                        color: '#38bdf8',
-                        border: '1px solid rgba(56, 189, 248, 0.25)',
-                        padding: '2px 8px',
-                        borderRadius: '6px',
-                        fontWeight: 800,
-                        fontSize: '0.7rem'
-                    }}>
+                    <span className="footer-badge badge-resp">
                         {t.badge_responsible || (lang === 'tr' ? '🛡️ Sorumlu Analiz' : (lang === 'de' ? '🛡️ Verantwortungsbewusste Analyse' : '🛡️ Responsible Analytics'))}
                     </span>
-                    <span style={{
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        color: '#10b981',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontWeight: 800,
-                        fontSize: '0.7rem'
-                    }}>
+                    <span className="footer-badge badge-stat">
                         {t.badge_statutory_compliance || (lang === 'tr' ? '⚖️ 7258 Sayılı Kanun Uyumlu' : (lang === 'de' ? '⚖️ Gesetzlich konform & reguliert' : '⚖️ Strict Regulatory Compliance'))}
                     </span>
                 </div>
-                <div style={{ maxWidth: '850px', margin: '0 auto 0.8rem', color: '#64748b' }}>
+                <div className="footer-disclaimer-text">
                     <strong style={{ color: '#94a3b8' }}>{t.legal_not_bookmaker}</strong>{' '}
                     {t.legal_disclaimer_text}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '1.5rem', alignItems: 'center' }}>
+                <div className="footer-action-pills">
                     <button
                         type="button"
                         onClick={() => setIsSupportChatOpen(true)}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#38bdf8',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                        }}
+                        className="footer-pill-btn support"
                     >
                         💬 {lang === 'tr' ? '7/24 Canlı Destek' : (lang === 'de' ? '24/7 Live-Support' : '24/7 Live Support')}
                     </button>
-                    <span style={{ opacity: 0.3 }}>|</span>
                     <button
+                        type="button"
                         onClick={() => setIsLegalModalOpen(true)}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#38bdf8',
-                            textDecoration: 'underline',
-                            cursor: 'pointer',
-                            fontSize: '0.78rem',
-                            fontWeight: 700
-                        }}
+                        className="footer-pill-btn legal"
                     >
                         📜 {t.legal_terms_link}
                     </button>
-                    <span style={{ opacity: 0.3 }}>|</span>
                     <button
+                        type="button"
                         onClick={() => setIsAcademyOpen(true)}
-                        style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#f59e0b',
-                            textDecoration: 'underline',
-                            cursor: 'pointer',
-                            fontSize: '0.78rem',
-                            fontWeight: 700
-                        }}
+                        className="footer-pill-btn academy"
                     >
                         🎓 {lang === 'tr' ? 'Kuant Akademi & Sözlük' : (lang === 'de' ? 'Quant-Akademie & Lexikon' : 'Quant Academy & Glossary')}
                     </button>
@@ -9731,69 +9692,14 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                 lang={lang}
             />
 
-            {/* Mobile Bottom Navigation Bar (Ultra-clean 5-item app navigation on screens <= 768px) */}
-            <nav className="mobile-bottom-nav" aria-label="Mobil Navigasyon">
-                <button
-                    className={`mobile-nav-item ${view === 'DASHBOARD' && !showMobileMoreMenu ? 'active' : ''}`}
-                    onClick={() => { setShowMobileMoreMenu(false); setView('DASHBOARD'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    type="button"
-                >
-                    <span className="mobile-nav-icon">⚡</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Canlı' : (lang === 'de' ? 'Live' : 'Live')}</span>
-                    {matches.length > 0 && <span className="mobile-nav-badge">{matches.length}</span>}
-                </button>
-                <button
-                    className={`mobile-nav-item trending ${view === 'TRENDING' && !showMobileMoreMenu ? 'active' : ''}`}
-                    onClick={() => { setShowMobileMoreMenu(false); setView('TRENDING'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    type="button"
-                >
-                    <span className="mobile-nav-icon">🔥</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Trendler' : (lang === 'de' ? 'Trends' : 'Trends')}</span>
-                    {(() => {
-                        const count = new Set((trendingBets || []).map(b => b.eventId ? String(b.eventId) : `${b.home}_${b.away}`)).size;
-                        return count > 0 ? <span className="mobile-nav-badge trending">{count}</span> : null;
-                    })()}
-                </button>
-                <button
-                    className={`mobile-nav-item ${view === 'SHARP_PICKS' && !showMobileMoreMenu ? 'active' : ''}`}
-                    onClick={() => { setShowMobileMoreMenu(false); setView('SHARP_PICKS'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    type="button"
-                    style={{ color: (view === 'SHARP_PICKS' && !showMobileMoreMenu) ? '#38bdf8' : undefined }}
-                >
-                    <span className="mobile-nav-icon">⭐</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Keskin 10' : (lang === 'de' ? 'Sharp 10' : 'Sharp 10')}</span>
-                    <span className="mobile-nav-badge" style={{ background: '#0284c7', color: '#fff' }}>10</span>
-                </button>
-                <button
-                    className={`mobile-nav-item ${view === 'PORTFOLIO' && !showMobileMoreMenu ? 'active' : ''}`}
-                    onClick={() => { setShowMobileMoreMenu(false); setView('PORTFOLIO'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                    type="button"
-                    style={{ color: (view === 'PORTFOLIO' && !showMobileMoreMenu) ? '#10b981' : undefined }}
-                >
-                    <span className="mobile-nav-icon">💼</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Kasa' : (lang === 'de' ? 'Kassa' : 'Bankroll')}</span>
-                </button>
-                <button
-                    className={`mobile-nav-item ${(showMobileMoreMenu || view === 'RADAR' || view === 'ADMIN') ? 'active' : ''}`}
-                    onClick={() => setShowMobileMoreMenu(prev => !prev)}
-                    type="button"
-                >
-                    <span className="mobile-nav-icon">{showMobileMoreMenu ? '✕' : '☰'}</span>
-                    <span className="mobile-nav-label">{lang === 'tr' ? 'Menü' : (lang === 'de' ? 'Menü' : 'Menu')}</span>
-                    {(isAdmin || userProfile?.plan === 'admin') && (
-                        <span className="mobile-nav-badge" style={{ background: '#f59e0b', color: '#000', fontWeight: 900, minWidth: '7px', height: '7px', padding: 0, top: '4px', right: 'calc(50% - 13px)' }} />
-                    )}
-                </button>
-            </nav>
-
-            {/* Mobile More Actions Bottom Sheet Drawer */}
+            {/* 📱 Mobile More Actions Bottom Sheet Drawer */}
             {showMobileMoreMenu && (
                 <div className="mobile-more-backdrop" onClick={() => setShowMobileMoreMenu(false)}>
                     <div className="mobile-more-sheet" onClick={(e) => e.stopPropagation()}>
                         <div className="mobile-sheet-handle" />
                         <div className="mobile-sheet-header">
                             <div className="mobile-sheet-title">
-                                <span>📱</span> {lang === 'tr' ? 'Hızlı Menü & Araçlar' : (lang === 'de' ? 'Schnellmenü & Tools' : 'Quick Menu & Tools')}
+                                <span>⚡</span> {lang === 'tr' ? 'Hızlı Menü & Araçlar' : (lang === 'de' ? 'Schnellmenü & Tools' : 'Quick Menu & Tools')}
                             </div>
                             <button
                                 type="button"
@@ -9804,7 +9710,104 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 ✕
                             </button>
                         </div>
+
+                        {/* Quick Utilities: Language & Audio & Notifications */}
+                        <div className="mobile-quick-util-strip">
+                            <div className="mobile-util-lang-group">
+                                {['tr', 'en', 'de'].map(l => (
+                                    <button
+                                        key={l}
+                                        type="button"
+                                        onClick={() => setLang(l)}
+                                        className={`mobile-util-lang-btn ${lang === l ? 'active' : ''}`}
+                                    >
+                                        {l.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                                <button
+                                    type="button"
+                                    className="mobile-util-toggle-btn"
+                                    onClick={() => {
+                                        const newMuted = audioAlert.toggle();
+                                        setAudioMuted(newMuted);
+                                    }}
+                                    title="Ses"
+                                >
+                                    <span>{!audioMuted ? '🔊' : '🔇'}</span>
+                                    <span>{!audioMuted ? (lang === 'tr' ? 'Ses Açık' : 'Sound On') : (lang === 'tr' ? 'Sessiz' : 'Muted')}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="mobile-util-toggle-btn"
+                                    onClick={() => {
+                                        const nextMode = alertNotifyMode === 'TOAST' ? 'SILENT' : alertNotifyMode === 'SILENT' ? 'OFF' : 'TOAST';
+                                        setAlertNotifyMode(nextMode);
+                                        try { localStorage.setItem('alert_notify_mode', nextMode); } catch (e) {}
+                                    }}
+                                    title="Bildirim"
+                                >
+                                    <span>{alertNotifyMode === 'TOAST' ? '🔔' : alertNotifyMode === 'SILENT' ? '🔕' : '🚫'}</span>
+                                    <span>{alertNotifyMode === 'TOAST' ? 'Toast' : alertNotifyMode === 'SILENT' ? (lang === 'tr' ? 'Sessiz' : 'Silent') : (lang === 'tr' ? 'Kapalı' : 'Off')}</span>
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="mobile-sheet-grid">
+                            {/* Kategori 1: Canlı & Fırsatlar */}
+                            <div className="mobile-sheet-category-title">
+                                <span>⚡</span> {lang === 'tr' ? 'Canlı Terminal & Fırsatlar' : 'Live & Hot Picks'}
+                            </div>
+
+                            <button
+                                type="button"
+                                className={`mobile-sheet-item ${view === 'DASHBOARD' ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setView('DASHBOARD'); setTerminalCategoryFilter('ALL'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>⚡</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">
+                                        {lang === 'tr' ? 'Canlı Radar Terminali' : 'Live Radar Terminal'}
+                                        {matches.length > 0 && <span className="sheet-badge-cyan">{matches.length} Canlı</span>}
+                                    </div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Gerçek zamanlı canlı maç akışı ve momentum' : 'Real-time live matches & momentum stream'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className={`mobile-sheet-item ${view === 'TRENDING' ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setView('TRENDING'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}>🔥</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">
+                                        {lang === 'tr' ? 'Piyasa & Bahis Trendleri' : 'Market & Betting Trends'}
+                                        {trendingBets && trendingBets.length > 0 && <span className="sheet-badge-hot">{trendingBets.length}</span>}
+                                    </div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Global piyasa hacim anomalileri ve oran trendleri' : 'Global volume anomalies & line movements'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className={`mobile-sheet-item ${view === 'SHARP_PICKS' ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setView('SHARP_PICKS'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8' }}>⭐</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">
+                                        {lang === 'tr' ? 'Günün Keskin 10 Seçimi' : 'Sharp 10 Picks'}
+                                        <span className="sheet-badge-cyan">10</span>
+                                    </div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Kuant algoritması tarafından filtrelenmiş en keskin 10 tercih' : 'Top 10 highest-confidence quant selections'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
                             <button
                                 type="button"
                                 className="mobile-sheet-item hot"
@@ -9813,7 +9816,28 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap hot">🔥</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">Hot Picks <span className="sheet-badge-hot">HOT</span></div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Günün sıcak fırsatları & trend seçimler' : (lang === 'de' ? 'Heiße Picks & Trend-Wetten' : 'Hot market picks & trends')}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Günün sıcak fırsatları & anlık baskı sinyalleri' : 'Hot market opportunities & high pressure'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            {/* Kategori 2: Analitik Masalar */}
+                            <div className="mobile-sheet-category-title">
+                                <span>📊</span> {lang === 'tr' ? 'Analitik Masalar & Kasa' : 'Analytics & Bankroll'}
+                            </div>
+
+                            <button
+                                type="button"
+                                className={`mobile-sheet-item ${showMarketRadar ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setShowMarketRadar(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' }}>💎</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">
+                                        {lang === 'tr' ? 'Surebet & Piyasa Radarı' : 'Surebet & Value Radar'}
+                                        <span style={{ background: '#06b6d4', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>4-SPOR</span>
+                                    </div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Futbol, Basketbol, Tenis, Hentbol oran düşüşleri & +EV' : '4-Sport dropping odds & arbitrage scanner'}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9823,23 +9847,13 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 className={`mobile-sheet-item ${view === 'TIPSTERS' ? 'active' : ''}`}
                                 onClick={() => { setShowMobileMoreMenu(false); setView('TIPSTERS'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                             >
-                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>👑</div>
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#eab308' }}>👑</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Pro Analistler Masası' : 'Pro Analysts Board'} <span style={{ background: '#38bdf8', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>PRO</span></div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Doğrulanmış uzman tahminleri & ligi' : 'Verified analyst picks & leaderboard'}</div>
-                                </div>
-                                <span className="mobile-sheet-arrow">›</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                className={`mobile-sheet-item ${showMarketRadar ? 'active' : ''}`}
-                                onClick={() => { setShowMobileMoreMenu(false); setShowMarketRadar(true); }}
-                            >
-                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4' }}>📉</div>
-                                <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Akıllı Para & Piyasa Radarı' : 'Market Value Radar'} <span style={{ background: '#06b6d4', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>4-SPOR</span></div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Futbol, Basketbol, Tenis, Hentbol oran düşüşleri' : '4-Sport dropping odds & lagging lines'}</div>
+                                    <div className="mobile-sheet-name">
+                                        {lang === 'tr' ? 'Pro Analistler Masası' : 'Pro Analysts Board'}
+                                        <span style={{ background: '#eab308', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>PRO</span>
+                                    </div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Doğrulanmış uzman tahminleri & ROI liderlik tablosu' : 'Verified analyst picks & ROI leaderboard'}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9851,11 +9865,63 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             >
                                 <div className="mobile-sheet-icon-wrap radar">🎯</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Günlük Radar Analizi' : (lang === 'de' ? 'Täglicher Radar' : 'Daily Radar Analysis')}</div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Tüm günün algoritmik maç taraması' : (lang === 'de' ? 'Ganztägige Spielanalyse' : 'Full-day algorithmic scan')}</div>
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Günlük Maç Radarı' : 'Daily Match Radar'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Tüm günün maç programı & algoritmik tarama' : 'Full-day match schedule & pre-match scan'}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
+
+                            <button
+                                type="button"
+                                className={`mobile-sheet-item ${view === 'PORTFOLIO' ? 'active' : ''}`}
+                                onClick={() => { setShowMobileMoreMenu(false); setView('PORTFOLIO'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(167, 139, 250, 0.15)', color: '#a78bfa' }}>💼</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">
+                                        {lang === 'tr' ? 'Kasa & Portföy Yönetimi' : 'Bankroll & Portfolio'}
+                                        <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>{Math.round(bankState?.current_balance ?? 1000).toLocaleString('tr-TR')} ₺</span>
+                                    </div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Dinamik Kelly kasası, açık pozisyonlar ve risk analitiği' : 'Dynamic Kelly staking, open bets & analytics'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            {/* Kategori 3: Eğitim & Rehber */}
+                            <div className="mobile-sheet-category-title">
+                                <span>🎓</span> {lang === 'tr' ? 'Eğitim & Kılavuz' : 'Education & Help'}
+                            </div>
+
+                            <button
+                                type="button"
+                                className="mobile-sheet-item academy"
+                                onClick={() => { setShowMobileMoreMenu(false); setIsAcademyOpen(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>🎓</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Kuant Akademi & Sözlük' : (lang === 'de' ? 'Quant-Akademie & Lexikon' : 'Quant Academy & Glossary')} <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>EĞİTİM</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Kelly, Poisson, xG ve kuant metrikleri kapsamlı rehberi' : 'Kelly, Poisson & xG quantitative guide'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className="mobile-sheet-item faq"
+                                onClick={() => { setShowMobileMoreMenu(false); setFaqMode('live'); setShowFAQ(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc' }}>❓</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Sistem Rehberi & SSS' : (lang === 'de' ? 'System-Leitfaden & FAQ' : 'System Guide & FAQ')}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Terminal kullanımı ve sık sorulan sorular' : 'Terminal guide & frequent questions'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            {/* Kategori 4: Sistem & Destek */}
+                            <div className="mobile-sheet-category-title">
+                                <span>⚙️</span> {lang === 'tr' ? 'Sistem, Destek & Yasal' : 'System & Legal'}
+                            </div>
 
                             <button
                                 type="button"
@@ -9864,8 +9930,21 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                             >
                                 <div className="mobile-sheet-icon-wrap support">💬</div>
                                 <div className="mobile-sheet-info">
-                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Canlı Destek Masası' : (lang === 'de' ? 'Live-Support-Desk' : 'Live Support Desk')}</div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7/24 AI ve Operatör Destek Hattı' : (lang === 'de' ? '24/7 KI- und Live-Support' : '24/7 AI and human operator')}</div>
+                                    <div className="mobile-sheet-name">{lang === 'tr' ? 'Canlı Destek Masası' : (lang === 'de' ? 'Live-Support-Desk' : 'Live Support Desk')} <span style={{ background: '#10b981', color: '#000', fontSize: '0.62rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>7/24 AKTİF</span></div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7/24 AI ve Operatör Destek Masası' : '24/7 AI and human operator desk'}</div>
+                                </div>
+                                <span className="mobile-sheet-arrow">›</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className="mobile-sheet-item settings"
+                                onClick={() => { setShowMobileMoreMenu(false); setShowAdvanced(true); }}
+                            >
+                                <div className="mobile-sheet-icon-wrap" style={{ background: 'rgba(148, 163, 184, 0.15)', color: '#94a3b8' }}>⚙️</div>
+                                <div className="mobile-sheet-info">
+                                    <div className="mobile-sheet-name">{t.advanced_settings || 'Gelişmiş Ayarlar'}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Filtreler, parametreler ve analiz modelleri' : 'Filters & system parameters'}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9878,8 +9957,8 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 >
                                     <div className="mobile-sheet-icon-wrap admin">🛡️</div>
                                     <div className="mobile-sheet-info">
-                                        <div className="mobile-sheet-name">{lang === 'tr' ? 'Admin Kontrol Paneli' : (lang === 'de' ? 'Admin-Panel' : 'Admin Control Panel')}</div>
-                                        <div className="mobile-sheet-sub">{lang === 'tr' ? 'Sistem, kullanıcı ve lisans yönetimi' : (lang === 'de' ? 'System- & Nutzerverwaltung' : 'System & user management')}</div>
+                                        <div className="mobile-sheet-name">{lang === 'tr' ? 'Admin Kontrol Paneli' : (lang === 'de' ? 'Admin-Panel' : 'Admin Control Panel')} <span style={{ background: '#f59e0b', color: '#000', fontSize: '0.62rem', padding: '1px 5px', borderRadius: '4px', fontWeight: 900 }}>ROOT</span></div>
+                                        <div className="mobile-sheet-sub">{lang === 'tr' ? 'Sistem, kullanıcı ve lisans yönetimi' : 'System & user management'}</div>
                                     </div>
                                     <span className="mobile-sheet-arrow">›</span>
                                 </button>
@@ -9893,7 +9972,7 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                                 <div className="mobile-sheet-icon-wrap legal">⚖️</div>
                                 <div className="mobile-sheet-info">
                                     <div className="mobile-sheet-name">{lang === 'tr' ? 'Yasal Bilgi & Şartlar' : (lang === 'de' ? 'Rechtliche Hinweise' : 'Legal & Terms')}</div>
-                                    <div className="mobile-sheet-sub">{lang === 'tr' ? 'Sorumlu oyun & kullanım kuralları' : (lang === 'de' ? 'Verantwortungsvolles Spielen' : 'Responsible gaming & terms')}</div>
+                                    <div className="mobile-sheet-sub">{lang === 'tr' ? '7258 sayılı kanun uyumluluğu, sorumlu oyun & şartlar' : 'Compliance, responsible gaming & terms'}</div>
                                 </div>
                                 <span className="mobile-sheet-arrow">›</span>
                             </button>
@@ -9914,6 +9993,9 @@ export const Dashboard = ({ user, userProfile, onLogout, onExpire, lang, setLang
                         return opp?.level === 'ALEV' || (opp?.score || 0) >= 75;
                     }).length}
                     lang={lang}
+                    onToggleMenu={() => setShowMobileMoreMenu(prev => !prev)}
+                    isMenuOpen={showMobileMoreMenu}
+                    isAdmin={isAdmin || userProfile?.plan === 'admin'}
                 />
             )}
         </div >

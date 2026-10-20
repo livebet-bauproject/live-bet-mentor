@@ -44,7 +44,7 @@ export const FAQ = ({ onClose, lang = 'tr', mode = 'live' }) => {
             onClick={onClose}
             style={{
                 background: 'rgba(3, 7, 18, 0.98)',
-                zIndex: 5000,
+                zIndex: 20000,
                 backdropFilter: 'blur(30px)',
                 WebkitBackdropFilter: 'blur(30px)'
             }}

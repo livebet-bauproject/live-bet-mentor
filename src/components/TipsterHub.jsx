@@ -8,8 +8,13 @@ export const TipsterHub = ({ lang = 'tr', userProfile = null, onOpenVipModal, on
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState('FEED'); // 'FEED' | 'LEADERBOARD'
 
-    // View & Filter States (Default: Bloomberg-style high-density Terminal Table)
-    const [viewMode, setViewMode] = useState('TERMINAL'); // 'TERMINAL' | 'CARDS'
+    // View & Filter States (Default: CARDS on mobile <= 768px, TERMINAL table on desktop)
+    const [viewMode, setViewMode] = useState(() => {
+        if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+            return 'CARDS';
+        }
+        return 'TERMINAL';
+    });
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'LIVE' | 'PREMATCH' | 'COMBO'
     const [filterConfidence, setFilterConfidence] = useState('ALL'); // 'ALL' | '10' | '9_PLUS'

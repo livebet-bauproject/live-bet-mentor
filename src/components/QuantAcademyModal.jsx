@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { triggerHaptic } from '../utils/haptics';
 
 export const ACADEMY_TOPICS = [
@@ -156,6 +156,13 @@ Globale Referenzmärkte reagieren in Sekunden. Trägere Buchmacher aktualisieren
 export const QuantAcademyModal = ({ isOpen, onClose, lang = 'tr' }) => {
     const [selectedTopicId, setSelectedTopicId] = useState('xg');
     const [searchQuery, setSearchQuery] = useState('');
+    const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     if (!isOpen) return null;
 
@@ -172,150 +179,222 @@ export const QuantAcademyModal = ({ isOpen, onClose, lang = 'tr' }) => {
     const activeTopic = ACADEMY_TOPICS.find(t => t.id === selectedTopicId) || ACADEMY_TOPICS[0];
 
     return (
-        <div className="academy-modal-overlay" style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(5, 10, 20, 0.88)',
-            backdropFilter: 'blur(10px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px'
-        }} onClick={onClose}>
-            <div className="academy-modal-card" style={{
-                background: 'linear-gradient(145deg, #0d1527, #0a0e1a)',
-                border: '1px solid rgba(56, 189, 248, 0.3)',
-                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(56, 189, 248, 0.15)',
-                borderRadius: '16px',
-                width: '100%',
-                maxWidth: '820px',
-                height: '85vh',
-                maxHeight: '720px',
+        <div
+            className="academy-modal-overlay"
+            style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(3, 7, 18, 0.9)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                zIndex: 100002,
                 display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                color: '#f8fafc'
-            }} onClick={e => e.stopPropagation()}>
-                
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: isMobile ? '8px' : '16px'
+            }}
+            onClick={onClose}
+        >
+            <div
+                className="academy-modal-card"
+                style={{
+                    background: 'linear-gradient(160deg, #0e172a 0%, #070d19 100%)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                    boxShadow: '0 25px 60px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.2)',
+                    borderRadius: isMobile ? '16px' : '20px',
+                    width: '100%',
+                    maxWidth: isMobile ? '100%' : '840px',
+                    height: isMobile ? '90vh' : '82vh',
+                    maxHeight: '740px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
+                    color: '#f8fafc'
+                }}
+                onClick={e => e.stopPropagation()}
+            >
                 {/* Header */}
                 <div style={{
-                    padding: '16px 20px',
+                    padding: isMobile ? '12px 14px' : '16px 20px',
                     borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                    background: 'rgba(15, 23, 42, 0.7)',
+                    background: 'rgba(15, 23, 42, 0.85)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between'
+                    justifyContent: 'space-between',
+                    flexShrink: 0
                 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span style={{ fontSize: '1.5rem' }}>🎓</span>
+                        <span style={{ fontSize: isMobile ? '1.3rem' : '1.6rem' }}>🎓</span>
                         <div>
-                            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
-                                {isTr ? 'Kuant Akademi & Canlı Bahis Sözlüğü' : (isDe ? 'Quant-Akademie & Wettlexikon' : 'Quant Academy & Betting Glossary')}
+                            <h2 style={{ margin: 0, fontSize: isMobile ? '0.95rem' : '1.15rem', fontWeight: 800, color: '#f8fafc' }}>
+                                {isTr ? 'Kuant Akademi & Sözlük' : (isDe ? 'Quant-Akademie & Wettlexikon' : 'Quant Academy & Glossary')}
                             </h2>
-                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>
-                                {isTr ? 'xG, Baskı Endeksi, Kelly Kasa Disiplini ve Poisson Modelleri' : (isDe ? 'xG, Druck-Index, Kelly-Kriterien & Poisson-Modelle' : 'Expected Goals, Pressure Index & Quant Models')}
+                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '1px' }}>
+                                {isTr ? 'xG, Baskı Endeksi, Kelly Kasa & Poisson Modelleri' : 'Expected Goals, Pressure Index & Quant Models'}
                             </div>
                         </div>
                     </div>
                     <button
+                        type="button"
                         onClick={onClose}
                         style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#94a3b8',
-                            fontSize: '1.3rem',
+                            background: 'rgba(255, 255, 255, 0.08)',
+                            border: '1px solid rgba(255, 255, 255, 0.12)',
+                            color: '#cbd5e1',
+                            fontSize: '1rem',
                             cursor: 'pointer',
-                            padding: '4px 8px'
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
                         }}
+                        aria-label="Kapat"
                     >
                         ✕
                     </button>
                 </div>
 
-                {/* Body: 2 Columns on Desktop */}
-                <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-                    
-                    {/* Sidebar / Topic List */}
+                {/* Mobile View: Top Horizontal Category Strip */}
+                {isMobile && (
                     <div style={{
-                        width: '35%',
-                        minWidth: '240px',
-                        borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-                        background: 'rgba(10, 14, 23, 0.5)',
                         display: 'flex',
-                        flexDirection: 'column'
+                        gap: '6px',
+                        overflowX: 'auto',
+                        padding: '8px 10px',
+                        background: 'rgba(10, 16, 28, 0.95)',
+                        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                        scrollbarWidth: 'none',
+                        flexShrink: 0,
+                        WebkitOverflowScrolling: 'touch'
                     }}>
-                        {/* Search Input */}
-                        <div style={{ padding: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                placeholder={isTr ? 'Kavram veya terim ara...' : (isDe ? 'Begriff suchen...' : 'Search concept...')}
-                                style={{
-                                    width: '100%',
-                                    background: 'rgba(15, 23, 42, 0.8)',
-                                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                                    borderRadius: '6px',
-                                    padding: '8px 10px',
-                                    color: '#f8fafc',
-                                    fontSize: '0.8rem',
-                                    outline: 'none',
-                                    boxSizing: 'border-box'
-                                }}
-                            />
-                        </div>
-
-                        {/* List */}
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-                            {filteredTopics.map(t => {
-                                const isSelected = t.id === activeTopic.id;
-                                return (
-                                    <button
-                                        key={t.id}
-                                        onClick={() => {
-                                            triggerHaptic('light');
-                                            setSelectedTopicId(t.id);
-                                        }}
-                                        style={{
-                                            width: '100%',
-                                            textAlign: 'left',
-                                            padding: '10px 12px',
-                                            borderRadius: '8px',
-                                            background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                                            border: isSelected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
-                                            color: isSelected ? '#38bdf8' : '#cbd5e1',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'flex-start',
-                                            gap: '8px',
-                                            marginBottom: '4px',
-                                            transition: 'all 0.15s ease'
-                                        }}
-                                    >
-                                        <span style={{ fontSize: '1rem' }}>{t.icon}</span>
-                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                            <div style={{ fontSize: '0.82rem', fontWeight: isSelected ? 800 : 600, lineHeight: 1.3 }}>
-                                                {t.title[lang] || t.title.tr}
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        {filteredTopics.map(t => {
+                            const isSelected = t.id === activeTopic.id;
+                            const titleShort = (t.title[lang] || t.title.tr).split('(')[0].trim();
+                            return (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => {
+                                        triggerHaptic('light');
+                                        setSelectedTopicId(t.id);
+                                    }}
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                        padding: '6px 12px',
+                                        borderRadius: '20px',
+                                        background: isSelected ? 'linear-gradient(135deg, rgba(2, 132, 199, 0.35), rgba(56, 189, 248, 0.2))' : 'rgba(255, 255, 255, 0.04)',
+                                        border: isSelected ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.08)',
+                                        color: isSelected ? '#38bdf8' : '#94a3b8',
+                                        fontSize: '0.72rem',
+                                        fontWeight: isSelected ? 800 : 600,
+                                        whiteSpace: 'nowrap',
+                                        cursor: 'pointer',
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    <span>{t.icon}</span>
+                                    <span>{titleShort}</span>
+                                </button>
+                            );
+                        })}
                     </div>
+                )}
 
-                    {/* Content Detail Panel */}
+                {/* Body Content */}
+                <div style={{
+                    display: 'flex',
+                    flex: 1,
+                    overflow: 'hidden',
+                    flexDirection: isMobile ? 'column' : 'row'
+                }}>
+                    {/* Desktop Sidebar */}
+                    {!isMobile && (
+                        <div style={{
+                            width: '35%',
+                            minWidth: '240px',
+                            borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+                            background: 'rgba(10, 14, 23, 0.5)',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}>
+                            {/* Search Input */}
+                            <div style={{ padding: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    placeholder={isTr ? 'Kavram veya terim ara...' : 'Search concept...'}
+                                    style={{
+                                        width: '100%',
+                                        background: 'rgba(15, 23, 42, 0.8)',
+                                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                                        borderRadius: '6px',
+                                        padding: '8px 10px',
+                                        color: '#f8fafc',
+                                        fontSize: '0.8rem',
+                                        outline: 'none',
+                                        boxSizing: 'border-box'
+                                    }}
+                                />
+                            </div>
+
+                            {/* List */}
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+                                {filteredTopics.map(t => {
+                                    const isSelected = t.id === activeTopic.id;
+                                    return (
+                                        <button
+                                            key={t.id}
+                                            type="button"
+                                            onClick={() => {
+                                                triggerHaptic('light');
+                                                setSelectedTopicId(t.id);
+                                            }}
+                                            style={{
+                                                width: '100%',
+                                                textAlign: 'left',
+                                                padding: '10px 12px',
+                                                borderRadius: '8px',
+                                                background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                                border: isSelected ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                                                color: isSelected ? '#38bdf8' : '#cbd5e1',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'flex-start',
+                                                gap: '8px',
+                                                marginBottom: '4px',
+                                                transition: 'all 0.15s ease'
+                                            }}
+                                        >
+                                            <span style={{ fontSize: '1rem' }}>{t.icon}</span>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ fontSize: '0.82rem', fontWeight: isSelected ? 800 : 600, lineHeight: 1.3 }}>
+                                                    {t.title[lang] || t.title.tr}
+                                                </div>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Content Detail Panel (Full width on mobile, 65% on desktop) */}
                     <div style={{
                         flex: 1,
                         overflowY: 'auto',
-                        padding: '24px 28px',
+                        padding: isMobile ? '16px 14px' : '24px 28px',
                         background: 'rgba(13, 21, 39, 0.4)',
                         lineHeight: '1.65'
                     }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-                            <span style={{ fontSize: '2rem' }}>{activeTopic.icon}</span>
-                            <h3 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 800, color: '#f8fafc' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                            <span style={{ fontSize: isMobile ? '1.5rem' : '2rem' }}>{activeTopic.icon}</span>
+                            <h3 style={{ margin: 0, fontSize: isMobile ? '1.05rem' : '1.3rem', fontWeight: 800, color: '#f8fafc', lineHeight: 1.3 }}>
                                 {activeTopic.title[lang] || activeTopic.title.tr}
                             </h3>
                         </div>
@@ -323,28 +402,32 @@ export const QuantAcademyModal = ({ isOpen, onClose, lang = 'tr' }) => {
                         <div style={{
                             background: 'rgba(56, 189, 248, 0.08)',
                             borderLeft: '4px solid #38bdf8',
-                            padding: '10px 14px',
+                            padding: '10px 12px',
                             borderRadius: '0 8px 8px 0',
-                            fontSize: '0.88rem',
+                            fontSize: isMobile ? '0.8rem' : '0.88rem',
                             color: '#93c5fd',
-                            marginBottom: '20px'
+                            marginBottom: '16px',
+                            lineHeight: 1.5
                         }}>
-                            💡 <strong>{isTr ? 'Özet:' : (isDe ? 'Zusammenfassung:' : 'Summary:')}</strong> {activeTopic.summary[lang] || activeTopic.summary.tr}
+                            💡 <strong>{isTr ? 'Özet:' : 'Summary:'}</strong> {activeTopic.summary[lang] || activeTopic.summary.tr}
                         </div>
 
                         <div style={{
-                            fontSize: '0.92rem',
+                            fontSize: isMobile ? '0.85rem' : '0.92rem',
                             color: '#e2e8f0',
-                            whiteSpace: 'pre-wrap'
+                            whiteSpace: 'pre-wrap',
+                            lineHeight: 1.6
                         }}>
                             {activeTopic.content[lang] || activeTopic.content.tr}
                         </div>
 
                         {/* Back to Terminal Action */}
-                        <div style={{ marginTop: '30px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px' }}>
+                        <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '14px' }}>
                             <button
+                                type="button"
                                 onClick={onClose}
                                 style={{
+                                    width: isMobile ? '100%' : 'auto',
                                     background: 'linear-gradient(135deg, #0284c7, #0369a1)',
                                     border: 'none',
                                     borderRadius: '8px',
@@ -355,11 +438,12 @@ export const QuantAcademyModal = ({ isOpen, onClose, lang = 'tr' }) => {
                                     cursor: 'pointer',
                                     display: 'inline-flex',
                                     alignItems: 'center',
+                                    justifyContent: 'center',
                                     gap: '6px'
                                 }}
                             >
                                 <span>⚡</span>
-                                <span>{isTr ? 'Canlı Terminalde Fırsatları İzle' : (isDe ? 'Chancen im Live-Terminal verfolgen' : 'Watch Live Terminal Opportunities')}</span>
+                                <span>{isTr ? 'Terminale Dön' : 'Back to Terminal'}</span>
                             </button>
                         </div>
                     </div>
