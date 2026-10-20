@@ -8,6 +8,15 @@ logger = logging.getLogger(__name__)
 BIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
 DRIVER_PATH = os.path.join(BIN_DIR, 'chromedriver.exe')
 
+def purge_cached_chromedriver():
+    """Purge cached binary to force a clean re-download on version mismatch."""
+    try:
+        if os.path.exists(DRIVER_PATH):
+            os.remove(DRIVER_PATH)
+            logger.info(f"Purged cached driver at {DRIVER_PATH}")
+    except Exception as e:
+        logger.debug(f"Could not purge {DRIVER_PATH}: {e}")
+
 def get_chromedriver_path():
     """Ensure an up-to-date patched ChromeDriver matching the installed Chrome version."""
     os.makedirs(BIN_DIR, exist_ok=True)

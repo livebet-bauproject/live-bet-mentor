@@ -314,7 +314,13 @@ app.get('/api/debug', async (req, res) => {
     const logPath = path.join(__dirname, 'scraper.log');
     if (fs.existsSync(logPath)) {
         try {
-            const logs = fs.readFileSync(logPath, 'utf8').trim().split('\n');
+            const stat = fs.statSync(logPath);
+            const bufferSize = Math.min(stat.size, 65536);
+            const buffer = Buffer.alloc(bufferSize);
+            const fd = fs.openSync(logPath, 'r');
+            fs.readSync(fd, buffer, 0, bufferSize, Math.max(0, stat.size - bufferSize));
+            fs.closeSync(fd);
+            const logs = buffer.toString('utf8').trim().split('\n');
             scraperLogTail = logs.slice(-10);
         } catch(e) {}
     }
@@ -586,10 +592,34 @@ function pruneStatsDirectory() {
     }
 }
 
+// Log file rotation: prevents scraper.log or proxy.log from ballooning beyond 3MB
+function truncateLargeLogs() {
+    const logs = ['scraper.log', 'proxy.log'];
+    for (const logName of logs) {
+        const fullPath = path.join(__dirname, logName);
+        try {
+            if (fs.existsSync(fullPath)) {
+                const stat = fs.statSync(fullPath);
+                if (stat.size > 3 * 1024 * 1024) {
+                    const keepBytes = 512 * 1024; // keep last 512 KB
+                    const buffer = Buffer.alloc(keepBytes);
+                    const fd = fs.openSync(fullPath, 'r');
+                    fs.readSync(fd, buffer, 0, keepBytes, stat.size - keepBytes);
+                    fs.closeSync(fd);
+                    fs.writeFileSync(fullPath, buffer);
+                    console.log(`[PRUNE] Truncated large log ${logName} from ${(stat.size / 1024 / 1024).toFixed(1)}MB to 512KB.`);
+                }
+            }
+        } catch (e) {}
+    }
+}
+
 // Run periodic cleanup
 setInterval(pruneMemoryStatsCache, 5 * 60 * 1000); // Every 5 minutes
 setInterval(pruneStatsDirectory, 30 * 60 * 1000); // Every 30 minutes
+setInterval(truncateLargeLogs, 60 * 60 * 1000); // Every 1 hour
 setTimeout(pruneStatsDirectory, 10000); // Initial disk prune on start
+setTimeout(truncateLargeLogs, 15000); // Initial log prune on start
 
 // Periodic health & memory log
 setInterval(() => {
@@ -4880,6 +4910,18 @@ async function nodeDataLoop() {
 let scraperProcess = null;
 const IS_CLOUD = !fs.existsSync(path.join(__dirname, '..', '.env')) || process.env.RENDER === 'true' || process.env.RENDER_EXTERNAL_URL;
 
+function killOrphanProcesses() {
+    const isWin = process.platform === 'win32';
+    try {
+        if (isWin) {
+            spawnSync('taskkill', ['/F', '/IM', 'chromedriver.exe', '/T'], { timeout: 3000 });
+            spawnSync('taskkill', ['/F', '/IM', 'undetected_chromedriver.exe', '/T'], { timeout: 3000 });
+        } else {
+            spawnSync('killall', ['-9', 'chromedriver'], { timeout: 3000 });
+        }
+    } catch (e) {}
+}
+
 function startScraper() {
     if (IS_CLOUD) {
         console.log('[PROXY] Cloud environment detected. Checking Python dependencies...');
@@ -4934,9 +4976,9 @@ function startScraper() {
         });
 
         scraperProcess.on('close', (code) => {
-            console.log(`[PROXY] Scraper process exited with code ${code}. Restarting in 5s...`);
+            console.log(`[PROXY] Scraper process exited with code ${code}. Cleaning zombie drivers and restarting in 5s...`);
             scraperProcess = null;
-            // Immediate fallback: trigger Node fetcher right now so data is never interrupted!
+            killOrphanProcesses();
             fetchSofaScoreLiveNode().catch(() => {});
             setTimeout(startScraper, 5000);
         });
@@ -5136,15 +5178,15 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
     // 24/7 Autonomous In-Play Quant Signal Engine with Self-Healing Wire-Up
     if (autonomousSignalEngine.watchdog) {
         autonomousSignalEngine.watchdog.onStalledCallback = () => {
-            console.warn('[SELF-HEALING] 🔄 Watchdog triggered scraper recovery!');
+            console.warn('[SELF-HEALING] 🔄 Watchdog triggered scraper recovery! Cleaning zombie processes and restarting...');
             if (scraperProcess) {
                 try {
                     scraperProcess.kill('SIGKILL');
                 } catch (e) {}
+                scraperProcess = null;
             }
-            if (typeof fetchSofaScoreLiveNode === 'function') {
-                fetchSofaScoreLiveNode().catch(() => {});
-            }
+            killOrphanProcesses();
+            setTimeout(startScraper, 3000);
         };
     }
     autonomousSignalEngine.start(25);

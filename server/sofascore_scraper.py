@@ -2,8 +2,14 @@ import time
 import json
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 import requests
 import sys
+import random
+import platform
+import subprocess
+import shutil
+import tempfile
 
 SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
 if SERVER_DIR not in sys.path:
@@ -13,16 +19,17 @@ import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
-# Centralized Logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(os.path.join(SERVER_DIR, "scraper.log"), encoding='utf-8'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# Centralized Logging with max 2MB rotation (prevents runaway disk and memory bloat)
+log_path = os.path.join(SERVER_DIR, "scraper.log")
+rotating_handler = RotatingFileHandler(log_path, maxBytes=2*1024*1024, backupCount=2, encoding='utf-8')
+rotating_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+
+stream_handler = logging.StreamHandler()
+stream_handler.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(message)s'))
+
+logger = logging.getLogger("SofaScoreScraper")
+logger.setLevel(logging.INFO)
+logger.handlers = [rotating_handler, stream_handler]
 
 # Constants
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -309,24 +316,106 @@ def process_request_queue(driver, max_count=10):
     except Exception as e:
         logger.debug(f"[ON-DEMAND] Queue processing info: {e}")
 
+def kill_zombie_chrome_processes():
+    """Aggressively kill all orphaned chromedriver and unattached scraper processes."""
+    is_win = platform.system().lower().startswith('win')
+    try:
+        if is_win:
+            subprocess.run(["taskkill", "/F", "/IM", "chromedriver.exe", "/T"], capture_output=True, timeout=5)
+            subprocess.run(["taskkill", "/F", "/IM", "undetected_chromedriver.exe", "/T"], capture_output=True, timeout=5)
+        else:
+            subprocess.run(["killall", "-9", "chromedriver"], capture_output=True, timeout=5)
+    except Exception as e:
+        logger.debug(f"Zombie process cleanup note: {e}")
+
+def safe_quit_driver(driver):
+    """Safely and completely terminate Chrome driver and its specific browser process."""
+    if not driver:
+        return
+    browser_pid = getattr(driver, 'browser_pid', None)
+    service_pid = getattr(getattr(driver, 'service', None), 'process', None)
+    service_pid = service_pid.pid if service_pid else None
+    
+    try:
+        driver.quit()
+    except Exception as e:
+        logger.debug(f"driver.quit() exception ignored: {e}")
+        
+    is_win = platform.system().lower().startswith('win')
+    for pid in [browser_pid, service_pid]:
+        if pid:
+            try:
+                if is_win:
+                    subprocess.run(["taskkill", "/F", "/PID", str(pid), "/T"], capture_output=True, timeout=3)
+                else:
+                    os.kill(pid, 9)
+            except Exception:
+                pass
+
 def clean_chromedriver_cache():
-    """Clean undetected_chromedriver cache to fix FileExistsError lock issues."""
-    import shutil
+    """Clean undetected_chromedriver cache and temporary lock files to fix lock issues."""
     try:
         cache_dir = os.path.join(os.environ.get('APPDATA', ''), 'undetected_chromedriver')
-        undetected_dir = os.path.join(cache_dir, 'undetected')
-        if os.path.exists(undetected_dir):
-            shutil.rmtree(undetected_dir, ignore_errors=True)
-            logger.info("Cleaned chromedriver cache directory")
+        if os.path.exists(cache_dir):
+            shutil.rmtree(cache_dir, ignore_errors=True)
+            logger.info("Cleaned undetected_chromedriver cache directory")
     except Exception as e:
         logger.warning(f"Failed to clean cache: {e}")
+        
+    try:
+        temp_dir = tempfile.gettempdir()
+        for item in os.listdir(temp_dir):
+            if item.startswith('.org.chromium.Chromium') or item.startswith('undetected_') or item.startswith('scoped_dir'):
+                p = os.path.join(temp_dir, item)
+                try:
+                    if os.path.isdir(p):
+                        shutil.rmtree(p, ignore_errors=True)
+                    else:
+                        os.remove(p)
+                except Exception:
+                    pass
+    except Exception:
+        pass
 
 def get_scraper():
-    """Get Chrome driver using patched ChromeDriver 152 with fallback."""
+    """Get Chrome driver using undetected_chromedriver with anti-crash, memory-saving flags."""
     from driver_helper import get_chromedriver_path
     driver_path = get_chromedriver_path()
     
-    # Priority 1: Direct Selenium with patched ChromeDriver 152 (Fast, rock-solid, zero port conflicts)
+    # Pre-launch hygiene: ensure no port conflicts or stale locks
+    kill_zombie_chrome_processes()
+    clean_chromedriver_cache()
+    
+    # Priority 1: undetected_chromedriver (Bypasses Cloudflare Turnstile/Bot Protection)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            options = uc.ChromeOptions()
+            options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
+            options.add_argument('--window-position=-32000,-32000')
+            options.add_argument('--window-size=1200,800')
+            options.add_argument('--no-sandbox')
+            options.add_argument('--disable-dev-shm-usage')
+            options.add_argument('--disable-gpu')
+            options.add_argument('--disable-background-networking')
+            options.add_argument('--disable-background-timer-throttling')
+            options.add_argument('--disable-backgrounding-occluded-windows')
+            options.add_argument('--disable-breakpad')
+            options.add_argument('--disable-component-update')
+            options.add_argument('--disable-features=Translate,OptimizationHints,MediaRouter')
+            
+            logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1})...")
+            driver = uc.Chrome(options=options, driver_executable_path=driver_path, use_subprocess=True)
+            return driver
+        except Exception as e:
+            logger.warning(f"SofaScore Driver Launch Error (attempt {attempt + 1}): {e}")
+            clean_chromedriver_cache()
+            kill_zombie_chrome_processes()
+            time.sleep(3 * (attempt + 1))
+            if attempt == max_retries - 1:
+                logger.warning("All uc launch attempts exhausted, attempting standard Selenium fallback...")
+
+    # Priority 2: Direct Selenium fallback
     try:
         from selenium import webdriver
         from selenium.webdriver.chrome.service import Service
@@ -344,37 +433,18 @@ def get_scraper():
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
         
         service = Service(executable_path=driver_path)
-        logger.info("Launching SofaScore Browser via Patched ChromeDriver with Cloudflare bypass...")
+        logger.info("Launching SofaScore Browser via Fallback ChromeDriver...")
         driver = webdriver.Chrome(service=service, options=options)
         return driver
     except Exception as e:
-        logger.warning(f"Standard Selenium launch failed: {e}, trying undetected_chromedriver fallback...")
-
-    # Priority 2: undetected_chromedriver fallback
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            options = uc.ChromeOptions()
-            options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
-            options.add_argument('--window-position=-32000,-32000')
-            options.add_argument('--window-size=1200,800')
-            options.add_argument('--no-sandbox')
-            options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-gpu')
-            
-            logger.info(f"Launching SofaScore Browser (uc fallback attempt {attempt + 1})...")
-            driver = uc.Chrome(options=options, driver_executable_path=driver_path, use_subprocess=True)
-            return driver
-        except Exception as e:
-            logger.warning(f"SofaScore Driver Error (attempt {attempt + 1}): {e}")
-            clean_chromedriver_cache()
-            time.sleep(5)
-            if attempt == max_retries - 1:
-                raise
+        logger.error(f"Fallback Selenium launch also failed: {e}")
+        raise
 
 def _run_capture_session():
     driver = None
     last_restart_time = time.time()
+    last_successful_save = time.time()
+    last_page_refresh = time.time()
     
     try:
         driver = get_scraper()
@@ -384,24 +454,45 @@ def _run_capture_session():
         time.sleep(6)
         
         last_live_fetch = 0
-        last_page_refresh = time.time()
         last_stats_fetch = 0
         stats_batch_index = 0
 
         while True:
-            # WATCHDOG: Restart browser every 30 minutes to stay fresh and avoid detection patterns
-            if time.time() - last_restart_time > 1800:
-                logger.info("[WATCHDOG] 30 minutes passed. Restarting browser for fresh session...")
-                if driver: driver.quit()
-                driver = get_scraper()
-                driver.get(url)
-                time.sleep(15)
-                last_restart_time = time.time()
+            # 1. Soft DOM Refresh every 15 minutes: Keeps Turnstile cookies fresh without closing Chrome
+            if time.time() - last_page_refresh > 900:
+                logger.info("[SESSION] 15 minutes passed: Soft DOM refresh to keep session fresh...")
+                try:
+                    driver.get(url)
+                    time.sleep(4)
+                except Exception as e:
+                    logger.warning(f"[SESSION] DOM refresh notice: {e}")
                 last_page_refresh = time.time()
 
+            # 2. Hard Browser Rotation: Only after 4 continuous hours OR if data has stalled for > 180 seconds
+            session_age = time.time() - last_restart_time
+            data_stalled = (last_successful_save > 0) and (time.time() - last_successful_save > 180)
+            
+            if session_age > 14400 or data_stalled:
+                reason = "4-hour routine rotation" if session_age > 14400 else "Data stalled for > 3 minutes"
+                logger.info(f"[SESSION] Triggering clean browser rotation ({reason})...")
+                safe_quit_driver(driver)
+                driver = None
+                clean_chromedriver_cache()
+                kill_zombie_chrome_processes()
+                time.sleep(3)
+                driver = get_scraper()
+                driver.get(url)
+                time.sleep(8)
+                last_restart_time = time.time()
+                last_page_refresh = time.time()
+                last_successful_save = time.time()
+
             # Main Capture Logic...
-            # Check for generic event fetch requests or specific detail requests
-            logs = driver.get_log('performance')
+            # Safely capture performance logs without throwing if disconnected
+            try:
+                logs = driver.get_log('performance')
+            except Exception:
+                logs = []
             
             for entry in logs:
                 try:
@@ -496,7 +587,8 @@ def _run_capture_session():
                 except Exception:
                     continue
             
-            if time.time() - last_live_fetch > LIVE_FETCH_INTERVAL:
+            fetch_jitter = random.uniform(0.5, 2.5)
+            if time.time() - last_live_fetch > (LIVE_FETCH_INTERVAL + fetch_jitter):
                 logger.info(f"Periodic fetch for LIVE_LIST (TS: {int(time.time())})")
                 
                 try:
@@ -518,7 +610,15 @@ def _run_capture_session():
                     result = driver.execute_async_script(script_live)
                     
                     if result and result.get('status') == 'success':
-                        json_data = filter_live_events(result.get('data'))
+                        raw_data = result.get('data')
+                        if isinstance(raw_data, dict) and ('error' in raw_data or 'events' not in raw_data):
+                            err_info = raw_data.get('error', 'challenge')
+                            logger.warning(f"[JS-FETCH] Cloudflare challenge or API block ({err_info}). Reloading page to resolve Turnstile...")
+                            driver.get(url)
+                            time.sleep(8)
+                            continue
+
+                        json_data = filter_live_events(raw_data)
                         target_path = DATA_FILE
                         with open(target_path, 'w', encoding='utf-8') as f:
                             json.dump(json_data, f)
@@ -530,17 +630,28 @@ def _run_capture_session():
                         except:
                             pass
                             
-                        logger.info(f"[JS-FETCH] Captured LIVE_LIST directly -> {target_path} ({len(json_data.get('events', []))} clean events)")
+                        clean_count = len(json_data.get('events', []))
+                        logger.info(f"[JS-FETCH] Captured LIVE_LIST directly -> {target_path} ({clean_count} clean events)")
                         last_live_fetch = time.time()
+                        if clean_count > 0:
+                            last_successful_save = time.time()
                     else:
-                        logger.warning(f"[JS-FETCH] Live List Failed: {result.get('message')}")
+                        errMsg = str(result.get('message', '')) if result else 'null'
+                        logger.warning(f"[JS-FETCH] Live List Failed: {errMsg}")
+                        if '403' in errMsg or 'challenge' in errMsg.lower():
+                            logger.warning("[JS-FETCH] 403 Challenge detected! Reloading page...")
+                            driver.get(url)
+                            time.sleep(8)
                         
                 except Exception as e:
                     logger.error(f"[JS-FETCH] Live List Exception: {e}")
                     
                 # Short sleep to prevent busy loop if intervals are small
                 time.sleep(1)
-                logs = driver.get_log('performance')
+                try:
+                    logs = driver.get_log('performance')
+                except Exception:
+                    logs = []
                 captured = False
                 for entry in logs:
                     try:
@@ -567,8 +678,11 @@ def _run_capture_session():
                                         except:
                                             pass
 
-                                        logger.info(f"Captured LIVE_LIST -> {DATA_FILE} ({len(json_data.get('events', []))} clean events)")
+                                        clean_count = len(json_data.get('events', []))
+                                        logger.info(f"Captured LIVE_LIST -> {DATA_FILE} ({clean_count} clean events)")
                                         captured = True
+                                        if clean_count > 0:
+                                            last_successful_save = time.time()
                                         break
                     except:
                         continue
@@ -576,12 +690,6 @@ def _run_capture_session():
                 if not captured:
                     fetch_live_list_directly()
                 last_live_fetch = time.time()
-
-            if time.time() - last_page_refresh > 600:
-                logger.info("Safety net: Refreshing page...")
-                driver.refresh()
-                time.sleep(10)
-                last_page_refresh = time.time()
 
             # Check on-demand user request queue first
             process_request_queue(driver, max_count=10)
@@ -691,18 +799,20 @@ def _run_capture_session():
         time.sleep(5)
     finally:
         if driver:
-            try:
-                driver.quit()
-            except:
-                pass
+            safe_quit_driver(driver)
+            driver = None
 
 def capture_sofascore():
     """Autonomous 24/7 self-healing scraper driver with zero-crash recovery."""
+    kill_zombie_chrome_processes()
+    clean_chromedriver_cache()
     while True:
         try:
             _run_capture_session()
         except Exception as e:
             logger.error(f"[SCRAPER] Recoverable session error: {e}. Auto-healing in 5s...", exc_info=True)
+            kill_zombie_chrome_processes()
+            clean_chromedriver_cache()
             time.sleep(5)
 
 if __name__ == "__main__":
