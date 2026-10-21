@@ -372,15 +372,16 @@ def safe_quit_driver(driver):
             except Exception:
                 pass
 
-def clean_chromedriver_cache():
-    """Clean undetected_chromedriver cache and temporary lock files to fix lock issues."""
-    try:
-        cache_dir = os.path.join(os.environ.get('APPDATA', ''), 'undetected_chromedriver')
-        if os.path.exists(cache_dir):
-            shutil.rmtree(cache_dir, ignore_errors=True)
-            logger.info("Cleaned undetected_chromedriver cache directory")
-    except Exception as e:
-        logger.warning(f"Failed to clean cache: {e}")
+def clean_chromedriver_cache(force_all=False):
+    """Clean temporary lock files and scoped directories from %TEMP%."""
+    if force_all:
+        try:
+            cache_dir = os.path.join(os.environ.get('APPDATA', ''), 'undetected_chromedriver')
+            if os.path.exists(cache_dir):
+                shutil.rmtree(cache_dir, ignore_errors=True)
+                logger.info("Cleaned undetected_chromedriver cache directory")
+        except Exception as e:
+            logger.warning(f"Failed to clean cache: {e}")
         
     try:
         temp_dir = tempfile.gettempdir()
@@ -399,12 +400,12 @@ def clean_chromedriver_cache():
 
 def get_scraper():
     """Get Chrome driver using undetected_chromedriver with anti-crash, memory-saving flags."""
-    from driver_helper import get_chromedriver_path
-    driver_path = get_chromedriver_path()
-    
     # Pre-launch hygiene: ensure no port conflicts or stale locks
     kill_zombie_chrome_processes()
-    clean_chromedriver_cache()
+    clean_chromedriver_cache(force_all=False)
+    
+    from driver_helper import get_installed_chrome_version
+    major_ver = get_installed_chrome_version()
     
     # Priority 1: undetected_chromedriver (Bypasses Cloudflare Turnstile/Bot Protection)
     max_retries = 3
@@ -424,14 +425,18 @@ def get_scraper():
             options.add_argument('--disable-component-update')
             options.add_argument('--disable-features=Translate,OptimizationHints,MediaRouter')
             
-            from driver_helper import get_installed_chrome_version
-            major_ver = get_installed_chrome_version()
             logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1}, Chrome v{major_ver})...")
-            driver = uc.Chrome(options=options, driver_executable_path=driver_path, version_main=major_ver, use_subprocess=True)
+            # Calling uc.Chrome with version_main and patcher_force_close uses the user AppData
+            # binary with full execution permissions and safe multi-process lock bypass.
+            driver = uc.Chrome(
+                options=options,
+                version_main=major_ver,
+                patcher_force_close=True,
+                use_subprocess=True
+            )
             return driver
         except Exception as e:
             logger.warning(f"SofaScore Driver Launch Error (attempt {attempt + 1}): {e}")
-            clean_chromedriver_cache()
             kill_zombie_chrome_processes()
             time.sleep(3 * (attempt + 1))
             if attempt == max_retries - 1:
@@ -442,7 +447,9 @@ def get_scraper():
         from selenium import webdriver
         from selenium.webdriver.chrome.service import Service
         from selenium.webdriver.chrome.options import Options
+        from driver_helper import get_chromedriver_path
         
+        driver_path = get_chromedriver_path()
         options = Options()
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         options.add_experimental_option('useAutomationExtension', False)

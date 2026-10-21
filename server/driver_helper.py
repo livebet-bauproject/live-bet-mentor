@@ -55,7 +55,7 @@ def get_chromedriver_path():
     os.makedirs(BIN_DIR, exist_ok=True)
     major_ver = get_installed_chrome_version()
     
-    # 1. Kill any zombie drivers locking the appdata binary
+    # 1. Kill any zombie drivers locking the binary
     if is_win:
         try:
             subprocess.run(["taskkill", "/F", "/IM", "chromedriver.exe", "/T"], capture_output=True, timeout=3)
@@ -63,19 +63,8 @@ def get_chromedriver_path():
         except Exception:
             pass
 
-    # 2. If appdata undetected_chromedriver.exe exists, remove it safely so WinError 183 cannot happen
-    appdata_dir = os.path.join(os.environ.get('APPDATA', ''), 'undetected_chromedriver')
-    if os.path.exists(appdata_dir):
-        for root, dirs, files in os.walk(appdata_dir):
-            for file in files:
-                if 'chromedriver' in file.lower():
-                    try:
-                        os.remove(os.path.join(root, file))
-                    except Exception:
-                        pass
-
     try:
-        patcher = uc.Patcher(version_main=major_ver) if major_ver else uc.Patcher()
+        patcher = uc.Patcher(version_main=major_ver, force=True) if major_ver else uc.Patcher(force=True)
         patcher.auto()
         detected_path = patcher.executable_path
         if detected_path and os.path.exists(detected_path):
