@@ -6,7 +6,7 @@ import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
-import { spawn, spawnSync } from 'child_process';
+import { spawn, spawnSync, execSync } from 'child_process';
 import { telegramBot } from './telegramBot.js';
 import { vipManager } from './vipManager.js';
 import { learningEngine } from './learningEngine.js';
@@ -5177,8 +5177,34 @@ app.get('/api/tunnel/url', (req, res) => {
     res.json({ ok: true, url: activeTunnelUrl || null, port: PORT });
 });
 
-// --- START SERVER ---
-const server = app.listen(PORT, '0.0.0.0', async () => {
+// --- AUTO-FREE PORT ON EADDRINUSE ---
+function freePort(port) {
+    if (process.platform === 'win32') {
+        try {
+            const out = execSync(`netstat -ano -p tcp`, { encoding: 'utf8' });
+            for (const line of out.split('\n')) {
+                if (line.includes(`:${port}`) && line.includes('LISTENING')) {
+                    const parts = line.trim().split(/\s+/);
+                    const pid = parts[parts.length - 1];
+                    if (pid && pid !== String(process.pid) && pid !== '0') {
+                        console.log(`[PROXY] 🧹 Freeing port ${port} by terminating stale process (PID: ${pid})...`);
+                        try { execSync(`taskkill /F /PID ${pid} /T`, { stdio: 'ignore' }); } catch (e) {}
+                    }
+                }
+            }
+        } catch (e) {}
+    } else {
+        try { execSync(`fuser -k ${port}/tcp`, { stdio: 'ignore' }); } catch (e) {}
+    }
+}
+
+// Clean any dangling process on PORT before binding
+freePort(PORT);
+
+let serverInitialized = false;
+async function onServerStarted() {
+    if (serverInitialized) return;
+    serverInitialized = true;
     console.log(`[PROXY SERVER] Running on http://0.0.0.0:${PORT} (accessible from network)`);
     console.log(`[PROXY] Environment: ${IS_CLOUD ? 'CLOUD (Render)' : 'LOCAL'}`);
 
@@ -5393,15 +5419,18 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
             setInterval(syncToCloud, 15000); // Then every 15 seconds
         }, 20000);
     }
-});
+}
+
+const server = app.listen(PORT, '0.0.0.0', onServerStarted);
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
-        console.warn(`[PROXY] Port ${PORT} busy (EADDRINUSE), retrying in 2 seconds...`);
+        console.warn(`[PROXY] Port ${PORT} busy (EADDRINUSE). Attempting to auto-kill stale process holding port ${PORT}...`);
+        freePort(PORT);
         setTimeout(() => {
             try { server.close(); } catch(e) {}
-            server.listen(PORT, '0.0.0.0');
-        }, 2000);
+            server.listen(PORT, '0.0.0.0', onServerStarted);
+        }, 1500);
     } else {
         console.error('[PROXY] Server listen error:', err.message);
     }

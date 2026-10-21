@@ -35,6 +35,10 @@ taskkill /F /IM chrome.exe /T >nul 2>&1
 taskkill /F /IM chromedriver.exe /T >nul 2>&1
 taskkill /F /IM undetected_chromedriver.exe /T >nul 2>&1
 taskkill /F /IM cloudflared.exe /T >nul 2>&1
+
+REM Port 3001 ve 5173'ü dinleyen eski süreçleri serbest bırak
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %%a >nul 2>&1
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5173 ^| findstr LISTENING') do taskkill /F /PID %%a >nul 2>&1
 timeout /t 2 /nobreak >nul
 
 del /q /f /s "%TEMP%\.org.chromium.*" >nul 2>&1
