@@ -19,6 +19,16 @@ import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
+# Suppress harmless WinError 6 on garbage collection
+_orig_del = getattr(uc.Chrome, '__del__', None)
+def _safe_del(self):
+    try:
+        if _orig_del:
+            _orig_del(self)
+    except Exception:
+        pass
+uc.Chrome.__del__ = _safe_del
+
 # Centralized Logging with max 2MB rotation (prevents runaway disk and memory bloat)
 log_path = os.path.join(SERVER_DIR, "scraper.log")
 rotating_handler = RotatingFileHandler(log_path, maxBytes=2*1024*1024, backupCount=2, encoding='utf-8')
@@ -414,8 +424,10 @@ def get_scraper():
             options.add_argument('--disable-component-update')
             options.add_argument('--disable-features=Translate,OptimizationHints,MediaRouter')
             
-            logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1})...")
-            driver = uc.Chrome(options=options, driver_executable_path=driver_path, use_subprocess=True)
+            from driver_helper import get_installed_chrome_version
+            major_ver = get_installed_chrome_version()
+            logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1}, Chrome v{major_ver})...")
+            driver = uc.Chrome(options=options, driver_executable_path=driver_path, version_main=major_ver, use_subprocess=True)
             return driver
         except Exception as e:
             logger.warning(f"SofaScore Driver Launch Error (attempt {attempt + 1}): {e}")
