@@ -19,7 +19,7 @@ if not exist "%USERPROFILE%\Desktop\Sistemi Guncelle ve Baslat.lnk" (
 
 echo [1/3] 📡 GitHub'dan en son güncellemeler alınıyor ve senkronize ediliyor...
 git fetch origin main
-git pull origin main
+git reset --hard origin/main
 echo.
 echo [2/3] 🧹 Eski askıda kalan süreçler ve bellek temizleniyor...
 taskkill /F /IM python.exe /T >nul 2>&1

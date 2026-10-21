@@ -26,7 +26,7 @@ if errorlevel 1 (
 REM 1.5. Kod Guncellemesi ve GitHub Senkronizasyonu
 echo [Git] GitHub'dan en son güncellemeler alınıyor...
 git fetch origin main >nul 2>&1
-git pull origin main
+git reset --hard origin/main
 
 echo [2/4] Eski cache, askıda kalan Chrome ve sarkan süreçler temizleniyor...
 taskkill /F /IM python.exe /T >nul 2>&1
