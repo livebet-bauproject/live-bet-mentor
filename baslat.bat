@@ -24,19 +24,21 @@ if errorlevel 1 (
 )
 
 REM 1.5. Kod Guncellemesi ve GitHub Senkronizasyonu
-echo [Git] Kodlar GitHub'a gonderiliyor ve canli site guncelleniyor...
-git add src/ server/ index.html package.json update_and_start.bat baslat.bat >nul 2>&1
-git commit -m "auto: sync live system updates" >nul 2>&1
-git push origin main
-git pull origin main >nul 2>&1
+echo [Git] GitHub'dan en son güncellemeler alınıyor...
+git fetch origin main >nul 2>&1
+git pull origin main
 
-echo [2/4] Eski cache ve sarkan surecler temizleniyor...
+echo [2/4] Eski cache, askıda kalan Chrome ve sarkan süreçler temizleniyor...
 taskkill /F /IM python.exe /T >nul 2>&1
 taskkill /F /IM node.exe /T >nul 2>&1
+taskkill /F /IM chrome.exe /T >nul 2>&1
 taskkill /F /IM chromedriver.exe /T >nul 2>&1
 taskkill /F /IM undetected_chromedriver.exe /T >nul 2>&1
 taskkill /F /IM cloudflared.exe /T >nul 2>&1
 timeout /t 2 /nobreak >nul
+
+del /q /f /s "%TEMP%\.org.chromium.*" >nul 2>&1
+del /q /f /s "%TEMP%\scoped_dir*" >nul 2>&1
 
 if exist "node_modules\.vite" (
     rmdir /s /q "node_modules\.vite" >nul 2>&1

@@ -17,17 +17,18 @@ if not exist "%USERPROFILE%\Desktop\Sistemi Guncelle ve Baslat.lnk" (
     powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\Sistemi Guncelle ve Baslat.lnk'); $s.TargetPath = '%~dp0update_and_start.bat'; $s.WorkingDirectory = '%~dp0'; $s.Save()" >nul 2>&1
 )
 
-echo [1/3] 📡 Yeni kodlar GitHub'a yükleniyor ve senkronize ediliyor...
-git add src/ server/ index.html package.json update_and_start.bat baslat.bat >nul 2>&1
-git commit -m "auto: sync live system updates" >nul 2>&1
-git push origin main
-if errorlevel 1 (
-    echo.
-    echo [UYARI] GitHub senkronizasyonu tamamlanamadi veya zaten guncel.
-) else (
-    echo.
-    echo [2/3] ✅ Sistem ve Canlı Site (livebetmentor.com) başarıyla güncellendi!
-)
+echo [1/3] 📡 GitHub'dan en son güncellemeler alınıyor ve senkronize ediliyor...
+git fetch origin main
+git pull origin main
+echo.
+echo [2/3] 🧹 Eski askıda kalan süreçler ve bellek temizleniyor...
+taskkill /F /IM python.exe /T >nul 2>&1
+taskkill /F /IM node.exe /T >nul 2>&1
+taskkill /F /IM chrome.exe /T >nul 2>&1
+taskkill /F /IM chromedriver.exe /T >nul 2>&1
+taskkill /F /IM undetected_chromedriver.exe /T >nul 2>&1
+taskkill /F /IM cloudflared.exe /T >nul 2>&1
+timeout /t 2 /nobreak >nul
 echo.
 echo [3/3] 🚀 7/24 Otonom Sunucu ve Telegram VIP Motoru Başlatılıyor...
 echo =====================================================================
