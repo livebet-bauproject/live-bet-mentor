@@ -197,20 +197,19 @@ def fetch_live_list_directly():
 def fetch_stats_via_js(driver, match_id):
     """Fallback: Fetch match statistics and details using browser's JS fetch (bypasses 403 & CDP issues)."""
     try:
-        # 30 saniye timeout ile async script çalıştır
-        driver.set_script_timeout(30)
+        driver.set_script_timeout(15)
         
         script = f"""
         var done = arguments[0];
         Promise.all([
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/statistics').then(r => r.json()).catch(() => ({{}})),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}').then(r => r.json()).catch(() => ({{}})),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/odds/1/all').then(r => r.json()).catch(() => ({{}})),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/graph').then(r => r.json()).catch(() => ({{}})),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/incidents').then(r => r.json()).catch(() => ({{}}))
+            fetch('/api/v1/event/{match_id}/statistics').then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('/api/v1/event/{match_id}').then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('/api/v1/event/{match_id}/odds/1/all').then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('/api/v1/event/{match_id}/graph').then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('/api/v1/event/{match_id}/incidents').then(r => r.ok ? r.json() : null).catch(() => null)
         ])
         .then(([stats, detail, odds, graph, incidents]) => done({{status: 'success', stats: stats, detail: detail, odds: odds, graph: graph, incidents: incidents}}))
-        .catch(err => done({{status: 'error', message: err.toString()}}));
+        .catch(err => done({{status: 'error', message: String(err)}}));
         """
         
         result = driver.execute_async_script(script)
@@ -309,6 +308,9 @@ def fetch_stats_via_js(driver, match_id):
             
     except Exception as e:
         logger.warning(f"[JS-FETCH] Execution failed for {match_id}: {e}")
+        err_str = str(e).lower()
+        if '10061' in err_str or 'refused' in err_str or 'max retries' in err_str or 'session' in err_str or 'disconnected' in err_str:
+            raise e
     return False
 
 def process_request_queue(driver, max_count=10):
@@ -332,9 +334,12 @@ def process_request_queue(driver, max_count=10):
             logger.info(f"[ON-DEMAND] Fetching {len(ids_to_fetch)} requested matches: {ids_to_fetch}")
             for match_id in ids_to_fetch:
                 fetch_stats_via_js(driver, str(match_id))
-                time.sleep(0.2)
+                time.sleep(0.6)
     except Exception as e:
         logger.debug(f"[ON-DEMAND] Queue processing info: {e}")
+        err_str = str(e).lower()
+        if '10061' in err_str or 'refused' in err_str or 'max retries' in err_str or 'session' in err_str or 'disconnected' in err_str:
+            raise e
 
 def kill_zombie_chrome_processes():
     """Aggressively kill all orphaned chromedriver and scraper Chrome instances."""
@@ -798,7 +803,7 @@ def _run_capture_session():
                                 if should_fetch:
                                     fetch_stats_via_js(driver, match_id)
                                     tier1_updated += 1
-                                    time.sleep(0.2)
+                                    time.sleep(0.8)
 
                             if tier1_updated > 0:
                                 logger.info(f"[TIER-1 STATS] Refreshed {tier1_updated}/{len(tier1_ids)} top matches")
@@ -830,11 +835,14 @@ def _run_capture_session():
 
                                     if should_fetch:
                                         fetch_stats_via_js(driver, match_id)
-                                        time.sleep(0.2)
+                                        time.sleep(0.8)
 
                                 stats_batch_index += 1
                 except Exception as e:
                     logger.error(f"[AUTO-STATS] Error: {e}")
+                    err_str = str(e).lower()
+                    if '10061' in err_str or 'refused' in err_str or 'max retries' in err_str or 'session' in err_str or 'disconnected' in err_str:
+                        raise e
 
                 last_stats_fetch = time.time()
 
