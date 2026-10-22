@@ -481,54 +481,100 @@ def clean_chromedriver_cache(force_all=False):
     except Exception:
         pass
 
-def click_turnstile_checkbox(driver):
-    """Dispatch genuine hardware-level CDP click to Cloudflare Turnstile checkbox."""
+def is_turnstile_active(driver):
+    """Detect if Cloudflare Turnstile modal/iframe or challenge is actively present on page."""
+    if not driver:
+        return False
+    try:
+        # 1. Check DOM for Cloudflare / Turnstile iframes
+        iframes = driver.find_elements(By.TAG_NAME, "iframe")
+        for frame in iframes:
+            try:
+                src = (frame.get_attribute("src") or "").lower()
+                if "challenges.cloudflare.com" in src or "turnstile" in src or "challenge" in src:
+                    rect = frame.rect
+                    if rect.get('width', 0) > 20 and rect.get('height', 0) > 10:
+                        return True
+            except:
+                pass
+                
+        # 2. Check for challenge divs or containers
+        elems = driver.find_elements(By.CSS_SELECTOR, "div.cf-turnstile, #challenge-stage, div[class*='turnstile'], #turnstile-wrapper")
+        for el in elems:
+            try:
+                if el.is_displayed():
+                    return True
+            except:
+                pass
+                
+        # 3. Check URL and Title fallback
+        curr_url = (driver.current_url or '').lower()
+        title = (driver.title or '').lower()
+        if "captcha" in curr_url or "challenge" in curr_url or "just a moment" in title or "attention required" in title:
+            return True
+    except Exception:
+        pass
+    return False
+
+def solve_turnstile(driver):
+    """Locate Turnstile iframe and dispatch trusted ActionChains, CDP, and element clicks."""
+    if not driver:
+        return False
     try:
         iframes = driver.find_elements(By.TAG_NAME, "iframe")
         for frame in iframes:
             src = (frame.get_attribute("src") or "").lower()
-            if "cloudflare" in src or "turnstile" in src or "challenge" in src:
+            if "challenges.cloudflare.com" in src or "turnstile" in src or "challenge" in src or "cloudflare" in src:
                 rect = frame.rect
-                # The checkbox is located around 30px from left, 50% from top of the iframe
-                x = int(rect['x'] + 30)
-                y = int(rect['y'] + rect['height'] / 2)
-                
-                # 1. Dispatch trusted CDP mouse press and release
-                driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
-                    'type': 'mousePressed',
-                    'x': x,
-                    'y': y,
-                    'button': 'left',
-                    'clickCount': 1
-                })
-                time.sleep(0.1)
-                driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
-                    'type': 'mouseReleased',
-                    'x': x,
-                    'y': y,
-                    'button': 'left',
-                    'clickCount': 1
-                })
-                logger.info(f"[CLOUDFLARE] Dispatched trusted CDP click at ({x}, {y})")
-                
-                # 2. Also attempt element click inside iframe
-                try:
-                    driver.switch_to.frame(frame)
-                    inputs = driver.find_elements(By.XPATH, "//input[@type='checkbox'] | //label | //div[@id='challenge-stage']")
-                    for elem in inputs:
-                        if elem.is_displayed():
-                            elem.click()
-                            logger.info("[CLOUDFLARE] Clicked element inside iframe")
-                            break
-                    driver.switch_to.default_content()
-                except Exception:
+                if rect.get('width', 0) > 30 and rect.get('height', 0) > 15:
+                    click_x = int(rect['x'] + 28)
+                    click_y = int(rect['y'] + rect['height'] / 2)
+                    logger.info(f"[CLOUDFLARE] Turnstile iframe located at ({rect['x']}, {rect['y']}, {rect['width']}x{rect['height']}). Clicking at ({click_x}, {click_y})...")
+
+                    # 1. ActionChains move to element with offset and click
                     try:
+                        from selenium.webdriver.common.action_chains import ActionChains
+                        actions = ActionChains(driver)
+                        actions.move_to_element_with_offset(frame, 28, int(rect['height'] / 2)).click().perform()
+                        logger.info("[CLOUDFLARE] ActionChains click performed.")
+                    except Exception as ae:
+                        logger.debug(f"ActionChains click notice: {ae}")
+
+                    # 2. Trusted CDP Hardware Mouse Event
+                    try:
+                        driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
+                            'type': 'mouseMoved', 'x': click_x, 'y': click_y
+                        })
+                        time.sleep(0.05)
+                        driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
+                            'type': 'mousePressed', 'x': click_x, 'y': click_y, 'button': 'left', 'clickCount': 1
+                        })
+                        time.sleep(0.08)
+                        driver.execute_cdp_cmd('Input.dispatchMouseEvent', {
+                            'type': 'mouseReleased', 'x': click_x, 'y': click_y, 'button': 'left', 'clickCount': 1
+                        })
+                        logger.info(f"[CLOUDFLARE] Dispatched trusted CDP click at ({click_x}, {click_y})")
+                    except Exception as ce:
+                        logger.debug(f"CDP click notice: {ce}")
+
+                    # 3. Element click inside iframe
+                    try:
+                        driver.switch_to.frame(frame)
+                        for selector in ["input[type='checkbox']", ".ctp-checkbox-label", "#challenge-stage", "label", "span.mark", "div"]:
+                            elems = driver.find_elements(By.CSS_SELECTOR, selector)
+                            for el in elems:
+                                if el.is_displayed():
+                                    el.click()
+                                    logger.info(f"[CLOUDFLARE] Clicked element inside iframe: {selector}")
+                                    break
                         driver.switch_to.default_content()
-                    except:
-                        pass
-                return True
+                    except Exception:
+                        try: driver.switch_to.default_content()
+                        except: pass
+
+                    return True
     except Exception as e:
-        logger.debug(f"Turnstile click error: {e}")
+        logger.warning(f"[CLOUDFLARE] Turnstile solver notice: {e}")
     return False
 
 def wait_for_cloudflare_clearance(driver, timeout=60):
@@ -538,20 +584,10 @@ def wait_for_cloudflare_clearance(driver, timeout=60):
     start = time.time()
     while time.time() - start < timeout:
         try:
-            curr_url = (driver.current_url or '').lower()
-            title = (driver.title or '').lower()
-            
-            is_challenge = (
-                "captcha" in curr_url or
-                "challenge" in curr_url or
-                "just a moment" in title or
-                "attention required" in title or
-                "cloudflare" in title
-            )
-            
-            if is_challenge:
-                logger.info(f"[CLOUDFLARE] Challenge active on {curr_url}. Attempting click ({int(time.time() - start)}s)...")
-                click_turnstile_checkbox(driver)
+            if is_turnstile_active(driver):
+                elapsed = int(time.time() - start)
+                logger.info(f"[CLOUDFLARE] Turnstile active on page. Attempting click ({elapsed}s)...")
+                solve_turnstile(driver)
                 time.sleep(3)
             else:
                 logger.info(f"[CLOUDFLARE] Clearance confirmed! URL: {driver.current_url} | Title: {driver.title}")
@@ -661,6 +697,13 @@ def _run_capture_session():
         driver.get(url)
         time.sleep(3)
         wait_for_cloudflare_clearance(driver, timeout=60)
+        
+        # Ensure we are on livescore url after clearance
+        if "livescore" not in (driver.current_url or '').lower():
+            logger.info(f"[SCRAPER] Redirected after clearance, re-navigating to {url}...")
+            driver.get(url)
+            time.sleep(3)
+            wait_for_cloudflare_clearance(driver, timeout=30)
         
         last_live_fetch = 0
         last_stats_fetch = 0
@@ -868,8 +911,11 @@ def _run_capture_session():
                         logger.warning(f"[JS-FETCH] Live List Failed: {errMsg}")
                         if '403' in errMsg or 'challenge' in errMsg.lower():
                             logger.warning("[JS-FETCH] 403 Challenge detected! Waiting for clearance...")
-                            wait_for_cloudflare_clearance(driver, timeout=15)
-                            time.sleep(3)
+                            wait_for_cloudflare_clearance(driver, timeout=30)
+                            if "livescore" not in (driver.current_url or '').lower():
+                                driver.get(url)
+                                time.sleep(3)
+                                wait_for_cloudflare_clearance(driver, timeout=20)
                         
                 except Exception as e:
                     logger.error(f"[JS-FETCH] Live List Exception: {e}")
