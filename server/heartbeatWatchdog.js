@@ -21,8 +21,9 @@ export class HeartbeatWatchdog {
         this.lastHeartbeat = Date.now();
         this.isStalled = false;
         this.stalledSince = null;
-        this.staleThresholdSec = 210; // 3.5 minutes max acceptable staleness
-        this.lastRestartAttempt = 0;
+        this.staleThresholdSec = 240; // 4 minutes max acceptable staleness
+        this.startedAt = Date.now();
+        this.lastRestartAttempt = Date.now() + 120 * 1000; // 5-minute startup buffer before self-healing can fire
 
         this.checkTimer = setInterval(() => this.checkHealth(), 60 * 1000);
     }
@@ -42,6 +43,12 @@ export class HeartbeatWatchdog {
     }
 
     checkHealth() {
+        const now = Date.now();
+        // 1. Startup Grace Period: Allow initial scraper 5 minutes to launch Chrome and stream live data
+        if (now - this.startedAt < 300 * 1000) {
+            return { healthy: true, startupGrace: true };
+        }
+
         let fileAgeSec = null;
         try {
             if (fs.existsSync(this.monitoredFilePath)) {
@@ -51,7 +58,6 @@ export class HeartbeatWatchdog {
         } catch (e) {}
 
         const isOld = fileAgeSec !== null && fileAgeSec > this.staleThresholdSec;
-        const now = Date.now();
 
         if (isOld) {
             if (!this.isStalled) {

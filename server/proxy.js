@@ -4929,6 +4929,7 @@ async function nodeDataLoop() {
 
 // --- SCRAPER MANAGEMENT (Local Dev with Python) ---
 let scraperProcess = null;
+let scraperRestartTimer = null;
 const IS_CLOUD = !fs.existsSync(path.join(__dirname, '..', '.env')) || process.env.RENDER === 'true' || process.env.RENDER_EXTERNAL_URL;
 
 function killOrphanProcesses() {
@@ -4944,6 +4945,14 @@ function killOrphanProcesses() {
 }
 
 function startScraper() {
+    if (scraperProcess && scraperProcess.exitCode === null) {
+        console.log(`[PROXY] Scraper is already running (PID: ${scraperProcess.pid}). Skipping duplicate launch.`);
+        return;
+    }
+    if (scraperRestartTimer) {
+        clearTimeout(scraperRestartTimer);
+        scraperRestartTimer = null;
+    }
     if (IS_CLOUD) {
         console.log('[PROXY] Cloud environment detected. Checking Python dependencies...');
         try {
@@ -5001,7 +5010,12 @@ function startScraper() {
             scraperProcess = null;
             killOrphanProcesses();
             fetchSofaScoreLiveNode().catch(() => {});
-            setTimeout(startScraper, 5000);
+            if (!scraperRestartTimer) {
+                scraperRestartTimer = setTimeout(() => {
+                    scraperRestartTimer = null;
+                    startScraper();
+                }, 5000);
+            }
         });
     } catch (err) {
         console.error('[PROXY] Failed to start scraper, falling back to Node.js fetcher:', err.message);
@@ -5233,7 +5247,7 @@ async function onServerStarted() {
                 scraperProcess = null;
             }
             killOrphanProcesses();
-            setTimeout(startScraper, 3000);
+            // Note: scraperProcess.on('close') will safely schedule startScraper without duplicate spawn race conditions
         };
     }
     autonomousSignalEngine.start(25);

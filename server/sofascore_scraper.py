@@ -847,8 +847,40 @@ def _run_capture_session():
             safe_quit_driver(driver)
             driver = None
 
+PID_FILE = os.path.join(BASE_DIR, 'sofascore_scraper.pid')
+
+def check_single_instance():
+    """Ensure only one instance of the scraper runs at any time."""
+    if os.path.exists(PID_FILE):
+        try:
+            with open(PID_FILE, 'r') as f:
+                old_pid = int(f.read().strip())
+            if old_pid != os.getpid():
+                is_alive = False
+                if platform.system().lower().startswith('win'):
+                    out = subprocess.run(['tasklist', '/FI', f'PID eq {old_pid}'], capture_output=True, text=True)
+                    if str(old_pid) in out.stdout:
+                        is_alive = True
+                else:
+                    try:
+                        os.kill(old_pid, 0)
+                        is_alive = True
+                    except OSError:
+                        is_alive = False
+                if is_alive:
+                    logger.warning(f"Another scraper is already active (PID {old_pid}). Exiting duplicate.")
+                    sys.exit(0)
+        except Exception:
+            pass
+    try:
+        with open(PID_FILE, 'w') as f:
+            f.write(str(os.getpid()))
+    except Exception:
+        pass
+
 def capture_sofascore():
     """Autonomous 24/7 self-healing scraper driver with zero-crash recovery."""
+    check_single_instance()
     kill_zombie_chrome_processes()
     clean_chromedriver_cache()
     while True:
