@@ -100,6 +100,13 @@ def get_chromedriver_path():
             subprocess.run(["taskkill", "/F", "/IM", "undetected_chromedriver.exe", "/T"], capture_output=True, timeout=3)
         except Exception:
             pass
+        # Clean stale driver binary before patching to prevent Windows WinError 183
+        default_uc_path = os.path.join(os.environ.get('APPDATA', ''), 'undetected_chromedriver', 'undetected_chromedriver.exe')
+        if os.path.exists(default_uc_path):
+            try:
+                os.remove(default_uc_path)
+            except Exception:
+                pass
 
     try:
         patcher = uc.Patcher(version_main=major_ver, force=True) if major_ver else uc.Patcher(force=True)
