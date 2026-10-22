@@ -989,28 +989,33 @@ def _run_capture_session():
 PID_FILE = os.path.join(BASE_DIR, 'sofascore_scraper.pid')
 
 def check_single_instance():
-    """Ensure only one instance of the scraper runs at any time."""
+    """Ensure only one instance of the scraper runs at any time, terminating stale instances."""
     if os.path.exists(PID_FILE):
         try:
             with open(PID_FILE, 'r') as f:
-                old_pid = int(f.read().strip())
-            if old_pid != os.getpid():
-                is_alive = False
-                if platform.system().lower().startswith('win'):
-                    out = subprocess.run(['tasklist', '/FI', f'PID eq {old_pid}'], capture_output=True, text=True)
-                    if str(old_pid) in out.stdout:
-                        is_alive = True
-                else:
-                    try:
-                        os.kill(old_pid, 0)
-                        is_alive = True
-                    except OSError:
-                        is_alive = False
-                if is_alive:
-                    logger.warning(f"Another scraper is already active (PID {old_pid}). Exiting duplicate.")
-                    sys.exit(0)
+                content = f.read().strip()
+            if content:
+                old_pid = int(content)
+                if old_pid != os.getpid():
+                    if platform.system().lower().startswith('win'):
+                        out = subprocess.run(['tasklist', '/FI', f'PID eq {old_pid}', '/FI', 'IMAGENAME eq python.exe'], capture_output=True, text=True)
+                        if 'python' in out.stdout.lower():
+                            logger.info(f"Terminating older scraper instance (PID {old_pid})...")
+                            subprocess.run(['taskkill', '/F', '/PID', str(old_pid), '/T'], capture_output=True)
+                            time.sleep(1)
+                    else:
+                        try:
+                            os.kill(old_pid, 9)
+                            time.sleep(1)
+                        except OSError:
+                            pass
+        except Exception as e:
+            logger.debug(f"PID check note: {e}")
+        try:
+            os.remove(PID_FILE)
         except Exception:
             pass
+            
     try:
         with open(PID_FILE, 'w') as f:
             f.write(str(os.getpid()))
