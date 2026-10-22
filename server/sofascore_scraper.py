@@ -416,15 +416,23 @@ def get_scraper():
     kill_zombie_chrome_processes()
     clean_chromedriver_cache(force_all=False)
     
-    from driver_helper import get_installed_chrome_version
+    from driver_helper import get_installed_chrome_version, get_chrome_exe_path
     major_ver = get_installed_chrome_version()
+    chrome_exe = get_chrome_exe_path()
+    
+    # Isolated scratch profile so Chrome Remote Desktop never blocks the debugging session
+    profile_dir = os.path.join(tempfile.gettempdir(), 'livebet_uc_profile')
+    os.makedirs(profile_dir, exist_ok=True)
     
     # Priority 1: undetected_chromedriver (Bypasses Cloudflare Turnstile/Bot Protection)
     max_retries = 3
     for attempt in range(max_retries):
         try:
             options = uc.ChromeOptions()
+            if chrome_exe:
+                options.binary_location = chrome_exe
             options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
+            options.add_argument(f'--user-data-dir={profile_dir}')
             options.add_argument('--headless=new')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
@@ -438,6 +446,7 @@ def get_scraper():
             logger.info(f"Launching SofaScore Browser (uc headless attempt {attempt + 1}, Chrome v{major_ver})...")
             driver = uc.Chrome(
                 options=options,
+                user_data_dir=profile_dir,
                 version_main=major_ver
             )
             return driver
@@ -457,6 +466,9 @@ def get_scraper():
         
         driver_path = get_chromedriver_path()
         options = Options()
+        if chrome_exe:
+            options.binary_location = chrome_exe
+        options.add_argument(f'--user-data-dir={profile_dir}')
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         options.add_experimental_option('useAutomationExtension', False)
         options.add_argument('--disable-blink-features=AutomationControlled')

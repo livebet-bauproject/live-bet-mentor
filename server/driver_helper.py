@@ -13,6 +13,27 @@ BIN_DIR = os.path.join(tempfile.gettempdir(), 'livebet_bin')
 is_win = platform.system().lower().startswith('win')
 DRIVER_PATH = os.path.join(BIN_DIR, 'chromedriver.exe' if is_win else 'chromedriver')
 
+def get_chrome_exe_path():
+    """Finds absolute path to installed chrome.exe."""
+    if is_win:
+        import glob
+        candidate_dirs = [
+            r'C:\Program Files\Google\Chrome\Application',
+            r'C:\Program Files (x86)\Google\Chrome\Application',
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Google', 'Chrome', 'Application'),
+            os.path.join(os.environ.get('PROGRAMFILES', ''), 'Google', 'Chrome', 'Application'),
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'Google', 'Chrome', 'Application'),
+        ]
+        try:
+            candidate_dirs.extend(glob.glob(r'C:\Users\*\AppData\Local\Google\Chrome\Application'))
+        except Exception:
+            pass
+        for cdir in candidate_dirs:
+            p = os.path.join(cdir, 'chrome.exe')
+            if os.path.isfile(p):
+                return p
+    return None
+
 def get_installed_chrome_version():
     """Detects the major version of the installed Google Chrome browser (e.g. 155)."""
     if is_win:
