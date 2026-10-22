@@ -1285,6 +1285,19 @@ app.get('/api/sofascore/event/:id', generalApiLimiter, (req, res) => {
         return res.json(detailJson);
     }
 
+    // Synthesize detail from live events if available so UI does not stall on 202
+    let liveEvents = memoryLiveData?.events;
+    if (!liveEvents && fs.existsSync(SOFASCORE_FILE)) {
+        try { liveEvents = JSON.parse(fs.readFileSync(SOFASCORE_FILE, 'utf8'))?.events; } catch(e) {}
+    }
+    if (liveEvents && Array.isArray(liveEvents)) {
+        const ev = liveEvents.find(e => e.id == id);
+        if (ev) {
+            queueRequest(id);
+            return res.json({ event: ev, synthesized: true });
+        }
+    }
+
     queueRequest(id);
     res.status(202).json({ status: 'queued', message: 'Detail missing' });
 });

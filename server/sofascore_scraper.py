@@ -201,12 +201,13 @@ def fetch_stats_via_js(driver, match_id):
         
         script = f"""
         var done = arguments[0];
+        const h = { 'Accept': 'application/json', 'Cache-Control': 'no-cache' };
         Promise.all([
-            fetch('/api/v1/event/{match_id}/statistics').then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('/api/v1/event/{match_id}').then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('/api/v1/event/{match_id}/odds/1/all').then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('/api/v1/event/{match_id}/graph').then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('/api/v1/event/{match_id}/incidents').then(r => r.ok ? r.json() : null).catch(() => null)
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/statistics', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/odds/1/all', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/graph', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/{match_id}/incidents', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null)
         ])
         .then(([stats, detail, odds, graph, incidents]) => done({{status: 'success', stats: stats, detail: detail, odds: odds, graph: graph, incidents: incidents}}))
         .catch(err => done({{status: 'error', message: String(err)}}));
@@ -438,22 +439,25 @@ def get_scraper():
                 options.binary_location = chrome_exe
             options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
             options.add_argument(f'--user-data-dir={profile_dir}')
-            options.add_argument('--headless=new')
+            options.add_argument('--window-size=1000,700')
+            options.add_argument('--window-position=50,50')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
-            options.add_argument('--disable-gpu')
-            options.add_argument('--window-size=1920,1080')
             options.add_argument('--disable-breakpad')
             options.add_argument('--disable-component-update')
             options.add_argument('--disable-notifications')
             options.add_argument('--disable-infobars')
             
-            logger.info(f"Launching SofaScore Browser (uc headless attempt {attempt + 1}, Chrome v{major_ver})...")
+            logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1}, Chrome v{major_ver})...")
             driver = uc.Chrome(
                 options=options,
                 user_data_dir=profile_dir,
                 version_main=major_ver
             )
+            try:
+                driver.minimize_window()
+            except Exception:
+                pass
             return driver
         except Exception as e:
             logger.warning(f"SofaScore Driver Launch Error (attempt {attempt + 1}): {e}")
@@ -477,16 +481,19 @@ def get_scraper():
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         options.add_experimental_option('useAutomationExtension', False)
         options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_argument('--headless=new')
+        options.add_argument('--window-size=1000,700')
+        options.add_argument('--window-position=50,50')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--window-size=1920,1080')
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
         
         service = Service(executable_path=driver_path)
-        logger.info("Launching SofaScore Browser via Fallback Headless ChromeDriver...")
+        logger.info("Launching SofaScore Browser via Fallback ChromeDriver...")
         driver = webdriver.Chrome(service=service, options=options)
+        try:
+            driver.minimize_window()
+        except Exception:
+            pass
         return driver
     except Exception as e:
         logger.error(f"Fallback Selenium launch also failed: {e}")
@@ -500,7 +507,7 @@ def _run_capture_session():
     
     try:
         driver = get_scraper()
-        url = "https://www.sofascore.com/football/livescores"
+        url = "https://www.sofascore.com/football/livescore"
         logger.info(f"[SCRAPER] Navigating to {url}...")
         driver.get(url)
         time.sleep(6)
