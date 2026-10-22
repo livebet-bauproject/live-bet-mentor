@@ -19,7 +19,13 @@ if not exist "%USERPROFILE%\Desktop\Sistemi Guncelle ve Baslat.lnk" (
 
 echo [1/3] 📡 GitHub'dan en son güncellemeler alınıyor ve senkronize ediliyor...
 git fetch origin main
-git reset --hard origin/main
+if %ERRORLEVEL% neq 0 (
+    echo ❌ [HATA] GitHub'a bağlanılamadı! İnternet bağlantınızı kontrol edin.
+) else (
+    git reset --hard origin/main
+    echo ✅ [BAŞARILI] GitHub'dan en son güncellemeler çekildi!
+    git log -1 --oneline
+)
 echo.
 echo [2/3] 🧹 Eski askıda kalan süreçler ve bellek temizleniyor...
 taskkill /F /IM python.exe /T >nul 2>&1
