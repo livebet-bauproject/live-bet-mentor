@@ -1312,8 +1312,8 @@ app.get('/api/sofascore/event/:id/statistics', generalApiLimiter, (req, res) => 
         const cacheAge = (Date.now() - (memoryStatsCache[id].time || 0)) / 1000;
         if (cacheAge >= 30) queueRequest(id);
         const statsObj = memoryStatsCache[id].data.stats;
-        if (statsObj.error && (statsObj.error.code === 404 || statsObj.error.status === 404)) {
-            if (cacheAge >= 25) {
+        if (statsObj.noStats || (statsObj.error && (statsObj.error === 'Not Found' || statsObj.error.code === 404 || statsObj.error.status === 404))) {
+            if (cacheAge >= 60) {
                 queueRequest(id);
                 return res.status(202).json({ status: 'queued', message: 'Re-probing live match statistics' });
             }
@@ -1330,15 +1330,15 @@ app.get('/api/sofascore/event/:id/statistics', generalApiLimiter, (req, res) => 
         try {
             const data = fs.readFileSync(filePath, 'utf8');
             const json = JSON.parse(data);
-            if (!json.error) {
+            if (!json.error && !json.noStats) {
                 if (ageInSeconds >= 30) queueRequest(id);
                 return res.json(json);
             }
 
-            // CRITICAL FIX: If the saved file is a 404 error from SofaScore, check age!
-            // If age >= 25s, do NOT give up permanently! Re-queue and return 202 queued!
-            if (json.error && (json.error.code === 404 || json.error.status === 404)) {
-                if (ageInSeconds >= 25) {
+            // If the saved file is a 404 error from SofaScore, check age!
+            // If age >= 60s, re-queue and return 202 queued; otherwise return 404 with noStats: true
+            if (json.noStats || (json.error && (json.error === 'Not Found' || json.error.code === 404 || json.error.status === 404))) {
+                if (ageInSeconds >= 60) {
                     queueRequest(id);
                     return res.status(202).json({ status: 'queued', message: 'Re-probing live match statistics' });
                 }

@@ -18,6 +18,22 @@ if SERVER_DIR not in sys.path:
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import TimeoutException, WebDriverException
+
+def is_fatal_driver_error(e):
+    """Check if exception represents a completely dead or closed Chrome instance."""
+    err_str = str(e).lower()
+    fatal_patterns = [
+        '10061',
+        'connection refused',
+        'max retries exceeded',
+        'invalid session id',
+        'session not created',
+        'no such window',
+        'chrome not reachable',
+        'disconnected: not connected to devtools'
+    ]
+    return any(p in err_str for p in fatal_patterns)
 
 # Suppress harmless WinError 6 on garbage collection
 _orig_del = getattr(uc.Chrome, '__del__', None)
@@ -194,27 +210,80 @@ def fetch_live_list_directly():
         logger.warning(f"[DIRECT] HTTP fallback failed: {e}")
     return False
 
-def fetch_stats_via_js(driver, match_id):
-    """Fallback: Fetch match statistics and details using browser's JS fetch (bypasses 403 & CDP issues)."""
+def fetch_stats_via_js(driver, match_id, include_extras=False):
+    """Safely fetch match statistics and odds using browser's JS fetch with strict internal timeout."""
+    if not driver:
+        return False
     try:
-        driver.set_script_timeout(15)
+        driver.set_script_timeout(8)
         
+        # Hard 3.2s internal timeout inside JavaScript guarantees done() is ALWAYS invoked!
+        # This completely prevents driver TimeoutExceptions from ever happening.
         script = """
         var done = arguments[0];
-        var mid = arguments[1];
-        var h = { 'Accept': 'application/json', 'Cache-Control': 'no-cache' };
-        Promise.all([
-            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/statistics', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/' + mid, { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/odds/1/all', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/graph', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/incidents', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null)
-        ])
-        .then(([stats, detail, odds, graph, incidents]) => done({ status: 'success', stats: stats, detail: detail, odds: odds, graph: graph, incidents: incidents }))
-        .catch(err => done({ status: 'error', message: String(err) }));
+        var mid = String(arguments[1]);
+        var includeExtras = Boolean(arguments[2]);
+        var finished = false;
+        
+        var timer = setTimeout(function() {
+            if (!finished) {
+                finished = true;
+                done({ status: 'timeout', stats: null, detail: null, odds: null, graph: null, incidents: null });
+            }
+        }, 3200);
+
+        function safeDone(payload) {
+            if (!finished) {
+                finished = true;
+                clearTimeout(timer);
+                done(payload);
+            }
+        }
+
+        var h = { 'Accept': 'application/json' };
+        
+        var reqs = [
+            fetch('/api/v1/event/' + mid + '/statistics', { headers: h, signal: AbortSignal.timeout(2800) })
+                .then(r => r.ok ? r.json() : (r.status === 404 ? { error: 'Not Found', noStats: true } : null))
+                .catch(() => null),
+            fetch('/api/v1/event/' + mid + '/odds/1/all', { headers: h, signal: AbortSignal.timeout(2800) })
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null),
+            fetch('/api/v1/event/' + mid, { headers: h, signal: AbortSignal.timeout(2800) })
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null)
+        ];
+        
+        if (includeExtras) {
+            reqs.push(
+                fetch('/api/v1/event/' + mid + '/graph', { headers: h, signal: AbortSignal.timeout(2800) })
+                    .then(r => r.ok ? r.json() : null)
+                    .catch(() => null)
+            );
+            reqs.push(
+                fetch('/api/v1/event/' + mid + '/incidents', { headers: h, signal: AbortSignal.timeout(2800) })
+                    .then(r => r.ok ? r.json() : null)
+                    .catch(() => null)
+            );
+        }
+
+        Promise.all(reqs)
+            .then(function(res) {
+                safeDone({
+                    status: 'success',
+                    stats: res[0] || null,
+                    odds: res[1] || null,
+                    detail: res[2] || null,
+                    graph: includeExtras ? (res[3] || null) : null,
+                    incidents: includeExtras ? (res[4] || null) : null
+                });
+            })
+            .catch(function(err) {
+                safeDone({ status: 'error', message: String(err) });
+            });
         """
         
-        result = driver.execute_async_script(script, str(match_id))
+        result = driver.execute_async_script(script, str(match_id), bool(include_extras))
         
         if result and result.get('status') == 'success':
             captured_something = False
@@ -222,34 +291,30 @@ def fetch_stats_via_js(driver, match_id):
             # 1. Save Statistics
             stats_data = result.get('stats')
             stats_path = os.path.join(STATS_DIR, f"{match_id}_stats.json")
-            if stats_data and ('statistics' in stats_data or 'error' in stats_data):
-                is_err = 'error' in stats_data
-                # Never overwrite valid existing stats with a temporary 404/error!
-                can_write = True
-                if is_err and os.path.exists(stats_path):
-                    try:
-                        with open(stats_path, 'r', encoding='utf-8') as f_old:
-                            old_data = json.load(f_old)
-                            if old_data and 'statistics' in old_data and old_data['statistics']:
-                                can_write = False
-                    except:
-                        pass
-                
-                if can_write:
-                    with open(stats_path, 'w', encoding='utf-8') as f:
-                        json.dump(stats_data, f)
-                
-                if not is_err:
-                    captured_something = True
-                    # Firebase Upload
-                    try:
-                        from firebase_uploader import upload_to_firebase
-                        upload_to_firebase(f"stats/{match_id}/stats", stats_data)
-                    except:
-                        pass
-            else:
-                # Do NOT write a permanent 404 file if the match was merely slow or rate-limited
-                pass
+            if stats_data:
+                if 'statistics' in stats_data or stats_data.get('noStats') or 'error' in stats_data:
+                    is_err = 'error' in stats_data and not stats_data.get('noStats')
+                    can_write = True
+                    if is_err and os.path.exists(stats_path):
+                        try:
+                            with open(stats_path, 'r', encoding='utf-8') as f_old:
+                                old_data = json.load(f_old)
+                                if old_data and 'statistics' in old_data and old_data['statistics']:
+                                    can_write = False
+                        except:
+                            pass
+                    
+                    if can_write:
+                        with open(stats_path, 'w', encoding='utf-8') as f:
+                            json.dump(stats_data, f)
+                    
+                    if 'statistics' in stats_data:
+                        captured_something = True
+                        try:
+                            from firebase_uploader import upload_to_firebase
+                            upload_to_firebase(f"stats/{match_id}/stats", stats_data)
+                        except:
+                            pass
             
             # 2. Save Details
             detail_data = result.get('detail')
@@ -258,8 +323,6 @@ def fetch_stats_via_js(driver, match_id):
                 with open(detail_path, 'w', encoding='utf-8') as f:
                     json.dump(detail_data, f)
                 captured_something = True
-                
-                # Firebase Upload
                 try:
                     from firebase_uploader import upload_to_firebase
                     upload_to_firebase(f"stats/{match_id}/detail", detail_data)
@@ -278,46 +341,48 @@ def fetch_stats_via_js(driver, match_id):
                 update_central_odds(match_id, odds_data)
                 captured_something = True
 
-            # 4. Save Attack Momentum Graph
-            graph_data = result.get('graph')
-            if graph_data and ('graphPoints' in graph_data or 'graphPointsV2' in graph_data):
-                graph_path = os.path.join(STATS_DIR, f"{match_id}_graph.json")
-                try:
-                    with open(graph_path, 'w', encoding='utf-8') as f:
-                        json.dump(graph_data, f)
-                    captured_something = True
-                except Exception as ge:
-                    logger.warning(f"Could not save {graph_path}: {ge}")
+            # 4. Save Attack Momentum Graph (if requested)
+            if include_extras:
+                graph_data = result.get('graph')
+                if graph_data and ('graphPoints' in graph_data or 'graphPointsV2' in graph_data):
+                    graph_path = os.path.join(STATS_DIR, f"{match_id}_graph.json")
+                    try:
+                        with open(graph_path, 'w', encoding='utf-8') as f:
+                            json.dump(graph_data, f)
+                        captured_something = True
+                    except Exception as ge:
+                        pass
 
-            # 5. Save Match Incidents
-            incidents_data = result.get('incidents')
-            if incidents_data and ('incidents' in incidents_data or 'noIncidents' in incidents_data):
-                incidents_path = os.path.join(STATS_DIR, f"{match_id}_incidents.json")
-                try:
-                    with open(incidents_path, 'w', encoding='utf-8') as f:
-                        json.dump(incidents_data, f)
-                    captured_something = True
-                except Exception as ie:
-                    logger.warning(f"Could not save {incidents_path}: {ie}")
+                # 5. Save Match Incidents (if requested)
+                incidents_data = result.get('incidents')
+                if incidents_data and ('incidents' in incidents_data or 'noIncidents' in incidents_data):
+                    incidents_path = os.path.join(STATS_DIR, f"{match_id}_incidents.json")
+                    try:
+                        with open(incidents_path, 'w', encoding='utf-8') as f:
+                            json.dump(incidents_data, f)
+                        captured_something = True
+                    except Exception as ie:
+                        pass
             
             if captured_something:
                 logger.info(f"[JS-FETCH] Captured data for {match_id} (Stats: {'statistics' in (stats_data or {})})")
                 return True
-            else:
-                logger.warning(f"[JS-FETCH] No valid data keys in response for {match_id}")
-        else:
-            logger.warning(f"[JS-FETCH] JS Error for {match_id}: {result.get('message')}")
+        elif result and result.get('status') == 'timeout':
+            logger.debug(f"[JS-FETCH] Match {match_id} timed out after 3.2s, skipping.")
+            return False
             
+    except TimeoutException:
+        logger.warning(f"[JS-FETCH] Script timeout for {match_id} (harmless, continuing)")
+        return False
     except Exception as e:
         logger.warning(f"[JS-FETCH] Execution failed for {match_id}: {e}")
-        err_str = str(e).lower()
-        if '10061' in err_str or 'refused' in err_str or 'max retries' in err_str or 'session' in err_str or 'disconnected' in err_str:
+        if is_fatal_driver_error(e):
             raise e
     return False
 
 def process_request_queue(driver, max_count=10):
     """Process high-priority on-demand match stats requests from proxy/UI."""
-    if not os.path.exists(REQUEST_QUEUE_FILE):
+    if not driver or not os.path.exists(REQUEST_QUEUE_FILE):
         return
     try:
         with open(REQUEST_QUEUE_FILE, 'r', encoding='utf-8') as rq:
@@ -335,12 +400,11 @@ def process_request_queue(driver, max_count=10):
             ids_to_fetch = ids[-max_count:] # Process most recent requests
             logger.info(f"[ON-DEMAND] Fetching {len(ids_to_fetch)} requested matches: {ids_to_fetch}")
             for match_id in ids_to_fetch:
-                fetch_stats_via_js(driver, str(match_id))
-                time.sleep(0.6)
+                fetch_stats_via_js(driver, str(match_id), include_extras=True)
+                time.sleep(0.3)
     except Exception as e:
         logger.debug(f"[ON-DEMAND] Queue processing info: {e}")
-        err_str = str(e).lower()
-        if '10061' in err_str or 'refused' in err_str or 'max retries' in err_str or 'session' in err_str or 'disconnected' in err_str:
+        if is_fatal_driver_error(e):
             raise e
 
 def kill_zombie_chrome_processes():
@@ -652,20 +716,37 @@ def _run_capture_session():
                 logger.info(f"Periodic fetch for LIVE_LIST (TS: {int(time.time())})")
                 
                 try:
-                    # Async JS Fetch (Direct Capture)
-                    driver.set_script_timeout(30)
+                    # Async JS Fetch (Direct Capture with guaranteed internal timeout)
+                    driver.set_script_timeout(10)
                     cb = int(time.time())
                     script_live = f"""
                     var done = arguments[0];
-                    fetch('https://www.sofascore.com/api/v1/sport/football/events/live?cache_buster={cb}', {{
-                        headers: {{ 'Accept': 'application/json', 'Cache-Control': 'no-cache' }}
+                    var finished = false;
+                    var timer = setTimeout(function() {{
+                        if (!finished) {{
+                            finished = true;
+                            done({{ status: 'timeout' }});
+                        }}
+                    }}, 4500);
+
+                    function safeDone(payload) {{
+                        if (!finished) {{
+                            finished = true;
+                            clearTimeout(timer);
+                            done(payload);
+                        }}
+                    }}
+
+                    fetch('/api/v1/sport/football/events/live?cache_buster={cb}', {{
+                        headers: {{ 'Accept': 'application/json' }},
+                        signal: AbortSignal.timeout(4000)
                     }})
                     .then(res => {{
                         if (!res.ok) throw new Error(res.status);
                         return res.json();
                     }})
-                    .then(data => done({{status: 'success', data: data}}))
-                    .catch(err => done({{status: 'error', message: err.toString()}}));
+                    .then(data => safeDone({{ status: 'success', data: data }}))
+                    .catch(err => safeDone({{ status: 'error', message: err.toString() }}));
                     """
                     result = driver.execute_async_script(script_live)
                     
@@ -754,7 +835,7 @@ def _run_capture_session():
             # Check on-demand user request queue first
             process_request_queue(driver, max_count=10)
 
-            # AUTO-FETCH STATS: Two-tier smart scheduler (Tier 1 major leagues every ~25s, Tier 2 background rotation)
+            # AUTO-FETCH STATS: Smart scheduler focusing on active in-progress matches
             if time.time() - last_stats_fetch > STATS_FETCH_INTERVAL:
                 try:
                     if os.path.exists(DATA_FILE):
@@ -763,34 +844,31 @@ def _run_capture_session():
                         
                         events = live_data.get('events', [])
                         if events:
+                            # CRITICAL: Focus ONLY on matches that are actively in progress!
+                            active_events = [e for e in events if e.get('status', {}).get('type') == 'inprogress']
+                            
                             def get_match_priority(event):
                                 score = 0
                                 t = event.get('tournament', {})
                                 ut = t.get('uniqueTournament', {})
-                                # Priority 1: In-progress matches are top priority!
-                                if event.get('status', {}).get('type') == 'inprogress':
-                                    score += 200000
-                                # Priority 2: Official tournament priority
                                 score += t.get('priority', 0) * 1000
-                                # Priority 3: Tournament user count / popularity
                                 score += ut.get('userCount', 0) / 100
-                                # Priority 4: Teams popularity
                                 score += (event.get('homeTeam', {}).get('userCount', 0) + event.get('awayTeam', {}).get('userCount', 0)) / 500
                                 return score
 
-                            sorted_events = sorted(events, key=get_match_priority, reverse=True)
+                            sorted_events = sorted(active_events, key=get_match_priority, reverse=True)
                             
-                            # Tier 1: All active in-progress matches + top major leagues (up to 45 matches)
-                            # Tier 2: Remaining matches (rotated in small batches)
-                            tier1_events = sorted_events[:45]
-                            tier2_events = sorted_events[45:]
+                            # Tier 1: Top 15 active matches refreshed every cycle
+                            # Tier 2: Remaining matches rotated in batches of 5
+                            tier1_events = sorted_events[:15]
+                            tier2_events = sorted_events[15:]
                             
                             tier1_ids = [str(e.get('id')) for e in tier1_events if e.get('id')]
                             tier2_ids = [str(e.get('id')) for e in tier2_events if e.get('id')]
 
                             tier1_updated = 0
                             for match_id in tier1_ids:
-                                process_request_queue(driver, max_count=3)
+                                process_request_queue(driver, max_count=2)
                                 stats_file = os.path.join(STATS_DIR, f"{match_id}_stats.json")
                                 should_fetch = True
 
@@ -802,23 +880,23 @@ def _run_capture_session():
                                         try:
                                             with open(stats_file, 'r', encoding='utf-8') as sf:
                                                 content = sf.read()
-                                                # If it had an error or 404, retry after 30s! (Never lock out for 300s)
-                                                if "error" in content and age < 30:
-                                                    should_fetch = False
+                                                if "noStats" in content or "error" in content:
+                                                    if age < 60:
+                                                        should_fetch = False
                                         except:
                                             should_fetch = True
 
                                 if should_fetch:
-                                    fetch_stats_via_js(driver, match_id)
+                                    fetch_stats_via_js(driver, match_id, include_extras=False)
                                     tier1_updated += 1
-                                    time.sleep(0.8)
+                                    time.sleep(0.4)
 
                             if tier1_updated > 0:
                                 logger.info(f"[TIER-1 STATS] Refreshed {tier1_updated}/{len(tier1_ids)} top matches")
 
-                            # Background rotation for Tier 2 matches (8 per cycle)
+                            # Background rotation for Tier 2 matches (5 per cycle)
                             if tier2_ids:
-                                t2_batch_size = 8
+                                t2_batch_size = 5
                                 total_t2_batches = (len(tier2_ids) + t2_batch_size - 1) // t2_batch_size
                                 stats_batch_index = stats_batch_index % total_t2_batches
                                 t2_start = stats_batch_index * t2_batch_size
@@ -826,7 +904,7 @@ def _run_capture_session():
                                 t2_batch = tier2_ids[t2_start:t2_end]
 
                                 for match_id in t2_batch:
-                                    process_request_queue(driver, max_count=3)
+                                    process_request_queue(driver, max_count=2)
                                     stats_file = os.path.join(STATS_DIR, f"{match_id}_stats.json")
                                     should_fetch = True
                                     if os.path.exists(stats_file):
@@ -834,22 +912,21 @@ def _run_capture_session():
                                         try:
                                             with open(stats_file, 'r', encoding='utf-8') as sf:
                                                 content = sf.read()
-                                                if "error" in content:
-                                                    should_fetch = (age > 40)
+                                                if "noStats" in content or "error" in content:
+                                                    should_fetch = (age > 90)
                                                 elif age < 45:
                                                     should_fetch = False
                                         except:
                                             should_fetch = True
 
                                     if should_fetch:
-                                        fetch_stats_via_js(driver, match_id)
-                                        time.sleep(0.8)
+                                        fetch_stats_via_js(driver, match_id, include_extras=False)
+                                        time.sleep(0.4)
 
                                 stats_batch_index += 1
                 except Exception as e:
                     logger.error(f"[AUTO-STATS] Error: {e}")
-                    err_str = str(e).lower()
-                    if '10061' in err_str or 'refused' in err_str or 'max retries' in err_str or 'session' in err_str or 'disconnected' in err_str:
+                    if is_fatal_driver_error(e):
                         raise e
 
                 last_stats_fetch = time.time()
