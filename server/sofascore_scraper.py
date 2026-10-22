@@ -199,21 +199,22 @@ def fetch_stats_via_js(driver, match_id):
     try:
         driver.set_script_timeout(15)
         
-        script = f"""
+        script = """
         var done = arguments[0];
-        const h = { 'Accept': 'application/json', 'Cache-Control': 'no-cache' };
+        var mid = arguments[1];
+        var h = { 'Accept': 'application/json', 'Cache-Control': 'no-cache' };
         Promise.all([
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/statistics', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/odds/1/all', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/graph', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
-            fetch('https://www.sofascore.com/api/v1/event/{match_id}/incidents', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null)
+            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/statistics', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/' + mid, { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/odds/1/all', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/graph', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null),
+            fetch('https://www.sofascore.com/api/v1/event/' + mid + '/incidents', { headers: h }).then(r => r.ok ? r.json() : null).catch(() => null)
         ])
-        .then(([stats, detail, odds, graph, incidents]) => done({{status: 'success', stats: stats, detail: detail, odds: odds, graph: graph, incidents: incidents}}))
-        .catch(err => done({{status: 'error', message: String(err)}}));
+        .then(([stats, detail, odds, graph, incidents]) => done({ status: 'success', stats: stats, detail: detail, odds: odds, graph: graph, incidents: incidents }))
+        .catch(err => done({ status: 'error', message: String(err) }));
         """
         
-        result = driver.execute_async_script(script)
+        result = driver.execute_async_script(script, str(match_id))
         
         if result and result.get('status') == 'success':
             captured_something = False
