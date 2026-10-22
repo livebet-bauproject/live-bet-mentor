@@ -481,6 +481,43 @@ def clean_chromedriver_cache(force_all=False):
     except Exception:
         pass
 
+def wait_for_cloudflare_clearance(driver, timeout=30):
+    """Wait for Cloudflare Turnstile challenge to auto-resolve or assist solving."""
+    if not driver:
+        return False
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            title = (driver.title or '').lower()
+            if "just a moment" in title or "cloudflare" in title or "attention required" in title:
+                logger.info(f"[CLOUDFLARE] Challenge active. Waiting to auto-resolve ({int(time.time() - start)}s)...")
+                time.sleep(3)
+                # Attempt to click Turnstile checkbox if present inside iframe
+                try:
+                    iframes = driver.find_elements(By.TAG_NAME, "iframe")
+                    for frame in iframes:
+                        src = (frame.get_attribute("src") or "").lower()
+                        if "cloudflare" in src or "turnstile" in src or "challenge" in src:
+                            driver.switch_to.frame(frame)
+                            box = driver.find_element(By.XPATH, "//input[@type='checkbox']")
+                            if box and box.is_displayed():
+                                box.click()
+                                logger.info("[CLOUDFLARE] Clicked Turnstile checkbox!")
+                            driver.switch_to.default_content()
+                            break
+                except Exception:
+                    try:
+                        driver.switch_to.default_content()
+                    except:
+                        pass
+            else:
+                logger.info(f"[CLOUDFLARE] Clearance confirmed! Page title: {driver.title}")
+                return True
+        except Exception:
+            time.sleep(2)
+    logger.warning("[CLOUDFLARE] Clearance wait completed or timed out.")
+    return False
+
 def get_scraper():
     """Get Chrome driver using undetected_chromedriver with anti-crash, memory-saving flags."""
     # Pre-launch hygiene: ensure no port conflicts or stale locks
@@ -504,7 +541,7 @@ def get_scraper():
                 options.binary_location = chrome_exe
             options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
             options.add_argument(f'--user-data-dir={profile_dir}')
-            options.add_argument('--window-size=1000,700')
+            options.add_argument('--window-size=1100,750')
             options.add_argument('--window-position=50,50')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
@@ -513,16 +550,19 @@ def get_scraper():
             options.add_argument('--disable-notifications')
             options.add_argument('--disable-infobars')
             
+            # Anti-throttling flags: prevent Chrome from freezing timers or Turnstile in background
+            options.add_argument('--disable-background-timer-throttling')
+            options.add_argument('--disable-backgrounding-occluded-windows')
+            options.add_argument('--disable-renderer-backgrounding')
+            options.add_argument('--disable-features=CalculateNativeWinOcclusion')
+            
             logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1}, Chrome v{major_ver})...")
             driver = uc.Chrome(
                 options=options,
                 user_data_dir=profile_dir,
                 version_main=major_ver
             )
-            try:
-                driver.minimize_window()
-            except Exception:
-                pass
+            # NEVER minimize the window - Turnstile requires a visible desktop window to solve!
             return driver
         except Exception as e:
             logger.warning(f"SofaScore Driver Launch Error (attempt {attempt + 1}): {e}")
@@ -546,19 +586,19 @@ def get_scraper():
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         options.add_experimental_option('useAutomationExtension', False)
         options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_argument('--window-size=1000,700')
+        options.add_argument('--window-size=1100,750')
         options.add_argument('--window-position=50,50')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-background-timer-throttling')
+        options.add_argument('--disable-backgrounding-occluded-windows')
+        options.add_argument('--disable-renderer-backgrounding')
+        options.add_argument('--disable-features=CalculateNativeWinOcclusion')
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
         
         service = Service(executable_path=driver_path)
         logger.info("Launching SofaScore Browser via Fallback ChromeDriver...")
         driver = webdriver.Chrome(service=service, options=options)
-        try:
-            driver.minimize_window()
-        except Exception:
-            pass
         return driver
     except Exception as e:
         logger.error(f"Fallback Selenium launch also failed: {e}")
@@ -575,7 +615,8 @@ def _run_capture_session():
         url = "https://www.sofascore.com/football/livescore"
         logger.info(f"[SCRAPER] Navigating to {url}...")
         driver.get(url)
-        time.sleep(6)
+        time.sleep(3)
+        wait_for_cloudflare_clearance(driver, timeout=30)
         
         last_live_fetch = 0
         last_stats_fetch = 0
@@ -588,16 +629,17 @@ def _run_capture_session():
                 try:
                     driver.get(url)
                     time.sleep(4)
+                    wait_for_cloudflare_clearance(driver, timeout=20)
                 except Exception as e:
                     logger.warning(f"[SESSION] DOM refresh notice: {e}")
                 last_page_refresh = time.time()
 
-            # 2. Hard Browser Rotation: Only after 4 continuous hours OR if data has stalled for > 180 seconds
+            # 2. Hard Browser Rotation: Only after 4 continuous hours OR if data has stalled for > 360 seconds
             session_age = time.time() - last_restart_time
-            data_stalled = (last_successful_save > 0) and (time.time() - last_successful_save > 180)
+            data_stalled = (last_successful_save > 0) and (time.time() - last_successful_save > 360)
             
             if session_age > 14400 or data_stalled:
-                reason = "4-hour routine rotation" if session_age > 14400 else "Data stalled for > 3 minutes"
+                reason = "4-hour routine rotation" if session_age > 14400 else "Data stalled for > 6 minutes"
                 logger.info(f"[SESSION] Triggering clean browser rotation ({reason})...")
                 safe_quit_driver(driver)
                 driver = None
@@ -606,7 +648,8 @@ def _run_capture_session():
                 time.sleep(3)
                 driver = get_scraper()
                 driver.get(url)
-                time.sleep(8)
+                time.sleep(4)
+                wait_for_cloudflare_clearance(driver, timeout=30)
                 last_restart_time = time.time()
                 last_page_refresh = time.time()
                 last_successful_save = time.time()
@@ -754,9 +797,9 @@ def _run_capture_session():
                         raw_data = result.get('data')
                         if isinstance(raw_data, dict) and ('error' in raw_data or 'events' not in raw_data):
                             err_info = raw_data.get('error', 'challenge')
-                            logger.warning(f"[JS-FETCH] Cloudflare challenge or API block ({err_info}). Reloading page to resolve Turnstile...")
-                            driver.get(url)
-                            time.sleep(8)
+                            logger.warning(f"[JS-FETCH] Cloudflare challenge or API block ({err_info}). Waiting for clearance...")
+                            wait_for_cloudflare_clearance(driver, timeout=15)
+                            time.sleep(3)
                             continue
 
                         json_data = filter_live_events(raw_data)
@@ -780,9 +823,9 @@ def _run_capture_session():
                         errMsg = str(result.get('message', '')) if result else 'null'
                         logger.warning(f"[JS-FETCH] Live List Failed: {errMsg}")
                         if '403' in errMsg or 'challenge' in errMsg.lower():
-                            logger.warning("[JS-FETCH] 403 Challenge detected! Reloading page...")
-                            driver.get(url)
-                            time.sleep(8)
+                            logger.warning("[JS-FETCH] 403 Challenge detected! Waiting for clearance...")
+                            wait_for_cloudflare_clearance(driver, timeout=15)
+                            time.sleep(3)
                         
                 except Exception as e:
                     logger.error(f"[JS-FETCH] Live List Exception: {e}")
