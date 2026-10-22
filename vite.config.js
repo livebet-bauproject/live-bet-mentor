@@ -20,6 +20,9 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0', // Allow access from other devices on network
+    watch: {
+      ignored: ['**/server/**', '**/public/**', '**/*.json', '**/*.log', '**/bin/**']
+    },
     proxy: {
       '/api-sofascore': {
         target: 'https://api.sofascore.com',

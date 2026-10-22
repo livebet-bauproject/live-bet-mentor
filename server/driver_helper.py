@@ -8,7 +8,8 @@ import undetected_chromedriver as uc
 
 logger = logging.getLogger(__name__)
 
-BIN_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bin')
+import tempfile
+BIN_DIR = os.path.join(tempfile.gettempdir(), 'livebet_bin')
 is_win = platform.system().lower().startswith('win')
 DRIVER_PATH = os.path.join(BIN_DIR, 'chromedriver.exe' if is_win else 'chromedriver')
 

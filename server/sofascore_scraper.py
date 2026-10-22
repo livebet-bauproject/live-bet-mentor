@@ -25,7 +25,7 @@ def _safe_del(self):
     try:
         if _orig_del:
             _orig_del(self)
-    except Exception:
+    except BaseException:
         pass
 uc.Chrome.__del__ = _safe_del
 
@@ -343,16 +343,16 @@ def kill_zombie_chrome_processes():
         if is_win:
             subprocess.run(["taskkill", "/F", "/IM", "chromedriver.exe", "/T"], capture_output=True, timeout=3)
             subprocess.run(["taskkill", "/F", "/IM", "undetected_chromedriver.exe", "/T"], capture_output=True, timeout=3)
-            # Terminate orphaned scraper Chrome processes so they never accumulate on the taskbar
+            # Terminate orphaned scraper Chrome processes so they never accumulate in memory
             ps_kill = (
                 "Get-CimInstance Win32_Process -Filter \"Name = 'chrome.exe'\" | "
-                "Where-Object { $_.CommandLine -like '*--window-position=-32000*' -or $_.CommandLine -like '*remote-debugging-port*' -or $_.CommandLine -like '*--scraper-mode*' } | "
+                "Where-Object { $_.CommandLine -like '*headless=new*' -or $_.CommandLine -like '*remote-debugging-port*' -or $_.CommandLine -like '*--window-position=-32000*' } | "
                 "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
             )
             subprocess.run(["powershell", "-NoProfile", "-Command", ps_kill], capture_output=True, timeout=6)
         else:
             subprocess.run(["killall", "-9", "chromedriver"], capture_output=True, timeout=3)
-            subprocess.run(["pkill", "-9", "-f", "window-position=-32000"], capture_output=True, timeout=3)
+            subprocess.run(["pkill", "-9", "-f", "headless=new"], capture_output=True, timeout=3)
     except Exception as e:
         logger.debug(f"Zombie process cleanup note: {e}")
 
@@ -425,29 +425,20 @@ def get_scraper():
         try:
             options = uc.ChromeOptions()
             options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
-            options.add_argument('--window-position=-32000,-32000')
-            options.add_argument('--window-size=1200,800')
+            options.add_argument('--headless=new')
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--disable-gpu')
-            options.add_argument('--disable-background-networking')
-            options.add_argument('--disable-background-timer-throttling')
-            options.add_argument('--disable-backgrounding-occluded-windows')
+            options.add_argument('--window-size=1920,1080')
             options.add_argument('--disable-breakpad')
             options.add_argument('--disable-component-update')
-            options.add_argument('--disable-features=Translate,OptimizationHints,MediaRouter')
-            options.add_argument('--scraper-mode=sofascore')
             options.add_argument('--disable-notifications')
             options.add_argument('--disable-infobars')
             
-            logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1}, Chrome v{major_ver})...")
-            # Calling uc.Chrome with version_main and patcher_force_close uses the user AppData
-            # binary with full execution permissions and safe multi-process lock bypass.
+            logger.info(f"Launching SofaScore Browser (uc headless attempt {attempt + 1}, Chrome v{major_ver})...")
             driver = uc.Chrome(
                 options=options,
-                version_main=major_ver,
-                patcher_force_close=True,
-                use_subprocess=True
+                version_main=major_ver
             )
             return driver
         except Exception as e:
@@ -469,15 +460,15 @@ def get_scraper():
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         options.add_experimental_option('useAutomationExtension', False)
         options.add_argument('--disable-blink-features=AutomationControlled')
-        options.add_argument('--window-position=-32000,-32000')
-        options.add_argument('--window-size=1200,800')
+        options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
         options.add_argument('--disable-gpu')
+        options.add_argument('--window-size=1920,1080')
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
         
         service = Service(executable_path=driver_path)
-        logger.info("Launching SofaScore Browser via Fallback ChromeDriver...")
+        logger.info("Launching SofaScore Browser via Fallback Headless ChromeDriver...")
         driver = webdriver.Chrome(service=service, options=options)
         return driver
     except Exception as e:
