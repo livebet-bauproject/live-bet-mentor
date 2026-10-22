@@ -15,13 +15,49 @@ DRIVER_PATH = os.path.join(BIN_DIR, 'chromedriver.exe' if is_win else 'chromedri
 def get_installed_chrome_version():
     """Detects the major version of the installed Google Chrome browser (e.g. 155)."""
     if is_win:
+        import glob
+        # 1. Fast, zero-subprocess filesystem inspection: Chrome directories are named with version (e.g. 155.0.8059.85)
+        candidate_dirs = [
+            r'C:\Program Files\Google\Chrome\Application',
+            r'C:\Program Files (x86)\Google\Chrome\Application',
+            os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Google', 'Chrome', 'Application'),
+            os.path.join(os.environ.get('PROGRAMFILES', ''), 'Google', 'Chrome', 'Application'),
+            os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'Google', 'Chrome', 'Application'),
+        ]
         try:
-            out = subprocess.check_output(r'reg query "HKEY_CURRENT_USER\Software\Google\Chrome\BLBeacon" /v version', shell=True, text=True, timeout=3)
-            m = re.search(r'version\s+REG_SZ\s+(\d+)\.', out)
-            if m:
-                return int(m.group(1))
+            candidate_dirs.extend(glob.glob(r'C:\Users\*\AppData\Local\Google\Chrome\Application'))
         except Exception:
             pass
+
+        for cdir in candidate_dirs:
+            if cdir and os.path.isdir(cdir):
+                try:
+                    for item in os.listdir(cdir):
+                        m = re.match(r'^(\d+)\.\d+\.\d+\.\d+$', item)
+                        if m:
+                            ver = int(m.group(1))
+                            logger.info(f"Detected Chrome v{ver} ({item}) from filesystem: {cdir}")
+                            return ver
+                except Exception:
+                    pass
+
+        # 2. Fast registry check (HKCU and HKLM)
+        for reg_key in [
+            r'reg query "HKCU\Software\Google\Chrome\BLBeacon" /v version',
+            r'reg query "HKLM\Software\Google\Chrome\BLBeacon" /v version',
+            r'reg query "HKLM\Software\WOW6432Node\Google\Update\Clients\{8A69D345-D564-463c-AFF1-A69D9E530F96}" /v pv'
+        ]:
+            try:
+                out = subprocess.check_output(reg_key, shell=True, text=True, timeout=3)
+                m = re.search(r'(?:version|pv)\s+REG_SZ\s+(\d+)\.', out)
+                if m:
+                    ver = int(m.group(1))
+                    logger.info(f"Detected Chrome v{ver} from registry")
+                    return ver
+            except Exception:
+                pass
+
+        # 3. Fallback to PowerShell
         try:
             cmd = 'powershell -NoProfile -Command "(Get-Item (Get-ItemProperty \'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\chrome.exe\').\'(default)\').VersionInfo.FileVersion"'
             out = subprocess.check_output(cmd, shell=True, text=True, timeout=4).strip()
@@ -30,16 +66,18 @@ def get_installed_chrome_version():
                 return int(m.group(1))
         except Exception:
             pass
+    else:
+        for cmd in ['google-chrome --version', 'google-chrome-stable --version', 'chromium --version', 'chromium-browser --version']:
+            try:
+                out = subprocess.check_output(cmd, shell=True, text=True, timeout=3)
+                m = re.search(r'(\d+)\.', out)
+                if m:
+                    return int(m.group(1))
+            except Exception:
+                pass
 
-    for cmd in ['google-chrome --version', 'google-chrome-stable --version', 'chromium --version', 'chromium-browser --version']:
-        try:
-            out = subprocess.check_output(cmd, shell=True, text=True, timeout=3)
-            m = re.search(r'(\d+)\.', out)
-            if m:
-                return int(m.group(1))
-        except Exception:
-            pass
-    return None
+    logger.warning("Could not automatically detect Chrome version, falling back to stable v155")
+    return 155
 
 def purge_cached_chromedriver():
     """Purge cached binary to force a clean re-download on version mismatch."""

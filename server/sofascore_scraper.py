@@ -337,20 +337,29 @@ def process_request_queue(driver, max_count=10):
         logger.debug(f"[ON-DEMAND] Queue processing info: {e}")
 
 def kill_zombie_chrome_processes():
-    """Aggressively kill all orphaned chromedriver and unattached scraper processes."""
+    """Aggressively kill all orphaned chromedriver and scraper Chrome instances."""
     is_win = platform.system().lower().startswith('win')
     try:
         if is_win:
-            subprocess.run(["taskkill", "/F", "/IM", "chromedriver.exe", "/T"], capture_output=True, timeout=5)
-            subprocess.run(["taskkill", "/F", "/IM", "undetected_chromedriver.exe", "/T"], capture_output=True, timeout=5)
+            subprocess.run(["taskkill", "/F", "/IM", "chromedriver.exe", "/T"], capture_output=True, timeout=3)
+            subprocess.run(["taskkill", "/F", "/IM", "undetected_chromedriver.exe", "/T"], capture_output=True, timeout=3)
+            # Terminate orphaned scraper Chrome processes so they never accumulate on the taskbar
+            ps_kill = (
+                "Get-CimInstance Win32_Process -Filter \"Name = 'chrome.exe'\" | "
+                "Where-Object { $_.CommandLine -like '*--window-position=-32000*' -or $_.CommandLine -like '*remote-debugging-port*' -or $_.CommandLine -like '*--scraper-mode*' } | "
+                "ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+            )
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps_kill], capture_output=True, timeout=6)
         else:
-            subprocess.run(["killall", "-9", "chromedriver"], capture_output=True, timeout=5)
+            subprocess.run(["killall", "-9", "chromedriver"], capture_output=True, timeout=3)
+            subprocess.run(["pkill", "-9", "-f", "window-position=-32000"], capture_output=True, timeout=3)
     except Exception as e:
         logger.debug(f"Zombie process cleanup note: {e}")
 
 def safe_quit_driver(driver):
     """Safely and completely terminate Chrome driver and its specific browser process."""
     if not driver:
+        kill_zombie_chrome_processes()
         return
     browser_pid = getattr(driver, 'browser_pid', None)
     service_pid = getattr(getattr(driver, 'service', None), 'process', None)
@@ -371,6 +380,9 @@ def safe_quit_driver(driver):
                     os.kill(pid, 9)
             except Exception:
                 pass
+
+    # Ensure no lingering child processes or taskbar buttons survive
+    kill_zombie_chrome_processes()
 
 def clean_chromedriver_cache(force_all=False):
     """Clean temporary lock files and scoped directories from %TEMP%."""
@@ -424,6 +436,9 @@ def get_scraper():
             options.add_argument('--disable-breakpad')
             options.add_argument('--disable-component-update')
             options.add_argument('--disable-features=Translate,OptimizationHints,MediaRouter')
+            options.add_argument('--scraper-mode=sofascore')
+            options.add_argument('--disable-notifications')
+            options.add_argument('--disable-infobars')
             
             logger.info(f"Launching SofaScore Browser (uc attempt {attempt + 1}, Chrome v{major_ver})...")
             # Calling uc.Chrome with version_main and patcher_force_close uses the user AppData
