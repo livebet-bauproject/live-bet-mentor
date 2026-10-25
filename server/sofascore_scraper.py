@@ -65,7 +65,7 @@ REQUEST_QUEUE_FILE = os.path.join(BASE_DIR, 'stats_request.json')
 NETWORK_LOG_FILE = os.path.join(BASE_DIR, 'network_log.txt')
 STATS_DIR = os.path.join(BASE_DIR, 'stats')
 LIVE_FETCH_INTERVAL = 15  # Fetch live list every 15 seconds for fresher data
-STATS_FETCH_INTERVAL = 20  # Auto-fetch stats for all live matches every 20 seconds
+STATS_FETCH_INTERVAL = 10  # Auto-fetch stats for all live matches every 10 seconds
 BATCH_SIZE = 10  # Number of matches to fetch stats for in each batch (to avoid rate limiting)
 
 def parse_odds_value(choice):
@@ -148,14 +148,25 @@ def update_central_odds(match_id, odds_data):
         # Structure the odds for the frontend (1-X-2)
         # Supports both odds_data['odds'] and odds_data['markets']
         choices = odds_data.get('odds', [])
+        target_market = None
         if not choices and 'markets' in odds_data:
             for m in odds_data.get('markets', []):
                 m_name = (m.get('marketName') or '').lower()
                 if m.get('id') == 1 or m.get('marketId') == 1 or 'full' in m_name or m.get('marketGroup') == '1X2':
+                    target_market = m
                     choices = m.get('choices', [])
                     break
 
-        if len(choices) >= 3:
+        is_live = False
+        is_suspended = False
+        if target_market:
+            is_live = bool(target_market.get('isLive', False))
+            is_suspended = bool(target_market.get('suspended', False))
+        else:
+            is_live = bool(odds_data.get('isLive', False))
+            is_suspended = bool(odds_data.get('suspended', False))
+
+        if len(choices) >= 3 and not is_suspended:
             home_val = parse_odds_value(choices[0])
             draw_val = parse_odds_value(choices[1])
             away_val = parse_odds_value(choices[2])
@@ -165,12 +176,14 @@ def update_central_odds(match_id, odds_data):
                     'home': home_val,
                     'draw': draw_val,
                     'away': away_val,
+                    'isLive': is_live,
+                    'suspended': is_suspended,
                     'timestamp': time.time()
                 }
                 
                 with open(ODDS_FILE, 'w', encoding='utf-8') as f:
                     json.dump(current_odds, f, indent=2)
-                logger.debug(f"[ODDS] Updated {match_id} in {ODDS_FILE}: {home_val} | {draw_val} | {away_val}")
+                logger.debug(f"[ODDS] Updated {match_id} in {ODDS_FILE}: {home_val} | {draw_val} | {away_val} (isLive={is_live})")
     except Exception as e:
         logger.warning(f"[ODDS] Update failed for {match_id}: {e}")
 
@@ -384,7 +397,7 @@ def fetch_stats_via_js(driver, match_id, include_extras=False):
             raise e
     return False
 
-def process_request_queue(driver, max_count=10):
+def process_request_queue(driver, max_count=15):
     """Process high-priority on-demand match stats requests from proxy/UI."""
     if not driver or not os.path.exists(REQUEST_QUEUE_FILE):
         return
@@ -394,18 +407,26 @@ def process_request_queue(driver, max_count=10):
         if not raw_content:
             return
         req_data = json.loads(raw_content)
-        try:
-            os.remove(REQUEST_QUEUE_FILE)
-        except:
-            pass
-        
         ids = req_data.get('ids', [])
-        if ids:
-            ids_to_fetch = ids[-max_count:] # Process most recent requests
-            logger.info(f"[ON-DEMAND] Fetching {len(ids_to_fetch)} requested matches: {ids_to_fetch}")
-            for match_id in ids_to_fetch:
-                fetch_stats_via_js(driver, str(match_id), include_extras=True)
-                time.sleep(0.3)
+        if not ids:
+            return
+
+        # Take up to max_count and preserve remaining queued matches
+        ids_to_fetch = ids[:max_count]
+        remaining = ids[max_count:]
+        try:
+            if remaining:
+                with open(REQUEST_QUEUE_FILE, 'w', encoding='utf-8') as rq_out:
+                    json.dump({'ids': remaining}, rq_out)
+            else:
+                os.remove(REQUEST_QUEUE_FILE)
+        except Exception:
+            pass
+
+        logger.info(f"[ON-DEMAND] Fetching {len(ids_to_fetch)} requested matches: {ids_to_fetch}")
+        for match_id in ids_to_fetch:
+            fetch_stats_via_js(driver, str(match_id), include_extras=False)
+            time.sleep(0.1)
     except Exception as e:
         logger.debug(f"[ON-DEMAND] Queue processing info: {e}")
         if is_fatal_driver_error(e):
@@ -1030,14 +1051,14 @@ def _run_capture_session():
                                 if should_fetch:
                                     fetch_stats_via_js(driver, match_id, include_extras=False)
                                     tier1_updated += 1
-                                    time.sleep(0.4)
+                                    time.sleep(0.15)
 
                             if tier1_updated > 0:
                                 logger.info(f"[TIER-1 STATS] Refreshed {tier1_updated}/{len(tier1_ids)} top matches")
 
-                            # Background rotation for Tier 2 matches (5 per cycle)
+                            # Background rotation for Tier 2 matches (15 per cycle)
                             if tier2_ids:
-                                t2_batch_size = 5
+                                t2_batch_size = 15
                                 total_t2_batches = (len(tier2_ids) + t2_batch_size - 1) // t2_batch_size
                                 stats_batch_index = stats_batch_index % total_t2_batches
                                 t2_start = stats_batch_index * t2_batch_size
@@ -1062,7 +1083,7 @@ def _run_capture_session():
 
                                     if should_fetch:
                                         fetch_stats_via_js(driver, match_id, include_extras=False)
-                                        time.sleep(0.4)
+                                        time.sleep(0.15)
 
                                 stats_batch_index += 1
                 except Exception as e:

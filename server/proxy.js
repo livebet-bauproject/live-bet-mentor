@@ -841,6 +841,62 @@ app.get('/api/sync/status', (req, res) => {
     });
 });
 
+// Bulk Match Statistics Bundle Endpoint for Instant Frontend Loading (<50ms)
+let cachedStatsBundle = null;
+let cachedStatsBundleTime = 0;
+
+app.get('/api/sofascore/stats/bundle', (req, res) => {
+    const now = Date.now();
+    // 3-second memory cache to serve instantly
+    if (cachedStatsBundle && (now - cachedStatsBundleTime) < 3000) {
+        return res.json(cachedStatsBundle);
+    }
+
+    const bundle = {};
+    let liveEvents = memoryLiveData?.events;
+    if (!liveEvents && fs.existsSync(SOFASCORE_FILE)) {
+        try { liveEvents = JSON.parse(fs.readFileSync(SOFASCORE_FILE, 'utf8'))?.events; } catch(e) {}
+    }
+
+    if (liveEvents && Array.isArray(liveEvents)) {
+        for (const ev of liveEvents) {
+            const id = ev.id;
+            if (!id) continue;
+
+            // 1. Memory cache check
+            if (memoryStatsCache[id]?.data?.stats) {
+                const s = memoryStatsCache[id].data.stats;
+                if (!s.error && !s.noStats) {
+                    bundle[id] = {
+                        stats: s,
+                        detail: memoryStatsCache[id].data.detail || { event: ev },
+                        odds: memoryStatsCache[id].data.odds || null
+                    };
+                    continue;
+                }
+            }
+
+            // 2. Disk cache check
+            const statsFile = path.join(STATS_DIR, `${id}_stats.json`);
+            if (fs.existsSync(statsFile)) {
+                try {
+                    const stats = JSON.parse(fs.readFileSync(statsFile, 'utf8'));
+                    if (stats && !stats.error && !stats.noStats && stats.statistics && stats.statistics.length > 0) {
+                        bundle[id] = {
+                            stats,
+                            detail: { event: ev }
+                        };
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    cachedStatsBundle = bundle;
+    cachedStatsBundleTime = now;
+    res.json(bundle);
+});
+
 // 1. Live Events List
 // Helper: record telemetry for all live events and attach rolling minute history
 const enrichEventsWithTelemetry = (events) => {
@@ -1690,38 +1746,22 @@ const isAdminRequest = (req) => {
     if (rawToken) {
         const cleanToken = rawToken.startsWith('Bearer ') ? rawToken.slice(7).trim() : rawToken.trim();
 
-        // 1. Direct Master Admin Token fallback
-        if (cleanToken === 'master-admin-token' || cleanToken === 'admin-super') {
-            return true;
-        }
-
-        // 2. Custom Admin API Key matching
+        // 1. Custom Admin API Key matching (Strict environment configuration)
         if (process.env.ADMIN_API_KEY && cleanToken === process.env.ADMIN_API_KEY) {
             return true;
         }
 
-        // 3. Cryptographically signed JWT verification
+        // 2. Cryptographically signed JWT verification with secure HMAC-SHA256
         const payload = verifySecureToken(cleanToken, JWT_SECRET);
         if (payload && (payload.role === 'admin' || payload.plan === 'admin' || payload.email === 'admin@livebetmentor.com' || payload.email === 'karabulut.hamza@gmail.com')) {
             return true;
         }
     }
 
-    // Machine-to-machine sync secret
+    // Machine-to-machine sync secret (for cloud data exchange)
     const syncSecret = req.headers['x-sync-secret'] || req.headers['x-api-key'];
-    if (syncSecret && (syncSecret === (process.env.ADMIN_API_KEY || RENDER_UPLOAD_SECRET))) {
+    if (syncSecret && (syncSecret === (process.env.ADMIN_API_KEY || process.env.UPLOAD_SECRET || RENDER_UPLOAD_SECRET))) {
         return true;
-    }
-
-    // In local development mode ONLY, allow trusted local admin email
-    const ip = req.ip || req.connection?.remoteAddress || '';
-    const isLocalhost = ip.includes('127.0.0.1') || ip === '::1' || ip.includes('localhost');
-    if (isLocalhost && process.env.NODE_ENV !== 'production') {
-        const adminSender = req.headers['x-admin-sender'] || req.headers['x-admin-email'];
-        const allowedAdmins = ['admin@livebetmentor.com', 'admin', 'karabulut.hamza@gmail.com', 'admin@local.dev'];
-        if (adminSender && allowedAdmins.includes(String(adminSender).trim().toLowerCase())) {
-            return true;
-        }
     }
 
     return false;
@@ -3057,7 +3097,7 @@ const isSupportStaffRequest = (req) => {
     return false;
 };
 
-// 3.5 Quick Auth Endpoint for 1-Click Telegram-to-Web Admin Access
+// 3.5 Quick Auth Endpoint for 1-Click Telegram-to-Web Admin Access (Cryptographically Signed Only)
 app.get('/api/admin/quick-auth', (req, res) => {
     try {
         const token = req.query.token;
@@ -3068,31 +3108,13 @@ app.get('/api/admin/quick-auth', (req, res) => {
         const candidateSecrets = [
             JWT_SECRET,
             process.env.ADMIN_SECRET,
-            process.env.JWT_SECRET,
-            'lbm_sec_vault_2026_981aed67_prod_shield'
+            process.env.JWT_SECRET
         ].filter(Boolean);
 
         let decoded = null;
         for (const sec of candidateSecrets) {
             decoded = verifySecureToken(token, sec);
             if (decoded) break;
-        }
-
-        // Safe fallback if token payload has admin role and is not expired
-        if (!decoded && typeof token === 'string' && token.includes('.')) {
-            try {
-                const parts = token.trim().split('.');
-                if (parts.length >= 2) {
-                    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-                    const payload = JSON.parse(Buffer.from(b64, 'base64').toString('utf8'));
-                    if (
-                        (payload.role === 'admin' || payload.purpose === 'quick_support' || payload.email === 'admin@livebetmentor.com') &&
-                        (!payload.exp || Date.now() < (payload.exp > 10000000000 ? payload.exp : payload.exp * 1000))
-                    ) {
-                        decoded = payload;
-                    }
-                }
-            } catch (err) {}
         }
 
         if (!decoded || (decoded.role !== 'admin' && decoded.purpose !== 'quick_support' && decoded.email !== 'admin@livebetmentor.com')) {
@@ -3893,7 +3915,7 @@ const QUEUE_COOLDOWN = {}; // Memory-based cooldown
 function queueRequest(id) {
     if (!id) return;
     const now = Date.now();
-    if (QUEUE_COOLDOWN[id] && (now - QUEUE_COOLDOWN[id]) < 20000) {
+    if (QUEUE_COOLDOWN[id] && (now - QUEUE_COOLDOWN[id]) < 8000) {
         return; // Skip if requested in the last 20 seconds
     }
     QUEUE_COOLDOWN[id] = now;

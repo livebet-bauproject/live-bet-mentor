@@ -1,1074 +1,1104 @@
-/**
- * SOFASCORE DATA ADAPTER
- * Focus: XHR/JSON extraction and normalization.
- */
-
-import { CONFIG, getApiBaseUrl, initBackendDiscovery } from '../config.js';
-import { database, ref, get } from '../firebase/config.js';
-import { supabase } from './supabaseClient.js';
-
-export async function resolveBackendUrl() {
-    return (await initBackendDiscovery()) || getApiBaseUrl();
-}
-
-// Central live odds in-memory cache to prevent redundant HTTP requests
-let centralOddsCache = null;
-let centralOddsCacheTime = 0;
-
-async function getLiveOddsMap() {
-    const now = Date.now();
-    if (centralOddsCache && (now - centralOddsCacheTime < 25000)) {
-        return centralOddsCache;
-    }
-    const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    const primaryUrl = await resolveBackendUrl();
-    if (!primaryUrl) {
-        return centralOddsCache || {};
-    }
-
-    try {
-        const res = await fetch(`${primaryUrl}/api/odds/live`, { signal: AbortSignal.timeout(2000) });
-        if (res.ok) {
-            const data = await res.json();
-            centralOddsCache = data;
-            centralOddsCacheTime = now;
-            return data;
-        }
-    } catch (e) {}
-    return centralOddsCache || {};
-}
-
-// Module-level caches and in-flight request deduplication maps for ultra-fast UI rendering
-const adapterGraphCache = new Map();
-const adapterIncidentsCache = new Map();
-const adapterStatsCache = new Map();
-const inFlightGraph = new Map();
-const inFlightIncidents = new Map();
-let adapterLiveEventsCache = [];
-let adapterLiveEventsTime = 0;
-let firebaseFailureTime = 0;
-
-// Clean any leftover stale sessionStorage keys to ensure fresh live data on F5
-try {
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-        sessionStorage.removeItem('lbm_cached_live_events');
-        sessionStorage.removeItem('lbm_cached_fixtures');
-    }
-} catch(e) {}
-
-export const sofaScoreAdapter = {
-    _graphCache: adapterGraphCache,
-    _incidentsCache: adapterIncidentsCache,
-    _statsCache: adapterStatsCache,
-
-    /**
-     * Synchronously returns cached attack momentum graph points if available
-     */
-    getCachedGraph(eventId) {
-        if (!eventId) return null;
-        const cached = adapterGraphCache.get(eventId);
-        if (cached && (Date.now() - cached.time < 180000)) {
-            return cached.data?.graphPoints || null;
-        }
-        return null;
-    },
-
-    /**
-     * Synchronously returns cached match incidents if available
-     */
-    getCachedIncidents(eventId) {
-        if (!eventId) return null;
-        const cached = adapterIncidentsCache.get(eventId);
-        if (cached && (Date.now() - cached.time < 180000)) {
-            return cached.data || null;
-        }
-        return null;
-    },
-
-    /**
-     * Fetches server-persisted match telemetry history
-     */
-    async fetchMatchHistory(matchId) {
-        if (!matchId) return [];
-        try {
-            const baseUrl = await resolveBackendUrl();
-            const res = await fetch(`${baseUrl}/api/match/${matchId}/history`, { signal: AbortSignal.timeout(3500) });
-            if (res.ok) {
-                const data = await res.json();
-                return Array.isArray(data.history) ? data.history : [];
-            }
-        } catch(e) {}
-        return [];
-    },
-    /**
-     * Fetches the match list for the current day.
-     */
-    async fetchScheduledEvents(allowCache = true) {
-        try {
-            // In-memory short deduplication (5 seconds) to prevent redundant concurrent fetches
-            if (allowCache && adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 5000)) {
-                return adapterLiveEventsCache;
-            }
-
-            // Detect environment: Local dev uses local proxy, any deployed domain uses cloud/Firebase
-            const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-
-            if (isLocalDev) {
-                // LOCAL DEVELOPMENT: Try local proxy first (faster, no Firebase quota)
-                const proxyUrl = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001') + '/api/sofascore/live';
-                let data = null;
-
-                try {
-                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
-                    if (response.ok) {
-                        data = await response.json();
-                    }
-                } catch (localErr) {
-                    // Local proxy offline
-                }
-
-                if (data && data.events) {
-                    const normalized = [];
-                    for (const event of data.events) {
-                        try {
-                            const n = this.normalizeEvent(event);
-                            if (n) normalized.push(n);
-                        } catch (err) {
-                            console.error('[SOFASCORE_ADAPTER] Normalization failed for event:', event.id, err.message);
-                        }
-                    }
-
-                    if (normalized.length > 0) {
-                        adapterLiveEventsCache = normalized;
-                        adapterLiveEventsTime = Date.now();
-                    }
-                    return normalized;
-                }
-                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
-                return isCacheValid ? adapterLiveEventsCache : [];
-            } else {
-                // PRODUCTION: Use active Cloudflare Tunnel if verified alive, otherwise Firebase directly
-                const apiBase = await resolveBackendUrl();
-                if (apiBase) {
-                    const renderUrl = `${apiBase}/api/sofascore/live`;
-                    try {
-                        const response = await fetch(renderUrl, { signal: AbortSignal.timeout(8000) });
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data && data.events) {
-                                const normalized = data.events
-                                    .map(event => this.normalizeEvent(event))
-                                    .filter(event => event !== null);
-                                if (normalized.length > 0) {
-                                    adapterLiveEventsCache = normalized;
-                                    adapterLiveEventsTime = Date.now();
-                                    return normalized;
-                                }
-                            }
-                        }
-                    } catch (renderErr) {
-                        // Tunnel timed out or unreachable, immediately proceed to Firebase
-                    }
-                }
-
-                // Fallback to Firebase Realtime Database (fast & resilient cloud backup)
-                if (Date.now() - firebaseFailureTime > 60000) {
-                    try {
-                        const snapshot = await get(ref(database, 'live_events'));
-                        if (snapshot.exists()) {
-                            const fbData = snapshot.val();
-                            if (fbData && fbData.events) {
-                                const fbNorm = fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
-                                if (fbNorm.length > 0) {
-                                    adapterLiveEventsCache = fbNorm;
-                                    adapterLiveEventsTime = Date.now();
-                                    return fbNorm;
-                                }
-                            }
-                        }
-                    } catch (fbErr) {
-                        firebaseFailureTime = Date.now();
-                        console.warn('[SOFASCORE_ADAPTER] Firebase live fetch notice (muted for 60s):', fbErr?.message);
-                    }
-                }
-
-                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
-                if (isCacheValid) {
-                    return adapterLiveEventsCache;
-                }
-                return [];
-            }
-        } catch (error) {
-            console.error('[SOFASCORE_ADAPTER] Error fetching:', error);
-            const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
-            return isCacheValid ? adapterLiveEventsCache : [];
-        }
-    },
-
-    /**
-     * Light normalization for list view.
-     */
-    normalizeEvent(event) {
-        if (!event) return null;
-
-        // CRITICAL: Strict filtering to match SofaScore "Live" (Football) count
-        // 1. Sport ID check (ID 1 is Football)
-        const sportId = event.tournament?.category?.sport?.id;
-        if (sportId && sportId !== 1) return null; 
-
-        // 2. Anti-Ghost filter: A football match CANNOT last > 165 minutes (2.75 hours)
-        const nowSec = Date.now() / 1000;
-        const startTs = event.startTimestamp || nowSec;
-        if ((nowSec - startTs) > 2.75 * 3600) {
-            return null; // Match started > 165 mins ago, guaranteed finished
-        }
-        if ((startTs - nowSec) > 3600) {
-            return null; // Scheduled in future
-        }
-
-        // Note: feedLocked is an editorial commentary lock in SofaScore, NOT an indicator of match conclusion.
-        // Match conclusion is determined strictly by status (finished/code 100) or elapsed duration (> 165 mins).
-
-        const statusCode = event.status?.code;
-        const statusType = (event.status?.type || '').toLowerCase();
-        const statusDesc = (event.status?.description || '').toLowerCase();
-
-        // 4. Halftime sanity check: Real halftime is 15 minutes.
-        // If status is Halftime but match started > 85 mins ago, feed is dead/finished
-        if ((statusCode === 31 || statusDesc === 'halftime' || statusDesc === 'ht') && (nowSec - startTs) > 5100) {
-            return null;
-        }
-
-        // 5. Must be Active (Filter out anything finished, ended, canceled or delayed)
-        if (statusType === 'finished' || statusCode === 100) return null;
-
-        const isActuallyFinished = statusType === 'finished' || statusCode === 100 ||
-            statusDesc.includes('ended') || statusDesc.includes('finish') || 
-            statusDesc.includes('canceled') || statusDesc.includes('bitti') || 
-            statusDesc.includes('sona') || statusDesc.includes('ertele') || 
-            statusDesc.includes('iptal') || statusDesc.includes('abandoned') || 
-            statusDesc.includes('interrupted') || statusDesc.includes('suspended') || 
-            statusDesc.includes('delayed') || statusDesc === 'ft' || 
-            statusDesc === 'aet' || statusDesc === 'ap' ||
-            /\b(ft|finished|ended|full time|full-time)\b/i.test(statusDesc);
-
-        if (isActuallyFinished) return null;
-        if (statusType === 'notstarted' && !statusDesc.includes('live')) return null;
-
-        const calculatedMinute = this.calculateMinute(event);
-        if (calculatedMinute === 'MS' || calculatedMinute === 'FT' || calculatedMinute === 'Ert.') {
-            return null;
-        }
-
-        const homeTeamId = event.homeTeam?.id;
-        const awayTeamId = event.awayTeam?.id;
-        const categoryName = event.tournament?.category?.name || '';
-        const uniqueTourn = event.tournament?.uniqueTournament || {};
-        const gender = event.homeTeam?.gender || uniqueTourn.gender || event.tournament?.category?.gender || (
-            (event.tournament?.name?.toLowerCase().includes('women') || categoryName.toLowerCase().includes('women')) ? 'F' : 'M'
-        );
-
-        return {
-            id: event.id,
-            homeTeam: event.homeTeam?.name || 'Home',
-            awayTeam: event.awayTeam?.name || 'Away',
-            homeTeamId,
-            awayTeamId,
-            homeTeamLogo: homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null,
-            awayTeamLogo: awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null,
-            homeColors: event.homeTeam?.teamColors,
-            awayColors: event.awayTeam?.teamColors,
-            league: event.tournament?.name || 'Unknown League',
-            leagueName: event.tournament?.name || 'Unknown League',
-            leagueId: event.tournament?.id,
-            category: categoryName,
-            uniqueTournamentId: uniqueTourn.id || null,
-            uniqueTournamentName: uniqueTourn.name || '',
-            userCount: uniqueTourn.userCount || 0,
-            hasPlayerStats: !!uniqueTourn.hasEventPlayerStatistics,
-            gender,
-            score: {
-                home: event.homeScore?.current ?? 0,
-                away: event.awayScore?.current ?? 0
-            },
-            minute: this.calculateMinute(event),
-            status: event.status,
-            time: event.time,
-            statusTime: event.statusTime,
-            cards: {
-                home: { yellow: 0, red: event.homeRedCards || 0 },
-                away: { yellow: 0, red: event.awayRedCards || 0 }
-            },
-            stats: {
-                possession: { home: 0, away: 0 },
-                shotsOnGoal: { home: 0, away: 0 },
-                dangerousAttacks: { home: 0, away: 0 },
-                corners: { home: 0, away: 0 },
-                xg: { home: 0, away: 0 },
-                cards: {
-                    home: { yellow: 0, red: event.homeRedCards || 0 },
-                    away: { yellow: 0, red: event.awayRedCards || 0 }
-                }
-            },
-            isPartial: true,
-            latency: 0,
-            dataQuality: 'BASIC',
-            source: 'SOFASCORE'
-        };
-    },
-
-    /**
-     * Fetches full details for a specific event.
-     */
-    fetchEventDetails: async (eventId) => {
-        const startTime = Date.now();
-
-        try {
-            const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-            const isProduction = !isLocalDev;
-
-            if (isLocalDev) {
-                // LOCAL DEVELOPMENT: Try local proxy for stats, fallback to Render cloud
-                const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
-                let detailRes = null;
-                let statsRes = null;
-
-                try {
-                    [detailRes, statsRes] = await Promise.all([
-                        fetch(`${proxyBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(3500) }),
-                        fetch(`${proxyBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(3500) })
-                    ]);
-                } catch (localErr) {
-                    // Local proxy offline -> fallback to Render cloud
-                    try {
-                        const renderBase = 'https://live-bet-mentor.onrender.com';
-                        [detailRes, statsRes] = await Promise.all([
-                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(7000) }),
-                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(7000) })
-                        ]);
-                    } catch (cloudErr) {
-                        return null;
-                    }
-                }
-
-                const latency = Date.now() - startTime;
-
-                // Detail must be successful (200) - 202 means "queued, not ready yet"
-                if (!detailRes || (!detailRes.ok && detailRes.status !== 202)) {
-                    return null;
-                }
-
-                const detail = await detailRes.json();
-                let stats = null;
-                let statsPending = false;
-
-                if (statsRes.ok) {
-                    stats = await statsRes.json();
-                    if (stats?.status === 'queued') statsPending = true;
-                } else if (statsRes.status === 404) {
-                    stats = { statistics: [] };
-                    statsPending = true;
-                } else if (statsRes.status === 202) {
-                    stats = { status: 'queued' };
-                    statsPending = true;
-                }
-
-                // If detail is queued (not ready), return null
-                if (detail.status === 'queued') {
-                    return null;
-                }
-
-                if (detail?.error) return null;
-
-                const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
-                normalized.latency = latency;
-                if (statsPending || !stats || !stats.statistics || stats.statistics.length === 0) {
-                    normalized.isPartial = true;
-                    normalized.statsPending = true;
-                }
-                return normalized;
-            } else {
-                // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
-                const renderBase = await resolveBackendUrl();
-                if (renderBase) {
-                    try {
-                        const [detailRes, statsRes] = await Promise.all([
-                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(8000) }),
-                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(8000) })
-                        ]);
-
-                        const latency = Date.now() - startTime;
-
-                        if (detailRes.ok || detailRes.status === 202) {
-                            const detail = await detailRes.json();
-                            let stats = null;
-                            let statsPending = false;
-                            if (statsRes.status === 202) {
-                                stats = { status: 'queued' };
-                                statsPending = true;
-                            } else if (statsRes.ok) {
-                                stats = await statsRes.json();
-                                if (stats?.status === 'queued') {
-                                    stats = { status: 'queued' };
-                                    statsPending = true;
-                                }
-                            } else if (statsRes.status === 404) {
-                                stats = { statistics: [] };
-                                statsPending = true;
-                            }
-
-                            if (detail.status !== 'queued' && !detail?.error) {
-                                const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
-                                normalized.latency = latency;
-                                if (statsPending || !stats || !stats.statistics || stats.statistics.length === 0) {
-                                    normalized.isPartial = true;
-                                    normalized.statsPending = true;
-                                }
-                                return normalized;
-                            }
-                        }
-                    } catch (renderErr) {}
-                }
-
-                // Fallback to Firebase (only if not tripped by permission denied / failure)
-                if (Date.now() - firebaseFailureTime > 60000) {
-                    try {
-                        const [detailSnap, statsSnap] = await Promise.all([
-                            get(ref(database, `stats/${eventId}/detail`)),
-                            get(ref(database, `stats/${eventId}/stats`))
-                        ]);
-                        if (!detailSnap.exists()) return null;
-                        const detail = detailSnap.val();
-                        const stats = statsSnap.exists() ? statsSnap.val() : { statistics: [] };
-                        if (detail?.error) return null;
-                        const normalized = sofaScoreAdapter.normalize(detail, stats);
-                        normalized.latency = Date.now() - startTime;
-                        return normalized;
-                    } catch (fbErr) {
-                        firebaseFailureTime = Date.now();
-                        return null;
-                    }
-                }
-                return null;
-            }
-        } catch (error) {
-            console.error(`SofaScore fetchEventDetails Error for ${eventId}:`, error);
-            return null;
-        }
-    },
-
-    /**
-     * Fetches minute-by-minute attack momentum graph for a match.
-     */
-    async fetchEventGraph(eventId) {
-        if (!eventId) return { graphPoints: [], noGraph: false, isQueued: false };
-        const now = Date.now();
-        const cached = adapterGraphCache.get(eventId);
-        if (cached && (now - cached.time < 60000)) {
-            return cached.data;
-        }
-        if (inFlightGraph.has(eventId)) {
-            return inFlightGraph.get(eventId);
-        }
-
-        const promise = (async () => {
-            try {
-                const apiBase = await resolveBackendUrl();
-
-                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/graph`, {
-                    signal: AbortSignal.timeout(4000)
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    const points = data?.graphPoints || data?.graphPointsV2 || [];
-                    const result = {
-                        graphPoints: Array.isArray(points) ? points : [],
-                        noGraph: Boolean(data?.noGraph),
-                        isQueued: data?.status === 'queued'
-                    };
-                    adapterGraphCache.set(eventId, { time: Date.now(), data: result });
-                    return result;
-                }
-            } catch (e) {
-                console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
-            }
-            return { graphPoints: [], noGraph: false, isQueued: false };
-        })().finally(() => {
-            inFlightGraph.delete(eventId);
-        });
-
-        inFlightGraph.set(eventId, promise);
-        return promise;
-    },
-
-    /**
-     * Fetches match incidents (goals, cards, substitutions, periods) for timeline.
-     */
-    async fetchEventIncidents(eventId) {
-        if (!eventId) return [];
-        const now = Date.now();
-        const cached = adapterIncidentsCache.get(eventId);
-        if (cached && (now - cached.time < 60000)) {
-            return cached.data;
-        }
-        if (inFlightIncidents.has(eventId)) {
-            return inFlightIncidents.get(eventId);
-        }
-
-        const promise = (async () => {
-            try {
-                const apiBase = await resolveBackendUrl();
-
-                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/incidents`, {
-                    signal: AbortSignal.timeout(4000)
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    const incidents = Array.isArray(data?.incidents) ? data.incidents : [];
-                    incidents.isQueued = data?.status === 'queued';
-                    incidents.noIncidents = Boolean(data?.noIncidents);
-                    adapterIncidentsCache.set(eventId, { time: Date.now(), data: incidents });
-                    return incidents;
-                }
-            } catch (e) {
-                console.warn(`[SOFASCORE_ADAPTER] Incidents fetch failed for ${eventId}:`, e.message);
-            }
-            const empty = [];
-            empty.isQueued = false;
-            empty.noIncidents = false;
-            return empty;
-        })().finally(() => {
-            inFlightIncidents.delete(eventId);
-        });
-
-        inFlightIncidents.set(eventId, promise);
-        return promise;
-    },
-
-    /**
-     * Fetches match statistics (possession, shots, corners, etc.).
-     */
-    async fetchEventStatistics(eventId) {
-        if (!eventId) return [];
-        const now = Date.now();
-        const cached = adapterStatsCache.get(eventId);
-        if (cached && (now - cached.time < 45000)) {
-            return cached.data;
-        }
-        if (inFlightStats.has(eventId)) {
-            return inFlightStats.get(eventId);
-        }
-
-        const promise = (async () => {
-            try {
-                const apiBase = await resolveBackendUrl();
-                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/statistics`, {
-                    signal: AbortSignal.timeout(5000)
-                });
-                if (res.ok) {
-                    if (res.status === 202) {
-                        // Backend queued the request, DO NOT cache empty array so UI retries quickly
-                        return [];
-                    }
-                    const data = await res.json();
-                    if (data?.status === 'queued') {
-                        return [];
-                    }
-                    const stats = data?.statistics || [];
-                    if (Array.isArray(stats) && stats.length > 0) {
-                        adapterStatsCache.set(eventId, { time: Date.now(), data: stats });
-                    }
-                    return stats;
-                }
-            } catch (e) {
-                console.warn(`[SOFASCORE_ADAPTER] Statistics fetch failed for ${eventId}:`, e.message);
-            }
-            return [];
-        })().finally(() => {
-            inFlightStats.delete(eventId);
-        });
-
-        inFlightStats.set(eventId, promise);
-        return promise;
-    },
-
-    /**
-     * Fetches central live odds for all active matches in 1 single network call.
-     */
-    async fetchCentralOdds() {
-        try {
-            const data = await getLiveOddsMap();
-            const formatted = {};
-            if (data && typeof data === 'object') {
-                for (const [key, val] of Object.entries(data)) {
-                    if (val && (val.home !== undefined || val.away !== undefined)) {
-                        formatted[key] = {
-                            home: parseFloat(val.home) || 0,
-                            draw: parseFloat(val.draw) || 0,
-                            away: parseFloat(val.away) || 0,
-                            source: val.source || 'LIVE_ODDS'
-                        };
-                    }
-                }
-            }
-            return formatted;
-        } catch (e) {
-            return {};
-        }
-    },
-
-    /**
-     * Fetches live odds (1-X-2) for a specific event directly from SofaScore or Proxy.
-     */
-    async fetchEventOdds(eventId, forceDetailed = false) {
-        try {
-            // 1. Instant check from central live odds map if detailed not strictly requested
-            const strId = String(eventId);
-            const numId = Number(eventId);
-            if (!forceDetailed) {
-                const central = await getLiveOddsMap();
-                const matchOdds = central[strId] || central[numId] || (central.matches && central.matches.find(m => String(m.id || m.eventId) === strId)?.odds);
-                if (matchOdds && (matchOdds.home !== undefined || matchOdds.away !== undefined)) {
-                    return {
-                        home: parseFloat(matchOdds.home) || 0,
-                        draw: parseFloat(matchOdds.draw) || 0,
-                        away: parseFloat(matchOdds.away) || 0,
-                        doubleChance: matchOdds.doubleChance || null,
-                        btts: matchOdds.btts || null,
-                        overUnder: matchOdds.overUnder || null,
-                        nextGoal: matchOdds.nextGoal || null,
-                        isLive: matchOdds.isLive !== false,
-                        source: matchOdds.source || 'CENTRAL_ODDS'
-                    };
-                }
-            }
-
-            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            let data = null;
-
-            if (isLocalDev) {
-                // LOCAL: Use proxy for odds (much faster)
-                const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
-                const res = await fetch(`${proxyBase}/api/sofascore/event/${eventId}/odds/1/all`, { signal: AbortSignal.timeout(3000) });
-                if (res.ok) data = await res.json();
-            } else {
-                // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy, Firebase as fallback
-                const renderBase = await resolveBackendUrl();
-                try {
-                    const res = await fetch(`${renderBase}/api/sofascore/event/${eventId}/odds/1/all`, { signal: AbortSignal.timeout(3000) });
-                    if (res.ok) data = await res.json();
-                } catch {
-                    try {
-                        const snapshot = await get(ref(database, `odds/${eventId}`));
-                        if (snapshot.exists()) data = snapshot.val();
-                    } catch {}
-                }
-            }
-
-            if (!data) return null;
-
-            // Direct 1-X-2 format (from proxy or live_odds.json)
-            if (data.home !== undefined && data.away !== undefined && !data.markets) {
-                return {
-                    home: parseFloat(data.home) || 0,
-                    draw: parseFloat(data.draw) || 0,
-                    away: parseFloat(data.away) || 0,
-                    isLive: data.isLive !== false,
-                    doubleChance: data.doubleChance || null,
-                    btts: data.btts || null,
-                    overUnder: data.overUnder || null,
-                    nextGoal: data.nextGoal || null,
-                    source: data.source || 'LOCAL_PROXY'
-                };
-            }
-
-            // Live market structure (Prioritize genuine in-play: isLive === true)
-            if (data.markets && Array.isArray(data.markets)) {
-                const parseChoice = (c) => {
-                    if (!c) return null;
-                    for (const k of ['decimalValue', 'value']) {
-                        if (c[k] !== undefined && c[k] !== null) {
-                            const v = parseFloat(c[k]);
-                            if (!isNaN(v) && v > 0) return v;
-                        }
-                    }
-                    const frac = c.fractionalValue || c.initialFractionalValue;
-                    if (frac) {
-                        const parts = String(frac).trim().split('/');
-                        if (parts.length === 2) {
-                            const num = parseFloat(parts[0]);
-                            const den = parseFloat(parts[1]);
-                            if (!isNaN(num) && !isNaN(den) && den > 0) {
-                                return parseFloat(((num / den) + 1.0).toFixed(2));
-                            }
-                        }
-                    }
-                    return null;
-                };
-
-                // Priority 1: In-play live markets (isLive: true && !suspended)
-                // Priority 2: Fallback to non-live market only if match not started
-                const liveMarkets = data.markets.filter(m => m.isLive && !m.suspended);
-                const activeMarkets = liveMarkets.length > 0 ? liveMarkets : data.markets.filter(m => !m.suspended);
-
-                // 1. Full Time 1X2
-                const ftMarket = activeMarkets.find(m => m.id === 1 || m.marketId === 1 || m.marketName?.toLowerCase() === 'full time' || m.marketGroup === '1X2');
-                let homeOdds = null, drawOdds = null, awayOdds = null;
-                if (ftMarket && ftMarket.choices) {
-                    const homeChoice = ftMarket.choices.find(c => c.name === '1' || c.idx === 1);
-                    const drawChoice = ftMarket.choices.find(c => c.name === 'X' || c.idx === 2);
-                    const awayChoice = ftMarket.choices.find(c => c.name === '2' || c.idx === 3);
-                    homeOdds = parseChoice(homeChoice);
-                    drawOdds = parseChoice(drawChoice);
-                    awayOdds = parseChoice(awayChoice);
-                }
-
-                // 2. Double Chance (1X, 12, X2)
-                const dcMarket = activeMarkets.find(m => m.id === 2 || m.marketId === 2 || m.marketGroup === 'Double chance' || m.marketName?.toLowerCase() === 'double chance');
-                const doubleChance = {};
-                if (dcMarket && dcMarket.choices) {
-                    dcMarket.choices.forEach(c => {
-                        const name = c.name?.trim();
-                        const val = parseChoice(c);
-                        if (name && val) doubleChance[name] = val;
-                    });
-                }
-
-                // 3. Both Teams to Score (KG Var / Yok)
-                const bttsMarket = activeMarkets.find(m => m.id === 5 || m.marketId === 5 || m.marketGroup === 'Both teams to score' || m.marketName?.toLowerCase() === 'both teams to score');
-                const btts = {};
-                if (bttsMarket && bttsMarket.choices) {
-                    const yesC = bttsMarket.choices.find(c => c.name?.toLowerCase() === 'yes' || c.name?.toLowerCase() === 'evet');
-                    const noC = bttsMarket.choices.find(c => c.name?.toLowerCase() === 'no' || c.name?.toLowerCase() === 'hayır');
-                    if (yesC) btts.yes = parseChoice(yesC);
-                    if (noC) btts.no = parseChoice(noC);
-                }
-
-                // 4. Match Goals (Alt / Üst: 0.5, 1.5, 2.5, 3.5)
-                const overUnder = {};
-                const goalMarkets = activeMarkets.filter(m => m.id === 9 || m.marketId === 9 || m.marketGroup === 'Match goals' || m.marketName?.toLowerCase() === 'match goals');
-                goalMarkets.forEach(gm => {
-                    const line = String(gm.choiceGroup || '').trim();
-                    if (line && gm.choices) {
-                        const overC = gm.choices.find(c => c.name?.toLowerCase() === 'over' || c.name?.toLowerCase() === 'üst');
-                        const underC = gm.choices.find(c => c.name?.toLowerCase() === 'under' || c.name?.toLowerCase() === 'alt');
-                        const oVal = parseChoice(overC);
-                        const uVal = parseChoice(underC);
-                        if (oVal || uVal) {
-                            overUnder[line] = { over: oVal, under: uVal };
-                        }
-                    }
-                });
-
-                // 5. Next Goal (Sıradaki Gol)
-                const nextGoal = {};
-                const ngMarket = activeMarkets.find(m => m.id === 8 || m.marketId === 8 || m.marketGroup === 'Next goal' || m.marketName?.toLowerCase() === 'next goal');
-                if (ngMarket && ngMarket.choices) {
-                    ngMarket.choices.forEach((c, idx) => {
-                        const val = parseChoice(c);
-                        const cName = (c.name || '').toLowerCase();
-                        if (cName.includes('no goal') || cName.includes('gol yok') || idx === 1) {
-                            nextGoal.noGoal = val;
-                        } else if (idx === 0) {
-                            nextGoal.home = val;
-                        } else if (idx === 2) {
-                            nextGoal.away = val;
-                        }
-                    });
-                }
-
-                if (homeOdds || awayOdds || Object.keys(overUnder).length > 0) {
-                    return {
-                        home: homeOdds,
-                        draw: drawOdds,
-                        away: awayOdds,
-                        isLive: Boolean(ftMarket?.isLive || activeMarkets[0]?.isLive),
-                        doubleChance: Object.keys(doubleChance).length > 0 ? doubleChance : null,
-                        btts: Object.keys(btts).length > 0 ? btts : null,
-                        overUnder: Object.keys(overUnder).length > 0 ? overUnder : null,
-                        nextGoal: Object.keys(nextGoal).length > 0 ? nextGoal : null,
-                        source: 'LIVE_MARKET'
-                    };
-                }
-            }
-            return null;
-        } catch (error) {
-            console.warn(`[DATA_ADAPTER] Odds fetch notice for ${eventId}:`, error.message);
-            return null;
-        }
-    },
-
-    /**
-     * Normalizes SofaScore data to our internal schema.
-     */
-    normalize(detail, stats) {
-        const event = detail.event;
-        let isPartial = false;
-        let dataQuality = 'OK';
-
-        const normalizedStats = {
-            possession: { home: 0, away: 0 },
-            shotsOnGoal: { home: 0, away: 0 },
-            dangerousAttacks: { home: 0, away: 0 },
-            corners: { home: 0, away: 0 },
-            xg: { home: 0, away: 0 },
-            bigChances: { home: 0, away: 0 },
-            totalShots: { home: 0, away: 0 },
-            cards: { home: { yellow: 0, red: 0 }, away: { yellow: 0, red: 0 } },
-            rawStats: {}
-        };
-
-        if (stats.statistics && stats.statistics.length > 0) {
-            const allStats = stats.statistics.find(s => s.period === 'ALL');
-            if (allStats) {
-                normalizedStats.groups = allStats.groups;
-                allStats.groups.forEach(group => {
-                    group.statisticsItems.forEach(item => {
-                        const name = item.name.toLowerCase();
-                        const homeVal = item.home;
-                        const awayVal = item.away;
-
-                        const parseVal = (v) => {
-                            if (typeof v === 'string') {
-                                return parseFloat(v.replace('%', '')) || 0;
-                            }
-                            return parseFloat(v) || 0;
-                        };
-
-                        // Unified mapping with fallbacks and more synonyms
-                        if (name.includes('possession')) {
-                            normalizedStats.possession.home = parseVal(homeVal);
-                            normalizedStats.possession.away = parseVal(awayVal);
-                        }
-
-                        if (name.includes('shots on target') || name === 'shots on goal' || name === 'isabetli şut') {
-                            normalizedStats.shotsOnGoal.home = parseVal(homeVal);
-                            normalizedStats.shotsOnGoal.away = parseVal(awayVal);
-                        }
-
-                        if (name === 'total shots' || name === 'shots' || name === 'toplam şut') {
-                            normalizedStats.totalShots.home = parseVal(homeVal);
-                            normalizedStats.totalShots.away = parseVal(awayVal);
-                        }
-
-                        if (name === 'dangerous attacks' || name === 'dangerous attack' || name === 'tehlikeli atak') {
-                            normalizedStats.dangerousAttacks.home = parseVal(homeVal);
-                            normalizedStats.dangerousAttacks.away = parseVal(awayVal);
-                        } else if (name === 'final third entries' || name === 'final third phase') {
-                            if (normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
-                                normalizedStats.dangerousAttacks.home = parseVal(homeVal);
-                                normalizedStats.dangerousAttacks.away = parseVal(awayVal);
-                            }
-                        } else if (name === 'touches in penalty area' && normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
-                            normalizedStats.dangerousAttacks.home = parseVal(homeVal);
-                            normalizedStats.dangerousAttacks.away = parseVal(awayVal);
-                        }
-
-                        if (name === 'big chances' || name === 'büyük şans') {
-                            normalizedStats.bigChances.home = parseVal(homeVal);
-                            normalizedStats.bigChances.away = parseVal(awayVal);
-                        }
-
-                        if ((name === 'expected goals' || name === 'xg' || name === 'beklenen gol') && !name.includes('target')) {
-                            normalizedStats.xg.home = parseVal(homeVal);
-                            normalizedStats.xg.away = parseVal(awayVal);
-                        } else if (name.includes('expected goals on target') || name === 'xgot') {
-                            normalizedStats.xgot = { home: parseVal(homeVal), away: parseVal(awayVal) };
-                        }
-
-                        if (name === 'corner kicks' || name === 'corners' || name === 'köşe vuruşu') {
-                            normalizedStats.corners.home = parseVal(homeVal);
-                            normalizedStats.corners.away = parseVal(awayVal);
-                        }
-
-                        if (name === 'yellow cards') {
-                            normalizedStats.cards.home.yellow = parseVal(homeVal);
-                            normalizedStats.cards.away.yellow = parseVal(awayVal);
-                        }
-                        if (name === 'red cards') {
-                            normalizedStats.cards.home.red = parseVal(homeVal);
-                            normalizedStats.cards.away.red = parseVal(awayVal);
-                        }
-
-                        normalizedStats.rawStats[item.name] = { home: homeVal, away: awayVal };
-                    });
-                });
-                normalizedStats.groups = allStats.groups;
-                if (event) {
-                    normalizedStats.cards.home.red = Math.max(normalizedStats.cards.home.red || 0, event.homeRedCards || 0);
-                    normalizedStats.cards.away.red = Math.max(normalizedStats.cards.away.red || 0, event.awayRedCards || 0);
-                }
-
-                // Fallback: If dangerous attacks not explicitly tracked by league, estimate from actual actions (shots & corners)
-                if (normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
-                    const shotsHome = normalizedStats.totalShots.home || 0;
-                    const shotsAway = normalizedStats.totalShots.away || 0;
-                    const cornersHome = normalizedStats.corners.home || 0;
-                    const cornersAway = normalizedStats.corners.away || 0;
-                    if (shotsHome > 0 || shotsAway > 0 || cornersHome > 0 || cornersAway > 0) {
-                        normalizedStats.dangerousAttacks.home = Math.round((shotsHome * 2) + (cornersHome * 2));
-                        normalizedStats.dangerousAttacks.away = Math.round((shotsAway * 2) + (cornersAway * 2));
-                    }
-                }
-
-                // Determine quality based on major stats
-                const hasMajorStats = normalizedStats.shotsOnGoal.home > 0 || normalizedStats.shotsOnGoal.away > 0 ||
-                    normalizedStats.dangerousAttacks.home > 0 || normalizedStats.dangerousAttacks.away > 0;
-
-                // We only mark as partial if we have absolutely no groups or very few items
-                const totalItems = allStats.groups.reduce((acc, g) => acc + g.statisticsItems.length, 0);
-
-                if (totalItems < 3) {
-                    isPartial = true;
-                    dataQuality = 'PARTIAL';
-                } else if (!hasMajorStats) {
-                    isPartial = false; // Show what we have
-                    dataQuality = 'LIMITED';
-                } else {
-                    isPartial = false;
-                    dataQuality = 'OK';
-                }
-            } else {
-                // No 'ALL' period stats found - but we might have other periods?
-                // For now, treat as partial but KEEP the metadata from detail
-                isPartial = true;
-                dataQuality = 'PARTIAL';
-            }
-        } else {
-            // No stats object at all - check if we have basic info in detail
-            isPartial = true;
-            dataQuality = 'EMPTY';
-        }
-
-        const homeTeamId = event?.homeTeam?.id;
-        const awayTeamId = event?.awayTeam?.id;
-        const categoryName = event.tournament?.category?.name || '';
-        const uniqueTourn = event.tournament?.uniqueTournament || {};
-        const gender = event.homeTeam?.gender || uniqueTourn.gender || event.tournament?.category?.gender || (
-            (event.tournament?.name?.toLowerCase().includes('women') || categoryName.toLowerCase().includes('women')) ? 'F' : 'M'
-        );
-
-        return {
-            id: event.id,
-            homeTeam: event.homeTeam?.name || 'Home',
-            awayTeam: event.awayTeam?.name || 'Away',
-            homeTeamId,
-            awayTeamId,
-            homeTeamLogo: homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null,
-            awayTeamLogo: awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null,
-            homeColors: event.homeTeam?.teamColors,
-            awayColors: event.awayTeam?.teamColors,
-            league: event.tournament?.name || 'Unknown',
-            leagueName: event.tournament?.name || 'Unknown',
-            leagueId: event.tournament?.id,
-            category: categoryName,
-            uniqueTournamentId: uniqueTourn.id || null,
-            uniqueTournamentName: uniqueTourn.name || '',
-            userCount: uniqueTourn.userCount || 0,
-            hasPlayerStats: !!uniqueTourn.hasEventPlayerStatistics,
-            gender,
-            status: event.status?.description,
-            minute: this.calculateMinute ? this.calculateMinute(event) : (event.status?.description || '0\''),
-            score: {
-                home: event.homeScore?.current || 0,
-                away: event.awayScore?.current || 0
-            },
-            stats: normalizedStats,
-            cards: normalizedStats.cards,
-            isPartial,
-            dataQuality,
-            timestamp: Date.now(),
-            source: 'SOFASCORE'
-        };
-    },
-
-    /**
-     * Calculates the current live minute from SofaScore statusTime.
-     */
-    calculateMinute(event) {
-        if (!event || !event.status) return "0'";
-
-        const status = event.status || {};
-        const code = status.code;
-        const statusType = (status.type || '').toLowerCase();
-        const desc = (status.description || '').trim();
-        const descLower = desc.toLowerCase();
-
-        // 1. Canceled / Postponed / Suspended / Interrupted / Abandoned
-        if (code === 91 || code === 92 || code === 93 || code === 94 || code === 95 ||
-            descLower.includes('postponed') || descLower.includes('canceled') || 
-            descLower.includes('interrupted') || descLower.includes('suspended') || 
-            descLower.includes('abandoned') || descLower.includes('ertele') || descLower.includes('iptal')) {
-            return desc || 'Ert.';
-        }
-
-        // 2. Not started
-        if (statusType === 'notstarted' || code === 0) {
-            return desc || "0'";
-        }
-
-        // 3. Halftime / Devre Arası (CRITICAL: Must check BEFORE finished because 'halftime' contains 'ft')
-        if (code === 31 || descLower === 'halftime' || descLower === 'ht' || 
-            descLower.includes('halftime') || descLower.includes('half-time') || 
-            (descLower.includes('half') && descLower.includes('time')) || descLower.includes('devre')) {
-            return 'İY';
-        }
-
-        // 4. Finished / Maç Sonu
-        if (statusType === 'finished' || code === 100 || 
-            descLower === 'ft' || descLower === 'ended' || descLower === 'finished' || 
-            descLower.includes('bitti') || descLower.includes('sona') ||
-            /\b(ft|finished|ended|full time|full-time)\b/i.test(desc)) {
-            return 'MS';
-        }
-
-        // 5. Live in progress: Use SofaScore's own clock formula
-        // SofaScore calculates: displaySec = min(initial + elapsedFromPeriodStart, max)
-        const timeObj = event.time || {};
-        const statusTime = event.statusTime || {};
-        const now = Math.floor(Date.now() / 1000);
-
-        // Overtime / Extra time
-        if (descLower.includes('extra') || code === 14 || code === 15 || code === 16) {
-            const periodStart = statusTime.timestamp || timeObj.currentPeriodStartTimestamp;
-            const periodElapsedMin = periodStart ? Math.floor(Math.max(0, now - periodStart) / 60) : 0;
-            return `${90 + periodElapsedMin}'`;
-        }
-
-        // Penaltılar
-        if (descLower.includes('penalties') || code === 120) {
-            return 'Pen.';
-        }
-
-        // Use SofaScore's clock fields: initial, max, extra, timestamp
-        const initialSec = statusTime.initial ?? timeObj.initial ?? (code === 7 ? 2700 : 0);
-        const maxSec = statusTime.max ?? timeObj.max ?? (code === 7 ? 5400 : 2700);
-        const extraSec = statusTime.extra ?? timeObj.extra ?? 540; // 9 min default
-        const periodTimestamp = statusTime.timestamp || timeObj.currentPeriodStartTimestamp || event.startTimestamp;
-
-        const elapsedSec = periodTimestamp ? Math.max(0, now - periodTimestamp) : 0;
-
-        // SofaScore formula: clamp to max
-        const rawSec = initialSec + elapsedSec;
-        const maxMinute = Math.floor(maxSec / 60); // 45 for 1st half, 90 for 2nd half
-
-        // Check if we're in stoppage/injury time (past 45' in 1st half, or past 90' in 2nd half)
-        if (rawSec > maxSec) {
-            // Extreme safety guard: if a match has been running for > 60 mins in a single period
-            // and the feed died, force end it
-            if (elapsedSec > 60 * 60) {
-                const totalElapsedFromStart = event.startTimestamp ? (now - event.startTimestamp) : 0;
-                if ((code === 6 || descLower.includes('1st')) && totalElapsedFromStart < 80 * 60) {
-                    return 'İY';
-                }
-                return 'MS';
-            }
-            // During live in-progress stoppage time, SofaScore displays "90+" or "45+"
-            return `${maxMinute}+`;
-        }
-
-        // Normal time within period
-        const displayMin = Math.floor(rawSec / 60);
-        return `${Math.max(1, displayMin)}'`;
-    }
-};
+/**
+ * SOFASCORE DATA ADAPTER
+ * Focus: XHR/JSON extraction and normalization.
+ */
+
+import { CONFIG, getApiBaseUrl, initBackendDiscovery } from '../config.js';
+import { database, ref, get } from '../firebase/config.js';
+import { supabase } from './supabaseClient.js';
+
+export async function resolveBackendUrl() {
+    return (await initBackendDiscovery()) || getApiBaseUrl();
+}
+
+// Central live odds in-memory cache to prevent redundant HTTP requests
+let centralOddsCache = null;
+let centralOddsCacheTime = 0;
+
+async function getLiveOddsMap() {
+    const now = Date.now();
+    if (centralOddsCache && (now - centralOddsCacheTime < 25000)) {
+        return centralOddsCache;
+    }
+    const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const primaryUrl = await resolveBackendUrl();
+    if (!primaryUrl) {
+        return centralOddsCache || {};
+    }
+
+    try {
+        const res = await fetch(`${primaryUrl}/api/odds/live`, { signal: AbortSignal.timeout(2000) });
+        if (res.ok) {
+            const data = await res.json();
+            centralOddsCache = data;
+            centralOddsCacheTime = now;
+            return data;
+        }
+    } catch (e) {}
+    return centralOddsCache || {};
+}
+
+// Module-level caches and in-flight request deduplication maps for ultra-fast UI rendering
+const adapterGraphCache = new Map();
+const adapterIncidentsCache = new Map();
+const adapterStatsCache = new Map();
+const inFlightGraph = new Map();
+const inFlightIncidents = new Map();
+let adapterLiveEventsCache = [];
+let adapterLiveEventsTime = 0;
+let firebaseFailureTime = 0;
+
+// Clean any leftover stale sessionStorage keys to ensure fresh live data on F5
+try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.removeItem('lbm_cached_live_events');
+        sessionStorage.removeItem('lbm_cached_fixtures');
+    }
+} catch(e) {}
+
+export const sofaScoreAdapter = {
+    _graphCache: adapterGraphCache,
+    _incidentsCache: adapterIncidentsCache,
+    _statsCache: adapterStatsCache,
+
+    /**
+     * Synchronously returns cached attack momentum graph points if available
+     */
+    getCachedGraph(eventId) {
+        if (!eventId) return null;
+        const cached = adapterGraphCache.get(eventId);
+        if (cached && (Date.now() - cached.time < 180000)) {
+            return cached.data?.graphPoints || null;
+        }
+        return null;
+    },
+
+    /**
+     * Synchronously returns cached match incidents if available
+     */
+    getCachedIncidents(eventId) {
+        if (!eventId) return null;
+        const cached = adapterIncidentsCache.get(eventId);
+        if (cached && (Date.now() - cached.time < 180000)) {
+            return cached.data || null;
+        }
+        return null;
+    },
+
+    /**
+     * Fetches server-persisted match telemetry history
+     */
+    async fetchMatchHistory(matchId) {
+        if (!matchId) return [];
+        try {
+            const baseUrl = await resolveBackendUrl();
+            const res = await fetch(`${baseUrl}/api/match/${matchId}/history`, { signal: AbortSignal.timeout(3500) });
+            if (res.ok) {
+                const data = await res.json();
+                return Array.isArray(data.history) ? data.history : [];
+            }
+        } catch(e) {}
+        return [];
+    },
+    /**
+     * Fetches the match list for the current day.
+     */
+    async fetchScheduledEvents(allowCache = true) {
+        try {
+            // In-memory short deduplication (5 seconds) to prevent redundant concurrent fetches
+            if (allowCache && adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 5000)) {
+                return adapterLiveEventsCache;
+            }
+
+            // Detect environment: Local dev uses local proxy, any deployed domain uses cloud/Firebase
+            const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+            if (isLocalDev) {
+                // LOCAL DEVELOPMENT: Try local proxy first (faster, no Firebase quota)
+                const proxyUrl = ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001') + '/api/sofascore/live';
+                let data = null;
+
+                try {
+                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
+                    if (response.ok) {
+                        data = await response.json();
+                    }
+                } catch (localErr) {
+                    // Local proxy offline
+                }
+
+                if (data && data.events) {
+                    const normalized = [];
+                    for (const event of data.events) {
+                        try {
+                            const n = this.normalizeEvent(event);
+                            if (n) normalized.push(n);
+                        } catch (err) {
+                            console.error('[SOFASCORE_ADAPTER] Normalization failed for event:', event.id, err.message);
+                        }
+                    }
+
+                    if (normalized.length > 0) {
+                        adapterLiveEventsCache = normalized;
+                        adapterLiveEventsTime = Date.now();
+                    }
+                    return normalized;
+                }
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
+                return isCacheValid ? adapterLiveEventsCache : [];
+            } else {
+                // PRODUCTION: Use active Cloudflare Tunnel if verified alive, otherwise Firebase directly
+                const apiBase = await resolveBackendUrl();
+                if (apiBase) {
+                    const renderUrl = `${apiBase}/api/sofascore/live`;
+                    try {
+                        const response = await fetch(renderUrl, { signal: AbortSignal.timeout(8000) });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data && data.events) {
+                                const normalized = data.events
+                                    .map(event => this.normalizeEvent(event))
+                                    .filter(event => event !== null);
+                                if (normalized.length > 0) {
+                                    adapterLiveEventsCache = normalized;
+                                    adapterLiveEventsTime = Date.now();
+                                    return normalized;
+                                }
+                            }
+                        }
+                    } catch (renderErr) {
+                        // Tunnel timed out or unreachable, immediately proceed to Firebase
+                    }
+                }
+
+                // Fallback to Firebase Realtime Database (fast & resilient cloud backup)
+                if (Date.now() - firebaseFailureTime > 60000) {
+                    try {
+                        const snapshot = await get(ref(database, 'live_events'));
+                        if (snapshot.exists()) {
+                            const fbData = snapshot.val();
+                            if (fbData && fbData.events) {
+                                const fbNorm = fbData.events.map(event => this.normalizeEvent(event)).filter(e => e !== null);
+                                if (fbNorm.length > 0) {
+                                    adapterLiveEventsCache = fbNorm;
+                                    adapterLiveEventsTime = Date.now();
+                                    return fbNorm;
+                                }
+                            }
+                        }
+                    } catch (fbErr) {
+                        firebaseFailureTime = Date.now();
+                        console.warn('[SOFASCORE_ADAPTER] Firebase live fetch notice (muted for 60s):', fbErr?.message);
+                    }
+                }
+
+                const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
+                if (isCacheValid) {
+                    return adapterLiveEventsCache;
+                }
+                return [];
+            }
+        } catch (error) {
+            console.error('[SOFASCORE_ADAPTER] Error fetching:', error);
+            const isCacheValid = adapterLiveEventsCache && adapterLiveEventsCache.length > 0 && (Date.now() - adapterLiveEventsTime < 15000);
+            return isCacheValid ? adapterLiveEventsCache : [];
+        }
+    },
+
+    /**
+     * Light normalization for list view.
+     */
+    normalizeEvent(event) {
+        if (!event) return null;
+
+        // CRITICAL: Strict filtering to match SofaScore "Live" (Football) count
+        // 1. Sport ID check (ID 1 is Football)
+        const sportId = event.tournament?.category?.sport?.id;
+        if (sportId && sportId !== 1) return null; 
+
+        // 2. Anti-Ghost filter: A football match CANNOT last > 165 minutes (2.75 hours)
+        const nowSec = Date.now() / 1000;
+        const startTs = event.startTimestamp || nowSec;
+        if ((nowSec - startTs) > 2.75 * 3600) {
+            return null; // Match started > 165 mins ago, guaranteed finished
+        }
+        if ((startTs - nowSec) > 3600) {
+            return null; // Scheduled in future
+        }
+
+        // Note: feedLocked is an editorial commentary lock in SofaScore, NOT an indicator of match conclusion.
+        // Match conclusion is determined strictly by status (finished/code 100) or elapsed duration (> 165 mins).
+
+        const statusCode = event.status?.code;
+        const statusType = (event.status?.type || '').toLowerCase();
+        const statusDesc = (event.status?.description || '').toLowerCase();
+
+        // 4. Halftime sanity check: Real halftime is 15 minutes.
+        // If status is Halftime but match started > 85 mins ago, feed is dead/finished
+        if ((statusCode === 31 || statusDesc === 'halftime' || statusDesc === 'ht') && (nowSec - startTs) > 5100) {
+            return null;
+        }
+
+        // 5. Must be Active (Filter out anything finished, ended, canceled or delayed)
+        if (statusType === 'finished' || statusCode === 100) return null;
+
+        const isActuallyFinished = statusType === 'finished' || statusCode === 100 ||
+            statusDesc.includes('ended') || statusDesc.includes('finish') || 
+            statusDesc.includes('canceled') || statusDesc.includes('bitti') || 
+            statusDesc.includes('sona') || statusDesc.includes('ertele') || 
+            statusDesc.includes('iptal') || statusDesc.includes('abandoned') || 
+            statusDesc.includes('interrupted') || statusDesc.includes('suspended') || 
+            statusDesc.includes('delayed') || statusDesc === 'ft' || 
+            statusDesc === 'aet' || statusDesc === 'ap' ||
+            /\b(ft|finished|ended|full time|full-time)\b/i.test(statusDesc);
+
+        if (isActuallyFinished) return null;
+        if (statusType === 'notstarted' && !statusDesc.includes('live')) return null;
+
+        const calculatedMinute = this.calculateMinute(event);
+        if (calculatedMinute === 'MS' || calculatedMinute === 'FT' || calculatedMinute === 'Ert.') {
+            return null;
+        }
+
+        const homeTeamId = event.homeTeam?.id;
+        const awayTeamId = event.awayTeam?.id;
+        const categoryName = event.tournament?.category?.name || '';
+        const uniqueTourn = event.tournament?.uniqueTournament || {};
+        const gender = event.homeTeam?.gender || uniqueTourn.gender || event.tournament?.category?.gender || (
+            (event.tournament?.name?.toLowerCase().includes('women') || categoryName.toLowerCase().includes('women')) ? 'F' : 'M'
+        );
+
+        return {
+            id: event.id,
+            homeTeam: event.homeTeam?.name || 'Home',
+            awayTeam: event.awayTeam?.name || 'Away',
+            homeTeamId,
+            awayTeamId,
+            homeTeamLogo: homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null,
+            awayTeamLogo: awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null,
+            homeColors: event.homeTeam?.teamColors,
+            awayColors: event.awayTeam?.teamColors,
+            league: event.tournament?.name || 'Unknown League',
+            leagueName: event.tournament?.name || 'Unknown League',
+            leagueId: event.tournament?.id,
+            category: categoryName,
+            uniqueTournamentId: uniqueTourn.id || null,
+            uniqueTournamentName: uniqueTourn.name || '',
+            userCount: uniqueTourn.userCount || 0,
+            hasPlayerStats: !!uniqueTourn.hasEventPlayerStatistics,
+            gender,
+            score: {
+                home: event.homeScore?.current ?? 0,
+                away: event.awayScore?.current ?? 0
+            },
+            minute: this.calculateMinute(event),
+            status: event.status,
+            time: event.time,
+            statusTime: event.statusTime,
+            cards: {
+                home: { yellow: 0, red: event.homeRedCards || 0 },
+                away: { yellow: 0, red: event.awayRedCards || 0 }
+            },
+            stats: {
+                possession: { home: 0, away: 0 },
+                shotsOnGoal: { home: 0, away: 0 },
+                dangerousAttacks: { home: 0, away: 0 },
+                corners: { home: 0, away: 0 },
+                xg: { home: 0, away: 0 },
+                cards: {
+                    home: { yellow: 0, red: event.homeRedCards || 0 },
+                    away: { yellow: 0, red: event.awayRedCards || 0 }
+                }
+            },
+            isPartial: true,
+            latency: 0,
+            dataQuality: 'BASIC',
+            source: 'SOFASCORE'
+        };
+    },
+
+    /**
+     * Fetches full details for a specific event.
+     */
+        /**
+     * Fetches bulk stats bundle for all active matches in 1 single fast HTTP call (<50ms).
+     * Eliminates sequential socket throttling in the browser.
+     */
+    fetchStatsBundle: async () => {
+        try {
+            const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+            const baseUrl = isLocalDev 
+                ? ((typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001')
+                : await resolveBackendUrl();
+            
+            if (!baseUrl) return null;
+            const res = await fetch(`${baseUrl}/api/sofascore/stats/bundle`, { signal: AbortSignal.timeout(3500) });
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            // Silently fall through to match-by-match polling
+        }
+        return null;
+    },
+
+    fetchEventDetails: async (eventId) => {
+        const startTime = Date.now();
+
+        try {
+            const isLocalDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+            const isProduction = !isLocalDev;
+
+            if (isLocalDev) {
+                // LOCAL DEVELOPMENT: Try local proxy for stats, fallback to Render cloud
+                const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
+                let detailRes = null;
+                let statsRes = null;
+
+                try {
+                    [detailRes, statsRes] = await Promise.all([
+                        fetch(`${proxyBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(3500) }),
+                        fetch(`${proxyBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(3500) })
+                    ]);
+                } catch (localErr) {
+                    // Local proxy offline -> fallback to Render cloud
+                    try {
+                        const renderBase = 'https://live-bet-mentor.onrender.com';
+                        [detailRes, statsRes] = await Promise.all([
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(7000) }),
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(7000) })
+                        ]);
+                    } catch (cloudErr) {
+                        return null;
+                    }
+                }
+
+                const latency = Date.now() - startTime;
+
+                // Detail must be successful (200) - 202 means "queued, not ready yet"
+                if (!detailRes || (!detailRes.ok && detailRes.status !== 202)) {
+                    return null;
+                }
+
+                const detail = await detailRes.json();
+                let stats = null;
+                let statsPending = false;
+
+                if (statsRes.ok) {
+                    stats = await statsRes.json();
+                    if (stats?.status === 'queued') statsPending = true;
+                } else if (statsRes.status === 404) {
+                    stats = { statistics: [], noStats: true };
+                    statsPending = false;
+                } else if (statsRes.status === 202) {
+                    stats = { status: 'queued' };
+                    statsPending = true;
+                }
+
+                // If detail is queued (not ready), return null
+                if (detail.status === 'queued') {
+                    return null;
+                }
+
+                if (detail?.error) return null;
+
+                const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
+                normalized.latency = latency;
+                if (statsPending || (!stats?.noStats && (!stats || !stats.statistics || stats.statistics.length === 0))) {
+                    normalized.isPartial = true;
+                    normalized.statsPending = true;
+                } else if (stats?.noStats || statsRes.status === 404) {
+                    normalized.isPartial = false;
+                    normalized.statsPending = false;
+                    normalized.noStats = true;
+                }
+                return normalized;
+            } else {
+                // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy
+                const renderBase = await resolveBackendUrl();
+                if (renderBase) {
+                    try {
+                        const [detailRes, statsRes] = await Promise.all([
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(8000) }),
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(8000) })
+                        ]);
+
+                        const latency = Date.now() - startTime;
+
+                        if (detailRes.ok || detailRes.status === 202) {
+                            const detail = await detailRes.json();
+                            let stats = null;
+                            let statsPending = false;
+                            if (statsRes.status === 202) {
+                                stats = { status: 'queued' };
+                                statsPending = true;
+                            } else if (statsRes.ok) {
+                                stats = await statsRes.json();
+                                if (stats?.status === 'queued') {
+                                    stats = { status: 'queued' };
+                                    statsPending = true;
+                                }
+                            } else if (statsRes.status === 404) {
+                                stats = { statistics: [], noStats: true };
+                                statsPending = false;
+                            }
+
+                            if (detail.status !== 'queued' && !detail?.error) {
+                                const normalized = sofaScoreAdapter.normalize(detail, stats || { statistics: [] });
+                                normalized.latency = latency;
+                                if (statsPending || (!stats?.noStats && (!stats || !stats.statistics || stats.statistics.length === 0))) {
+                                    normalized.isPartial = true;
+                                    normalized.statsPending = true;
+                                } else if (stats?.noStats || statsRes.status === 404) {
+                                    normalized.isPartial = false;
+                                    normalized.statsPending = false;
+                                    normalized.noStats = true;
+                                }
+                                return normalized;
+                            }
+                        }
+                    } catch (renderErr) {}
+                }
+
+                // Fallback to Firebase (only if not tripped by permission denied / failure)
+                if (Date.now() - firebaseFailureTime > 60000) {
+                    try {
+                        const [detailSnap, statsSnap] = await Promise.all([
+                            get(ref(database, `stats/${eventId}/detail`)),
+                            get(ref(database, `stats/${eventId}/stats`))
+                        ]);
+                        if (!detailSnap.exists()) return null;
+                        const detail = detailSnap.val();
+                        const stats = statsSnap.exists() ? statsSnap.val() : { statistics: [] };
+                        if (detail?.error) return null;
+                        const normalized = sofaScoreAdapter.normalize(detail, stats);
+                        normalized.latency = Date.now() - startTime;
+                        return normalized;
+                    } catch (fbErr) {
+                        firebaseFailureTime = Date.now();
+                        return null;
+                    }
+                }
+                return null;
+            }
+        } catch (error) {
+            console.error(`SofaScore fetchEventDetails Error for ${eventId}:`, error);
+            return null;
+        }
+    },
+
+    /**
+     * Fetches minute-by-minute attack momentum graph for a match.
+     */
+    async fetchEventGraph(eventId) {
+        if (!eventId) return { graphPoints: [], noGraph: false, isQueued: false };
+        const now = Date.now();
+        const cached = adapterGraphCache.get(eventId);
+        if (cached && (now - cached.time < 60000)) {
+            return cached.data;
+        }
+        if (inFlightGraph.has(eventId)) {
+            return inFlightGraph.get(eventId);
+        }
+
+        const promise = (async () => {
+            try {
+                const apiBase = await resolveBackendUrl();
+
+                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/graph`, {
+                    signal: AbortSignal.timeout(4000)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const points = data?.graphPoints || data?.graphPointsV2 || [];
+                    const result = {
+                        graphPoints: Array.isArray(points) ? points : [],
+                        noGraph: Boolean(data?.noGraph),
+                        isQueued: data?.status === 'queued'
+                    };
+                    adapterGraphCache.set(eventId, { time: Date.now(), data: result });
+                    return result;
+                }
+            } catch (e) {
+                console.warn(`[SOFASCORE_ADAPTER] Graph fetch failed for ${eventId}:`, e.message);
+            }
+            return { graphPoints: [], noGraph: false, isQueued: false };
+        })().finally(() => {
+            inFlightGraph.delete(eventId);
+        });
+
+        inFlightGraph.set(eventId, promise);
+        return promise;
+    },
+
+    /**
+     * Fetches match incidents (goals, cards, substitutions, periods) for timeline.
+     */
+    async fetchEventIncidents(eventId) {
+        if (!eventId) return [];
+        const now = Date.now();
+        const cached = adapterIncidentsCache.get(eventId);
+        if (cached && (now - cached.time < 60000)) {
+            return cached.data;
+        }
+        if (inFlightIncidents.has(eventId)) {
+            return inFlightIncidents.get(eventId);
+        }
+
+        const promise = (async () => {
+            try {
+                const apiBase = await resolveBackendUrl();
+
+                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/incidents`, {
+                    signal: AbortSignal.timeout(4000)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const incidents = Array.isArray(data?.incidents) ? data.incidents : [];
+                    incidents.isQueued = data?.status === 'queued';
+                    incidents.noIncidents = Boolean(data?.noIncidents);
+                    adapterIncidentsCache.set(eventId, { time: Date.now(), data: incidents });
+                    return incidents;
+                }
+            } catch (e) {
+                console.warn(`[SOFASCORE_ADAPTER] Incidents fetch failed for ${eventId}:`, e.message);
+            }
+            const empty = [];
+            empty.isQueued = false;
+            empty.noIncidents = false;
+            return empty;
+        })().finally(() => {
+            inFlightIncidents.delete(eventId);
+        });
+
+        inFlightIncidents.set(eventId, promise);
+        return promise;
+    },
+
+    /**
+     * Fetches match statistics (possession, shots, corners, etc.).
+     */
+    async fetchEventStatistics(eventId) {
+        if (!eventId) return [];
+        const now = Date.now();
+        const cached = adapterStatsCache.get(eventId);
+        if (cached && (now - cached.time < 45000)) {
+            return cached.data;
+        }
+        if (inFlightStats.has(eventId)) {
+            return inFlightStats.get(eventId);
+        }
+
+        const promise = (async () => {
+            try {
+                const apiBase = await resolveBackendUrl();
+                const res = await fetch(`${apiBase}/api/sofascore/event/${eventId}/statistics`, {
+                    signal: AbortSignal.timeout(5000)
+                });
+                if (res.ok) {
+                    if (res.status === 202) {
+                        // Backend queued the request, DO NOT cache empty array so UI retries quickly
+                        return [];
+                    }
+                    const data = await res.json();
+                    if (data?.status === 'queued') {
+                        return [];
+                    }
+                    const stats = data?.statistics || [];
+                    if (Array.isArray(stats) && stats.length > 0) {
+                        adapterStatsCache.set(eventId, { time: Date.now(), data: stats });
+                    }
+                    return stats;
+                }
+            } catch (e) {
+                console.warn(`[SOFASCORE_ADAPTER] Statistics fetch failed for ${eventId}:`, e.message);
+            }
+            return [];
+        })().finally(() => {
+            inFlightStats.delete(eventId);
+        });
+
+        inFlightStats.set(eventId, promise);
+        return promise;
+    },
+
+    /**
+     * Fetches central live odds for all active matches in 1 single network call.
+     */
+    async fetchCentralOdds() {
+        try {
+            const data = await getLiveOddsMap();
+            const formatted = {};
+            if (data && typeof data === 'object') {
+                for (const [key, val] of Object.entries(data)) {
+                    if (val && (val.home !== undefined || val.away !== undefined)) {
+                        formatted[key] = {
+                            home: parseFloat(val.home) || 0,
+                            draw: parseFloat(val.draw) || 0,
+                            away: parseFloat(val.away) || 0,
+                            source: val.source || 'LIVE_ODDS'
+                        };
+                    }
+                }
+            }
+            return formatted;
+        } catch (e) {
+            return {};
+        }
+    },
+
+    /**
+     * Fetches live odds (1-X-2) for a specific event directly from SofaScore or Proxy.
+     */
+    async fetchEventOdds(eventId, forceDetailed = false) {
+        try {
+            // 1. Instant check from central live odds map if detailed not strictly requested
+            const strId = String(eventId);
+            const numId = Number(eventId);
+            if (!forceDetailed) {
+                const central = await getLiveOddsMap();
+                const matchOdds = central[strId] || central[numId] || (central.matches && central.matches.find(m => String(m.id || m.eventId) === strId)?.odds);
+                if (matchOdds && (matchOdds.home !== undefined || matchOdds.away !== undefined)) {
+                    return {
+                        home: parseFloat(matchOdds.home) || 0,
+                        draw: parseFloat(matchOdds.draw) || 0,
+                        away: parseFloat(matchOdds.away) || 0,
+                        doubleChance: matchOdds.doubleChance || null,
+                        btts: matchOdds.btts || null,
+                        overUnder: matchOdds.overUnder || null,
+                        nextGoal: matchOdds.nextGoal || null,
+                        isLive: matchOdds.isLive === true && !matchOdds.suspended,
+                        source: matchOdds.source || 'CENTRAL_ODDS'
+                    };
+                }
+            }
+
+            const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            let data = null;
+
+            if (isLocalDev) {
+                // LOCAL: Use proxy for odds (much faster)
+                const proxyBase = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) || 'http://127.0.0.1:3001';
+                const res = await fetch(`${proxyBase}/api/sofascore/event/${eventId}/odds/1/all`, { signal: AbortSignal.timeout(3000) });
+                if (res.ok) data = await res.json();
+            } else {
+                // PRODUCTION: Use active Cloudflare Tunnel / Render backend proxy, Firebase as fallback
+                const renderBase = await resolveBackendUrl();
+                try {
+                    const res = await fetch(`${renderBase}/api/sofascore/event/${eventId}/odds/1/all`, { signal: AbortSignal.timeout(3000) });
+                    if (res.ok) data = await res.json();
+                } catch {
+                    try {
+                        const snapshot = await get(ref(database, `odds/${eventId}`));
+                        if (snapshot.exists()) data = snapshot.val();
+                    } catch {}
+                }
+            }
+
+            if (!data) return null;
+
+            // Direct 1-X-2 format (from proxy or live_odds.json)
+            if (data.home !== undefined && data.away !== undefined && !data.markets) {
+                return {
+                    home: parseFloat(data.home) || 0,
+                    draw: parseFloat(data.draw) || 0,
+                    away: parseFloat(data.away) || 0,
+                    isLive: data.isLive === true && !data.suspended,
+                    doubleChance: data.doubleChance || null,
+                    btts: data.btts || null,
+                    overUnder: data.overUnder || null,
+                    nextGoal: data.nextGoal || null,
+                    source: data.source || 'LOCAL_PROXY'
+                };
+            }
+
+            // Live market structure (Prioritize genuine in-play: isLive === true)
+            if (data.markets && Array.isArray(data.markets)) {
+                const parseChoice = (c) => {
+                    if (!c) return null;
+                    for (const k of ['decimalValue', 'value']) {
+                        if (c[k] !== undefined && c[k] !== null) {
+                            const v = parseFloat(c[k]);
+                            if (!isNaN(v) && v > 0) return v;
+                        }
+                    }
+                    const frac = c.fractionalValue || c.initialFractionalValue;
+                    if (frac) {
+                        const parts = String(frac).trim().split('/');
+                        if (parts.length === 2) {
+                            const num = parseFloat(parts[0]);
+                            const den = parseFloat(parts[1]);
+                            if (!isNaN(num) && !isNaN(den) && den > 0) {
+                                return parseFloat(((num / den) + 1.0).toFixed(2));
+                            }
+                        }
+                    }
+                    return null;
+                };
+
+                // Priority 1: Genuine in-play live markets (isLive: true && !suspended)
+                const liveMarkets = data.markets.filter(m => Boolean(m.isLive) && !m.suspended);
+                const hasGenuineLive = liveMarkets.length > 0;
+                const activeMarkets = hasGenuineLive ? liveMarkets : data.markets.filter(m => !m.suspended);
+
+                // 1. Full Time 1X2
+                const ftMarket = activeMarkets.find(m => m.id === 1 || m.marketId === 1 || m.marketName?.toLowerCase() === 'full time' || m.marketGroup === '1X2');
+                let homeOdds = null, drawOdds = null, awayOdds = null;
+                if (ftMarket && ftMarket.choices) {
+                    const homeChoice = ftMarket.choices.find(c => c.name === '1' || c.idx === 1);
+                    const drawChoice = ftMarket.choices.find(c => c.name === 'X' || c.idx === 2);
+                    const awayChoice = ftMarket.choices.find(c => c.name === '2' || c.idx === 3);
+                    homeOdds = parseChoice(homeChoice);
+                    drawOdds = parseChoice(drawChoice);
+                    awayOdds = parseChoice(awayChoice);
+                }
+
+                // 2. Double Chance (1X, 12, X2)
+                const dcMarket = activeMarkets.find(m => m.id === 2 || m.marketId === 2 || m.marketGroup === 'Double chance' || m.marketName?.toLowerCase() === 'double chance');
+                const doubleChance = {};
+                if (dcMarket && dcMarket.choices) {
+                    dcMarket.choices.forEach(c => {
+                        const name = c.name?.trim();
+                        const val = parseChoice(c);
+                        if (name && val) doubleChance[name] = val;
+                    });
+                }
+
+                // 3. Both Teams to Score (KG Var / Yok)
+                const bttsMarket = activeMarkets.find(m => m.id === 5 || m.marketId === 5 || m.marketGroup === 'Both teams to score' || m.marketName?.toLowerCase() === 'both teams to score');
+                const btts = {};
+                if (bttsMarket && bttsMarket.choices) {
+                    const yesC = bttsMarket.choices.find(c => c.name?.toLowerCase() === 'yes' || c.name?.toLowerCase() === 'evet');
+                    const noC = bttsMarket.choices.find(c => c.name?.toLowerCase() === 'no' || c.name?.toLowerCase() === 'hayır');
+                    if (yesC) btts.yes = parseChoice(yesC);
+                    if (noC) btts.no = parseChoice(noC);
+                }
+
+                // 4. Match Goals (Alt / Üst: 0.5, 1.5, 2.5, 3.5)
+                const overUnder = {};
+                const goalMarkets = activeMarkets.filter(m => m.id === 9 || m.marketId === 9 || m.marketGroup === 'Match goals' || m.marketName?.toLowerCase() === 'match goals');
+                goalMarkets.forEach(gm => {
+                    const line = String(gm.choiceGroup || '').trim();
+                    if (line && gm.choices) {
+                        const overC = gm.choices.find(c => c.name?.toLowerCase() === 'over' || c.name?.toLowerCase() === 'üst');
+                        const underC = gm.choices.find(c => c.name?.toLowerCase() === 'under' || c.name?.toLowerCase() === 'alt');
+                        const oVal = parseChoice(overC);
+                        const uVal = parseChoice(underC);
+                        if (oVal || uVal) {
+                            overUnder[line] = { over: oVal, under: uVal };
+                        }
+                    }
+                });
+
+                // 5. Next Goal (Sıradaki Gol)
+                const nextGoal = {};
+                const ngMarket = activeMarkets.find(m => m.id === 8 || m.marketId === 8 || m.marketGroup === 'Next goal' || m.marketName?.toLowerCase() === 'next goal');
+                if (ngMarket && ngMarket.choices) {
+                    ngMarket.choices.forEach((c, idx) => {
+                        const val = parseChoice(c);
+                        const cName = (c.name || '').toLowerCase();
+                        if (cName.includes('no goal') || cName.includes('gol yok') || idx === 1) {
+                            nextGoal.noGoal = val;
+                        } else if (idx === 0) {
+                            nextGoal.home = val;
+                        } else if (idx === 2) {
+                            nextGoal.away = val;
+                        }
+                    });
+                }
+
+                if (homeOdds || awayOdds || Object.keys(overUnder).length > 0) {
+                    return {
+                        home: homeOdds,
+                        draw: drawOdds,
+                        away: awayOdds,
+                        isLive: Boolean(hasGenuineLive && ftMarket?.isLive),
+                        doubleChance: Object.keys(doubleChance).length > 0 ? doubleChance : null,
+                        btts: Object.keys(btts).length > 0 ? btts : null,
+                        overUnder: Object.keys(overUnder).length > 0 ? overUnder : null,
+                        nextGoal: Object.keys(nextGoal).length > 0 ? nextGoal : null,
+                        source: 'LIVE_MARKET'
+                    };
+                }
+            }
+            return null;
+        } catch (error) {
+            console.warn(`[DATA_ADAPTER] Odds fetch notice for ${eventId}:`, error.message);
+            return null;
+        }
+    },
+
+    /**
+     * Normalizes SofaScore data to our internal schema.
+     */
+    normalize(detail, stats) {
+        const event = detail.event;
+        let isPartial = false;
+        let dataQuality = 'OK';
+
+        const normalizedStats = {
+            possession: { home: 0, away: 0 },
+            shotsOnGoal: { home: 0, away: 0 },
+            dangerousAttacks: { home: 0, away: 0 },
+            corners: { home: 0, away: 0 },
+            xg: { home: 0, away: 0 },
+            bigChances: { home: 0, away: 0 },
+            totalShots: { home: 0, away: 0 },
+            cards: { home: { yellow: 0, red: 0 }, away: { yellow: 0, red: 0 } },
+            rawStats: {}
+        };
+
+        if (stats.statistics && stats.statistics.length > 0) {
+            const allStats = stats.statistics.find(s => s.period === 'ALL');
+            if (allStats) {
+                normalizedStats.groups = allStats.groups;
+                allStats.groups.forEach(group => {
+                    group.statisticsItems.forEach(item => {
+                        const name = item.name.toLowerCase();
+                        const homeVal = item.home;
+                        const awayVal = item.away;
+
+                        const parseVal = (v) => {
+                            if (typeof v === 'string') {
+                                return parseFloat(v.replace('%', '')) || 0;
+                            }
+                            return parseFloat(v) || 0;
+                        };
+
+                        // Unified mapping with fallbacks and more synonyms
+                        if (name.includes('possession')) {
+                            normalizedStats.possession.home = parseVal(homeVal);
+                            normalizedStats.possession.away = parseVal(awayVal);
+                        }
+
+                        if (name.includes('shots on target') || name === 'shots on goal' || name === 'isabetli şut') {
+                            normalizedStats.shotsOnGoal.home = parseVal(homeVal);
+                            normalizedStats.shotsOnGoal.away = parseVal(awayVal);
+                        }
+
+                        if (name === 'total shots' || name === 'shots' || name === 'toplam şut') {
+                            normalizedStats.totalShots.home = parseVal(homeVal);
+                            normalizedStats.totalShots.away = parseVal(awayVal);
+                        }
+
+                        if (name === 'dangerous attacks' || name === 'dangerous attack' || name === 'tehlikeli atak') {
+                            normalizedStats.dangerousAttacks.home = parseVal(homeVal);
+                            normalizedStats.dangerousAttacks.away = parseVal(awayVal);
+                        } else if (name === 'final third entries' || name === 'final third phase') {
+                            if (normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
+                                normalizedStats.dangerousAttacks.home = parseVal(homeVal);
+                                normalizedStats.dangerousAttacks.away = parseVal(awayVal);
+                            }
+                        } else if (name === 'touches in penalty area' && normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
+                            normalizedStats.dangerousAttacks.home = parseVal(homeVal);
+                            normalizedStats.dangerousAttacks.away = parseVal(awayVal);
+                        }
+
+                        if (name === 'big chances' || name === 'büyük şans') {
+                            normalizedStats.bigChances.home = parseVal(homeVal);
+                            normalizedStats.bigChances.away = parseVal(awayVal);
+                        }
+
+                        if ((name === 'expected goals' || name === 'xg' || name === 'beklenen gol') && !name.includes('target')) {
+                            normalizedStats.xg.home = parseVal(homeVal);
+                            normalizedStats.xg.away = parseVal(awayVal);
+                        } else if (name.includes('expected goals on target') || name === 'xgot') {
+                            normalizedStats.xgot = { home: parseVal(homeVal), away: parseVal(awayVal) };
+                        }
+
+                        if (name === 'corner kicks' || name === 'corners' || name === 'köşe vuruşu') {
+                            normalizedStats.corners.home = parseVal(homeVal);
+                            normalizedStats.corners.away = parseVal(awayVal);
+                        }
+
+                        if (name === 'yellow cards') {
+                            normalizedStats.cards.home.yellow = parseVal(homeVal);
+                            normalizedStats.cards.away.yellow = parseVal(awayVal);
+                        }
+                        if (name === 'red cards') {
+                            normalizedStats.cards.home.red = parseVal(homeVal);
+                            normalizedStats.cards.away.red = parseVal(awayVal);
+                        }
+
+                        normalizedStats.rawStats[item.name] = { home: homeVal, away: awayVal };
+                    });
+                });
+                normalizedStats.groups = allStats.groups;
+                if (event) {
+                    normalizedStats.cards.home.red = Math.max(normalizedStats.cards.home.red || 0, event.homeRedCards || 0);
+                    normalizedStats.cards.away.red = Math.max(normalizedStats.cards.away.red || 0, event.awayRedCards || 0);
+                }
+
+                // Fallback: If dangerous attacks not explicitly tracked by league, estimate from actual actions (shots & corners)
+                if (normalizedStats.dangerousAttacks.home === 0 && normalizedStats.dangerousAttacks.away === 0) {
+                    const shotsHome = normalizedStats.totalShots.home || 0;
+                    const shotsAway = normalizedStats.totalShots.away || 0;
+                    const cornersHome = normalizedStats.corners.home || 0;
+                    const cornersAway = normalizedStats.corners.away || 0;
+                    if (shotsHome > 0 || shotsAway > 0 || cornersHome > 0 || cornersAway > 0) {
+                        normalizedStats.dangerousAttacks.home = Math.round((shotsHome * 2) + (cornersHome * 2));
+                        normalizedStats.dangerousAttacks.away = Math.round((shotsAway * 2) + (cornersAway * 2));
+                    }
+                }
+
+                // Determine quality based on major stats
+                const hasMajorStats = normalizedStats.shotsOnGoal.home > 0 || normalizedStats.shotsOnGoal.away > 0 ||
+                    normalizedStats.dangerousAttacks.home > 0 || normalizedStats.dangerousAttacks.away > 0;
+
+                // We only mark as partial if we have absolutely no groups or very few items
+                const totalItems = allStats.groups.reduce((acc, g) => acc + g.statisticsItems.length, 0);
+
+                if (totalItems < 3) {
+                    isPartial = true;
+                    dataQuality = 'PARTIAL';
+                } else if (!hasMajorStats) {
+                    isPartial = false; // Show what we have
+                    dataQuality = 'LIMITED';
+                } else {
+                    isPartial = false;
+                    dataQuality = 'OK';
+                }
+            } else {
+                // No 'ALL' period stats found - but we might have other periods?
+                // For now, treat as partial but KEEP the metadata from detail
+                isPartial = true;
+                dataQuality = 'PARTIAL';
+            }
+        } else {
+            // No stats object at all - check if we have basic info in detail
+            isPartial = true;
+            dataQuality = 'EMPTY';
+        }
+
+        const homeTeamId = event?.homeTeam?.id;
+        const awayTeamId = event?.awayTeam?.id;
+        const categoryName = event.tournament?.category?.name || '';
+        const uniqueTourn = event.tournament?.uniqueTournament || {};
+        const gender = event.homeTeam?.gender || uniqueTourn.gender || event.tournament?.category?.gender || (
+            (event.tournament?.name?.toLowerCase().includes('women') || categoryName.toLowerCase().includes('women')) ? 'F' : 'M'
+        );
+
+        return {
+            id: event.id,
+            homeTeam: event.homeTeam?.name || 'Home',
+            awayTeam: event.awayTeam?.name || 'Away',
+            homeTeamId,
+            awayTeamId,
+            homeTeamLogo: homeTeamId ? `https://img.sofascore.com/api/v1/team/${homeTeamId}/image` : null,
+            awayTeamLogo: awayTeamId ? `https://img.sofascore.com/api/v1/team/${awayTeamId}/image` : null,
+            homeColors: event.homeTeam?.teamColors,
+            awayColors: event.awayTeam?.teamColors,
+            league: event.tournament?.name || 'Unknown',
+            leagueName: event.tournament?.name || 'Unknown',
+            leagueId: event.tournament?.id,
+            category: categoryName,
+            uniqueTournamentId: uniqueTourn.id || null,
+            uniqueTournamentName: uniqueTourn.name || '',
+            userCount: uniqueTourn.userCount || 0,
+            hasPlayerStats: !!uniqueTourn.hasEventPlayerStatistics,
+            gender,
+            status: event.status?.description,
+            minute: this.calculateMinute ? this.calculateMinute(event) : (event.status?.description || '0\''),
+            score: {
+                home: event.homeScore?.current || 0,
+                away: event.awayScore?.current || 0
+            },
+            stats: normalizedStats,
+            cards: normalizedStats.cards,
+            isPartial,
+            dataQuality,
+            timestamp: Date.now(),
+            source: 'SOFASCORE'
+        };
+    },
+
+    /**
+     * Calculates the current live minute from SofaScore statusTime.
+     */
+    calculateMinute(event) {
+        if (!event || !event.status) return "0'";
+
+        const status = event.status || {};
+        const code = status.code;
+        const statusType = (status.type || '').toLowerCase();
+        const desc = (status.description || '').trim();
+        const descLower = desc.toLowerCase();
+
+        // 1. Canceled / Postponed / Suspended / Interrupted / Abandoned
+        if (code === 91 || code === 92 || code === 93 || code === 94 || code === 95 ||
+            descLower.includes('postponed') || descLower.includes('canceled') || 
+            descLower.includes('interrupted') || descLower.includes('suspended') || 
+            descLower.includes('abandoned') || descLower.includes('ertele') || descLower.includes('iptal')) {
+            return desc || 'Ert.';
+        }
+
+        // 2. Not started
+        if (statusType === 'notstarted' || code === 0) {
+            return desc || "0'";
+        }
+
+        // 3. Halftime / Devre Arası (CRITICAL: Must check BEFORE finished because 'halftime' contains 'ft')
+        if (code === 31 || descLower === 'halftime' || descLower === 'ht' || 
+            descLower.includes('halftime') || descLower.includes('half-time') || 
+            (descLower.includes('half') && descLower.includes('time')) || descLower.includes('devre')) {
+            return 'İY';
+        }
+
+        // 4. Finished / Maç Sonu
+        if (statusType === 'finished' || code === 100 || 
+            descLower === 'ft' || descLower === 'ended' || descLower === 'finished' || 
+            descLower.includes('bitti') || descLower.includes('sona') ||
+            /\b(ft|finished|ended|full time|full-time)\b/i.test(desc)) {
+            return 'MS';
+        }
+
+        // 5. Live in progress: Use SofaScore's own clock formula
+        // SofaScore calculates: displaySec = min(initial + elapsedFromPeriodStart, max)
+        const timeObj = event.time || {};
+        const statusTime = event.statusTime || {};
+        const now = Math.floor(Date.now() / 1000);
+
+        // Overtime / Extra time
+        if (descLower.includes('extra') || code === 14 || code === 15 || code === 16) {
+            const periodStart = statusTime.timestamp || timeObj.currentPeriodStartTimestamp;
+            const periodElapsedMin = periodStart ? Math.floor(Math.max(0, now - periodStart) / 60) : 0;
+            return `${90 + periodElapsedMin}'`;
+        }
+
+        // Penaltılar
+        if (descLower.includes('penalties') || code === 120) {
+            return 'Pen.';
+        }
+
+        // Use SofaScore's clock fields: initial, max, extra, timestamp
+        const initialSec = statusTime.initial ?? timeObj.initial ?? (code === 7 ? 2700 : 0);
+        const maxSec = statusTime.max ?? timeObj.max ?? (code === 7 ? 5400 : 2700);
+        const extraSec = statusTime.extra ?? timeObj.extra ?? 540; // 9 min default
+        const periodTimestamp = statusTime.timestamp || timeObj.currentPeriodStartTimestamp || event.startTimestamp;
+
+        const elapsedSec = periodTimestamp ? Math.max(0, now - periodTimestamp) : 0;
+
+        // SofaScore formula: clamp to max
+        const rawSec = initialSec + elapsedSec;
+        const maxMinute = Math.floor(maxSec / 60); // 45 for 1st half, 90 for 2nd half
+
+        // Check if we're in stoppage/injury time (past 45' in 1st half, or past 90' in 2nd half)
+        if (rawSec > maxSec) {
+            // Extreme safety guard: if a match has been running for > 60 mins in a single period
+            // and the feed died, force end it
+            if (elapsedSec > 60 * 60) {
+                const totalElapsedFromStart = event.startTimestamp ? (now - event.startTimestamp) : 0;
+                if ((code === 6 || descLower.includes('1st')) && totalElapsedFromStart < 80 * 60) {
+                    return 'İY';
+                }
+                return 'MS';
+            }
+            // During live in-progress stoppage time, SofaScore displays "90+" or "45+"
+            return `${maxMinute}+`;
+        }
+
+        // Normal time within period
+        const displayMin = Math.floor(rawSec / 60);
+        return `${Math.max(1, displayMin)}'`;
+    }
+};
