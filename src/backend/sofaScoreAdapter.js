@@ -119,7 +119,7 @@ export const sofaScoreAdapter = {
                 let data = null;
 
                 try {
-                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(2500) });
+                    const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(8000) });
                     if (response.ok) {
                         data = await response.json();
                     }
@@ -152,7 +152,7 @@ export const sofaScoreAdapter = {
                 if (apiBase) {
                     const renderUrl = `${apiBase}/api/sofascore/live`;
                     try {
-                        const response = await fetch(renderUrl, { signal: AbortSignal.timeout(2500) });
+                        const response = await fetch(renderUrl, { signal: AbortSignal.timeout(8000) });
                         if (response.ok) {
                             const data = await response.json();
                             if (data && data.events) {
@@ -393,8 +393,8 @@ export const sofaScoreAdapter = {
                 if (renderBase) {
                     try {
                         const [detailRes, statsRes] = await Promise.all([
-                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(2500) }),
-                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(2500) })
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}`, { signal: AbortSignal.timeout(8000) }),
+                            fetch(`${renderBase}/api/sofascore/event/${eventId}/statistics`, { signal: AbortSignal.timeout(8000) })
                         ]);
 
                         const latency = Date.now() - startTime;

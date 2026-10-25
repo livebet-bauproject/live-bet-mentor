@@ -14,7 +14,7 @@ export const consensusAdapter = {
 
             if (isLocalDev) {
                 // LOCAL: Read from proxy which serves consensus_data.json
-                const proxyBase = 'http://localhost:3001';
+                const proxyBase = 'http://127.0.0.1:3001';
                 const response = await fetch(`${proxyBase}/api/consensus`);
                 if (!response.ok) {
                     console.warn('[CONSENSUS_ADAPTER] Proxy returned:', response.status);

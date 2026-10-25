@@ -25,7 +25,7 @@ export async function initBackendDiscovery() {
   if (typeof window === 'undefined') return getApiBaseUrl();
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
-    activeBackendUrl = 'http://localhost:3001';
+    activeBackendUrl = 'http://127.0.0.1:3001';
     return activeBackendUrl;
   }
 
@@ -77,7 +77,7 @@ export async function initBackendDiscovery() {
 if (typeof window !== 'undefined') {
   const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   if (isLocalHost) {
-    activeBackendUrl = 'http://localhost:3001';
+    activeBackendUrl = 'http://127.0.0.1:3001';
   }
   // Run background verification without blocking UI
   initBackendDiscovery();
@@ -89,7 +89,7 @@ export function getApiBaseUrl() {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.') || hostname.startsWith('10.') || hostname.startsWith('172.')) {
-      return 'http://localhost:3001';
+      return 'http://127.0.0.1:3001';
     }
     if (activeBackendUrl) {
       return activeBackendUrl;

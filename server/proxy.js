@@ -93,10 +93,11 @@ const generalApiLimiter = createRateLimiter({
     message: 'Sistem Koruması: İstek kotası aşıldı, lütfen biraz bekleyiniz.'
 });
 
-// Ultra-fast gzip compression middleware (Shrinks /api/sofascore/live from 540KB to ~45KB)
+// Ultra-fast gzip compression middleware (Shrinks /api/sofascore/live from 540KB to ~45KB for remote clients)
 app.use((req, res, next) => {
     const acceptEncoding = req.headers['accept-encoding'] || '';
-    if (!acceptEncoding.includes('gzip')) return next();
+    const isLocalClient = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+    if (isLocalClient || !acceptEncoding.includes('gzip')) return next();
 
     const originalJson = res.json;
     res.json = function(data) {
@@ -105,7 +106,7 @@ app.use((req, res, next) => {
             if (body.length > 1500) {
                 res.setHeader('Content-Type', 'application/json');
                 res.setHeader('Content-Encoding', 'gzip');
-                const compressed = zlib.gzipSync(Buffer.from(body, 'utf8'), { level: 6 });
+                const compressed = zlib.gzipSync(Buffer.from(body, 'utf8'), { level: 1 });
                 return res.send(compressed);
             }
             return originalJson.call(this, data);
@@ -5448,7 +5449,7 @@ async function onServerStarted() {
     }
 }
 
-const server = app.listen(PORT, '0.0.0.0', onServerStarted);
+const server = app.listen(PORT, onServerStarted);
 
 server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
@@ -5456,7 +5457,7 @@ server.on('error', (err) => {
         freePort(PORT);
         setTimeout(() => {
             try { server.close(); } catch(e) {}
-            server.listen(PORT, '0.0.0.0', onServerStarted);
+            server.listen(PORT, onServerStarted);
         }, 1500);
     } else {
         console.error('[PROXY] Server listen error:', err.message);
