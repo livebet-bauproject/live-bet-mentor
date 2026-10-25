@@ -12,7 +12,26 @@ import { CONFIG } from '../config.js';
 
 export class XGModule {
     calculate(fixture) {
-        if (!CONFIG.MODULAR_SYSTEM.OPTIONAL_MODULES.XG_ANALYSIS) return null;
+        if (!fixture) {
+            return {
+                home: 0,
+                away: 0,
+                total: 0,
+                surplus: { home: 0, away: 0, total: 0, signal: 'NEUTRAL' },
+                rate: { perMinute: 0 },
+                source: 'NONE'
+            };
+        }
+        if (!CONFIG?.MODULAR_SYSTEM?.OPTIONAL_MODULES?.XG_ANALYSIS) {
+            return {
+                home: 0,
+                away: 0,
+                total: 0,
+                surplus: { home: 0, away: 0, total: 0, signal: 'NEUTRAL' },
+                rate: { perMinute: 0 },
+                source: 'DISABLED'
+            };
+        }
 
         const { stats, score } = fixture;
         let xgHome = 0;

@@ -270,8 +270,8 @@ class LiveOpportunityScorer {
         
         // 3. Dynamic Momentum (Window-based)
         const momentumScore = this._calculateMomentumScore(match, windowMinutes);
-        const pressureScore = pressureData.total || 0;
-        const xgScore = xgData.surplus?.total > 0.5 ? 95 : (xgData.rate?.perMinute > 0.02 ? 75 : 45);
+        const pressureScore = pressureData?.total || 0;
+        const xgScore = (xgData?.surplus?.total || 0) > 0.5 ? 95 : ((xgData?.rate?.perMinute || 0) > 0.02 ? 75 : 45);
         
         const riskScore = this._calculateRiskScore(activeSignal);
         const oddsScore = this._calculateOddsScore(match, activeSignal);
@@ -279,7 +279,7 @@ class LiveOpportunityScorer {
         // 4. Synergy Bonus (xG + Pressure Alignment)
         // STRICT: Only award synergy bonus if we have GENUINE xG data, NOT simulated fallback on bare stats!
         let synergyBonus = 0;
-        if (hasRealXG && xgData.surplus?.total > 0.3 && pressureScore > 65) {
+        if (hasRealXG && (xgData?.surplus?.total || 0) > 0.3 && pressureScore > 65) {
             synergyBonus = 15; // Stats backed by genuine xG quality
         }
 
@@ -437,7 +437,7 @@ class LiveOpportunityScorer {
             const bStats = baseline.stats || {};
             const bPressure = pressureIndex.calculate(bStats, baselineMinute > 0 ? baselineMinute : 45, baseline.score)?.total || 0;
             const bXgData = xGModule.calculate({ stats: bStats, score: baseline.score });
-            const bXgScore = bXgData.surplus?.total > 0.5 ? 95 : (bXgData.rate?.perMinute > 0.02 ? 75 : 45);
+            const bXgScore = (bXgData?.surplus?.total || 0) > 0.5 ? 95 : ((bXgData?.rate?.perMinute || 0) > 0.02 ? 75 : 45);
             
             // Baseline momentum is always 50 (neutral point of origin)
             const bMomentum = 50; 
