@@ -308,42 +308,47 @@ class DataWorker {
                         priorityIds.add(String(this.selectedMatchId));
                     }
 
-                    // 2. High-Priority Matches Missing Stats (Tier 1 & 2 or live in-progress): up to 6 per cycle
-                    const tier1Missing = rawMatches.filter(rm => {
-                        const tier = leagueProfileModule.getTier(rm);
-                        if (tier > 2) return false;
-                        const ex = this.fixtures.find(f => String(f.id) === String(rm.id));
-                        return !ex || !ex.stats || ex.isPartial || ex.statsPending;
-                    });
-                    for (const rm of tier1Missing.slice(0, 6)) {
-                        priorityIds.add(rm.id);
-                    }
-
-                    // 3. All other live in-progress matches missing stats: up to 8 per cycle (rapid sweep)
-                    const otherMissingStats = rawMatches.filter(rm => {
-                        if (priorityIds.has(rm.id)) return false;
-                        const ex = this.fixtures.find(f => String(f.id) === String(rm.id));
-                        const hasNoStats = !ex || !ex.stats || ex.isPartial || ex.statsPending ||
-                            ((ex.stats.shotsOnGoal?.home === 0 && ex.stats.shotsOnGoal?.away === 0) &&
-                             (ex.stats.dangerousAttacks?.home === 0 && ex.stats.dangerousAttacks?.away === 0));
-                        return hasNoStats;
-                    });
-                    for (const rm of otherMissingStats.slice(0, 8)) {
-                        priorityIds.add(rm.id);
-                    }
-
-                    // 4. Stale live matches (> 35s since last stats update): up to 6 per cycle
-                    const staleMatches = rawMatches.filter(rm => {
-                        if (priorityIds.has(rm.id)) return false;
-                        const lastFetch = this.matchLastStatsFetch.get(rm.id) || 0;
-                        return (now - lastFetch > 35000);
-                    });
-                    for (const rm of staleMatches.slice(0, 6)) {
-                        priorityIds.add(rm.id);
-                    }
-
-                    console.log(`[DATA_WORKER] Optimized Load-Balanced Polling: ${priorityIds.size} priority detailed match(es) out of ${rawMatches.length} live matches.`);
-
+                    // 2. High-Priority Matches Missing Stats (Tier 1 & 2 or live in-progress)
+                    const isLocal = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+                    const isInitial = (!this.fixtures || this.fixtures.length === 0 || this.fixtures.every(f => !f.stats || f.isPartial));
+                    const tier1Quota = (isLocal || isInitial) ? 28 : 8;
+                    const otherQuota = (isLocal || isInitial) ? 22 : 10;
+                    const staleQuota = (isLocal || isInitial) ? 16 : 6;
+
+                    const tier1Missing = rawMatches.filter(rm => {
+                        const tier = leagueProfileModule.getTier(rm);
+                        if (tier > 2) return false;
+                        const ex = this.fixtures.find(f => String(f.id) === String(rm.id));
+                        return !ex || !ex.stats || ex.isPartial || ex.statsPending;
+                    });
+                    for (const rm of tier1Missing.slice(0, tier1Quota)) {
+                        priorityIds.add(rm.id);
+                    }
+
+                    // 3. All other live in-progress matches missing stats: rapid sweep
+                    const otherMissingStats = rawMatches.filter(rm => {
+                        if (priorityIds.has(rm.id)) return false;
+                        const ex = this.fixtures.find(f => String(f.id) === String(rm.id));
+                        const hasNoStats = !ex || !ex.stats || ex.isPartial || ex.statsPending ||
+                            ((ex.stats.shotsOnGoal?.home === 0 && ex.stats.shotsOnGoal?.away === 0) &&
+                             (ex.stats.dangerousAttacks?.home === 0 && ex.stats.dangerousAttacks?.away === 0));
+                        return hasNoStats;
+                    });
+                    for (const rm of otherMissingStats.slice(0, otherQuota)) {
+                        priorityIds.add(rm.id);
+                    }
+
+                    // 4. Stale live matches (> 35s since last stats update)
+                    const staleMatches = rawMatches.filter(rm => {
+                        if (priorityIds.has(rm.id)) return false;
+                        const lastFetch = this.matchLastStatsFetch.get(rm.id) || 0;
+                        return (now - lastFetch > 35000);
+                    });
+                    for (const rm of staleMatches.slice(0, staleQuota)) {
+                        priorityIds.add(rm.id);
+                    }
+
+                    console.log(`[DATA_WORKER] Optimized Load-Balanced Polling: ${priorityIds.size} priority detailed match(es) out of ${rawMatches.length} live matches.`);
                     const detailedMatches = await Promise.all(
                         rawMatches.map(async (match) => {
                             const eventId = match.id;
