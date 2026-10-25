@@ -4,7 +4,7 @@ let activeBackendUrl = null;
 let lastDiscoveryTime = 0;
 let discoveryPromise = null;
 
-async function pingBackend(url, timeoutMs = 1200) {
+async function pingBackend(url, timeoutMs = 3500) {
   if (!url || typeof url !== 'string' || !url.startsWith('http')) return false;
   try {
     const controller = new AbortController();
@@ -30,7 +30,7 @@ export async function initBackendDiscovery() {
   }
 
   const now = Date.now();
-  if (now - lastDiscoveryTime < 30000) {
+  if (now - lastDiscoveryTime < 30000 && activeBackendUrl) {
     return activeBackendUrl;
   }
 
@@ -42,8 +42,8 @@ export async function initBackendDiscovery() {
       const { data } = await supabase.from('system_settings').select('value').eq('key', 'backend_api_url').maybeSingle();
       if (data && data.value && data.value.startsWith('http')) {
         const candidateUrl = data.value.trim().replace(/\/$/, '');
-        // Fast ping verification (max 600ms) - don't trap the user with dead tunnels!
-        const isAlive = await pingBackend(candidateUrl, 600);
+        // Generous ping verification (3500ms) for WAN Cloudflare Tunnel
+        const isAlive = await pingBackend(candidateUrl, 3500);
         if (isAlive) {
           activeBackendUrl = candidateUrl;
           try { 
@@ -53,10 +53,10 @@ export async function initBackendDiscovery() {
           console.log('[API_DISCOVERY] Verified live backend:', candidateUrl);
           return candidateUrl;
         } else {
-          console.warn('[API_DISCOVERY] Registered backend is unreachable (offline tunnel). Bypassing to cloud fallback:', candidateUrl);
-          activeBackendUrl = null;
-          try { localStorage.removeItem('lbm_backend_api_url'); } catch(e) {}
-          return null;
+          // Fallback: still use candidateUrl since Render is disabled/offline
+          console.warn('[API_DISCOVERY] Ping slow, using candidate tunnel directly:', candidateUrl);
+          activeBackendUrl = candidateUrl;
+          return candidateUrl;
         }
       }
     } catch(err) {
@@ -65,9 +65,7 @@ export async function initBackendDiscovery() {
       discoveryPromise = null;
     }
 
-    // If candidate verification failed, do not use stale unverified cache
-    activeBackendUrl = null;
-    return null;
+    return activeBackendUrl;
   })();
 
   return discoveryPromise;
