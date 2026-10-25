@@ -220,15 +220,17 @@ def fetch_stats_via_js(driver, match_id, include_extras=False):
         # Hard 3.2s internal timeout inside JavaScript guarantees done() is ALWAYS invoked!
         # This completely prevents driver TimeoutExceptions from ever happening.
         script = """
-        var done = arguments[0];
-        var mid = String(arguments[1]);
-        var includeExtras = Boolean(arguments[2]);
+        var done = arguments[arguments.length - 1];
+        var mid = String(arguments[0]);
+        var includeExtras = Boolean(arguments[1]);
         var finished = false;
         
         var timer = setTimeout(function() {
             if (!finished) {
                 finished = true;
-                done({ status: 'timeout', stats: null, detail: null, odds: null, graph: null, incidents: null });
+                if (typeof done === 'function') {
+                    done({ status: 'timeout', stats: null, detail: null, odds: null, graph: null, incidents: null });
+                }
             }
         }, 3200);
 
@@ -236,7 +238,9 @@ def fetch_stats_via_js(driver, match_id, include_extras=False):
             if (!finished) {
                 finished = true;
                 clearTimeout(timer);
-                done(payload);
+                if (typeof done === 'function') {
+                    done(payload);
+                }
             }
         }
 
@@ -850,12 +854,14 @@ def _run_capture_session():
                     driver.set_script_timeout(10)
                     cb = int(time.time())
                     script_live = f"""
-                    var done = arguments[0];
+                    var done = arguments[arguments.length - 1];
                     var finished = false;
                     var timer = setTimeout(function() {{
                         if (!finished) {{
                             finished = true;
-                            done({{ status: 'timeout' }});
+                            if (typeof done === 'function') {{
+                                done({{ status: 'timeout' }});
+                            }}
                         }}
                     }}, 4500);
 
@@ -863,7 +869,9 @@ def _run_capture_session():
                         if (!finished) {{
                             finished = true;
                             clearTimeout(timer);
-                            done(payload);
+                            if (typeof done === 'function') {{
+                                done(payload);
+                            }}
                         }}
                     }}
 

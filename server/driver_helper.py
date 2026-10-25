@@ -113,16 +113,13 @@ def purge_cached_chromedriver():
 def get_chromedriver_path():
     """Ensure an up-to-date patched ChromeDriver matching the installed Chrome version."""
     os.makedirs(BIN_DIR, exist_ok=True)
+    if os.path.exists(DRIVER_PATH):
+        return DRIVER_PATH
+
     major_ver = get_installed_chrome_version()
     
-    # 1. Kill any zombie drivers locking the binary
+    # 1. Kill any zombie drivers locking the binary only during initial bootstrap
     if is_win:
-        try:
-            subprocess.run(["taskkill", "/F", "/IM", "chromedriver.exe", "/T"], capture_output=True, timeout=3)
-            subprocess.run(["taskkill", "/F", "/IM", "undetected_chromedriver.exe", "/T"], capture_output=True, timeout=3)
-        except Exception:
-            pass
-        # Clean stale driver binary before patching to prevent Windows WinError 183
         default_uc_path = os.path.join(os.environ.get('APPDATA', ''), 'undetected_chromedriver', 'undetected_chromedriver.exe')
         if os.path.exists(default_uc_path):
             try:

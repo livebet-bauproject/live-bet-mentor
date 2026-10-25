@@ -48,6 +48,9 @@ class ConsensusScraper:
             options.add_argument('--no-sandbox')
             options.add_argument('--disable-dev-shm-usage')
             options.add_argument('--disable-gpu')
+            import tempfile
+            temp_profile = os.path.join(tempfile.gettempdir(), f'consensus_profile_{os.getpid()}')
+            options.add_argument(f'--user-data-dir={temp_profile}')
             if use_mobile:
                 options.add_argument('--window-size=375,812')
             else:
